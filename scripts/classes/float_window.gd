@@ -98,6 +98,9 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 		var sc := ScrollContainer.new()
 		sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		# v35: содержимое растягивается на высоту окна — графики с флагом EXPAND растут вместе с окном
+		mc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_vb.add_child(sc)
 		sc.add_child(mc)
 		_content = sc

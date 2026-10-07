@@ -16,10 +16,15 @@ var filter := -1             # показывать только агентов 
 var centroid := Vector2(INF, INF)
 var hover := -1
 var hover_mark := -1
+var zoom := 1.0              # v35: приближение (колёсико), сдвиг — перетаскиванием
+var pan := Vector2.ZERO      # центр вида в координатах осей
+var _drag := false
+var _drag_from := Vector2.ZERO
+var _moved := false
 const PAD := 22.0
 
 func _init() -> void:
-	custom_minimum_size = Vector2(220.0, 240.0)
+	custom_minimum_size = Vector2(160.0, 160.0)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -31,7 +36,29 @@ func plot() -> Rect2:
 
 func to_px(v: Vector2) -> Vector2:
 	var r := plot()
-	return Vector2(r.position.x + r.size.x * 0.5 + v.x / xr * r.size.x * 0.5, r.position.y + r.size.y * 0.5 - v.y / xr * r.size.y * 0.5)
+	var u := (v - pan) * zoom
+	return Vector2(r.position.x + r.size.x * 0.5 + u.x / xr * r.size.x * 0.5, r.position.y + r.size.y * 0.5 - u.y / xr * r.size.y * 0.5)
+
+func from_px(p: Vector2) -> Vector2:
+	var r := plot()
+	var u := Vector2((p.x - r.position.x - r.size.x * 0.5) / (r.size.x * 0.5) * xr, -(p.y - r.position.y - r.size.y * 0.5) / (r.size.y * 0.5) * xr)
+	return u / zoom + pan
+
+func zoom_at(p: Vector2, k: float) -> void:
+	var before := from_px(p)
+	zoom = clampf(zoom * k, 1.0, 8.0)
+	pan += before - from_px(p)
+	clamp_pan()
+	queue_redraw()
+
+func clamp_pan() -> void:
+	var lim: float = xr * (1.0 - 1.0 / zoom)
+	pan = Vector2(clampf(pan.x, -lim, lim), clampf(pan.y, -lim, lim))
+
+func reset_view() -> void:
+	zoom = 1.0
+	pan = Vector2.ZERO
+	queue_redraw()
 
 func text_box(f: Font, pos: Vector2, txt: String, fs: int, col: Color, align: int = 0) -> void:
 	# align: 0 — от pos вправо, 1 — по центру, 2 — вправо-налево (pos — правый край)
@@ -46,7 +73,7 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.06, 0.07, 0.11))
 	var r := plot()
 	draw_rect(r, Color(0.075, 0.09, 0.14))
-	var c0: Vector2 = to_px(Vector2.ZERO)
+	var c0: Vector2 = to_px(Vector2.ZERO).clamp(r.position, r.end)
 	# четверти слегка подкрашены, чтобы было видно, где «лево-право» и «верх-низ»
 	draw_rect(Rect2(r.position, Vector2(c0.x - r.position.x, c0.y - r.position.y)), Color(1, 1, 1, 0.012))
 	draw_rect(Rect2(c0, r.end - c0), Color(1, 1, 1, 0.012))
@@ -68,7 +95,9 @@ func _draw() -> void:
 		var col: Color = cols[i]
 		if filter >= 0 and favs.size() > i and favs[i] != filter:
 			col.a = 0.08
-		draw_circle(to_px(pts[i]), 2.3, col)
+		var pp: Vector2 = to_px(pts[i])
+		if r.grow(2.0).has_point(pp):
+			draw_circle(pp, 2.3 if zoom < 2.5 else 3.2, col)
 	# центр общества
 	if centroid.x != INF:
 		var cc: Vector2 = to_px(centroid)
@@ -79,6 +108,8 @@ func _draw() -> void:
 	for mi in marks.size():
 		var m: Array = marks[mi]
 		var c: Vector2 = to_px(m[0])
+		if not r.grow(6.0).has_point(c):
+			continue
 		var rad: float = 5.0 + 9.0 * sqrt(clampf(float(m[3]), 0.0, 1.0))
 		if filter >= 0 and filter != mi:
 			rad = 4.0
@@ -109,6 +140,11 @@ func _draw() -> void:
 		var yn: String = "↑ " + String(axis_names[1])
 		var yw: float = f.get_string_size(yn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 		draw_string(f, Vector2(r.end.x - yw, 14.0), yn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.75))
+	if zoom > 1.01:
+		text_box(f, Vector2(r.end.x - 4.0, r.position.y + 14.0), "×%.1f · двойной щелчок — весь вид" % zoom, 10, Color(1, 1, 1, 0.75), 2)
+	else:
+		text_box(f, Vector2(r.end.x - 4.0, r.position.y + 14.0), "колёсико — приблизить", 10, Color(1, 1, 1, 0.45), 2)
+
 
 func nearest_point(pos: Vector2, max_d: float) -> int:
 	var best := -1
@@ -133,6 +169,24 @@ func nearest_mark(pos: Vector2) -> int:
 	return best
 
 func _gui_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.pressed and (e.button_index == MOUSE_BUTTON_WHEEL_UP or e.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		zoom_at(e.position, 1.2 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.2)
+		accept_event()
+		return
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.double_click:
+		reset_view()
+		accept_event()
+		return
+	if e is InputEventMouseMotion and _drag and ((e as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+		var mp: Vector2 = (e as InputEventMouseMotion).position
+		if mp.distance_to(_drag_from) > 4.0 or _moved:
+			_moved = true
+			var r := plot()
+			var rel: Vector2 = (e as InputEventMouseMotion).relative
+			pan -= Vector2(rel.x / (r.size.x * 0.5) * xr, -rel.y / (r.size.y * 0.5) * xr) / zoom
+			clamp_pan()
+			queue_redraw()
+			return
 	if e is InputEventMouseMotion:
 		var p: Vector2 = (e as InputEventMouseMotion).position
 		var hm := nearest_mark(p)
@@ -148,12 +202,25 @@ func _gui_input(e: InputEvent) -> void:
 				tooltip_text = ""
 			mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if hp >= 0 else Control.CURSOR_ARROW
 			queue_redraw()
-	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		var best := nearest_point(e.position, 12.0)
-		if best >= 0 and picked.is_valid():
-			picked.call(ids[best])
+	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed:
+			_drag = true
+			_moved = false
+			_drag_from = e.position
+		else:
+			_drag = false
+			if not _moved:
+				var best := nearest_point(e.position, 12.0)
+				if best >= 0 and picked.is_valid():
+					picked.call(ids[best])
+			_moved = false
 
 func _notification(what: int) -> void:
+	# v35: карта сохраняет пропорции — растёт вместе с шириной окна (лишнее прокручивается)
+	if what == NOTIFICATION_RESIZED:
+		var want: float = clampf(size.x * 0.8, 160.0, 900.0)
+		if absf(custom_minimum_size.y - want) > 2.0:
+			custom_minimum_size.y = want
 	if what == NOTIFICATION_MOUSE_EXIT and (hover >= 0 or hover_mark >= 0):
 		hover = -1
 		hover_mark = -1
