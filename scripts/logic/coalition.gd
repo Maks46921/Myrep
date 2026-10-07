@@ -4,19 +4,61 @@ extends "res://scripts/logic/elections.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func coal_members() -> Array:
+	return []
+
+
+func coal_share(p: int) -> float:
+	return 0.0
+
+
+func council_invite_vote(p: int) -> Dictionary:
+	return {}
+
+
+func council_min_vote(m: int, p: int, old: int) -> Dictionary:
+	return {}
+
+
+func council_on() -> bool:
+	return false
+
+
 func end_game(msg: String) -> void:
 	pass
+
+
+func invite_offer_w(p: int, promise: bool, mins: int) -> float:
+	return 0.0
 
 
 func party_lean(g: String, p: int) -> float:
 	return 0.0
 
 
+func show_crisis_exit() -> bool:
+	return false
+
+
 # --- конец заглушек ---
 
 
+const GOV_EXCLUDE := [6]      # «прочие» — не партия, в коалицию не входит
+const CORDON_JOIN := -30.0     # v35: «санитарный кордон» вместо прежнего «никогда» (−99)
+
+
+# может ли партия вообще входить в правительство/договариваться
+func can_govern(p: int) -> bool:
+	return p > 0 and p < PARTY_NAMES.size() and not (p in GOV_EXCLUDE)
+
+
+# партия, с которой мейнстрим обычно не вступает в коалицию
+func is_cordon(p: int) -> bool:
+	return p > 0 and p < PARTY_TRAITS.size() and float(PARTY_TRAITS[p]["join"]) <= -50.0
+
+
 func tolerates(p: int) -> bool:
-	return p > 0 and p < 9 and not in_coalition[p] and seats[p] > 0 and ((minority_ok and willingness(p, false) >= TOLERATE_W) or pact_has(p, "tol"))
+	return can_govern(p) and not in_coalition[p] and seats[p] > 0 and ((minority_ok and willingness(p, false) >= TOLERATE_W) or pact_has(p, "tol"))
 
 
 func against_seats() -> int:
@@ -29,13 +71,15 @@ func against_seats() -> int:
 
 
 func gov_ok() -> bool:
-	if minority_ok:
+	if techno_until > turn:
+		return true
+	if minority_ok or minority_gov:
 		return against_seats() < MAJORITY
 	return gov_seats() >= MAJORITY
 
 
 func gov_margin() -> int:
-	if minority_ok:
+	if minority_ok or minority_gov:
 		return MAJORITY - 1 - against_seats()
 	return gov_seats() - MAJORITY
 
@@ -180,7 +224,8 @@ func port_score(p: int) -> float:
 	if held == 0:
 		return 15.0
 	var fair: float = float(seats[p]) / float(maxi(1, gov_seats())) * float(MINISTRIES.size())
-	return clampf(50.0 + 25.0 * (float(held) - fair) / maxf(1.0, fair) + 20.0 * float(pref), 0.0, 100.0)
+	# v35: любой портфель радует, профильный — сильнее
+	return clampf(50.0 + 25.0 * (float(held) - fair) / maxf(1.0, fair) + 20.0 * float(pref) + 6.0 * float(held - pref), 0.0, 100.0)
 
 
 func sat_target(p: int) -> float:
@@ -291,9 +336,7 @@ func cycle_ministry(m: int) -> void:
 		return
 	var idx: int = holders.find(ministries[m])
 	var nxt: int = holders[(idx + 1) % holders.size()]
-	ministries[m] = nxt
-	log_line("Министерство «%s» передано: %s." % [MINISTRIES[m]["name"], PARTY_NAMES[nxt]])
-	refresh()
+	assign_ministry(m, nxt)
 
 
 func select_party(p: int) -> void:
@@ -366,7 +409,7 @@ func form_government(verbose: bool) -> bool:
 	if not gov_ok():
 		var cands: Array = []
 		for p in range(1, PARTY_NAMES.size()):
-			if not in_coalition[p] and seats[p] > 0 and p < 9 and willingness(p, false) >= COALITION_JOIN:
+			if not in_coalition[p] and seats[p] > 0 and can_govern(p) and willingness(p, false) >= COALITION_JOIN:
 				cands.append([willingness(p, false), p])
 		cands.sort_custom(func(a, c): return a[0] > c[0])
 		for c in cands:
@@ -419,9 +462,14 @@ func check_government() -> void:
 		if crisis_months == 1:
 			log_line("[color=%s][b]Правительственный кризис![/b] В коалиции только %d мест из %d. Восстановите большинство за %d месяцев, иначе парламент будет распущен.[/color]" % [COL_BAD, gov_seats(), SEATS, crisis_limit()])
 		elif crisis_months >= crisis_limit():
-			capital = maxf(0.0, capital - 10.0)
-			hold_parliament("правительство не получило поддержки парламента")
-			return
+			# v35: вместо автоматического роспуска — выбор пути выхода из кризиса (без штрафа капиталом)
+			if not crisis_offered and show_crisis_exit():
+				return
+			if crisis_months >= crisis_limit() + 3 and current_event.is_empty():
+				deadlock += 1
+				crisis_offered = false
+				hold_parliament("правительство не получило поддержки парламента")
+				return
 	var avg_sat: float = sum_sat / float(members) if members > 0 else 60.0
 	var risky: bool = gov_margin() < seat_pad() or (members > 0 and avg_sat < 45.0) or crisis_months > 0
 	if risky and turn - last_nocon >= 18 and current_event.is_empty() and randf() < 0.05:
@@ -563,11 +611,18 @@ func assign_ministry(m: int, p: int) -> void:
 	if p != 0 and not in_coalition[p]:
 		return
 	var old: int = ministries[m]
+	if council_on():
+		var cv := council_min_vote(m, p, old)
+		if not bool(cv["ok"]):
+			log_tag("КАБИНЕТ", COL_BAD, "совет коалиции не согласился передать министерство «%s» партии «%s»: «за» %.0f%% влияния, против — %s." % [MINISTRIES[m]["name"], PARTY_NAMES[p], float(cv["yes"]) * 100.0, ", ".join(cv["no"])])
+			refresh()
+			return
+		log_tag("КАБИНЕТ", COL_DIM, "совет коалиции одобрил назначение («за» %.0f%% влияния)." % (float(cv["yes"]) * 100.0))
 	ministries[m] = p
 	if old > 0 and in_coalition[old]:
 		conc[old] = float(conc.get(old, 0.0)) - 5.0
 	if p > 0:
-		conc[p] = float(conc.get(p, 0.0)) + (5.0 if (m in (PARTY_MINISTRIES[p] as Array)) else 2.0)
+		conc[p] = float(conc.get(p, 0.0)) + (5.0 if (m in (PARTY_MINISTRIES[p] as Array)) else 3.0)
 	log_tag("КАБИНЕТ", COL_PURPLE, "министерство «%s» передано: %s → %s." % [MINISTRIES[m]["name"], PARTY_NAMES[old], PARTY_NAMES[p]])
 	recompute_mods()
 	refresh()
@@ -576,8 +631,18 @@ func assign_ministry(m: int, p: int) -> void:
 func replace_minister(m: int) -> void:
 	if game_over or capital < 5.0:
 		return
-	capital -= 5.0
 	var p: int = ministries[m]
+	if council_on() and p > 0:
+		# v35: смену чужого министра решает совет коалиции; партия-держатель против
+		var yes := 0.0
+		for q in coal_members():
+			if q == 0 or (q != p and rel(q, p) < 60.0):
+				yes += coal_share(q)
+		if yes <= 0.5:
+			log_tag("КАБИНЕТ", COL_BAD, "совет коалиции не поддержал смену министра «%s» от «%s» («за» %.0f%% влияния)." % [MINISTRIES[m]["name"], PARTY_NAMES[p], yes * 100.0])
+			refresh()
+			return
+	capital -= 5.0
 	var old: Dictionary = ministers[m]
 	ministers[m] = new_minister(m, p)
 	if p > 0:
@@ -599,7 +664,7 @@ func reshuffle_cabinet() -> void:
 
 
 func quota_for(p: int) -> int:
-	return maxi(1, int(round(float(seats[p]) / float(maxi(1, gov_seats())) * float(MINISTRIES.size()))))
+	return maxi(1, int(round(float(seats[p]) / float(maxi(1, gov_seats())) * float(MINISTRIES.size())))) + int(extra_mins.get(p, 0))
 
 
 func sat_breakdown(p: int) -> Array:
@@ -624,9 +689,14 @@ func sat_breakdown(p: int) -> Array:
 
 
 func willingness(p: int, promise: bool) -> float:
-	var w := party_attitude(p) + float(PARTY_TRAITS[p]["join"]) + float(DE_JOIN_ADJ[p])
+	var j: float = float(PARTY_TRAITS[p]["join"])
+	if j <= -50.0:
+		j = CORDON_JOIN + 5.0 * float(deadlock)
+	var w := party_attitude(p) + j + float(DE_JOIN_ADJ[p])
 	if prel.size() > p:
-		w += (float(prel[p]) - 50.0) * 0.25
+		w += (float(prel[p]) - 50.0) * (0.45 if is_cordon(p) else 0.25)
+	# v35: после повторных выборов без правительства партии охотнее идут на компромисс
+	w += 4.0 * float(mini(deadlock, 4))
 	if promise and not law_demand_of(p).is_empty() and not law_demand_met(p):
 		w += 8.0
 	return w
@@ -666,10 +736,16 @@ func check_commitments() -> void:
 	commitments = keep
 
 
-func invite_party(p: int, promise: bool = false) -> void:
-	if game_over or opp_mode or p == 0 or p >= 9 or seats[p] == 0 or in_coalition[p]:
+func invite_party(p: int, promise: bool = false, mins: int = 0) -> void:
+	if game_over or opp_mode or not can_govern(p) or seats[p] == 0 or in_coalition[p]:
 		return
-	var w := willingness(p, promise)
+	# v35: приём новой партии одобряют нынешние партнёры
+	var cv := council_invite_vote(p)
+	if not bool(cv["ok"]):
+		log_line("[color=%s]Партнёры по коалиции против приёма «%s» (за — %.0f%% влияния; против: %s).[/color]" % [COL_BAD, PARTY_NAMES[p], float(cv["yes"]) * 100.0, ", ".join(cv["no"])])
+		refresh()
+		return
+	var w := invite_offer_w(p, promise, mins)
 	var paid := false
 	if w < COALITION_JOIN:
 		if w >= COALITION_JOIN_PAID and capital >= CONCESSION_COST:
@@ -679,6 +755,8 @@ func invite_party(p: int, promise: bool = false) -> void:
 			log_line("[color=%s]«%s» отказалась войти в коалицию (готовность %.0f, нужно %.0f).[/color]" % [COL_BAD, PARTY_NAMES[p], w, COALITION_JOIN])
 			refresh()
 			return
+	if mins > 0:
+		extra_mins[p] = mins
 	add_member(p)
 	if paid:
 		conc[p] = 10.0
@@ -768,7 +846,7 @@ func show_coal_event() -> bool:
 	if not current_event.is_empty():
 		return false
 	var members: Array = []
-	for p in range(1, 9):
+	for p in range(1, PARTY_NAMES.size()):
 		if in_coalition[p]:
 			members.append(p)
 	if members.is_empty():

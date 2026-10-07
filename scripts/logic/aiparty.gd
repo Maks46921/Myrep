@@ -809,6 +809,20 @@ func bill_request(bid: int, ri: int, accept: bool) -> bool:
 	return true
 
 
+# почему нельзя смягчить/усилить законопроект ("" — можно)
+func bill_pow_block(b: Dictionary, kind: String) -> String:
+	var tid: String = String(b["tid"])
+	if int(b["idx"]) == 0:
+		return "возврат к прежнему порядку не имеет силы действия"
+	if not is_hybrid(tid):
+		return "у этого закона нет шкалы силы (он задаёт точное значение)"
+	if kind == "soft" and float(b["pow"]) <= 0.55:
+		return "закон уже смягчён до минимума (0.5×)"
+	if kind == "hard" and float(b["pow"]) >= 1.45:
+		return "закон уже ужесточён до максимума (1.5×)"
+	return ""
+
+
 func bill_amend(bid: int, kind: String) -> bool:
 	var bi := bill_index(bid)
 	if bi < 0:
@@ -819,14 +833,15 @@ func bill_amend(bid: int, kind: String) -> bool:
 	var tid: String = String(b["tid"])
 	var did: Dictionary = b["did"]
 	match kind:
-		"soft":
-			if not is_hybrid(tid) or float(b["pow"]) <= 0.55:
+		"soft", "hard":
+			var why := bill_pow_block(b, kind)
+			if why != "":
+				log_line("[color=%s]Поправка невозможна: %s.[/color]" % [COL_WARN, why])
 				return false
-			b["pow"] = float(b["pow"]) - 0.2
-		"hard":
-			if not is_hybrid(tid) or float(b["pow"]) >= 1.45:
-				return false
-			b["pow"] = float(b["pow"]) + 0.2
+			var y0: int = int(bill_preview(b)["yes"])
+			b["pow"] = snappedf(float(b["pow"]) + (-0.2 if kind == "soft" else 0.2), 0.1)
+			var y1: int = int(bill_preview(b)["yes"])
+			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s» %s: сила действия %.1f×; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], "смягчён" if kind == "soft" else "ужесточён", float(b["pow"]), y0, y1, law_need(tid)])
 		"sweet":
 			if bool(did.get("sweet", false)) or capital < 4.0:
 				return false

@@ -2,6 +2,7 @@
 extends Control
 
 const StatBar := preload("res://scripts/classes/stat_bar.gd")
+const PieChart := preload("res://scripts/classes/pie_chart.gd")
 const ElectionView := preload("res://scripts/classes/election_view.gd")
 const HeadView := preload("res://scripts/classes/head_view.gd")
 const FloatWindow := preload("res://scripts/classes/float_window.gd")

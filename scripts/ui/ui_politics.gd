@@ -269,8 +269,11 @@ func update_party_detail() -> void:
 		t += "Это ваша партия. Она всегда голосует за ваши законы.\n"
 	else:
 		t += electorate_text(p) + "\n"
-		if p < 9:
-			t += "[b]Характер лидера: %s.[/b] %s\n" % [PARTY_TRAITS[p]["trait"], PARTY_TRAITS[p]["desc"]]
+		if can_govern(p):
+			if String(PARTY_TRAITS[p]["trait"]) != "":
+				t += "[b]Характер лидера: %s.[/b] %s\n" % [PARTY_TRAITS[p]["trait"], PARTY_TRAITS[p]["desc"]]
+			if is_cordon(p):
+				t += "[color=%s]Другие партии держат вокруг неё «санитарный кордон»: коалиция возможна только при очень удачных обстоятельствах — хорошие отношения, щедрые обещания или затяжной кризис.[/color]\n" % COL_WARN
 		t += "Отношение избирателей партии к власти: %.0f.\n" % party_attitude(p)
 		if in_coalition[p]:
 			var s: float = float(satis.get(p, 50.0))
@@ -278,7 +281,7 @@ func update_party_detail() -> void:
 			t += "Министерства: %s.\n" % ministries_of(p)
 		else:
 			t += "Сейчас в оппозиции. Готовность войти в коалицию: %.0f (нужно %.0f).\n" % [willingness(p, false), COALITION_JOIN]
-		if p < 9:
+		if can_govern(p):
 			var ld := law_demand_of(p)
 			if not ld.is_empty():
 				var met := law_demand_met(p)
@@ -296,11 +299,11 @@ func update_party_detail() -> void:
 	var b1: Button = party_btns[1]
 	var b2: Button = party_btns[2]
 	var b3: Button = party_btns[3]
-	b0.visible = p > 0 and p < 9
-	b1.visible = p > 0 and p < 9
-	b2.visible = p > 0 and p < 9 and not (PARTY_DEMANDS[p] as Array).is_empty()
-	b3.visible = p > 0 and p < 9
-	if p > 0 and p < 9:
+	b0.visible = can_govern(p)
+	b1.visible = can_govern(p)
+	b2.visible = can_govern(p) and not (PARTY_DEMANDS[p] as Array).is_empty()
+	b3.visible = can_govern(p)
+	if can_govern(p):
 		b0.text = "Исключить из коалиции" if in_coalition[p] else "Пригласить в коалицию"
 		b0.disabled = game_over or seats[p] == 0 or opp_mode
 		b1.text = "Уступки партии (политкапитал 12)"

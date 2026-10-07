@@ -592,7 +592,7 @@ func update_law_detail() -> void:
 			vote.text = ""
 			vote.visible = false
 			bar.visible = false
-			btn.text = "Действует сейчас" if not is_param else "Это нынешнее значение — сдвиньте ползунок"
+			btn.text = ("Действует · силу можно изменить ползунком выше" if (is_hybrid(tid) and vi > 0) else "Действует сейчас") if not is_param else "Это нынешнее значение — сдвиньте ползунок"
 			btn.disabled = true
 			continue
 		vote.visible = true

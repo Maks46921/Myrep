@@ -52,10 +52,6 @@ func goods_support_term(group: String) -> float:
 	return 0.0
 
 
-func junior_power() -> float:
-	return 0.0
-
-
 func ministry_fx(m: int, p: int, skill: float = 65.0) -> Dictionary:
 	return {}
 
@@ -435,7 +431,7 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 	if fx.has("psat") and event_party > 0:
 		apply_psat(event_party, float(fx["psat"]))
 	if fx.has("psat_others") or fx.has("psat_all"):
-		for p in range(1, 9):
+		for p in range(1, PARTY_NAMES.size()):
 			if in_coalition[p]:
 				if fx.has("psat_all"):
 					apply_psat(p, float(fx["psat_all"]))
@@ -592,16 +588,7 @@ func lock_allowed(key: String, v: float) -> float:
 	if opp_mode:
 		# в оппозиции бюджет ведёт правительство
 		return float(pol_abs.get(key, float(pol[key]) * gdp / 100.0)) if is_abs(key) else float(pol[key])
-	var jp := junior_power()
-	if jp < 0.999:
-		# младший партнёр: глава правительства не даёт менять бюджет резко
-		var dd: Dictionary = policy_by_key[key]
-		var lim: float = (float(dd["max"]) - float(dd["min"])) * 0.10 * jp
-		var base: float = float(prev_pol.get(key, pol[key]))
-		if is_abs(key):
-			lim = lim * gdp / 100.0
-			base = base * gdp / 100.0
-		v = clampf(v, base - lim, base + lim)
+	# v35: младший партнёр больше не ограничен ползунком — изменения выносятся на совет коалиции (council_budget)
 	if not lock_active(key):
 		return v
 	var lk: Dictionary = locks[key]

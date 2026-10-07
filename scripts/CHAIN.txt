@@ -19,6 +19,7 @@ scripts/logic/society.gd
 scripts/logic/influence.gd
 scripts/logic/opposition.gd
 scripts/logic/aiparty.gd
+scripts/logic/council.gd
 scripts/logic/radical.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd

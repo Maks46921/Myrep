@@ -462,7 +462,7 @@ func fed_party_for_bloc(i: int) -> Array:
 		if p == 0 or in_coalition[p]:
 			continue
 		var sc: int = seats[p]
-		if p < 9 and sc > bs:
+		if can_govern(p) and sc > bs:
 			bs = sc
 			best = p
 	return [best] if best > 0 else [0]

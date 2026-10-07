@@ -300,6 +300,9 @@ func level_effect_list(key: String, v: float) -> Array:
 	return out
 
 
+const POW_MODERATION := 4.0   # v35: сдвиг позиции партий за каждую 1.0× силы (смягчение +, усиление −)
+
+
 # сменить только силу действия уже принятого варианта
 func law_tweak(tid: String) -> bool:
 	return is_hybrid(tid) and cur_idx(tid) > 0 and absf(pw_of(tid, true) - pw_of(tid)) > 0.01
@@ -352,6 +355,9 @@ func variant_stance(p: int, tid: String, idx: int) -> float:
 	if p == REGIONAL_P:
 		var rgd := dict_diff(variant_part(tid, cur, "rg"), variant_part(tid, idx, "rg", true))
 		s += float(rgd.get("autonomy", 0.0)) * 0.2
+	# v35: смягчённая редакция приемлема для большего числа партий, жёсткая — для меньшего
+	if idx > 0 and idx != cur and is_hybrid(tid):
+		s += (1.0 - pw_of(tid, true)) * POW_MODERATION
 	return s
 
 

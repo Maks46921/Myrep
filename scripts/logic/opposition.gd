@@ -21,7 +21,7 @@ func rel_add(a: int, b: int, d: float) -> void:
 
 # роли партий по слотам: 0 — ваша, 6 — «прочие», 8 — региональная, 9 — протестная
 const NO_PLAY_SLOTS := [6, 8, 9]
-const NO_GOV_SLOTS := [6, 9]
+const NO_GOV_SLOTS := [6]     # v35: партии «кордона» (бывший слот 9) тоже договариваются, но неохотно
 
 const OPP_ACTS := [
 	{"id": "critic", "name": "Резко критиковать правительство", "cap": 3.0, "cd": 2, "seats": false,
@@ -246,7 +246,11 @@ func ai_coalition(f: int, allow0: bool) -> Dictionary:
 	for q in PARTY_NAMES.size():
 		if q == f or seats[q] <= 0 or (q in NO_GOV_SLOTS) or (q == 0 and not allow0):
 			continue
-		cands.append([party_sim(f, q) + (0.0 if q != 0 else float(prel[f]) / 400.0), q])
+		var sc: float = party_sim(f, q) + (0.0 if q != 0 else float(prel[f]) / 400.0)
+		if is_cordon(q) or is_cordon(f):
+			# v35: «кордон» преодолевается только при сильном сходстве программ или после затяжного кризиса
+			sc -= maxf(0.0, 0.30 - 0.06 * float(deadlock))
+		cands.append([sc, q])
 	cands.sort_custom(func(a, b) -> bool: return a[0] > b[0])
 	for c in cands:
 		if s >= MAJORITY:

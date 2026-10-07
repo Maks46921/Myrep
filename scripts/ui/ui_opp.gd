@@ -101,7 +101,12 @@ func update_bill_window() -> void:
 		bill_sel = int(mine[0]["id"])
 	var bi := bill_index(bill_sel)
 	for k in bill_am:
-		(bill_am[k] as Button).disabled = bi < 0 or int(bills[bi]["sponsor"]) != 0 or game_over
+		var bt: Button = bill_am[k]
+		bt.disabled = bi < 0 or int(bills[bi]["sponsor"]) != 0 or game_over
+		if not bt.disabled and k in ["soft", "hard"]:
+			var why := bill_pow_block(bills[bi], String(k))
+			bt.disabled = why != ""
+			bt.tooltip_text = loc(why if why != "" else ("Сила −0.2: слабее эффекты, но закон приемлем для большего числа партий." if k == "soft" else "Сила +0.2: сильнее эффекты, но часть колеблющихся партий будет против."))
 	bill_acc.disabled = true
 	bill_rej.disabled = true
 	if bi < 0:

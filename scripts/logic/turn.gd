@@ -28,6 +28,10 @@ func bills_step() -> void:
 	pass
 
 
+func council_budget() -> void:
+	pass
+
+
 func dip_init() -> void:
 	pass
 
@@ -66,6 +70,10 @@ func idl_mult() -> float:
 
 func idl_step() -> void:
 	pass
+
+
+func junior_power() -> float:
+	return 0.0
 
 
 func log_add(e: Dictionary) -> void:
@@ -264,7 +272,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 
 # прирост политического капитала в месяц (v35: показывается рядом с капиталом в верхней панели)
 func cap_rate() -> float:
-	return (0.7 + (0.2 if approval() >= 55.0 else 0.0) + float(mods["capital_bonus"])) * idl_mult() * junior_power()
+	return (0.7 + (0.2 if approval() >= 55.0 else 0.0) + float(mods["capital_bonus"])) * idl_mult() * junior_power() * (0.5 if techno_until > turn else 1.0)
 
 
 
@@ -309,6 +317,7 @@ func next_turn() -> void:
 		return
 	recompute_mods()
 	top_prev = {"appr": approval(), "infl": inflation, "unemp": unemployment, "debt": debt / gdp * 100.0}
+	council_budget()
 	log_policy_changes()
 	autopilot_run()
 	turn += 1

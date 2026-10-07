@@ -546,6 +546,10 @@ func hold_parliament_core(reason: String) -> void:
 	if String(ELEC.get("head", "")) == "council":
 		pres_due = turn + 2
 	crisis_months = 0
+	crisis_offered = false
+	minority_gov = false
+	techno_until = -1
+	extra_mins.clear()
 	impeach_warned = false
 	warned.clear()
 	commitments.clear()
@@ -611,7 +615,9 @@ func hold_parliament_core(reason: String) -> void:
 			opp_msg = "Правительство: %s. Вы остаётесь в оппозиции: %d мест из %d." % [opp_gov_text(), seats[0], SEATS]
 			log_line("[color=%s]%s[/color]" % [COL_WARN, opp_msg])
 	elif form_government(true):
-		capital = minf(100.0, capital + 8.0)
+		deadlock = 0
+		# v35: новый мандат — после выборов у правительства есть капитал на первые шаги
+		capital = minf(100.0, maxf(capital, 30.0) + 8.0)
 		log_line("[color=%s][b]Правительство сформировано:[/b] %d мест из %d. Коалиция: %s.[/color]" % [COL_GOOD, gov_seats(), SEATS, coalition_names()])
 	else:
 		var alt := ai_form_gov(false)
@@ -623,6 +629,7 @@ func hold_parliament_core(reason: String) -> void:
 		else:
 			crisis_months = 1
 			state = "crisis"
+			capital = maxf(capital, 30.0)   # v35: капитал на переговоры о коалиции
 			log_line("[color=%s][b]Правительственный кризис![/b] В вашей коалиции %d мест из %d. У вас %d месяцев, чтобы найти партнёров, иначе будут назначены новые выборы.[/color]" % [COL_BAD, gov_seats(), SEATS, crisis_limit()])
 	var rep := {"reason": reason, "shares": shares, "raw": raw, "prev": prev, "old_seats": old_seats, "thr": thr, "sham": sham, "state": state,
 		"end": end_msg, "opp": opp_msg, "won": won, "best": best_r, "worst": worst_r}

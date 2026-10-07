@@ -1,5 +1,5 @@
 # Радикальные законы: форма правления, строй, выход из ЕС и т.д.
-extends "res://scripts/logic/aiparty.gd"
+extends "res://scripts/logic/council.gd"
 
 func arch_ps(tbl: Dictionary) -> Dictionary:
 	var out := {}

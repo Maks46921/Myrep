@@ -736,6 +736,8 @@ func update_forecast() -> void:
 				sp_sum += float(pol[d["key"]])
 				sp_amt += amt(d["key"])
 		spend_total_label.text = "Расходы по ползункам: %s млрд в год (%.1f%% ВВП), без процентов и программ законов" % [fmt_n(sp_amt), sp_sum]
+		if council_on() and bool(junior_info()["junior"]):
+			spend_total_label.text += "\nВы младший партнёр: изменения бюджета в начале следующего месяца рассмотрит совет коалиции (решает большинство по местам)."
 
 
 func update_stats() -> void:

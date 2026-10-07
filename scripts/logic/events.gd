@@ -12,12 +12,32 @@ func auto_resolve_event() -> void:
 	pass
 
 
+func council_event(pick: int) -> int:
+	return 0
+
+
+func council_event_note(i: int) -> String:
+	return ""
+
+
+func council_event_ok() -> bool:
+	return false
+
+
+func council_split(fx: Dictionary) -> Dictionary:
+	return {}
+
+
 func opp_resolve_offer(i: int) -> void:
 	pass
 
 
 func radical_events() -> Array:
 	return []
+
+
+func resolve_crisis(opt: Dictionary) -> void:
+	pass
 
 
 func set_time_btns(dis: bool) -> void:
@@ -136,7 +156,8 @@ func present_event() -> void:
 			b.text = "%d   %s" % [i + 1, coal_text(String(opts[i]["l"]))]
 			var d := describe_fx(opts[i]["fx"], event_region)
 			b.tooltip_text = ("Последствия: " + d) if d != "" else "Без прямых последствий"
-			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s[/font_size]" % fx_pros_cons(opts[i]["fx"], event_region)
+			var cn := council_event_note(i)
+			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s[/font_size]" % [fx_pros_cons(opts[i]["fx"], event_region), ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
 			var card: PanelContainer = event_boxes[i]
 			card.add_theme_stylebox_override("panel", sbox(C_PANEL2.darkened(0.18), kc.darkened(0.45), 1, 10, 4.0, 3.0))
 	set_time_btns(true)
@@ -198,9 +219,14 @@ func choose(i: int) -> void:
 	var opts: Array = current_event["o"]
 	if i >= opts.size():
 		return
-	var opt: Dictionary = opts[i]
 	var special: String = current_event.get("special", "")
-	var eff := apply_fx(opt["fx"], event_region)
+	var fx_in: Dictionary = opts[i]["fx"]
+	if council_event_ok():
+		# v35: событие решает совет коалиции; затраты капитала делятся по влиянию
+		i = council_event(i)
+		fx_in = council_split(opts[i]["fx"])
+	var opt: Dictionary = opts[i]
+	var eff := apply_fx(fx_in, event_region)
 	log_line("[color=%s]    ► Выбрано:[/color] «%s». %s" % [COL_DIM, opt["l"], ("[color=%s]Последствия:[/color] %s." % [COL_DIM, eff]) if eff != "" else "Прямых последствий нет."])
 	current_event = {}
 	event_region = -1
@@ -210,6 +236,8 @@ func choose(i: int) -> void:
 	set_time_btns(game_over)
 	if special == "nocon":
 		resolve_no_confidence()
+	elif special == "crisis":
+		resolve_crisis(opt)
 	elif special == "offer":
 		opp_resolve_offer(i)
 	refresh()

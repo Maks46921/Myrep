@@ -63,6 +63,12 @@ var in_coalition: Array[bool] = []
 var warned := {}
 
 var crisis_months := 0
+var deadlock := 0             # v35: досрочных выборов подряд из-за несформированного правительства
+var minority_gov := false     # v35: правительство меньшинства на терпимости (выход из кризиса)
+var techno_until := -1        # v35: техническое правительство до этого месяца
+var extra_mins := {}          # v35: p -> обещанные министерства сверх квоты
+var neg_offer_mins := 0       # v35: министерства сверх квоты в текущем предложении
+var crisis_offered := false   # v35: событие выхода из кризиса уже показано
 
 var impeach_warned := false
 
@@ -474,6 +480,7 @@ var sel_ministry := 0
 var neg_party := 1
 
 var neg_promise := false
+var coal_pie: PieChart = null   # v35: круговая диаграмма влияния в коалиции
 
 var coal_head: RichTextLabel
 
@@ -494,6 +501,7 @@ var neg_rt: RichTextLabel
 var neg_promise_btn: Button
 
 var neg_main_btn: Button
+var neg_mins_btn: Button
 
 var neg_conc_btn: Button
 

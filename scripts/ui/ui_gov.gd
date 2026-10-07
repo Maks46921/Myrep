@@ -4,8 +4,12 @@ extends "res://scripts/ui/ui_laws.gd"
 func build_gov_windows() -> void:
 	var w: FloatWindow = new_window("coal_sum", "Коалиция", 4, Rect2(0.0, 0.0, 0.25, 0.42))
 	coal_head = make_rt(w.body)
+	coal_pie = PieChart.new()
+	coal_pie.custom_minimum_size = Vector2(0.0, 110.0)
+	coal_pie.tooltip_text = "Влияние в коалиции: доля мест каждой партии среди мест коалиции. По ней решаются события, кабинет и бюджет (совет коалиции) и делятся затраты капитала."
+	w.body.add_child(coal_pie)
 	coal_rows.clear()
-	for p in range(1, 9):
+	for p in range(1, PARTY_NAMES.size()):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		w.body.add_child(row)
@@ -67,7 +71,7 @@ func build_gov_windows() -> void:
 	w = new_window("min_detail", "Министерство: кто и что даёт", 4, Rect2(0.25, 0.0, 0.25, 0.66))
 	min_head = make_rt(w.body)
 	min_cand_rows.clear()
-	for p in range(0, 9):
+	for p in PARTY_NAMES.size():
 		var panel := PanelContainer.new()
 		panel.add_theme_stylebox_override("panel", sbox(C_PANEL2, C_BORDER, 1, 8, 8.0, 6.0))
 		w.body.add_child(panel)
@@ -96,8 +100,9 @@ func build_gov_windows() -> void:
 	neg_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	neg_option.fit_to_longest_item = false
 	neg_option.clip_text = true
-	for p in range(1, 9):
-		neg_option.add_item(PARTY_NAMES[p])
+	for p in range(1, PARTY_NAMES.size()):
+		if can_govern(p):
+			neg_option.add_item(PARTY_NAMES[p], p)
 	neg_option.item_selected.connect(on_neg_selected)
 	w.body.add_child(neg_option)
 	neg_promise_btn = Button.new()
@@ -108,6 +113,9 @@ func build_gov_windows() -> void:
 		neg_promise_btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	neg_promise_btn.toggled.connect(on_neg_promise)
 	w.body.add_child(neg_promise_btn)
+	neg_mins_btn = make_button("", w.body)
+	neg_mins_btn.tooltip_text = "Министерства сверх положенной по местам квоты: каждое +6 к готовности. Отдаются из портфелей вашей партии."
+	neg_mins_btn.pressed.connect(on_neg_mins)
 	neg_main_btn = make_button("", w.body)
 	neg_main_btn.pressed.connect(on_neg_main)
 	neg_conc_btn = make_button("", w.body)
@@ -127,7 +135,9 @@ func select_ministry(m: int) -> void:
 
 
 func select_neg_party(p: int) -> void:
-	neg_party = clampi(p, 1, 8)
+	if not can_govern(p):
+		return
+	neg_party = p
 	selected_party = p
 	if current_desk != 4:
 		show_desk(4)
@@ -136,7 +146,7 @@ func select_neg_party(p: int) -> void:
 
 
 func on_neg_selected(idx: int) -> void:
-	neg_party = idx + 1
+	neg_party = neg_option.get_item_id(idx)
 	selected_party = neg_party
 	refresh()
 
@@ -146,11 +156,18 @@ func on_neg_promise(on: bool) -> void:
 	refresh()
 
 
+func on_neg_mins() -> void:
+	neg_offer_mins = (neg_offer_mins + 1) % 3
+	refresh()
+
+
 func on_neg_main() -> void:
 	if in_coalition[neg_party]:
 		toggle_coalition(neg_party)
 	else:
-		invite_party(neg_party, neg_promise)
+		invite_party(neg_party, neg_promise, neg_offer_mins)
+		if in_coalition[neg_party]:
+			neg_offer_mins = 0
 
 
 func on_neg_conc() -> void:
@@ -185,7 +202,7 @@ func update_coal_summary() -> void:
 	var members := 0
 	var sum_sat := 0.0
 	var weakest := -1
-	for p in range(1, 9):
+	for p in range(1, PARTY_NAMES.size()):
 		if in_coalition[p]:
 			members += 1
 			var s: float = float(satis.get(p, 50.0))
@@ -205,7 +222,13 @@ func update_coal_summary() -> void:
 	if weakest > 0 and float(satis.get(weakest, 50.0)) < SAT_LEAVE + 14.0:
 		t += "[color=%s]⚠ Ближе всех к выходу: %s (%.0f).[/color]\n" % [COL_WARN, PARTY_NAMES[weakest], float(satis.get(weakest, 50.0))]
 	coal_head.text = t
-	for p in range(1, 9):
+	var pie: Array = []
+	for p in PARTY_NAMES.size():
+		if in_coalition[p] and seats[p] > 0:
+			pie.append([float(seats[p]), PARTY_COLORS[p], PARTY_NAMES[p]])
+	coal_pie.set_data(pie)
+	coal_pie.visible = pie.size() >= 2
+	for p in range(1, PARTY_NAMES.size()):
 		var row: Dictionary = coal_rows[p - 1]
 		(row["row"] as Control).visible = in_coalition[p]
 		if in_coalition[p]:
@@ -243,7 +266,7 @@ func update_min_detail() -> void:
 	t += "Партия: [color=#%s][b]%s[/b][/color] — %s\n" % [(PARTY_COLORS[holder] as Color).lightened(0.3).to_html(false), PARTY_NAMES[holder], ministry_role_text(m, holder)]
 	t += "[b]Что даёт сейчас:[/b]\n[font_size=13]%s[/font_size]" % items_pros_cons(ministry_items(fx))
 	min_head.text = t
-	for p in range(0, 9):
+	for p in PARTY_NAMES.size():
 		var row: Dictionary = min_cand_rows[p]
 		var vis: bool = p == 0 or in_coalition[p]
 		(row["panel"] as Control).visible = vis
@@ -272,7 +295,10 @@ func refit_gov() -> void:
 
 func update_neg() -> void:
 	var p := neg_party
-	neg_option.select(p - 1)
+	if not can_govern(p):
+		p = 1
+		neg_party = 1
+	neg_option.select(neg_option.get_item_index(p))
 	var tr: Dictionary = PARTY_TRAITS[p]
 	var col: String = (PARTY_COLORS[p] as Color).lightened(0.25).to_html(false)
 	var t := "[b][font_size=18][color=#%s]%s[/color][/font_size][/b]\nЛидер: %s. Характер: [b]%s[/b]\n[color=%s]%s[/color]\n" % [col, PARTY_NAMES[p], PARTY_LEADERS[p], tr["trait"], COL_DIM, tr["desc"]]
@@ -290,10 +316,15 @@ func update_neg() -> void:
 		if s < SAT_LEAVE + 14.0:
 			t += "[color=%s]⚠ Причины недовольства: %s.[/color]\n" % [COL_WARN, sat_reason(p)]
 	else:
-		var w := willingness(p, neg_promise)
+		var w := invite_offer_w(p, neg_promise, neg_offer_mins)
 		t += "[b]Не в коалиции.[/b] Готовность войти: [b][color=#%s]%.0f[/color][/b] (нужно %.0f, с уступками %.0f)\n" % [
 			scale_color(clampf((w - 30.0) / 30.0, 0.0, 1.0)).to_html(false), w, COALITION_JOIN, COALITION_JOIN_PAID]
-		t += "[color=%s]Складывается из настроения избирателей, характера лидера%s.[/color]\n" % [COL_DIM, " и обещания закона" if neg_promise else ""]
+		t += "[color=%s]Складывается из настроения избирателей, характера лидера, отношений с вами%s%s.[/color]\n" % [COL_DIM, " и обещания закона" if neg_promise else "", (", министерств сверх квоты (+%d)" % (6 * neg_offer_mins)) if neg_offer_mins > 0 else ""]
+		if is_cordon(p):
+			t += "[color=%s]Вокруг партии «санитарный кордон»: без хороших отношений (переговоры во вкладке «Оппозиция и партии»), щедрых обещаний или затяжного кризиса она не войдёт.[/color]\n" % COL_WARN
+		if coal_members().size() >= 2:
+			var cv := council_invite_vote(p)
+			t += "Согласие партнёров: [b]%.0f%%[/b] влияния %s\n" % [float(cv["yes"]) * 100.0, ("[color=%s](против: %s)[/color]" % [COL_BAD, ", ".join(cv["no"])]) if not bool(cv["ok"]) else "[color=%s](достаточно)[/color]" % COL_GOOD]
 	t += "\n[b]Чего хочет партия[/b]\n"
 	t += "[b]Министерства:[/b] "
 	var pn: PackedStringArray = []
@@ -309,6 +340,8 @@ func update_neg() -> void:
 	neg_promise_btn.visible = can_promise
 	neg_promise_btn.set_pressed_no_signal(neg_promise and can_promise)
 	neg_promise_btn.text = "Пообещать закон-условие в течение 18 мес. (готовность +8)"
+	neg_mins_btn.visible = not in_coalition[p]
+	neg_mins_btn.text = "Предложить министерства сверх квоты: %d (готовность +%d)" % [neg_offer_mins, 6 * neg_offer_mins]
 	if in_coalition[p]:
 		neg_main_btn.text = "Исключить из коалиции"
 		neg_main_btn.disabled = game_over
@@ -323,7 +356,7 @@ func update_neg() -> void:
 				unmet = true
 		neg_dem_btn.disabled = game_over or not unmet
 	else:
-		var w2 := willingness(p, neg_promise and can_promise)
+		var w2 := invite_offer_w(p, neg_promise and can_promise, neg_offer_mins)
 		if w2 >= COALITION_JOIN:
 			neg_main_btn.text = "Пригласить в коалицию"
 			neg_main_btn.disabled = game_over or seats[p] == 0
@@ -351,7 +384,7 @@ func refit_neg() -> void:
 func update_cabfx() -> void:
 	var t := "[b]Суммарно от министров[/b] [color=%s](вместе с навыками)[/color]\n%s\n\n" % [COL_DIM, items_pros_cons(cabinet_items())]
 	t += "[b]Кто что приносит[/b]\n"
-	for p in range(0, 9):
+	for p in PARTY_NAMES.size():
 		var held: PackedStringArray = []
 		for m in MINISTRIES.size():
 			if ministries[m] == p:
@@ -374,7 +407,7 @@ func update_commit() -> void:
 		t += "[color=#%s]■[/color] %s: принять %s — осталось [b]%s[/b]\n" % [(PARTY_COLORS[p] as Color).lightened(0.3).to_html(false), PARTY_NAMES[p], law_demand_text(p), months_text(maxi(left, 0))]
 	t += "\n[b]Невыполненные требования партнёров[/b]\n"
 	var any := false
-	for p in range(1, 9):
+	for p in range(1, PARTY_NAMES.size()):
 		if not in_coalition[p]:
 			continue
 		var lines: PackedStringArray = []
