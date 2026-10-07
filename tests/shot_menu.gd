@@ -30,8 +30,18 @@ func _init():
 	await create_timer(0.5).timeout
 	root.get_viewport().get_texture().get_image().save_png(outp)
 	print("saved ", outp)
-	# --- масштаб и перемещение карты выбора страны ---
 	var bad := 0
+	# v35: описание положения меняется с выбранной партией (и есть режим наблюдателя)
+	var t0: String = g.menu_sit_rt.text if g.menu_sit_rt != null else ""
+	if t0 == "":
+		bad += 1; print("FAIL: нет описания положения партии")
+	g.update_menu_party(1)
+	if g.menu_sit_rt.text == t0:
+		bad += 1; print("FAIL: описание не меняется при выборе другой партии")
+	g.update_menu_party(g.OBSERVER_ID)
+	if not g.menu_sit_rt.text.contains("ИИ"):
+		bad += 1; print("FAIL: нет описания режима наблюдателя")
+	# --- масштаб и перемещение карты выбора страны ---
 	var gp: Vector2 = cm.get_global_rect().get_center()
 	var z0: float = cm.zoom
 	_btn(root, MOUSE_BUTTON_WHEEL_UP, true, gp)

@@ -84,6 +84,10 @@ func log_add(e: Dictionary) -> void:
 	pass
 
 
+func observer_step() -> void:
+	pass
+
+
 func opp_init() -> void:
 	pass
 
@@ -417,6 +421,7 @@ func next_turn() -> void:
 	if game_over:
 		return
 	ai_parties_step()
+	observer_step()
 	bills_step()
 	idl_step()
 	if game_over:

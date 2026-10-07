@@ -5,7 +5,7 @@ static var pending_code := ""
 static var pending_party := 0
 
 # Настройки новой игры (задаются в меню перед стартом и не меняются во время игры; переживают перезагрузку сцены)
-static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1}
+static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "observer": false}
 
 var ccode := "DE"
 var map_reg_pick: OptionButton = null   # список регионов в окне карты
@@ -65,6 +65,7 @@ var warned := {}
 var crisis_months := 0
 var prev_head: Array = []     # v35: доли кандидатов в 1-м туре прошлых выборов главы государства
 var h12 := {}                 # v35: помесячная история показателей за последние 12 мес.
+var observer := false         # v35: режим наблюдателя — вашей партией управляет ИИ
 var deadlock := 0             # v35: досрочных выборов подряд из-за несформированного правительства
 var minority_gov := false     # v35: правительство меньшинства на терпимости (выход из кризиса)
 var techno_until := -1        # v35: техническое правительство до этого месяца

@@ -418,3 +418,49 @@ func upper_summary() -> String:
 		parts.append("коалиционные правительства регионов %d" % mixed)
 	t += "[font_size=13]%s[/font_size]" % "  ".join(parts)
 	return t
+
+
+# ---------- режим наблюдателя (v35) ----------
+func observer_start() -> void:
+	observer = true
+	ap["bal"] = true
+	ap["events"] = true
+	ap["build"] = true
+	ap["repair"] = true
+	log_tag("НАБЛЮДАТЕЛЬ", COL_TEAL, "вы наблюдаете за игрой: партией «%s», бюджетом, событиями и законами управляет ИИ. Нажмите ▶ или пробел, чтобы пустить время." % PARTY_NAMES[0])
+
+
+# ход ИИ за вашу партию раз в месяц
+func observer_step() -> void:
+	if not observer or game_over or opp_mode:
+		return
+	# кризис: позвать самую готовую партию
+	if not gov_ok():
+		var best := -1
+		var bw := -INF
+		for p in range(1, PARTY_NAMES.size()):
+			if can_govern(p) and not in_coalition[p] and seats[p] > 0:
+				var w := willingness(p, true)
+				if w > bw:
+					bw = w
+					best = p
+		if best > 0 and bw >= COALITION_JOIN_PAID:
+			invite_party(best, true, 1 if bw < COALITION_JOIN else 0)
+	# законопроект правительства
+	var mine := false
+	for b in bills:
+		if int(b["sponsor"]) == 0:
+			mine = true
+	if not mine and capital >= 14.0 and randf() < 0.33:
+		var members: Array = []
+		for p in coal_members():
+			if p != 0:
+				members.append(p)
+		if members.is_empty():
+			members = [0]
+		ai_pick_law(0, members)
+	# бюджет: партнёрам — их требования, если ими недовольны
+	for p in coal_members():
+		if p != 0 and float(satis.get(p, 60.0)) < SAT_LEAVE + 10.0 and capital >= 20.0:
+			do_concession(p)
+			break

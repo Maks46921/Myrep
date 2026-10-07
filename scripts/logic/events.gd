@@ -8,6 +8,10 @@ func auto_event_ok(ev: Dictionary) -> bool:
 	return false
 
 
+func auto_event_pick(ev: Dictionary) -> int:
+	return 0
+
+
 func auto_resolve_event() -> void:
 	pass
 
@@ -123,6 +127,12 @@ func ev_context_text() -> String:
 
 
 func present_event() -> void:
+	if observer:
+		# v35: в режиме наблюдателя решения принимает ИИ
+		var ai_i := 0 if String(current_event.get("special", "")) == "crisis" else auto_event_pick(current_event)
+		log_tag("НАБЛЮДАТЕЛЬ", COL_TEAL, "%s — ИИ выбрал: «%s»." % [coal_text(String(current_event["t"])).replace("{r}", String(REGIONS[event_region]["name"]) if event_region >= 0 else ""), coal_text(String(current_event["o"][ai_i]["l"]))])
+		choose(ai_i)
+		return
 	var text: String = String(current_event["t"])
 	if event_region >= 0:
 		text = text.replace("{r}", REGIONS[event_region]["name"])

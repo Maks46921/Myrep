@@ -298,7 +298,11 @@ func fill_country_card(code: String, box: VBoxContainer, head: Label, sub: Label
 			cn.append(String(pnames[p]))
 	menu_rt(box, "[color=#98a1b8]Состав парламента на старте (наведите на цвет):[/color]")
 	menu_bar(box, items)
-	menu_rt(box, "[b]Ваша партия:[/b] %s, лидер — %s\n[b]Коалиция:[/b] %s — [b]%d[/b] мест из %d (%s)\n[b]Выборы:[/b] %s" % [pnames[0], String(pleaders[0]).replace(" (вы)", ""), ", ".join(cn), int(cs), seats_n, "есть большинство" if cs > float(seats_n) / 2.0 else "большинства нет", String(elec.get("sys", "—"))])
+	menu_rt(box, "[b]Правящая партия:[/b] %s, лидер — %s\n[b]Коалиция:[/b] %s — [b]%d[/b] мест из %d (%s)\n[b]Выборы:[/b] %s" % [pnames[0], String(pleaders[0]).replace(" (вы)", ""), ", ".join(cn), int(cs), seats_n, "есть большинство" if cs > float(seats_n) / 2.0 else "большинства нет", String(elec.get("sys", "—"))])
+	# v35: ситуация глазами выбранной партии
+	menu_title(box, "Ваше положение")
+	menu_sit_rt = menu_rt(box, "")
+	menu_sit_code = code
 	# --- экономика ---
 	menu_title(box, "Экономика")
 	var sh := sector_shares(code)
@@ -325,6 +329,8 @@ func fill_country_card(code: String, box: VBoxContainer, head: Label, sub: Label
 #  НАСТРОЙКИ НОВОЙ ИГРЫ (меню перед стартом; во время игры не меняются)
 # ============================================================
 var menu_est_code := ""
+var menu_sit_rt: RichTextLabel = null
+var menu_sit_code := ""
 var menu_est_lbl: Label = null
 var menu_ag_k: HSlider = null
 
@@ -506,6 +512,7 @@ func opts_from_args() -> void:
 			"fedev": game_opts["fedev"] = int(kv[1])
 			"socev": game_opts["socev"] = int(kv[1])
 			"exev": game_opts["exev"] = int(kv[1])
+			"observer": game_opts["observer"] = kv[1] != "0"
 
 
 func show_country_menu(in_game: bool) -> void:
@@ -621,8 +628,10 @@ func show_country_menu(in_game: bool) -> void:
 		menu_update_est()
 		fill_country_card(code, body, nm, st)
 		fill_party_pick(code, pick)
+		update_menu_party(pick.get_selected_id())
 		play.text = "Играть: %s" % String(WORLD[code]["name"])
 		sc.scroll_vertical = 0)
+	pick.item_selected.connect(func(i: int) -> void: update_menu_party(pick.get_item_id(i)))
 	play.pressed.connect(func() -> void:
 		if cur_code[0] != "":
 			choose_country(cur_code[0], int(pick.get_selected_id())))
@@ -636,6 +645,9 @@ func show_country_menu(in_game: bool) -> void:
 
 
 # список партий страны для выбора: ваша по умолчанию, остальные — с указанием положения
+const OBSERVER_ID := 99
+
+
 func fill_party_pick(code: String, ob: OptionButton) -> void:
 	ob.clear()
 	var pnames: Array = cdat(code, "PARTY_NAMES")
@@ -655,12 +667,56 @@ func fill_party_pick(code: String, ob: OptionButton) -> void:
 		else:
 			stt = "вне парламента"
 		ob.add_item("«%s» — %s" % [String(pnames[p]).replace(" (вы)", ""), stt], p)
+	ob.add_item("Никем — наблюдать за игрой (всеми партиями управляет ИИ)", OBSERVER_ID)
 	ob.select(0)
+
+
+# v35: описание политической ситуации для выбранной партии
+func update_menu_party(p: int) -> void:
+	if menu_sit_rt == null or not is_instance_valid(menu_sit_rt) or menu_sit_code == "":
+		return
+	var code := menu_sit_code
+	var pnames: Array = cdat(code, "PARTY_NAMES")
+	var pleaders: Array = cdat(code, "PARTY_LEADERS")
+	var pseats: Array = cdat(code, "DE_START_SEATS")
+	var pdesc: Array = cdat(code, "PARTY_DESC")
+	var traits: Array = cdat(code, "PARTY_TRAITS")
+	var coal: Array = cdat(code, "COALITION0")
+	var seats_n: int = 630 if code == "DE" else int(cdat(code, "SEATS"))
+	var elec: Dictionary = ELEC_DATA.get(code, ELEC_DATA["DE"])
+	var gov: Array = coal
+	var gs := 0
+	for q in gov:
+		gs += int(pseats[q]) if q < pseats.size() else 0
+	if p == OBSERVER_ID:
+		menu_sit_rt.text = "Вы не управляете ни одной партией. Правительство (%s, %d мест из %d) и оппозиция действуют сами: ИИ принимает бюджет, законы, решения по событиям и формирует коалиции после выборов. Время можно ускорять, ставить на паузу пробелом и смотреть любые экраны." % [", ".join(PackedStringArray(gov.map(func(q): return String(pnames[q])))), gs, seats_n]
+		return
+	var sv: int = int(pseats[p]) if p < pseats.size() else 0
+	var nm: String = String(pnames[p])
+	var t := "[b]«%s»[/b], лидер — %s. %d мест из %d.\n" % [nm, String(pleaders[p]).replace(" (вы)", "").replace("Канцлер", "вы"), sv, seats_n]
+	if p < pdesc.size() and String(pdesc[p]) != "":
+		t += "[color=#98a1b8]%s[/color]\n" % String(pdesc[p]).replace("Ваша партия — ", "")
+	if p == 0:
+		var big := true
+		for q in coal:
+			if q != 0 and int(pseats[q]) > sv:
+				big = false
+		t += "[color=%s]Вы во главе правительства[/color]%s. Коалиция: %d мест из %d — %s. Задача: удержать партнёров, провести свою программу и выиграть следующие выборы (%s)." % [COL_GOOD, "" if big else " (но партнёр крупнее вас)", gs, seats_n, "большинство есть" if gs * 2 > seats_n else "большинства нет, правительство держится на терпимости", String(elec.get("sys", ""))]
+	elif p in coal:
+		t += "[color=%s]Вы младший партнёр в коалиции «%s»[/color]. Влияние в правительстве — %.0f%% мест коалиции: бюджет, кабинет и решения по событиям проходят через совет коалиции, где решает большинство. Капитал растёт медленнее, зато его хватает на свои законы и торг." % [COL_WARN, String(pnames[0]), float(sv) / float(maxi(1, gs)) * 100.0]
+	elif sv > 0:
+		t += "[color=%s]Вы в оппозиции[/color] к правительству «%s» (%d мест). Критикуйте власть, договаривайтесь с другими партиями, вносите законопроекты и готовьтесь к выборам — или соберите альтернативное большинство." % [COL_WARN, String(pnames[0]), gs]
+	else:
+		t += "[color=%s]Партии нет в парламенте.[/color] Нужно преодолеть барьер на следующих выборах: союзы и блоки с другими партиями помогут." % COL_BAD
+	if p < traits.size() and float((traits[p] as Dictionary).get("join", 0.0)) <= -50.0:
+		t += "\n[color=%s]Вокруг вас «санитарный кордон»: другие партии не хотят с вами коалиций. Он ослабевает при хороших отношениях, щедрых обещаниях или затяжном кризисе.[/color]" % COL_WARN
+	menu_sit_rt.text = t
 
 
 func choose_country(code: String, party: int = 0) -> void:
 	pending_code = code
-	pending_party = party
+	game_opts["observer"] = party == OBSERVER_ID
+	pending_party = 0 if party == OBSERVER_ID else party
 	get_tree().reload_current_scene()
 
 
@@ -711,6 +767,8 @@ func _ready() -> void:
 	log_sys("[b]Правительство:[/b] у министров есть имена, навыки и бонусы, которые зависят от партии. Откройте «Политика» → «Правительство».")
 	log_sys("[b]Законы устроены иначе:[/b] у каждого закона есть действующий вариант и альтернативы, которые можно менять друг на друга. Откройте «Политика» → «Законы».")
 	log_sys("[b]Экономика устроена глубже:[/b] отрасли со спросом и мощностью, покупательная способность людей, желание бизнеса инвестировать, центробанк, внешняя торговля и сооружения. Откройте вкладку «Экономика».")
+	if bool(game_opts.get("observer", false)):
+		observer_start()
 	show_desk(2)
 	refresh()
 	call_deferred("layout_windows")

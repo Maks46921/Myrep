@@ -37,6 +37,10 @@ func show_head_election(rep: Dictionary) -> void:
 	el_tween.tween_method(func(v: float) -> void: el_head.set_progress(v), 0.0, 1.0, 1.0 + 0.9 * float(nr))
 	el_tween.tween_property(el_verdict_box, "modulate", Color(1, 1, 1, 1), 0.45)
 	el_tween.tween_callback(func() -> void: el_btn.disabled = false)
+	if observer and is_inside_tree():
+		get_tree().create_timer(3.5).timeout.connect(election_continue)
+	if observer and is_inside_tree():
+		get_tree().create_timer(3.5).timeout.connect(election_continue)
 
 
 func build_election_window() -> void:

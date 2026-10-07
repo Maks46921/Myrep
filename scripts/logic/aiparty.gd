@@ -616,8 +616,8 @@ func ai_reshuffle(why: String) -> bool:
 	return false
 
 
-func ai_pick_law(pm: int) -> void:
-	var members: Array = opp_gov["members"]
+func ai_pick_law(pm: int, members_in: Array = []) -> void:
+	var members: Array = members_in if members_in.size() > 0 else opp_gov["members"]
 	var cand: Array = []
 	for t in LAW_TOPICS:
 		var tid: String = String(t["id"])
@@ -635,7 +635,7 @@ func ai_pick_law(pm: int) -> void:
 			for q in members:
 				worst = minf(worst, variant_stance(int(q), tid, idx))
 			var sc := s + 0.5 * worst
-			if sc <= 0.6 or law_cost(tid, idx) > float(pcap[pm]) - 4.0:
+			if sc <= 0.6 or law_cost(tid, idx) > (capital if pm == 0 else float(pcap[pm])) - 4.0:
 				continue
 			cand.append([sc, tid, idx])
 	cand.sort_custom(func(a, b) -> bool: return float(a[0]) > float(b[0]))
@@ -651,6 +651,10 @@ func ai_pick_law(pm: int) -> void:
 			break
 	vote_sponsor = old_sp
 	if best_i < 0:
+		return
+	if pm == 0:
+		# v35: режим наблюдателя — законопроект вашей партии вносит ИИ обычным порядком
+		propose_variant(best_t, best_i)
 		return
 	bill_seq += 1
 	bills.append({"id": bill_seq, "tid": best_t, "idx": best_i, "sponsor": pm, "start": turn, "due": turn + 2 + randi() % 2, "forced": [], "pow": 1.0, "req": [], "paid": 0.0})
