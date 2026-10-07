@@ -133,6 +133,7 @@ func present_event() -> void:
 		log_tag("НАБЛЮДАТЕЛЬ", COL_TEAL, "%s — ИИ выбрал: «%s»." % [coal_text(String(current_event["t"])).replace("{r}", String(REGIONS[event_region]["name"]) if event_region >= 0 else ""), coal_text(String(current_event["o"][ai_i]["l"]))])
 		choose(ai_i)
 		return
+	sfx("event")
 	var text: String = String(current_event["t"])
 	if event_region >= 0:
 		text = text.replace("{r}", REGIONS[event_region]["name"])

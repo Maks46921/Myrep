@@ -469,6 +469,12 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	opt_choice(box, "Требования регионов", "Регионы с растущим недовольством сами выдвигают требования об автономии (их можно принять или отклонить). «Нет» — регионы молчат, всё решаете вы.", ["Нет", "Да"], clampi(int(game_opts["fedev"]), 0, 1), func(i: int) -> void: game_opts["fedev"] = i)
 	opt_choice(box, "Живая демография (религии, миграция)", "«Да» — религиозный состав и миграция меняются сами (рождаемость, секуляризация, волны беженцев, события). «Нет» — меняется только от ваших решений.", ["Нет, только мои решения", "Да"], clampi(int(game_opts["socev"]), 0, 1), func(i: int) -> void: game_opts["socev"] = i)
 	opt_choice(box, "Давление партнёров", "Другие страны сами вводят пошлины, предлагают соглашения, поднимают цены на энергию и просят помощи.", ["Нет", "Да"], clampi(int(game_opts["exev"]), 0, 1), func(i: int) -> void: game_opts["exev"] = i)
+	opt_slider(box, "Громкость музыки", "Спокойная фоновая музыка. 0 — выключена. Свои треки (*.ogg) можно положить в папку audio/music проекта.", 0.0, 1.0, 0.05, float(game_opts.get("music", 0.45)), func(x: float) -> String: return "%.0f%%" % (x * 100.0), func(x: float) -> void:
+		game_opts["music"] = x
+		audio_apply_volume())
+	opt_slider(box, "Громкость звуков", "Тихие звуки интерфейса: события, выборы, принятые и проваленные законы.", 0.0, 1.0, 0.05, float(game_opts.get("sfx", 0.6)), func(x: float) -> String: return "%.0f%%" % (x * 100.0), func(x: float) -> void:
+		game_opts["sfx"] = x
+		audio_apply_volume())
 	opt_slider(box, "Стартовый политический капитал", "Запас капитала для коалиций, законов и действий в первый месяц.", 0.3, 3.0, 0.1, float(game_opts["cap"]), fmt_mult, func(x: float) -> void: game_opts["cap"] = x)
 	menu_title(box, "Воспроизводимость и интерфейс")
 	opt_row(box, "Зерно случайности", "Одно и то же число даёт одну и ту же последовательность случайных событий. Пусто — каждый раз по-разному.")
@@ -731,6 +737,7 @@ func _ready() -> void:
 		randomize()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = make_theme()
+	audio_init()
 	var win := get_window()
 	win.min_size = Vector2i(1340, 700)
 	if DisplayServer.get_name() != "headless":

@@ -2,6 +2,7 @@
 extends "res://scripts/ui/ui_pop.gd"
 
 func show_head_election(rep: Dictionary) -> void:
+	sfx("election")
 	election_open = true
 	elec_end = String(rep["end"])
 	el_view.visible = false
@@ -101,6 +102,7 @@ func build_election_window() -> void:
 
 
 func show_election(rep: Dictionary) -> void:
+	sfx("election")
 	election_open = true
 	elec_end = String(rep["end"])
 	var shares: Array = rep["shares"]

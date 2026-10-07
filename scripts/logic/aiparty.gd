@@ -924,6 +924,7 @@ func bill_vote(b: Dictionary) -> void:
 	bills.erase(b)
 	if not ok:
 		log_tag("ЗАКОНОПРОЕКТ", COL_BAD, "законопроект «%s» провален в парламенте. Взнос потерян." % topic["name"])
+		sfx("bad")
 	refresh()
 
 

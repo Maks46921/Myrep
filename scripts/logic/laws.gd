@@ -61,6 +61,10 @@ func rid_of(tid: String) -> String:
 	return ""
 
 
+func sfx(name: String) -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -532,6 +536,8 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	law_cd[tid] = 24 if is_fund(tid) else 12
 	radical_enact(tid, idx, old_rid0)
 	recompute_mods()
+	if vote_sponsor == 0:
+		sfx("good")
 	log_tag("ЗАКОН", COL_GOOD, "%s%s — «%s»: %s → [b]%s[/b] [color=%s](за %d, против %d; политкапитал -%.0f)[/color]. %s" % [
 		date_text(), "" if vote_sponsor == 0 else " (правительство «%s»)" % PARTY_NAMES[vote_sponsor], topic["name"], old_v["n"], new_v["n"], COL_DIM, v["yes"], v["no"], cost, new_v["d"]])
 	refresh()

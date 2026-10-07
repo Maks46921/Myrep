@@ -216,6 +216,8 @@ func reset_layout() -> void:
 
 
 func show_desk(i: int) -> void:
+	if current_desk != i:
+		sfx("click")
 	current_desk = i
 	if i == 1 or i == 3 or i == 4 or i == 6 or i == 11 or i == 12:
 		politics_page = i
@@ -283,7 +285,7 @@ func build_ui() -> void:
 	make_chip(chip_row, "debt", "ДОЛГ", "Госдолг в процентах ВВП. Выше 150% — дефолт.")
 	make_chip(chip_row, "cap", "КАПИТАЛ", "Политический капитал: расходуется на законы, действия и переговоры.")
 	make_chip(chip_row, "coal", "КОАЛИЦ.", "Мест у вашей коалиции из %d. Для большинства нужно %d." % [SEATS, MAJORITY])
-	make_chip(chip_row, "elec", "ВЫБОРЫ", "Время до выборов в Бундестаг.")
+	make_chip(chip_row, "elec", "ВЫБОРЫ", "Время до следующих парламентских выборов.")
 	var cbtn := Button.new()
 	cbtn.theme_type_variation = "SmallButton"
 	cbtn.text = "🌍"
@@ -292,6 +294,14 @@ func build_ui() -> void:
 	cbtn.focus_mode = Control.FOCUS_NONE
 	cbtn.pressed.connect(show_country_menu.bind(true))
 	hb.add_child(cbtn)
+	music_btn = Button.new()
+	music_btn.theme_type_variation = "SmallButton"
+	music_btn.text = "♪" if float(game_opts.get("music", 0.45)) > 0.001 else "🔇"
+	music_btn.custom_minimum_size = Vector2(34.0, 34.0)
+	music_btn.tooltip_text = "Музыка: включить или выключить. Громкость музыки и звуков — в настройках новой игры (кнопка 🌍 → «Настройки игры»)."
+	music_btn.focus_mode = Control.FOCUS_NONE
+	music_btn.pressed.connect(toggle_music)
+	hb.add_child(music_btn)
 	var rst := Button.new()
 	rst.theme_type_variation = "SmallButton"
 	rst.text = "↺"
@@ -1363,3 +1373,109 @@ func on_floor_toggle(on: bool) -> void:
 	if on:
 		auto_floor()
 	refresh()
+
+
+# ============================================================
+#  v35: МУЗЫКА И ЗВУКИ (спокойный эмбиент; свои *.ogg можно положить в audio/music/)
+# ============================================================
+var music_player: AudioStreamPlayer = null
+var sfx_players: Array = []
+var sfx_cache := {}
+var music_list: Array = []
+var music_idx := 0
+var sfx_last := {}
+
+
+func audio_ok() -> bool:
+	return DisplayServer.get_name() != "headless"
+
+
+func audio_load(path: String) -> AudioStream:
+	if ResourceLoader.exists(path):
+		var r = load(path)
+		if r is AudioStream:
+			return r
+	var gp := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(gp) or FileAccess.file_exists(path):
+		return AudioStreamOggVorbis.load_from_file(gp if FileAccess.file_exists(gp) else path)
+	return null
+
+
+func audio_init() -> void:
+	if not audio_ok() or music_player != null:
+		return
+	music_player = AudioStreamPlayer.new()
+	music_player.name = "Music"
+	add_child(music_player)
+	music_player.finished.connect(music_next)
+	for i in 4:
+		var p := AudioStreamPlayer.new()
+		add_child(p)
+		sfx_players.append(p)
+	music_list.clear()
+	var d := DirAccess.open("res://audio/music")
+	if d != null:
+		for f in d.get_files():
+			var fs := String(f)
+			if fs.ends_with(".ogg"):
+				music_list.append("res://audio/music/" + fs)
+			elif fs.ends_with(".ogg.import"):
+				var base := fs.trim_suffix(".import")
+				if not music_list.has("res://audio/music/" + base):
+					music_list.append("res://audio/music/" + base)
+	music_list.sort()
+	music_idx = randi() % maxi(1, music_list.size())
+	audio_apply_volume()
+	music_next()
+
+
+func audio_apply_volume() -> void:
+	if music_player == null:
+		return
+	var mv: float = float(game_opts.get("music", 0.45))
+	music_player.volume_db = linear_to_db(maxf(0.0001, mv * 0.55))
+	music_player.stream_paused = mv <= 0.001
+	var sv: float = float(game_opts.get("sfx", 0.6))
+	for p in sfx_players:
+		(p as AudioStreamPlayer).volume_db = linear_to_db(maxf(0.0001, sv * 0.7))
+
+
+func music_next() -> void:
+	if music_player == null or music_list.is_empty():
+		return
+	var st := audio_load(String(music_list[music_idx % music_list.size()]))
+	music_idx += 1
+	if st == null:
+		return
+	if st is AudioStreamOggVorbis:
+		(st as AudioStreamOggVorbis).loop = false
+	music_player.stream = st
+	music_player.play()
+	music_player.stream_paused = float(game_opts.get("music", 0.45)) <= 0.001
+
+
+func sfx(name: String) -> void:
+	if sfx_players.is_empty() or float(game_opts.get("sfx", 0.6)) <= 0.001:
+		return
+	var now := Time.get_ticks_msec()
+	if now - int(sfx_last.get(name, -10000)) < 120:
+		return
+	sfx_last[name] = now
+	if not sfx_cache.has(name):
+		sfx_cache[name] = audio_load("res://audio/sfx/%s.ogg" % name)
+	var st: AudioStream = sfx_cache[name]
+	if st == null:
+		return
+	for p in sfx_players:
+		var ap2: AudioStreamPlayer = p
+		if not ap2.playing:
+			ap2.stream = st
+			ap2.play()
+			return
+
+
+func toggle_music() -> void:
+	game_opts["music"] = 0.0 if float(game_opts.get("music", 0.45)) > 0.001 else 0.45
+	audio_apply_volume()
+	if music_btn != null:
+		music_btn.text = "♪" if float(game_opts["music"]) > 0.001 else "🔇"

@@ -442,6 +442,7 @@ func check_government() -> void:
 		conc[p] = float(conc.get(p, 0.0)) * 0.93
 		if cur < SAT_LEAVE:
 			remove_member(p)
+			sfx("bad")
 			warned[p] = false
 			log_line("[color=%s]%s вышла из правящей коалиции: довольство упало до %.0f (%s). Её министерства вернулись вашей партии.[/color]" % [COL_BAD, PARTY_NAMES[p], cur, sat_reason(p)])
 			continue
