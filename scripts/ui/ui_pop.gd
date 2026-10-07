@@ -310,10 +310,11 @@ func update_pop_windows() -> void:
 		for r in regions.size():
 			rows.append(r)
 		rows.sort_custom(func(p, q): return AG.region_prot(p) > AG.region_prot(q))
-		var rt := "Доля агентов с оценкой власти ниже %d, и изменение с начала игры. Она повышает недовольство региона.\n" % int(AgentPop.PROT_AT)
+		var rt := "Доля агентов с оценкой власти ниже %d и её изменение %s. Она повышает недовольство региона.\n" % [int(AgentPop.PROT_AT), h12_label("prot")]
+		var pr0: Array = h12_ago("prot", [])
 		for r in rows:
 			var cur: float = AG.region_prot(r) * 100.0
-			var dv: float = cur - float(ag_prot0[r]) * 100.0
+			var dv: float = cur - (float(pr0[r]) * 100.0 if r < pr0.size() else cur)
 			rt += "%s — [b]%.0f%%[/b] [color=%s](%+.1f)[/color]\n" % [String(REGIONS[r]["name"]), cur, "#ff8a80" if dv > 0.5 else ("#7bd88f" if dv < -0.5 else "#9aa4b8"), dv]
 		(ag_ui["reg"] as RichTextLabel).text = rt
 	var mv2: AgentMapView = ag_ui["map"]

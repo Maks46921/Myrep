@@ -149,3 +149,55 @@ func log_header(text: String, col: String) -> void:
 
 func log_tag(tag: String, col: String, text: String) -> void:
 	log_add({"k": "line", "cat": LOG_TAG_CAT.get(tag, "ev"), "tag": tag, "col": col, "t": text})
+
+
+# ============================================================
+#  v35: ИСТОРИЯ ЗА 12 МЕСЯЦЕВ (вместо сравнений «с начала игры»)
+# ============================================================
+func h12_push(k: String, v: Variant) -> void:
+	var a: Array = h12.get(k, [])
+	a.append(v.duplicate() if v is Array else v)
+	while a.size() > 13:
+		a.pop_front()
+	h12[k] = a
+
+
+# значение год назад (или самое старое из накопленных); now — если истории ещё нет
+func h12_ago(k: String, now: Variant) -> Variant:
+	var a: Array = h12.get(k, [])
+	return a[0] if a.size() > 0 else now
+
+
+# за сколько месяцев есть сравнение
+func h12_months(k: String) -> int:
+	return maxi(0, (h12.get(k, []) as Array).size() - 1)
+
+
+func h12_label(k: String) -> String:
+	var m := h12_months(k)
+	return "за 12 мес." if m >= 12 else ("за %d мес." % m if m > 0 else "пока без истории")
+
+
+func h12_snap() -> void:
+	if not ec.is_empty():
+		for key in ["ppi", "rw", "fxs", "cpi_idx"]:
+			if ec.has(key):
+				h12_push(key, float(ec[key]))
+		if ec.has("mk"):
+			for m in MARKETS:
+				h12_push("mk:" + String(m["id"]), float(ec["mk"][m["id"]]["p"]))
+		if ec.has("gp"):
+			h12_push("cpi_goods", cpi_goods())
+			for gr in GROUPS:
+				h12_push("gcpi:" + String(gr), group_cpi(gr))
+	if pol.has("vat"):
+		h12_push("vat", float(pol["vat"]))
+	if not soc.is_empty() and soc.has("in_now"):
+		h12_push("mig_in", float(soc["in_now"]))
+	if regions.size() > 0 and (regions[0] as Dictionary).has("rel"):
+		h12_push("faith", soc_national())
+	if AG != null and ag_on:
+		var pr: Array = []
+		for r in regions.size():
+			pr.append(AG.region_prot(r))
+		h12_push("prot", pr)

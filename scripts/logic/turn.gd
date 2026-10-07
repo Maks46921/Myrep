@@ -64,6 +64,10 @@ func fed_month() -> void:
 	pass
 
 
+func h12_snap() -> void:
+	pass
+
+
 func idl_mult() -> float:
 	return 0.0
 
@@ -309,6 +313,7 @@ func week_tick() -> void:
 
 
 func take_month_snap() -> void:
+	h12_snap()
 	month_snap = {"infl": inflation, "unemp": unemployment, "support": support.duplicate(), "appr": approval()}
 
 

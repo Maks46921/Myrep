@@ -177,8 +177,8 @@ func update_econ_windows() -> void:
 	var mk: Dictionary = ec["mk"]
 	var util: float = float(ec["util"])
 	var st: float = float(ec["short_tot"])
-	var cpi: float = (float(ec["cpi_idx"]) - 1.0) * 100.0
-	ec_head_rt.text = "[b]Загрузка мощностей[/b]: [color=%s]%.0f%%[/color]   [b]Дефицит товаров[/b]: [color=%s]%.1f%%[/color]   [b]Цены в корзине[/b]: %s%%\n[color=%s]Вклад экономики в рост: %s п.п., в инфляцию: %s п.п., в безработицу: %s п.п.[/color]" % [
+	var cpi: float = (float(ec["cpi_idx"]) / maxf(0.0001, float(h12_ago("cpi_idx", ec["cpi_idx"]))) - 1.0) * 100.0
+	ec_head_rt.text = ("[b]Загрузка мощностей[/b]: [color=%s]%.0f%%[/color]   [b]Дефицит товаров[/b]: [color=%s]%.1f%%[/color]   [b]Цены в корзине " + h12_label("cpi_idx") + "[/b]: %s%%\n[color=%s]Вклад экономики в рост: %s п.п., в инфляцию: %s п.п., в безработицу: %s п.п.[/color]") % [
 		COL_GOOD if util < 0.97 and util > 0.75 else COL_WARN, util * 100.0, COL_BAD if st > 0.01 else COL_GOOD, st * 100.0, sg(cpi, 1),
 		COL_DIM, sg(float(ec["ec_g"]), 1), sg(float(ec["d_infl"]), 1), sg(float(ec["d_unemp"]), 1)]
 	for m in MARKETS:
@@ -193,16 +193,19 @@ func update_econ_windows() -> void:
 	var ppi: float = float(ec["ppi"])
 	set_bar("ec_cconf", float(ec["cconf"]))
 	var lines: PackedStringArray = []
-	var pp_head := "[b]Покупательная способность[/b] (старт = 100): [color=%s][b]%.0f[/b][/color]   Реальная зарплата: %.0f" % [good_col(ppi >= 0.98), ppi * 100.0, float(ec["rw"]) * 100.0]
+	var ppc: float = (ppi / maxf(0.0001, float(h12_ago("ppi", ppi))) - 1.0) * 100.0
+	var rwc: float = (float(ec["rw"]) / maxf(0.0001, float(h12_ago("rw", ec["rw"]))) - 1.0) * 100.0
+	var pp_head := "[b]Покупательная способность[/b] %s: [color=%s][b]%s%%[/b][/color]   Реальная зарплата: %s%%" % [h12_label("ppi"), good_col(ppc >= -0.5), sg(ppc, 1), sg(rwc, 1)]
 	lines.append("[b]Доходы населения, млрд в год[/b]")
 	lines.append("  Зарплаты: %s    Подоходный налог: −%s" % [fmt_n(float(inc["wages"])), fmt_n(float(inc["tax"]))])
 	lines.append("  Пенсии: %s    Пособия: %s" % [fmt_n(float(inc["pens"])), fmt_n(float(inc["ben"]))])
 	lines.append("  [b]Итого на руки: %s[/b]" % fmt_n(float(inc["total"])))
 	lines.append("Норма сбережений: %.1f%% (выше ставка — больше откладывают, меньше тратят)" % (float(ec["sav"]) * 100.0))
-	lines.append("[b]Потребительская корзина[/b] (цена к старту)")
+	lines.append("[b]Потребительская корзина[/b] (изменение цен %s)" % h12_label("mk:" + String(MARKETS[0]["id"])))
 	for m in MARKETS:
 		if float(m["kg"]) > 0.0:
-			var pm: float = (float(mk[m["id"]]["p"]) - 1.0) * 100.0
+			var p_now: float = float(mk[m["id"]]["p"])
+			var pm: float = (p_now / maxf(0.0001, float(h12_ago("mk:" + String(m["id"]), p_now))) - 1.0) * 100.0
 			lines.append("  %s (%.0f%% корзины): [color=%s]%s%%[/color]" % [m["short"], float(m["kg"]) * 100.0, COL_BAD if pm > 3.0 else (COL_GOOD if pm < -3.0 else COL_DIM), sg(pm, 0)])
 	var tips: PackedStringArray = []
 	if inflation > 6.5:
@@ -268,7 +271,7 @@ func update_econ_windows() -> void:
 	# торговля
 	var gl: PackedStringArray = []
 	var fxs: float = float(ec["fxs"])
-	gl.append("Курс евро: [b]%.0f[/b] (старт 100)   Валютные и золотые резервы: [b]%.1f%%[/b] ВВП" % [fxs * 100.0, float(ec["res"])])
+	gl.append("Курс валюты %s: [b]%s%%[/b]   Валютные и золотые резервы: [b]%.1f%%[/b] ВВП" % [h12_label("fxs"), sg((fxs / maxf(0.0001, float(h12_ago("fxs", fxs))) - 1.0) * 100.0, 1), float(ec["res"])])
 	gl.append("Экспорт: %s млрд   Импорт: %s млрд   Баланс: [color=%s]%s%% ВВП[/color]" % [fmt_n(float(ec["exp_v"])), fmt_n(float(ec["imp_v"])), good_col(float(ec["nx"]) > -1.5), sg(float(ec["nx"]), 1)])
 	var gf_more: PackedStringArray = []
 	gf_more.append("Мировой спрос: [b]%.0f[/b]   Цены на сырьё: [b]%.0f[/b]" % [float(ec["wd"]) * 100.0, float(ec["comm"]) * 100.0])
@@ -326,9 +329,8 @@ func build_goods_windows() -> void:
 	var w: FloatWindow = new_window("gd_list", "Товары: цены и спрос", 7, Rect2(0.0, 0.0, 0.37, 1.0))
 	gd_head_rt = make_rt(w.body)
 	gd_mode_opt = OptionButton.new()
-	gd_mode_opt.add_item("Цены с начала игры")
 	gd_mode_opt.add_item("Цены за 12 месяцев")
-	gd_mode_opt.add_item("Спрос (индекс)")
+	gd_mode_opt.add_item("Спрос (100 — обычный уровень)")
 	gd_mode_opt.fit_to_longest_item = false
 	gd_mode_opt.clip_text = true
 	gd_mode_opt.item_selected.connect(func(_i: int) -> void: update_goods_windows())
@@ -359,9 +361,9 @@ func update_goods_windows() -> void:
 	var cpi12 := 0.0
 	for g in GOODS:
 		cpi12 += float(g["kg"]) * float((ec["gh"][g["id"]] as Array)[0])
-	gd_head_rt.text = "[b]Корзина товаров и услуг[/b]: цены с начала игры [b][color=%s]%s%%[/color][/b], за последние %d мес. [b][color=%s]%s%%[/color][/b]\n[color=%s]Цены показаны относительно общего уровня: «+3%%» — товар дорожает быстрее остальных. Инфляция страны: %.1f%%. В корзине 18 видов расходов, у каждой страны своя структура.[/color]" % [
-		COL_BAD if cpi > 1.03 else (COL_GOOD if cpi < 0.99 else COL_DIM), sg((cpi - 1.0) * 100.0, 1), months, COL_BAD if cpi / cpi12 > 1.02 else COL_DIM, sg((cpi / cpi12 - 1.0) * 100.0, 1), COL_DIM, inflation]
-	var mode: int = gd_mode_opt.selected
+	gd_head_rt.text = "[b]Корзина товаров и услуг[/b]: цены за последние %d мес. [b][color=%s]%s%%[/color][/b]\n[color=%s]Цены показаны относительно общего уровня: «+3%%» — товар дорожает быстрее остальных. Инфляция страны: %.1f%%. В корзине 18 видов расходов, у каждой страны своя структура.[/color]" % [
+		months, COL_BAD if cpi / cpi12 > 1.02 else COL_DIM, sg((cpi / cpi12 - 1.0) * 100.0, 1), COL_DIM, inflation]
+	var mode: int = gd_mode_opt.selected + 1
 	var rows: Array = []
 	var order: Array = GOODS.duplicate()
 	for g in order:
@@ -383,8 +385,8 @@ func update_goods_windows() -> void:
 		for gr in GROUPS:
 			if prof_mult(gr, id) >= 1.6:
 				best.append(String(gr))
-		var tip := "%s\nОтрасль: %s. Доля в корзине %.1f%%.\nЦена: %.0f%% от стартовой (за 12 мес. %s%%). Спрос: %.0f%% от стартового.\nЦена следует за отраслью на %.0f%%; зависит от курса %s, пошлин %s, мировых цен на сырьё %s, НДС %s.\nУ кого сильно заметна: %s." % [
-			g["name"], String(mk_def(g["mk"])["name"]), float(g["kg"]) * 100.0, p * 100.0, sg(good_yoy(id) * 100.0, 1), d * 100.0, float(g["ps"]) * 100.0,
+		var tip := "%s\nОтрасль: %s. Доля в корзине %.1f%%.\nЦена за 12 мес.: %s%%. Спрос: %.0f (100 — обычный уровень).\nЦена следует за отраслью на %.0f%%; зависит от курса %s, пошлин %s, мировых цен на сырьё %s, НДС %s.\nУ кого сильно заметна: %s." % [
+			g["name"], String(mk_def(g["mk"])["name"]), float(g["kg"]) * 100.0, sg(good_yoy(id) * 100.0, 1), d * 100.0, float(g["ps"]) * 100.0,
 			"да" if float(g["xf"]) > 0.0 else "нет", "да" if float(g["tf"]) > 0.0 else "нет", "да" if float(g["dc"]) > 0.0 else "нет", "да" if float(g["vat"]) > 0.0 else "нет",
 			", ".join(best) if best.size() > 0 else "у всех примерно поровну"]
 		rows.append({"label": "%s  %.0f%%" % [g["short"], float(g["kg"]) * 100.0], "col": goods_market_color(g["mk"]), "v": v, "vt": vt, "tip": tip})
@@ -405,7 +407,9 @@ func update_goods_windows() -> void:
 		var tops: PackedStringArray = []
 		for it in group_top_goods(gr, 3):
 			tops.append("%s %.0f%%" % [String(good_def(it[0])["short"]).to_lower(), float(it[1]) * 100.0])
-		var gi: float = (group_cpi(gr) - 1.0) * 100.0
+		var gc_now: float = group_cpi(gr)
+		var gi: float = (gc_now / maxf(0.0001, float(h12_ago("gcpi:" + String(gr), gc_now))) - 1.0) * 100.0
+		var cpi_y: float = (cpi / maxf(0.0001, float(h12_ago("cpi_goods", cpi))) - 1.0) * 100.0
 		if gap > best_v:
 			best_v = gap
 			best_g = gr
@@ -414,7 +418,7 @@ func update_goods_windows() -> void:
 			worst_g = gr
 		var sup_t := goods_support_term(gr)
 		grows.append({"label": gr, "col": Color("#a58af0"), "v": gap, "vt": "%s п.п." % sg(gap, 1),
-			"tip": "%s: главные траты — %s.\nКорзина подорожала на %s%% с начала игры (средняя по стране: %s%%).\nРазница со средней: %s п.п. — влияет на поддержку власти: %s." % [gr, ", ".join(tops), sg(gi, 1), sg((cpi - 1.0) * 100.0, 1), sg(gap, 1), sg(sup_t, 1)]})
+			"tip": "%s: главные траты — %s.\nКорзина подорожала %s на %s%% (средняя по стране: %s%%).\nНакопленная разница со средней: %s п.п. — влияет на поддержку власти: %s." % [gr, ", ".join(tops), h12_label("cpi_goods"), sg(gi, 1), sg(cpi_y, 1), sg(gap, 1), sg(sup_t, 1)]})
 	var gmx := 0.0
 	for r2 in grows:
 		gmx = maxf(gmx, absf(float(r2["v"])))
@@ -430,10 +434,10 @@ func update_goods_windows() -> void:
 	var vat_r: float = float(pol["vat"]) / maxf(0.01, float(pol_def["vat"])) - 1.0
 	var dl: PackedStringArray = []
 	dl.append("[b]Внешние и политические факторы[/b]")
-	dl.append("Курс валюты: [b]%.0f[/b] (старт 100) — %s" % [float(ec["fxs"]) * 100.0, "импорт дорожает: электроника, топливо, одежда" if float(ec["fxs"]) < 0.97 else ("импорт дешевеет" if float(ec["fxs"]) > 1.03 else "нейтрально")])
+	dl.append("Курс валюты %s: [b]%s%%[/b] — %s" % [h12_label("fxs"), sg((float(ec["fxs"]) / maxf(0.0001, float(h12_ago("fxs", ec["fxs"]))) - 1.0) * 100.0, 1), "импорт дорожает: электроника, топливо, одежда" if float(ec["fxs"]) < 0.97 else ("импорт дешевеет" if float(ec["fxs"]) > 1.03 else "нейтрально")])
 	dl.append("Мировые цены на сырьё: [b]%.0f[/b] — %s" % [float(ec["comm"]) * 100.0, "дорожают топливо и электричество" if float(ec["comm"]) > 1.05 else ("топливо и электричество дешевеют" if float(ec["comm"]) < 0.95 else "нейтрально")])
 	dl.append("Ввозные пошлины: [b]%.1f%%[/b] (норма 5%%) — %s" % [float(ec["tariff"]), "дорожают импортные товары" if float(ec["tariff"]) > 6.0 else "без влияния"])
-	dl.append("НДС: [b]%s%%[/b] к стартовой ставке — %s" % [sg(vat_r * 100.0, 0), "цены на товары и услуги растут (кроме жилья, образования, медицины)" if vat_r > 0.02 else ("цены снижаются" if vat_r < -0.02 else "без влияния")])
+	dl.append("НДС: [b]%.1f%%[/b] ВВП (%s %s п.п.) — %s" % [float(pol["vat"]), h12_label("vat"), sg(float(pol["vat"]) - float(h12_ago("vat", pol["vat"])), 1), "цены на товары и услуги растут (кроме жилья, образования, медицины)" if vat_r > 0.02 else ("цены снижаются" if vat_r < -0.02 else "без влияния")])
 	dl.append("Реальная ставка: [b]%s[/b] — %s" % [sg(float(ec["real_gap"]), 1), "дешёвые кредиты разгоняют цены на жильё" if float(ec["real_gap"]) < -1.0 else ("дорогие кредиты охлаждают рынок жилья" if float(ec["real_gap"]) > 1.0 else "жильё в норме")])
 	dl.append("[b]Спрос и предложение отраслей[/b]")
 	for m in MARKETS:

@@ -29,7 +29,7 @@ func build_soc_windows() -> void:
 	sw_chart = FaithChart.new()
 	w.body.add_child(sw_chart)
 	sw_rel_rt = make_rt(w.body)
-	add_note(w.body, "У каждого агента своя вера. Влияние считается от того, насколько доля конфессии изменилась с начала игры: чем больше её сторонников, тем сильнее эффект. Данные приблизительные.", true)
+	add_note(w.body, "У каждого агента своя вера. Влияние зависит от того, насколько доля конфессии выше или ниже её обычного уровня в стране: чем больше её сторонников, тем сильнее эффект. Данные приблизительные.", true)
 
 	w = new_window("sw_pol", "Религия и государство", 11, Rect2(0.36, 0.0, 0.34, 0.60))
 	sw_pol_rt = make_rt(w.body)
@@ -161,15 +161,16 @@ func update_soc_desk() -> void:
 	if AG != null and ag_on:
 		cnt = AG.faith_counts()
 	var base: Array = soc_cfg()["base"]
-	var t := "[table=5][cell][color=%s]Конфессия[/color][/cell][cell][color=%s] Доля[/color][/cell][cell][color=%s] С начала[/color][/cell][cell][color=%s] Агентов[/color][/cell][cell][color=%s] Эффект[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM]
+	var t := "[table=5][cell][color=%s]Конфессия[/color][/cell][cell][color=%s] Доля[/color][/cell][cell][color=%s] За год[/color][/cell][cell][color=%s] Агентов[/color][/cell][cell][color=%s] Эффект[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM]
 	for f in 7:
-		var dl: float = (float(nat[f]) - float(regions_rel0_nat(f))) * 100.0
+		var fy: Array = h12_ago("faith", nat)
+		var dl: float = (float(nat[f]) - float(fy[f])) * 100.0
 		var dc: String = COL_GOOD if dl > 0.05 else (COL_BAD if dl < -0.05 else COL_DIM)
 		t += "[cell][color=%s]■[/color] %s[/cell][cell] %.1f%%[/cell][cell][color=%s] %+.1f[/color][/cell][cell] %s[/cell][cell] [color=%s]%s[/color][/cell]" % [SOC_FCOL[f], SOC_FAITH[f], float(nat[f]) * 100.0, dc, dl, (str(cnt[f]) if cnt.size() == 7 else "—"), COL_DIM, soc_eff_line(f)]
 	t += "[/table]\n"
-	t += "\nИтог для страны (против начала игры): рост %+.2f п.п., безработица %+.2f п.п., налоговая дисциплина %+.1f%%." % [soc_g(), soc_unemp(), soc_tax() * 100.0]
+	t += "\nВлияние состава общества на страну сейчас: рост %+.2f п.п., безработица %+.2f п.п., налоговая дисциплина %+.1f%%." % [soc_g(), soc_unemp(), soc_tax() * 100.0]
 	sw_rel_rt.text = t
-	var rows: Array = [["Сейчас", nat, -1.0, null], ["Старт", regions_rel0_vec(), -1.0, null]]
+	var rows: Array = [["Сейчас", nat, -1.0, null], ["Год назад" if h12_months("faith") >= 12 else ("%d мес. назад" % h12_months("faith")), h12_ago("faith", nat), -1.0, null]]
 	(sw_chart as FaithChart).set_rows(rows, true)
 	var p := "Курс: [b]%s[/b]\nПоддержка общин: [b]%s[/b]\nИнтеграция общества: [b]%.0f[/b]/100 · напряжённость: [b]%.0f[/b]/100\n" % [SOC_SEC[int(soc["sec"])], ["нет", "базовая", "щедрая"][int(soc["fund"])], float(soc["integ"]), float(soc["tension"])]
 	p += "[color=%s]Секуляризм сокращает долю верующих, но злит консервативные группы. Поддержка общин укрепляет сплочённость и стоит денег.[/color]" % COL_DIM
@@ -180,7 +181,7 @@ func update_soc_desk() -> void:
 	_soc_btn_state("fund+", soc_cd_get("fund") > 0 or int(soc["fund"]) >= 2, "")
 	_soc_btn_state("dial", soc_cd_get("dialog") > 0, "")
 	var m := "Курс: [b]%s[/b]\nПрограммы интеграции: [b]%s[/b] · отбор: [b]%s[/b]\n" % [SOC_MIGN[int(soc["lvl"])], SOC_PROG[int(soc["prog"])], SOC_SEL[int(soc["sel"])]]
-	m += "Приток: [b]%.1f[/b] на 1000 жителей в год (старт %.1f) · отток: %.1f · накоплено чистой миграции: %+.2f млн\n" % [float(soc["in_now"]), float(soc["in0"]), float(soc["out_now"]), float(soc["net"])]
+	m += "Приток: [b]%.1f[/b] на 1000 жителей в год (%s: %.1f) · отток: %.1f · накоплено чистой миграции: %+.2f млн\n" % [float(soc["in_now"]), "год назад" if h12_months("mig_in") >= 12 else "в начале наблюдений", float(h12_ago("mig_in", soc["in_now"])), float(soc["out_now"]), float(soc["net"])]
 	var mx: Array = soc["mix"]
 	var parts := PackedStringArray()
 	for k in mx.size():
@@ -201,7 +202,7 @@ func update_soc_desk() -> void:
 	sw_reg_rt.text = r
 	var rr: Array = []
 	for i2 in regions.size():
-		rr.append([REGIONS[i2]["name"], regions[i2]["rel"], float(regions[i2]["relt"]), regions[i2]["rel0"]])
+		rr.append([REGIONS[i2]["name"], regions[i2]["rel"], float(regions[i2]["relt"]), null])
 	(sw_regchart as FaithChart).set_rows(rr, false)
 	var hh: Dictionary = soc["h"]
 	sw_spk_t.title = "Напряжённость и интеграция по месяцам"
