@@ -888,6 +888,18 @@ func compute_mods(state: Dictionary, include_cabinet: bool = true, cand_tid: Str
 		var st: Dictionary = v.get("set", {})
 		for k in st:
 			m[k] = st[k]
+	# v35: калибровка — эффекты действующего порядка уже заложены в стартовые показатели страны,
+	# поэтому снимаем их: пока закон не менялся, итог нулевой; отмена порядка лишает его эффектов.
+	for tid in state:
+		var v0 := variant_of(tid, 0)
+		if not bool(v0.get("sq", false)):
+			continue
+		var x0: Dictionary = v0.get("x", {})
+		for k in x0:
+			m[k] = float(m.get(k, 1.0)) / maxf(0.05, float(x0[k]))
+		var a0: Dictionary = v0.get("a", {})
+		for k in a0:
+			m[k] = float(m.get(k, 0.0)) - float(a0[k])
 	if include_cabinet and ministers.size() == MINISTRIES.size():
 		for mi in MINISTRIES.size():
 			var mn: Dictionary = ministers[mi]
