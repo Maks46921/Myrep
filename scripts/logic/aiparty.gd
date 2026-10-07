@@ -174,9 +174,20 @@ func gov_target(members: Array, pm: int, k: String) -> float:
 
 
 # шаг политики к программе: расходы всегда, налоги — только если есть запас по дефициту
+# v35: какой дефицит ИИ-правительство считает допустимым: стартовый (но не меньше 3% ВВП),
+# а при долге выше 90% ВВП — 3%, при долге выше 120% — 2%
+func ai_def_lim() -> float:
+	var dr: float = debt / maxf(1.0, gdp) * 100.0
+	if dr > 120.0:
+		return 2.0
+	if dr > 90.0:
+		return 3.0
+	return maxf(3.0, def0)
+
+
 func ai_policy_step(members: Array, pm: int, strength: float) -> int:
 	var moved := 0
-	var room: bool = last_deficit_pct < maxf(3.0, def0) + 0.4
+	var room: bool = last_deficit_pct < ai_def_lim() + 0.4
 	for k in ideo_keys():
 		if k == "emit" or lock_active(k):
 			continue
@@ -194,7 +205,7 @@ func ai_policy_step(members: Array, pm: int, strength: float) -> int:
 		set_policy(k, cur + step)
 		moved += 1
 	# v35: дефицит намного выше обычного — правительство подтягивает доходы
-	var lim: float = maxf(3.0, def0)
+	var lim: float = ai_def_lim()
 	if last_deficit_pct > lim + 1.0:
 		autobalance_step(lim, true)
 		ap_log.clear()
