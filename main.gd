@@ -57,6 +57,7 @@ func apply_country(code: String) -> void:
 	growth_trend = -99.0
 	def_ref = -99.0
 	tax_ref = -99.0
+	debt_start = -99.0
 	gdp_base = gdp
 	BASE_MODS["threshold"] = float(mc["threshold"])
 	BASE_MODS["parl_term"] = int(mc["parl_term"])

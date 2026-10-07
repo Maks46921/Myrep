@@ -260,7 +260,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		- 0.3 * tdrag - 0.7 * (tdrag - tax_ref)
 		+ lvl_sum("growth")
 		- maxf(0.0, inflation - 5.0) * 0.2
-		- maxf(0.0, debt_ratio - 90.0) * 0.02
+		- debt_drag(debt_ratio)
 		+ fimp * 0.2
 		+ float(mods["growth_bonus"])
 		+ shock
@@ -270,6 +270,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		+ soc_g()
 		+ ex_g()
 	)
+	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
 	growth += (g_target - growth) * rt(0.3, dt) + randf_range(-0.3, 0.3) * sqrt(dt)
 	growth_ema += (growth - growth_ema) * rt(0.08, dt)
@@ -310,6 +311,16 @@ func cap_rate() -> float:
 func debt_erode(dt: float) -> void:
 	if debt > 0.0 and inflation > 0.0:
 		debt *= 1.0 - inflation / 1200.0 * dt
+
+
+# v35: торможение роста от долга выше 90% ВВП. Стартовая часть (заложена в калибровку страны) — 0,02 за п.п.,
+# прирост сверх стартового — 0,01 за п.п.: при 0,02 высокий долг и спад раскручивали друг друга до дефолта.
+func debt_drag(ratio: float) -> float:
+	if debt_start < -50.0:
+		debt_start = ratio
+	var base: float = maxf(0.0, debt_start - 90.0)
+	var cur: float = maxf(0.0, ratio - 90.0)
+	return 0.02 * base + 0.01 * (cur - base)
 
 
 func rt(r: float, dt: float) -> float:

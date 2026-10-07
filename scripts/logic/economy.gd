@@ -393,7 +393,10 @@ func markets_step() -> void:
 		var rel: float = float(ec["inv"]) / 0.22 * alloc / float(m["w"])
 		var gk: float = 0.065 * rel - 0.04
 		s3["gk"] = gk
-		s3["K"] = maxf(0.5, float(s3["K"]) * (1.0 + (gk - 0.025) / 12.0))
+		# v35: в долгом спаде лишние мощности списываются (иначе загрузка годами не возвращалась к норме,
+		# деловой климат и инвестиции тянули друг друга вниз, и спад не кончался)
+		var scrap: float = 0.15 * maxf(0.0, float(m["u0"]) - float(s3["u"]))
+		s3["K"] = maxf(0.5, float(s3["K"]) * (1.0 + (gk - 0.025 - scrap) / 12.0))
 		util += float(m["w"]) * float(s3["u"])
 		shorts += float(m["w"]) * float(s3["short"])
 		supply_g += float(m["w"]) * (gk - 0.025)

@@ -1293,7 +1293,7 @@
 	"SEATS": 150,
 	"REGIONAL_P": -1,
 	"GDP0": 650.0,
-	"G_POT": 0.0,
+	"G_POT": 1.7,
 	"G_NEU": 1.0,
 	"I_NEU": 2.4,
 	"I_TGT": 2.0,
