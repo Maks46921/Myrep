@@ -46,7 +46,7 @@ func init_economy() -> void:
 	ec["util"] = ut0
 	ec["x0"] = x0
 	for m in MARKETS:
-		(mk[m["id"]] as Dictionary)["imp"] = float(m["imp"]) * float(ec["k0"])
+		(mk[m["id"]] as Dictionary)["imp"] = minf(0.7, float(m["imp"]) * float(ec["k0"]))
 	var b := compute_budget()
 	ec["g0"] = (float(b["spending"]) - float(b["interest"])) / gdp
 	var inc := income_parts()
@@ -338,7 +338,9 @@ func markets_step() -> void:
 		var s: Dictionary = mk[id]
 		var d: float = float(m["c"]) * float(cmk[id]) + float(m["i"]) * float(ec["Iidx"]) + float(m["g"]) * float(ec["Gidx"]) + float(m["x"]) * xi
 		s["D"] = d
-		var imp0: float = float(m["imp"]) * float(ec["k0"])
+		# v35: стартовая доля импорта ограничена так же, как текущая (0,7) — иначе у стран с большим экспортом (BE, NL, PT, SK, HU)
+		# загрузка мощностей на старте выходила больше 1 (у Бельгии в промышленности — 7,5) и экономика сразу шла вразнос
+		var imp0: float = minf(0.7, float(m["imp"]) * float(ec["k0"]))
 		var imp: float = imp0 * pow(fxs, 1.2) * (1.0 - 0.025 * (tariff - 5.0)) + maxf(0.0, float(s["u"]) - 0.95) * (0.1 if id == "ene" else 0.5)
 		imp = clampf(imp, 0.0, 0.7)
 		s["imp"] = imp
