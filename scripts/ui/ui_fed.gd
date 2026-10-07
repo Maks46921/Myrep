@@ -175,7 +175,13 @@ func build_fed_windows() -> void:
 		up.focus_mode = Control.FOCUS_NONE
 		up.pressed.connect(on_fed_comp.bind(s, 1))
 		row.add_child(up)
-		fw_comp_rows.append({"lbl": lb, "dn": dn, "up": up})
+		var dsc := Label.new()
+		dsc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		dsc.add_theme_font_size_override("font_size", 11)
+		dsc.add_theme_color_override("font_color", C_DIM)
+		dsc.custom_minimum_size = Vector2(40.0, 0.0)
+		w.body.add_child(dsc)
+		fw_comp_rows.append({"lbl": lb, "dn": dn, "up": up, "desc": dsc})
 	add_title(w.body, "Статус региона")
 	add_note(w.body, "Обычный → расширенная автономия → особый статус (как у Наварры, Сицилии, Азорских островов). Статус даёт потолок полномочий и лояльность, но повышение требует парламентского большинства.")
 	var sr := HBoxContainer.new()
@@ -409,6 +415,8 @@ func update_fed_desk() -> void:
 		var d := fed_d(i2, s)
 		var mark := "" if d == 0 else (" (+%d)" % d if d > 0 else " (%d)" % d)
 		(row["lbl"] as Label).text = "%s: %s%s" % [FED_SPH[s][1], FED_LV[int(r2["comp"][s])], mark]
+		var lvn: int = clampi(int(r2["comp"][s]), 0, 3)
+		(row["desc"] as Label).text = loc("Сейчас: %s. %s" % [String(FED_LV_DESC[s][lvn]), String(FED_SPH[s][2])])
 		var wu := fed_comp_check(i2, s, 1)
 		var wd := fed_comp_check(i2, s, -1)
 		(row["up"] as Button).disabled = wu != "" or game_over
