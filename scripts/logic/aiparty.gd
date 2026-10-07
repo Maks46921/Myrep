@@ -246,6 +246,12 @@ func idl_mult() -> float:
 func idl_step() -> void:
 	if game_over:
 		return
+	# v35: в оппозиции курс определяет чужое правительство — однопартийцы не ставят его вам в вину,
+	# недовольство остывает. Раньше верность линии падала в оппозиции, и съезд снимал лидера в первый же месяц у власти.
+	if opp_mode:
+		idl = clampf(idl + (70.0 - idl) * 0.05, 0.0, 100.0)
+		idl_low = 0
+		return
 	var ok := 0.0
 	var viol := 0.0
 	for pl in idl_planks():
