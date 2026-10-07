@@ -157,6 +157,9 @@ var locks := {}              # обязательства: key -> {dir, share, a
 var slider_busy := false
 
 var growth_ema := 0.8
+var def_ref := -99.0          # v35: опорный дефицит для бюджетного импульса (см. macro_step)
+var tax_ref := -99.0          # v35: опора налоговой нагрузки для роста (см. macro_step)
+var growth_trend := -99.0      # v35: медленный тренд роста (≈5 лет) — от него, а не от постоянного G_NEU, безработица реагирует на рост
 
 var gdp_base := 4600.0       # ВВП без учёта развития регионов
 
@@ -651,7 +654,7 @@ var ap_advisor_rt: RichTextLabel
 
 var ap_btns: Array = []
 
-var def0 := 3.0                # дефицит бюджета на старте, % ВВП (нейтральный уровень для роста и инфляции)
+var def0 := 3.0                # дефицит бюджета на старте, % ВВП (с него начинается опорный def_ref)
 
 var loy_off: Array[float] = []
 

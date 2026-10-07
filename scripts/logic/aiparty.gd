@@ -4,6 +4,10 @@ extends "res://scripts/logic/opposition.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func autobalance_step(target: float = -1.0, big: bool = false) -> bool:
+	return false
+
+
 func autopilot_step() -> void:
 	pass
 
@@ -172,11 +176,9 @@ func gov_target(members: Array, pm: int, k: String) -> float:
 # шаг политики к программе: расходы всегда, налоги — только если есть запас по дефициту
 func ai_policy_step(members: Array, pm: int, strength: float) -> int:
 	var moved := 0
-	var room: bool = last_deficit_pct < float(ap["target"]) + 0.4
+	var room: bool = last_deficit_pct < maxf(3.0, def0) + 0.4
 	for k in ideo_keys():
 		if k == "emit" or lock_active(k):
-			continue
-		if String(policy_by_key[k]["kind"]) == "tax" and not room:
 			continue
 		var d: Dictionary = policy_by_key[k]
 		var rng: float = float(d["max"]) - float(d["min"])
@@ -184,8 +186,18 @@ func ai_policy_step(members: Array, pm: int, strength: float) -> int:
 		var step: float = clampf(gov_target(members, pm, k) - cur, -0.04 * rng * strength, 0.04 * rng * strength)
 		if absf(step) < 0.01:
 			continue
+		# v35: при большом дефиците не делаем шагов, которые его увеличивают (раньше блокировались любые налоговые шаги,
+		# в том числе повышение, а рост расходов — никогда, и дефицит ИИ-правительства уходил за 10% ВВП)
+		var worse: bool = (step < 0.0) if String(d["kind"]) == "tax" else (step > 0.0)
+		if worse and not room:
+			continue
 		set_policy(k, cur + step)
 		moved += 1
+	# v35: дефицит намного выше обычного — правительство подтягивает доходы
+	var lim: float = maxf(3.0, def0)
+	if last_deficit_pct > lim + 1.0:
+		autobalance_step(lim, true)
+		ap_log.clear()
 	return moved
 
 

@@ -237,17 +237,31 @@ func log_policy_changes() -> void:
 
 # Макро-динамика за долю месяца dt (месячный шаг: dt = 1; недельный тик: dt ≈ 7/30). full — месячные «хозяйственные» действия.
 func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: float, full: bool = true) -> void:
+	# v35: на рост и инфляцию действует ИЗМЕНЕНИЕ дефицита (бюджетный импульс), а не его уровень относительно старта:
+	# опорный дефицит def_ref медленно (≈3 года) подтягивается к текущему. Раньше консолидация бюджета навсегда
+	# снижала рост и толкала инфляцию к нулю, а большой дефицит навсегда разгонял их.
+	if def_ref < -50.0:
+		def_ref = def0
+	var fimp: float = deficit_pct - def_ref
+	# v35: налоги и субсидии меняют в основном УРОВЕНЬ выпуска: полный эффект на темп роста — пока экономика
+	# подстраивается (опора tax_ref догоняет за ≈5 лет), дальше остаётся 30%. Раньше +8 п.п. подоходного налога
+	# навсегда отнимали 0,8 п.п. роста в год, и любая консолидация бюджета вела к затяжному спаду.
+	var tdrag: float = (
+		(float(pol["income"]) - float(pol_def["income"])) * 0.10
+		+ (float(pol["social"]) - float(pol_def["social"])) * 0.07
+		+ (float(pol["corp"]) - float(pol_def["corp"])) * 0.20
+		+ (float(pol["vat"]) - float(pol_def["vat"])) * 0.08
+		- (pp0("subs") - float(pol_def["subs"])) * 0.12 - (pp0("agri") - float(pol_def["agri"])) * 0.05
+	)
+	if tax_ref < -50.0:
+		tax_ref = tdrag
 	var g_target: float = (
 		G_POT
-		- (float(pol["income"]) - float(pol_def["income"])) * 0.10
-		- (float(pol["social"]) - float(pol_def["social"])) * 0.07
-		- (float(pol["corp"]) - float(pol_def["corp"])) * 0.20
-		- (float(pol["vat"]) - float(pol_def["vat"])) * 0.08
-		+ (pp0("subs") - float(pol_def["subs"])) * 0.12 + (pp0("agri") - float(pol_def["agri"])) * 0.05
+		- 0.3 * tdrag - 0.7 * (tdrag - tax_ref)
 		+ lvl_sum("growth")
 		- maxf(0.0, inflation - 5.0) * 0.2
 		- maxf(0.0, debt_ratio - 90.0) * 0.02
-		+ (deficit_pct - def0) * 0.2
+		+ fimp * 0.2
 		+ float(mods["growth_bonus"])
 		+ shock
 		+ float(ecf["g"])
@@ -259,14 +273,21 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
 	growth += (g_target - growth) * rt(0.3, dt) + randf_range(-0.3, 0.3) * sqrt(dt)
 	growth_ema += (growth - growth_ema) * rt(0.08, dt)
+	if growth_trend < -50.0:
+		growth_trend = G_NEU
+	growth_trend += (growth - growth_trend) * rt(1.0 / 60.0, dt)
+	def_ref += (deficit_pct - def_ref) * rt(1.0 / 36.0, dt)
+	tax_ref += (tdrag - tax_ref) * rt(1.0 / 60.0, dt)
+	# закон Оукена и инфляционное давление — от тренда роста: долгий застой сам по себе не наращивает безработицу и дефляцию без конца
+	var g_ref: float = clampf(growth_trend, G_NEU - 1.0, G_NEU + 1.0)
 	gdp_base *= 1.0 + growth / 1200.0 * dt
 	gdp = gdp_base * regional_potential() / pot0
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + ((deficit_pct - def0) * 0.3 + (growth - G_NEU) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl()) / 12.0 * dt, 0.0, 40.0)
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl()) / 12.0 * dt, 0.0, 40.0)
 	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp()
-	unemployment = clampf(unemployment + (-(growth - G_NEU) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
+	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
 	for i in regions.size():
 		rloss += gdp_w[i] * float(REGIONS[i]["sec"]["res"]) * maxf(0.0, float(regions[i]["unrest"]) - 50.0) * 0.14
@@ -282,6 +303,13 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 func cap_rate() -> float:
 	return (0.7 + (0.2 if approval() >= 55.0 else 0.0) + float(mods["capital_bonus"])) * idl_mult() * junior_power() * (0.5 if techno_until > turn else 1.0)
 
+
+
+# v35: экономика считается в постоянных ценах, а долг — в деньгах: инфляция обесценивает его реальную величину
+# (проценты по долгу — номинальные). Без этого долг рос без предела при любом обычном дефиците.
+func debt_erode(dt: float) -> void:
+	if debt > 0.0 and inflation > 0.0:
+		debt *= 1.0 - inflation / 1200.0 * dt
 
 
 func rt(r: float, dt: float) -> float:
@@ -300,6 +328,7 @@ func week_tick() -> void:
 		take_month_snap()
 	var b := compute_budget()
 	debt -= float(b["balance"]) / 12.0 * dt
+	debt_erode(dt)
 	var deficit_pct: float = -float(b["balance"]) / gdp * 100.0
 	macro_step(dt, last_ecf, deficit_pct, debt / gdp * 100.0, false)
 	month_done += dt
@@ -364,6 +393,7 @@ func next_turn() -> void:
 	var debt_ratio: float = debt / gdp * 100.0
 	var rest: float = maxf(0.0, 1.0 - month_done)     # доля месяца, ещё не пройденная недельными тиками (в тестах всегда 1)
 	debt -= balance_y / 12.0 * rest
+	debt_erode(rest)
 	brake_step(deficit_pct)
 	dip_step()
 	wsim_step()
