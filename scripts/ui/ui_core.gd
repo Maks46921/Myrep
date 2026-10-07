@@ -839,11 +839,12 @@ func refresh() -> void:
 		for a in ACTIONS:
 			var b: Button = action_rows[a["id"]]
 			var cd: int = int(cooldown[a["id"]])
-			var txt: String = "%s (капитал %.0f)" % [loc(String(a["name"])), a["cost"]]
+			var anm: String = loc(String(a["name"])) if a["id"] != "snap" else String(snap_info()["name"])
+			var txt: String = "%s (капитал %.0f)" % [anm, a["cost"]]
 			if cd > 0:
 				txt += " — ещё %d мес." % cd
 			b.text = txt
-			b.disabled = cd > 0 or game_over or capital < float(a["cost"]) or (a["id"] == "snap" and turn - last_parl < 12)
+			b.disabled = cd > 0 or game_over or capital < float(a["cost"]) or (a["id"] == "snap" and (turn - last_parl < 12 or not bool(snap_info()["ok"]) or opp_mode))
 		update_parliament()
 		update_polls()
 	elif current_desk == 3:

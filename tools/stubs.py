@@ -51,7 +51,7 @@ def default_return(sig):
     if t in SIMPLE:
         return 'return ' + SIMPLE[t]
     if re.match(r'Array\[(.+)\]$', t):
-        return 'var r: %s = []\n\treturn r' % t
+        return 'var r: %s = []\nreturn r' % t
     return 'return null'
 
 

@@ -89,7 +89,11 @@ func build_politics_windows() -> void:
 		var b := make_button("", w.body)
 		b.pressed.connect(do_action.bind(a["id"]))
 		action_rows[a["id"]] = b
-		add_note(w.body, a["desc"])
+		if a["id"] == "snap":
+			var si: Dictionary = snap_info()
+			add_note(w.body, "%s%s Рискованно, но при высоком рейтинге можно усилить большинство." % [String(si["desc"]), (" Голосование: %s." % String(si["vote"])) if String(si["vote"]) != "" else ""])
+		else:
+			add_note(w.body, a["desc"])
 
 	w = new_window("party", "Партия: сведения", 1, Rect2(0.28, 0.0, 0.22, 1.0))
 	party_detail_rt = make_rt(w.body)

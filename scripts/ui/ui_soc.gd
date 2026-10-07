@@ -75,7 +75,7 @@ func build_soc_windows() -> void:
 	w.body.add_child(xw_chart)
 	xw_list_rt = make_rt(w.body)
 	xw_list_rt.visible = false
-	add_note(w.body, "Зависимость — доля торговли, энергии и долга в ВВП. «Мы → они» — насколько зависим вы, «Они → мы» — насколько зависят от вас. Щёлкните по стране, чтобы действовать.", true)
+	add_note(w.body, "Зависимость — доля торговли, энергии и долга в ВВП. «Мы зависим» — насколько ваша страна зависит от партнёра, «Они зависят» — насколько партнёр зависит от вас. Щёлкните по стране, чтобы действовать.", true)
 
 	w = new_window("xw_info", "Действия с выбранной страной", 10, Rect2(0.40, 0.0, 0.30, 1.0))
 	xw_info_rt = make_rt(w.body)
@@ -238,7 +238,7 @@ func update_ex_desk() -> void:
 	if ex_sel == "" or not (ex_sel in ps):
 		ex_sel = ps[0] if ps.size() > 0 else ""
 	var chart_rows: Array = []
-	var t := "[table=6][cell][color=%s]Страна[/color][/cell][cell][color=%s] Мы→они[/color][/cell][cell][color=%s] Они→мы[/color][/cell][cell][color=%s] Влияние[/color][/cell][cell][color=%s] Отнош.[/color][/cell][cell][color=%s] Пошлины/ответ[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM]
+	var t := "[table=6][cell][color=%s]Страна[/color][/cell][cell][color=%s] Мы зависим[/color][/cell][cell][color=%s] Они зависят[/color][/cell][cell][color=%s] Влияние[/color][/cell][cell][color=%s] Отнош.[/color][/cell][cell][color=%s] Пошлины/ответ[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM]
 	var rows: Array = []
 	for c in ps:
 		rows.append([c, float(ex_dep(c)["out"]) + float(ex_dep(c)["in"])])
@@ -270,8 +270,11 @@ func update_ex_desk() -> void:
 	var d2: Dictionary = ex_dep(c2)
 	var p2: Dictionary = ex["p"][c2]
 	var s := "[b][font_size=16]%s[/font_size][/b]\n" % WORLD[c2]["name"]
-	s += "Торговля: мы→они %.1f%%, они→мы %.1f%% ВВП\nЭнергия: %.1f%% / %.1f%% · Долг: %.1f%% / %.1f%%\n" % [float(d2["tr_out"]), float(d2["tr_in"]), float(d2["en_out"]), float(d2["en_in"]), float(d2["fin_out"]), float(d2["fin_in"])]
-	s += "Баланс зависимости: [b]%+.1f[/b] (плюс — зависят от нас)\n" % float(d2["bal"])
+	s += "[color=%s]Наша зависимость от них / их зависимость от нас, %% ВВП своей страны:[/color]\n" % COL_DIM
+	s += "Торговля: %.1f / %.1f · Энергия: %.1f / %.1f · Долг: %.1f / %.1f\n" % [float(d2["tr_out"]), float(d2["tr_in"]), float(d2["en_out"]), float(d2["en_in"]), float(d2["fin_out"]), float(d2["fin_in"])]
+	var bal: float = float(d2["bal"])
+	var who: String = "они зависят от нас сильнее, чем мы от них" if bal > 0.05 else ("мы зависим от них сильнее, чем они от нас" if bal < -0.05 else "зависимость взаимная и равная")
+	s += "Баланс зависимости: [b]%+.1f[/b] — %s\n" % [bal, who]
 	s += "Наше влияние на них: [b]%.0f[/b] · их влияние на нас: [b]%.0f[/b]\n" % [ex_leverage(c2), ex_leverage_on_us(c2)]
 	s += "Соглашение: %s · пошлины: %s · ответ партнёра: %s\n" % [EX_DEAL[int(p2["deal"])], EX_TAR[int(p2["tar"])], EX_TAR[int(p2["ret"])]]
 	s += "[color=%s]Чем выше наше влияние, тем легче просить об услугах; чем выше их влияние на нас, тем сильнее они могут давить (пошлины, ставки, энергия).[/color]" % COL_DIM
