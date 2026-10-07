@@ -35,6 +35,7 @@ TESTS = {
     'opp':    ('t_opp.gd', [], 300),
     'ai':     ('t_ai.gd', [], 600),
     'budget': ('t_budget.gd', [], 90),
+    'council': ('t_council.gd', [], 90),
     'far':    ('t_far.gd', [], 120),
     'fed':    ('t_fed.gd', [], 240),
     'soc':    ('t_soc.gd', [], 300),
@@ -47,7 +48,7 @@ TESTS = {
     'long':   ('t_long.gd', [], 400),
 }
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')

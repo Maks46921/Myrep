@@ -303,3 +303,13 @@ func resolve_crisis(opt: Dictionary) -> void:
 	crisis_offered = false
 	deadlock = 0
 	recompute_mods()
+
+
+# короткое имя партии для подписей: аббревиатура в скобках или начало названия
+func party_abbr(p: int) -> String:
+	var n: String = String(PARTY_NAMES[p])
+	var a := n.rfind("(")
+	var b := n.rfind(")")
+	if a >= 0 and b > a + 1 and b - a <= 26:
+		return n.substr(a + 1, b - a - 1)
+	return n if n.length() <= 22 else n.substr(0, 20) + "…"

@@ -225,7 +225,7 @@ func update_coal_summary() -> void:
 	var pie: Array = []
 	for p in PARTY_NAMES.size():
 		if in_coalition[p] and seats[p] > 0:
-			pie.append([float(seats[p]), PARTY_COLORS[p], PARTY_NAMES[p]])
+			pie.append([float(seats[p]), PARTY_COLORS[p], party_abbr(p)])
 	coal_pie.set_data(pie)
 	coal_pie.visible = pie.size() >= 2
 	for p in range(1, PARTY_NAMES.size()):
