@@ -63,6 +63,7 @@ var in_coalition: Array[bool] = []
 var warned := {}
 
 var crisis_months := 0
+var prev_head: Array = []     # v35: доли кандидатов в 1-м туре прошлых выборов главы государства
 var deadlock := 0             # v35: досрочных выборов подряд из-за несформированного правительства
 var minority_gov := false     # v35: правительство меньшинства на терпимости (выход из кризиса)
 var techno_until := -1        # v35: техническое правительство до этого месяца
@@ -480,7 +481,8 @@ var sel_ministry := 0
 var neg_party := 1
 
 var neg_promise := false
-var coal_pie: PieChart = null   # v35: круговая диаграмма влияния в коалиции
+var coal_pie: PieChart = null
+var upper_rt: RichTextLabel = null   # v35: верхняя палата в окне парламента   # v35: круговая диаграмма влияния в коалиции
 
 var coal_head: RichTextLabel
 

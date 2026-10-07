@@ -88,7 +88,7 @@ func _draw() -> void:
 	var side: bool = FW >= 780.0
 	var W: float = FW * 0.58 if side else FW
 	var name_w: float = clampf(W * 0.34, 120.0, 260.0)
-	var num_w: float = 168.0
+	var num_w: float = 206.0
 	var bx: float = name_w + 10.0
 	var bw: float = maxf(40.0, W - bx - num_w - 6.0)
 	var mx := 0.05
@@ -120,7 +120,12 @@ func _draw() -> void:
 			var dcol := Color(0.345, 0.784, 0.529) if dpp > 0.05 else (Color(0.933, 0.420, 0.420) if dpp < -0.05 else Color(0.6, 0.63, 0.72))
 			draw_string(f, Vector2(bx + bw + 62.0, y + 19.0), ("%+.1f" % dpp) if absf(dpp) >= 0.05 else "±0", HORIZONTAL_ALIGNMENT_LEFT, 44.0, 12, dcol)
 		var st := "%d" % int(round(float(r["seats"]) * e)) if ok else "—"
-		draw_string(f, Vector2(W - 54.0, y + 19.0), st, HORIZONTAL_ALIGNMENT_RIGHT, 52.0, 14, Color(1.0, 0.85, 0.45, dim) if bool(r["you"]) else Color(0.93, 0.95, 1.0, dim))
+		draw_string(f, Vector2(W - 92.0, y + 19.0), st, HORIZONTAL_ALIGNMENT_RIGHT, 50.0, 14, Color(1.0, 0.85, 0.45, dim) if bool(r["you"]) else Color(0.93, 0.95, 1.0, dim))
+		# v35: изменение числа мест к прошлым выборам
+		if progress > 0.85 and r.has("pseat"):
+			var ds: int = int(r["seats"]) - int(r["pseat"])
+			var scol := Color(0.345, 0.784, 0.529) if ds > 0 else (Color(0.933, 0.420, 0.420) if ds < 0 else Color(0.6, 0.63, 0.72))
+			draw_string(f, Vector2(W - 38.0, y + 19.0), ("%+d" % ds) if ds != 0 else "±0", HORIZONTAL_ALIGNMENT_LEFT, 38.0, 12, scol)
 	# барьер
 	var tx: float = bx + thr * scale
 	if thr >= 0.005 and tx < bx + bw:

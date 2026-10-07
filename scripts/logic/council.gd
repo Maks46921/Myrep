@@ -313,3 +313,108 @@ func party_abbr(p: int) -> String:
 	if a >= 0 and b > a + 1 and b - a <= 26:
 		return n.substr(a + 1, b - a - 1)
 	return n if n.length() <= 22 else n.substr(0, 20) + "…"
+
+
+# ---------- верхняя палата (v35) ----------
+# доля мест верхней палаты, переизбираемая вместе с нижней (0 — назначаемая или корпоративная палата)
+const UPPER_RENEW := {"AT": 0.5, "BE": 1.0, "CH": 1.0, "CZ": 0.33, "ES": 1.0, "FR": 0.5, "IE": 1.0, "IT": 1.0, "NL": 1.0, "GB": 0.0, "SI": 0.0}
+
+
+func upper_on() -> bool:
+	return not UPPER.is_empty() and int(UPPER.get("total", 0)) > 0 and String(UPPER.get("kind", "none")) != "veto"
+
+
+# места правительства в верхней палате (блок засчитывается, если его партии в коалиции)
+func upper_gov() -> int:
+	var all_mode: bool = String(UPPER.get("mode", "")) == "all"
+	var yes := 0
+	for bl in UPPER["blocs"]:
+		var n_ok := 0
+		for p in bl[1]:
+			if int(p) == 0 or in_coalition[int(p)]:
+				n_ok += 1
+		var ps: Array = bl[1]
+		if (n_ok == ps.size()) if all_mode else (n_ok * 2 >= ps.size()):
+			yes += int(bl[0])
+	return yes
+
+
+# после выборов в нижнюю палату часть верхней обновляется по новым долям партий
+func upper_renew(shares: Array) -> String:
+	if not upper_on() or String(UPPER.get("mode", "")) == "all":
+		return ""
+	var k: float = float(UPPER_RENEW.get(ccode, 0.0))
+	if k <= 0.0:
+		return ""
+	var single := 0
+	var cur := {}
+	var keep: Array = []
+	for bl in UPPER["blocs"]:
+		if (bl[1] as Array).size() == 1:
+			single += int(bl[0])
+			var p: int = int(bl[1][0])
+			cur[p] = int(cur.get(p, 0)) + int(bl[0])
+		else:
+			keep.append(bl)
+	if single <= 0:
+		return ""
+	var want := {}
+	var tot := 0.0
+	for p in PARTY_NAMES.size():
+		if p < shares.size() and seats[p] > 0:
+			tot += float(shares[p])
+	var acc := 0
+	var order: Array = []
+	for p in PARTY_NAMES.size():
+		var tgt: float = float(single) * (float(shares[p]) / tot if (tot > 0.0 and p < shares.size() and seats[p] > 0) else 0.0)
+		var v: float = float(cur.get(p, 0)) * (1.0 - k) + tgt * k
+		want[p] = int(floor(v))
+		acc += int(want[p])
+		order.append([v - floor(v), p])
+	order.sort_custom(func(a, b): return a[0] > b[0])
+	var i := 0
+	while acc < single and i < order.size():
+		want[int(order[i][1])] = int(want[int(order[i][1])]) + 1
+		acc += 1
+		i += 1
+	var blocs: Array = []
+	var parts: PackedStringArray = []
+	for p in PARTY_NAMES.size():
+		if int(want[p]) > 0:
+			blocs.append([int(want[p]), [p]])
+		var d: int = int(want[p]) - int(cur.get(p, 0))
+		if d != 0:
+			parts.append("%s %+d" % [party_abbr(p), d])
+	UPPER["blocs"] = blocs + keep
+	if parts.is_empty():
+		return ""
+	return "%s обновлена (%.0f%% мест): %s. У коалиции там %d из %d." % [String(UPPER["name"]), k * 100.0, ", ".join(parts), upper_gov(), int(UPPER["total"])]
+
+
+func upper_summary() -> String:
+	if UPPER.is_empty():
+		return ""
+	if String(UPPER.get("kind", "none")) == "veto":
+		var vp: int = int(UPPER.get("veto_p", -1))
+		return "[b]%s[/b]: президент от «%s» может наложить вето; преодолеть его — %.0f%% голосов нижней палаты." % [UPPER["name"], PARTY_NAMES[vp] if vp >= 0 else "—", float(UPPER.get("veto_frac", 0.6)) * 100.0]
+	if not upper_on():
+		return "[color=%s]Парламент однопалатный.[/color]" % COL_DIM
+	var total: int = int(UPPER["total"])
+	var g := upper_gov()
+	var powers := {"full": "равноправна с нижней: без неё закон не принять", "override": "может отклонить закон, но нижняя палата преодолевает это (дольше и дороже)", "consent": "блокирует законы о землях; остальные лишь задерживает", "none": "почти не влияет на обычные законы"}
+	var t := "[b]%s[/b] — %d мест: у коалиции [b]%d[/b] (%s большинства). Палата %s.\n" % [UPPER["name"], total, g, "есть" if g * 2 > total else "нет", powers.get(String(UPPER["kind"]), "")]
+	var per := {}
+	var mixed := 0
+	for bl in UPPER["blocs"]:
+		if (bl[1] as Array).size() == 1:
+			per[int(bl[1][0])] = int(per.get(int(bl[1][0]), 0)) + int(bl[0])
+		else:
+			mixed += int(bl[0])
+	var parts: PackedStringArray = []
+	for p in PARTY_NAMES.size():
+		if int(per.get(p, 0)) > 0:
+			parts.append("[color=#%s]■[/color] %s %d" % [(PARTY_COLORS[p] as Color).lightened(0.2).to_html(false), party_abbr(p), int(per[p])])
+	if mixed > 0:
+		parts.append("коалиционные правительства регионов %d" % mixed)
+	t += "[font_size=13]%s[/font_size]" % "  ".join(parts)
+	return t

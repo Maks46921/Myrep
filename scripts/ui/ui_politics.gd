@@ -36,6 +36,7 @@ func build_politics_windows() -> void:
 		hemi_hover = -1
 		hemi_ctl.queue_redraw())
 	w.body.add_child(hemi_ctl)
+	upper_rt = make_rt(w.body)
 
 	w = new_window("parties", "Партии (нажмите на название)", 1, Rect2(0.0, 0.50, 0.28, 0.50))
 	var grid := GridContainer.new()
@@ -131,10 +132,12 @@ func update_parliament() -> void:
 	var opp_only := opp_bloc()
 	var imp := ""
 	if opp_only >= impeach_seats() - 10:
-		imp = " Оппозиция без АдГ близка к большинству (%d из %d): возможен конструктивный вотум недоверия при рейтинге ниже 42%%." % [opp_only, impeach_seats()]
+		imp = " Оппозиция без «%s» близка к большинству (%d из %d): возможен конструктивный вотум недоверия при рейтинге ниже 42%%." % [party_abbr(9), opp_only, impeach_seats()]
 	pol_header.text = loc("Коалиция: %d из %d (%s). Оппозиция: %d.%s" % [gs, SEATS, status, SEATS - gs, imp])
 	pol_header.tooltip_text = "Яркие кружки с белым ободком — партии коалиции. Наведите на кружок или щёлкните, чтобы выбрать партию."
 	hemi_ctl.queue_redraw()
+	if upper_rt != null:
+		upper_rt.text = loc(upper_summary())
 	update_party_table()
 	update_party_detail()
 

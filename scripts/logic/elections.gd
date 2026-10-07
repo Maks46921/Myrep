@@ -72,6 +72,10 @@ func show_head_election(rep: Dictionary) -> void:
 	pass
 
 
+func upper_renew(shares: Array) -> String:
+	return ""
+
+
 # --- конец заглушек ---
 
 
@@ -343,6 +347,17 @@ func hold_head_direct(reason: String) -> void:
 			head_row(a, s2[a], winner == a, false, ""), head_row(b, s2[b], winner == b, false, "")]})
 		logt += ". Второй тур: %.1f%% против %.1f%%" % [s2[a] * 100.0, s2[b] * 100.0]
 	var out: Array = head_outcome(winner)
+	# v35: сравнение с прошлыми выборами главы государства (1-й тур)
+	if prev_head.size() == n:
+		var cmp: PackedStringArray = []
+		for i in mini(5, order.size()):
+			var p: int = order[i]
+			cmp.append("%s %s п.п." % [head_cand_name(p), sg((float(s1[p]) - float(prev_head[p])) * 100.0, 1)])
+		out[2] = String(out[2]) + "\n[color=%s]К прошлым выборам (1-й тур): %s.[/color]" % [COL_DIM, "; ".join(cmp)]
+		logt += ". К прошлым выборам: " + "; ".join(cmp)
+	prev_head = []
+	for p in n:
+		prev_head.append(float(s1[p]))
 	var rep := {"title": "ВЫБОРЫ " + String(ELEC["title"]).to_upper() if not sham else "ВЫБОРЫ БЕЗ ВЫБОРА", "reason": reason, "rounds": rounds, "sham": sham,
 		"meta": "Прямое голосование, два тура: во второй выходят двое лучших. Срок полномочий — %d лет. Следующие выборы — %s." % [head_term_months() / 12, turn_date(turn + head_term_months())],
 		"vtitle": out[0], "vcol": out[1], "vtext": out[2], "end": "", "log": logt + ". Победил: %s." % head_cand_name(winner)}
@@ -576,6 +591,18 @@ func hold_parliament_core(reason: String) -> void:
 		if seats[p] > 0:
 			parts.append("%s %.1f%% (%d мест)" % [PARTY_NAMES[p], shares[p] * 100.0, seats[p]])
 	log_line("  " + "; ".join(parts))
+	# v35: сравнение с прошлыми выборами
+	var cmp: PackedStringArray = []
+	for p in sorted_parties(shares):
+		var dpp: float = (float(shares[p]) - (float(prev[p]) if p < prev.size() else 0.0)) * 100.0
+		var dse: int = int(seats[p]) - (int(old_seats[p]) if p < old_seats.size() else 0)
+		if absf(dpp) >= 0.05 or dse != 0:
+			cmp.append("%s %s п.п., %s мест" % [PARTY_NAMES[p], sg(dpp, 1), ("%+d" % dse) if dse != 0 else "±0"])
+	if cmp.size() > 0:
+		log_line("[color=%s]  К прошлым выборам:[/color] %s." % [COL_DIM, "; ".join(cmp)])
+	var upr := upper_renew(shares)
+	if upr != "":
+		log_line("  " + upr)
 	if comp_loss > 0.015:
 		log_line("[color=%s]Конкуренция:[/color] оппозиция консолидировалась и голосовала тактически — партия власти недобрала около %.0f п.п. (индекс демократии %.0f%%)." % [COL_DIM, comp_loss * 100.0, democracy_index() * 100.0])
 	# победы в регионах
