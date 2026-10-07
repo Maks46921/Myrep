@@ -262,7 +262,7 @@ var ec_pp_fold: RichTextLabel
 var ec_cb_fold: RichTextLabel
 var ec_gf_fold: RichTextLabel
 var ec_st_fold: RichTextLabel
-var ui_detail: bool = false   # показывать ли все пояснения
+var ui_detail: bool = true    # v35: пояснения всегда показаны
 var note_nodes: Array = []
 var tails: Dictionary = {}
 var fold_nodes: Array = []
@@ -532,6 +532,7 @@ var map_ctx_parts: Array = []
 var map_ctx_cent: Array = []
 
 var map_bounds := Rect2()
+var map_cc_outline: Dictionary = {}   # v35: кэш контура целой страны (код -> массив колец в координатах карты)
 
 var map_hover_unit := -1
 

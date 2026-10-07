@@ -100,6 +100,7 @@ func map_prepare() -> void:
 	map_unit_rect.clear()
 	map_unit_local.clear()
 	map_ctx_parts.clear()
+	map_cc_outline.clear()
 	map_ctx_cent.clear()
 	var lo := Vector2(1e9, 1e9)
 	var hi := Vector2(-1e9, -1e9)
@@ -756,30 +757,18 @@ func draw_map() -> void:
 	if map_mode == "foreign" and dip_sel != "" and not fmap_win_open:
 		whole_cc = dip_sel
 	if whole_cc != "":
-		var segs: Dictionary = {}
 		for ui in px_parts:
 			if String(WORLD_UNITS[ui]["cc"]) != whole_cc:
 				continue
-			for sp in (px_parts[ui] as Array):
-				var pa: PackedVector2Array = sp
-				for k in pa.size():
-					var a1: Vector2 = pa[k]
-					var b1: Vector2 = pa[(k + 1) % pa.size()]
-					var ka := "%d,%d" % [roundi(a1.x * 2.0), roundi(a1.y * 2.0)]
-					var kb := "%d,%d" % [roundi(b1.x * 2.0), roundi(b1.y * 2.0)]
-					var key: String = ka + ">" + kb
-					var rkey: String = kb + ">" + ka
-					if segs.has(rkey):
-						segs[rkey][2] = false
-					else:
-						segs[key] = [a1, b1, true]
 			for sp2 in (px_parts[ui] as Array):
 				c.draw_colored_polygon(sp2, Color(1, 1, 1, 0.12))
-		for k2 in segs:
-			var sg: Array = segs[k2]
-			if bool(sg[2]):
-				c.draw_line(sg[0], sg[1], Color(1, 1, 1, 0.25), 7.0)
-				c.draw_line(sg[0], sg[1], Color(1, 1, 1, 0.97), 2.6)
+		for ring in country_outline(whole_cc):
+			var pr := PackedVector2Array()
+			for p in (ring as PackedVector2Array):
+				pr.append(p * s + off)
+			pr.append(pr[0])
+			c.draw_polyline(pr, Color(1, 1, 1, 0.25), 7.0)
+			c.draw_polyline(pr, Color(1, 1, 1, 0.97), 2.6)
 	for ui in px_parts:
 		var cc2: String = String(WORLD_UNITS[ui]["cc"])
 		var sel := false
@@ -1252,3 +1241,17 @@ func regecon_inject() -> void:
 		{"Бюджетники": 1.0, "Село": 2.0, "Бизнес": 1.0, "Пенсионеры": -1.0}, {"rdebt_shift": 1.2, "reg_dev_bonus": 1.2, "growth_bonus": 0.03},
 		{"soc": 3, "region": 5, "left": 2, "lib": -3, "cons": -2, "popl": 3, "popr": 2}))
 	LAW_TOPICS.append(tg)
+
+
+# v35: внешний контур целой страны — объединение полигонов её единиц карты (внутренние границы и мелкие щели между
+# единицами из разных источников не рисуются). Считается один раз и кэшируется до следующего map_prepare.
+func country_outline(cc: String) -> Array:
+	if map_cc_outline.has(cc):
+		return map_cc_outline[cc]
+	var parts: Array = []
+	for ui in WORLD_UNITS.size():
+		if String(WORLD_UNITS[ui]["cc"]) == cc:
+			parts.append_array(map_unit_parts[ui] as Array)
+	var out: Array = CountryMap.outline_of(parts)
+	map_cc_outline[cc] = out
+	return out

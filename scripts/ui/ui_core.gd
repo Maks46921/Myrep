@@ -292,15 +292,6 @@ func build_ui() -> void:
 	cbtn.focus_mode = Control.FOCUS_NONE
 	cbtn.pressed.connect(show_country_menu.bind(true))
 	hb.add_child(cbtn)
-	var inf := Button.new()
-	inf.theme_type_variation = "SmallButton"
-	inf.text = "ⓘ"
-	inf.toggle_mode = true
-	inf.custom_minimum_size = Vector2(34.0, 34.0)
-	inf.tooltip_text = "Показать все пояснения и подробные таблицы (по умолчанию скрыты; их можно открыть и по отдельности)"
-	inf.focus_mode = Control.FOCUS_NONE
-	inf.toggled.connect(on_detail_toggled)
-	hb.add_child(inf)
 	var rst := Button.new()
 	rst.theme_type_variation = "SmallButton"
 	rst.text = "↺"
@@ -756,7 +747,7 @@ func update_stats() -> void:
 	t += "[color=%s]Цены[/color]  инфляция [b][color=#%s]%.1f%%[/color][/b] · безработица [b][color=#%s]%.1f%%[/color][/b]\n" % [
 		COL_DIM, scale_color(1.0 - inflation / 12.0).to_html(false), inflation, scale_color(1.0 - unemployment / 14.0).to_html(false), unemployment]
 	t += "[color=%s]Долг[/color]  [b]%s млрд[/b] · [b][color=#%s]%.0f%% ВВП[/color][/b]\n" % [COL_DIM, fmt_n(debt), scale_color(1.0 - dr / 110.0).to_html(false), dr]
-	t += "[color=%s]Капитал[/color]  [b]%.0f[/b] из 100" % [COL_DIM, capital]
+	t += "[color=%s]Капитал[/color]  [b]%.1f[/b] из 100 (%+.1f в месяц)" % [COL_DIM, capital, cap_rate()]
 	stats_label.text = t
 	if level_fx_rt != null:
 		level_fx_rt.text = level_effects_text()
@@ -1116,7 +1107,8 @@ func update_chips() -> void:
 	set_chip("infl", "%.1f%%" % inflation, scale_color(1.0 - inflation / 12.0), arrow_text(dinfl, 2), delta_col(dinfl, false))
 	set_chip("unemp", "%.1f%%" % unemployment, scale_color(1.0 - unemployment / 14.0), arrow_text(dun, 2), delta_col(dun, false))
 	set_chip("debt", "%.0f%%" % dr, scale_color(1.0 - dr / 110.0), arrow_text(ddebt, 1), delta_col(ddebt, false))
-	set_chip("cap", "%.0f" % capital, C_WARN if capital < 15.0 else C_TEXT, "/100")
+	var cr: float = cap_rate()
+	set_chip("cap", "%.1f" % capital, C_WARN if capital < 15.0 else C_TEXT, "%s%.1f/мес" % ["+" if cr >= 0.0 else "", cr], C_GOOD if cr >= 0.7 else C_DIM)
 	set_chip("coal", "%d/%d" % [gs, SEATS], C_GOOD if gov_ok() else C_BAD, "кризис" if not gov_ok() else "", C_BAD)
 	var el_d: int = days_until_months(parl_in)
 	set_chip("elec", ("%d дн." % el_d) if el_d < 90 else months_short(parl_in), C_TEXT)

@@ -473,13 +473,6 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	le.tooltip_text = "Число от 1 до 999999999. Пусто — случайно."
 	le.text_changed.connect(func(t: String) -> void: game_opts["seed"] = int(t) if t.is_valid_int() and int(t) > 0 else 0)
 	box.add_child(le)
-	var ck2 := CheckBox.new()
-	ck2.text = "Показывать все пояснения сразу (режим ⓘ)"
-	ck2.button_pressed = bool(game_opts["detail"])
-	ck2.focus_mode = Control.FOCUS_NONE
-	ck2.tooltip_text = "Включает подробные подписи во всех окнах. Позже переключается кнопкой ⓘ в шапке."
-	ck2.toggled.connect(func(on: bool) -> void: game_opts["detail"] = on)
-	box.add_child(ck2)
 	var rs := Button.new()
 	rs.text = "Сбросить все настройки"
 	rs.focus_mode = Control.FOCUS_NONE
@@ -700,7 +693,7 @@ func _ready() -> void:
 	apply_country(code0)
 	ag_on = bool(game_opts["agents"])
 	ag_k_pref = int(game_opts["k"])
-	ui_detail = bool(game_opts["detail"])
+	ui_detail = true   # v35: пояснения и подробные таблицы всегда показаны (кнопка ⓘ убрана)
 	init_state()
 	capital *= float(game_opts["cap"])
 	build_geometry()
@@ -721,6 +714,22 @@ func _ready() -> void:
 	show_desk(2)
 	refresh()
 	call_deferred("layout_windows")
+
+
+# v35: пробел — пауза / пуск времени (если фокус не в поле ввода и не открыто меню стран)
+func _input(e: InputEvent) -> void:
+	if not (e is InputEventKey):
+		return
+	var ke := e as InputEventKey
+	if not ke.pressed or ke.echo or ke.keycode != KEY_SPACE or election_open or has_node("CountryMenu"):
+		return
+	if play_btn == null or game_over:
+		return
+	var fo := get_viewport().gui_get_focus_owner()
+	if fo is LineEdit or fo is TextEdit:
+		return
+	on_play_toggled(play_idx <= 0)
+	get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(e: InputEvent) -> void:

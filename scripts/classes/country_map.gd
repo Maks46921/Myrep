@@ -16,6 +16,7 @@ var crect: Dictionary = {}   # код -> Rect2
 var zoom := 1.0              # масштаб (1 = вся карта целиком)
 var center := Vector2.ZERO   # центр обзора в мировых координатах
 var drag := false
+var outlines: Dictionary = {}   # код -> внешний контур страны (v35)
 var drag_moved := false
 var drag_start := Vector2.ZERO
 const ZMIN := 0.8
@@ -255,14 +256,21 @@ func _draw() -> void:
 			var edge := Color(0.03, 0.04, 0.07, 0.55)
 			var wdt := 0.8
 			if cc3 == selected:
-				edge = Color(1, 1, 1, 0.9)
-				wdt = 1.6
+				edge = Color(1, 1, 1, 0.35)
+				wdt = 0.8
 			elif cc3 == hover:
 				edge = Color(1, 1, 1, 0.5)
 				wdt = 1.2
 			var closed := q2.duplicate()
 			closed.append(q2[0])
 			draw_polyline(closed, edge, wdt)
+	if selected != "":
+		for ring in outline(selected):
+			var pr := PackedVector2Array()
+			for p in (ring as PackedVector2Array):
+				pr.append(p * s + off)
+			pr.append(pr[0])
+			draw_polyline(pr, Color(1, 1, 1, 0.95), 2.0)
 	var font := get_theme_default_font()
 	for cc4 in labels:
 		var rc: Rect2 = crect[cc4]
@@ -275,3 +283,51 @@ func _draw() -> void:
 		draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.95 if cc4 == selected or cc4 == hover else 0.8))
 	var hint := "Колёсико — масштаб · перетащите карту · щелчок — выбрать страну   (×%.1f)" % zoom
 	draw_string(font, Vector2(10.0, size.y - 8.0), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.45))
+
+
+# v35: внешний контур набора полигонов (объединение; мелкие щели между единицами из разных источников закрываются).
+static func outline_of(parts: Array) -> Array:
+	const GROW := 0.6
+	var res: Array = []
+	for part in parts:
+		var grown: Array = Geometry2D.offset_polygon(part, GROW)
+		if grown.is_empty():
+			continue
+		var cur: PackedVector2Array = grown[0]
+		var keep: Array = []
+		for q in res:
+			if (Geometry2D.intersect_polygons(cur, q) as Array).is_empty():
+				keep.append(q)
+				continue
+			var best := PackedVector2Array()
+			var ba := -1.0
+			for m in Geometry2D.merge_polygons(cur, q):
+				var ar := absf(_area_s(m))
+				if ar > ba:
+					ba = ar
+					best = m
+			cur = best
+		keep.append(cur)
+		res = keep
+	var out: Array = []
+	for q in res:
+		for sh in Geometry2D.offset_polygon(q, -GROW):
+			if absf(_area_s(sh)) > 0.5:
+				out.append(sh)
+	return out
+
+static func _area_s(pts: PackedVector2Array) -> float:
+	var s := 0.0
+	for i in pts.size():
+		var j := (i + 1) % pts.size()
+		s += pts[i].x * pts[j].y - pts[j].x * pts[i].y
+	return s * 0.5
+
+func outline(cc: String) -> Array:
+	if not outlines.has(cc):
+		var parts: Array = []
+		for u in units:
+			if String(u["cc"]) == cc:
+				parts.append_array(u["parts"] as Array)
+		outlines[cc] = outline_of(parts)
+	return outlines[cc]
