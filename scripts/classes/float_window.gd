@@ -1,0 +1,248 @@
+extends Control
+
+var frac := Rect2(0.0, 0.0, 0.3, 0.3)     # положение и размер как доли рабочей области
+var default_frac := Rect2(0.0, 0.0, 0.3, 0.3)
+var desk := 0                             # 0..2 — экран, -1 — всегда видно, -2 — окно события
+var body: VBoxContainer
+var collapsed := false
+var closed := false                       # закрыто игроком (кнопка ×); возвращается через меню «Окна»
+var closable := true
+var _xbtn: Button
+signal close_requested(w)
+var accent := Color(0.357, 0.553, 0.937)
+var _vb: VBoxContainer
+var _title_bar: PanelContainer
+var _title: Label
+var _btn: Button
+var _grips: Array = []
+var _content: Control
+var _drag := false
+var _drag_off := Vector2.ZERO
+var _rmode := 0
+var _rs_size := Vector2.ZERO
+var _rs_mouse := Vector2.ZERO
+
+func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.937)) -> void:
+	accent = acc
+	custom_minimum_size = Vector2(190.0, 90.0)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	var bg := Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.090, 0.106, 0.149, 0.95)
+	sb.border_color = Color(0.169, 0.196, 0.282)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(9)
+	sb.shadow_color = Color(0, 0, 0, 0.42)
+	sb.shadow_size = 10
+	sb.shadow_offset = Vector2(0.0, 3.0)
+	bg.add_theme_stylebox_override("panel", sb)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_vb = VBoxContainer.new()
+	_vb.add_theme_constant_override("separation", 2)
+	add_child(_vb)
+	_vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 4)
+	_title_bar = PanelContainer.new()
+	var tsb := StyleBoxFlat.new()
+	tsb.bg_color = Color(0.122, 0.141, 0.200).lerp(accent, 0.20)
+	tsb.set_corner_radius_all(6)
+	tsb.border_width_left = 3
+	tsb.border_color = accent
+	tsb.content_margin_left = 9.0
+	tsb.content_margin_right = 3.0
+	tsb.content_margin_top = 3.0
+	tsb.content_margin_bottom = 3.0
+	_title_bar.add_theme_stylebox_override("panel", tsb)
+	_title_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	_title_bar.mouse_default_cursor_shape = Control.CURSOR_MOVE
+	_title_bar.gui_input.connect(_title_input)
+	_vb.add_child(_title_bar)
+	var hb := HBoxContainer.new()
+	_title_bar.add_child(hb)
+	_title = Label.new()
+	_title.text = title
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title.clip_text = true
+	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title.add_theme_font_size_override("font_size", 14)
+	_title.add_theme_color_override("font_color", Color(0.93, 0.95, 1.0))
+	hb.add_child(_title)
+	_btn = Button.new()
+	_btn.text = "–"
+	_btn.flat = true
+	_btn.focus_mode = Control.FOCUS_NONE
+	_btn.tooltip_text = "Свернуть / развернуть"
+	_btn.add_theme_color_override("font_color", Color(0.75, 0.8, 0.92))
+	_btn.pressed.connect(toggle_collapse)
+	hb.add_child(_btn)
+	_xbtn = Button.new()
+	_xbtn.text = "×"
+	_xbtn.flat = true
+	_xbtn.focus_mode = Control.FOCUS_NONE
+	_xbtn.tooltip_text = "Закрыть окно (вернуть — кнопка «Окна» вверху)"
+	_xbtn.add_theme_color_override("font_color", Color(0.95, 0.65, 0.65))
+	_xbtn.pressed.connect(func() -> void: close_requested.emit(self))
+	hb.add_child(_xbtn)
+	var mc := MarginContainer.new()
+	mc.add_theme_constant_override("margin_left", 8)
+	mc.add_theme_constant_override("margin_right", 8)
+	mc.add_theme_constant_override("margin_top", 6)
+	mc.add_theme_constant_override("margin_bottom", 8)
+	mc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body = VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 6)
+	mc.add_child(body)
+	if scrolling:
+		var sc := ScrollContainer.new()
+		sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_vb.add_child(sc)
+		sc.add_child(mc)
+		_content = sc
+	else:
+		mc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_vb.add_child(mc)
+		_content = mc
+	for mode in [1, 2, 3]:
+		var gr := Control.new()
+		gr.mouse_filter = Control.MOUSE_FILTER_STOP
+		add_child(gr)
+		if mode == 1:
+			gr.anchor_left = 1.0
+			gr.anchor_right = 1.0
+			gr.anchor_bottom = 1.0
+			gr.offset_left = -6.0
+			gr.offset_top = 34.0
+			gr.offset_bottom = -16.0
+			gr.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+		elif mode == 2:
+			gr.anchor_top = 1.0
+			gr.anchor_bottom = 1.0
+			gr.anchor_right = 1.0
+			gr.offset_top = -6.0
+			gr.offset_right = -16.0
+			gr.mouse_default_cursor_shape = Control.CURSOR_VSIZE
+		else:
+			gr.anchor_left = 1.0
+			gr.anchor_right = 1.0
+			gr.anchor_top = 1.0
+			gr.anchor_bottom = 1.0
+			gr.offset_left = -18.0
+			gr.offset_top = -18.0
+			gr.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
+			var mark := Label.new()
+			mark.text = "◢"
+			mark.modulate = Color(0.55, 0.65, 0.85, 0.7)
+			mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			mark.add_theme_font_size_override("font_size", 12)
+			mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			gr.add_child(mark)
+		gr.gui_input.connect(_grip_input.bind(mode))
+		_grips.append(gr)
+
+func set_closable(on: bool) -> void:
+	closable = on
+	if _xbtn != null:
+		_xbtn.visible = on
+
+func get_title() -> String:
+	return _title.text
+
+func set_title(t: String) -> void:
+	_title.text = t
+
+func refresh_wraps(n: Node = null) -> void:
+	if n == null:
+		n = self
+	for ch in n.get_children():
+		if ch is Button and (ch as Button).autowrap_mode != TextServer.AUTOWRAP_OFF:
+			(ch as Button).update_minimum_size()
+		refresh_wraps(ch)
+
+func apply_frac() -> void:
+	var p := get_parent() as Control
+	if p == null:
+		return
+	var ps: Vector2 = p.size
+	position = (frac.position * ps).round()
+	var h: float = 36.0 if collapsed else frac.size.y * ps.y
+	size = Vector2(frac.size.x * ps.x, h)
+
+func _store() -> void:
+	var p := get_parent() as Control
+	if p == null or p.size.x < 1.0 or p.size.y < 1.0:
+		return
+	frac.position = position / p.size
+	frac.size.x = size.x / p.size.x
+	if not collapsed:
+		frac.size.y = size.y / p.size.y
+
+func toggle_collapse() -> void:
+	if not collapsed:
+		_store()
+	collapsed = not collapsed
+	_content.visible = not collapsed
+	_btn.text = "+" if collapsed else "–"
+	custom_minimum_size.y = 36.0 if collapsed else 90.0
+	for i in [0, 2]:
+		(_grips[i] as Control).visible = not collapsed
+	apply_frac()
+
+func _gui_input(ev: InputEvent) -> void:
+	var mb := ev as InputEventMouseButton
+	if mb != null and mb.pressed:
+		move_to_front()
+
+func _title_input(ev: InputEvent) -> void:
+	var p := get_parent() as Control
+	if p == null:
+		return
+	var mb := ev as InputEventMouseButton
+	if mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.double_click and mb.pressed:
+			toggle_collapse()
+			return
+		_drag = mb.pressed
+		if mb.pressed:
+			move_to_front()
+			_drag_off = p.get_local_mouse_position() - position
+		else:
+			_store()
+		return
+	var mm := ev as InputEventMouseMotion
+	if mm != null and _drag:
+		var m: Vector2 = p.get_local_mouse_position() - _drag_off
+		m.x = clampf(m.x, 60.0 - size.x, p.size.x - 60.0)
+		m.y = clampf(m.y, 0.0, p.size.y - 30.0)
+		position = m
+
+func _grip_input(ev: InputEvent, mode: int) -> void:
+	var p := get_parent() as Control
+	if p == null:
+		return
+	var mb := ev as InputEventMouseButton
+	if mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.pressed:
+			_rmode = mode
+			move_to_front()
+			_rs_size = size
+			_rs_mouse = p.get_local_mouse_position()
+		else:
+			_rmode = 0
+			_store()
+			refresh_wraps()
+		return
+	var mm := ev as InputEventMouseMotion
+	if mm != null and _rmode != 0:
+		var d: Vector2 = p.get_local_mouse_position() - _rs_mouse
+		var ns := _rs_size
+		if _rmode == 1 or _rmode == 3:
+			ns.x += d.x
+		if _rmode == 2 or _rmode == 3:
+			ns.y += d.y
+		ns.x = clampf(ns.x, custom_minimum_size.x, maxf(custom_minimum_size.x, p.size.x - position.x + 200.0))
+		ns.y = clampf(ns.y, custom_minimum_size.y, maxf(custom_minimum_size.y, p.size.y - position.y + 200.0))
+		size = ns

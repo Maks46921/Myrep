@@ -1,0 +1,600 @@
+# ============================================================
+#  НАСЕЛЕНИЕ: АГЕНТЫ (1 агент = k человек)
+# ============================================================
+# Каждый агент — «срез» из k человек одной группы одного региона: у него возраст, доход, отрасль, занятость,
+# четыре идеологические оси, веса интересов (налоги, соцрасходы, работа, безопасность, природа, цены),
+# личная оценка власти и симпатии к партиям. Группы интересов — это агрегаты агентов:
+# средняя оценка группы совпадает с её рейтингом, а разброс внутри группы даёт агенты.
+extends RefCounted
+
+const G := 8
+const AX := 4
+const NK := 6
+const BETA := 0.8
+const SD_IDE := 0.5
+const UNEMP_PEN := 6.0
+const DIST_K := 4.0
+const PROT_AT := 38.0
+const AXIS_NAMES := ["Экономика: левые ↔ рынок", "Общество: свобода ↔ порядок", "Природа: рост ↔ экология", "Нация: открытость ↔ суверенитет"]
+const AXIS_SHORT := ["Экономика", "Общество", "Природа", "Нация"]
+# что означают концы осей: [отрицательный, положительный]
+const AXIS_ENDS := [["Левые: соцгарантии", "Рынок: низкие налоги"], ["Свобода", "Порядок и безопасность"], ["Рост и индустрия", "Экология"], ["Открытость к миру", "Суверенитет"]]
+const KEY_NAMES := ["налоги", "соцрасходы", "работа и рост", "безопасность", "природа", "цены"]
+const SEC_NAMES := ["промышленность", "сельское хозяйство", "услуги", "добыча", "госсектор", "пенсия"]
+# центры идеологических осей групп
+const MU := [
+	[-0.5, 0.3, -0.1, 0.3], [0.9, -0.1, -0.3, 0.0], [0.1, 0.6, 0.0, 0.4], [-0.2, -0.7, 0.5, -0.4],
+	[-0.3, -0.1, 0.2, 0.0], [0.2, 0.5, -0.3, 0.5], [0.3, 0.8, -0.3, 0.6], [-0.3, -0.5, 1.0, -0.3]]
+const G_AGE := [[25.0, 64.0], [28.0, 66.0], [65.0, 92.0], [18.0, 29.0], [25.0, 64.0], [20.0, 70.0], [22.0, 58.0], [18.0, 60.0]]
+const G_INC := [0.85, 2.2, 0.75, 0.6, 0.95, 0.75, 1.0, 1.1]
+const G_UNEMP := [1.2, 0.4, 0.0, 2.0, 0.3, 1.0, 0.2, 0.9]
+# веса интересов: налоги, соцрасходы, работа, безопасность, природа, цены
+const CW := [
+	[1.8, 2.0, 2.0, 0.6, 0.4, 1.8], [2.5, 0.4, 2.0, 0.8, 0.3, 1.2], [1.0, 2.2, 0.5, 1.2, 0.5, 2.5],
+	[1.2, 1.2, 2.2, 0.6, 1.5, 1.0], [1.0, 2.2, 1.0, 0.8, 0.6, 1.6], [1.2, 1.2, 1.2, 0.8, 0.3, 1.8],
+	[1.0, 0.8, 1.0, 2.5, 0.3, 1.2], [0.8, 1.0, 0.6, 0.4, 2.5, 0.8]]
+const SEC_W := [
+	[1.0, 0.2, 0.8, 1.0], [0.8, 0.2, 1.2, 0.5], [0.0, 0.0, 0.0, 0.0], [0.4, 0.1, 1.0, 0.2],
+	[0.0, 0.0, 0.0, 0.0], [0.1, 3.0, 0.2, 0.3], [0.0, 0.0, 0.0, 0.0], [0.3, 0.2, 1.0, 0.1]]
+
+var n := 0
+var R := 0
+var P := 0
+var k := 500
+var rng := RandomNumberGenerator.new()
+var cell_start := PackedInt32Array()
+var reg := PackedByteArray()
+var grp := PackedByteArray()
+var sec := PackedByteArray()
+var emp := PackedByteArray()
+var prot := PackedByteArray()
+var faith := PackedByteArray()   # вероисповедание агента (0..6, 6 — нерелигиозный)
+var devout := PackedByteArray()  # 1 — практикующий верующий
+var frng := RandomNumberGenerator.new()
+const REL_GM := [1.0, 1.05, 0.55, 1.35, 0.95, 0.8, 0.9, 1.4]   # во сколько раз у группы чаще «нерелигиозный»
+var age := PackedFloat32Array()
+var inc := PackedFloat32Array()
+var ide := PackedFloat32Array()
+var ide0 := PackedFloat32Array()
+var cw := PackedFloat32Array()
+var eps := PackedFloat32Array()
+var off := PackedFloat32Array()
+var dist := PackedFloat32Array()
+var aff := PackedFloat32Array()
+var cellnorm := PackedFloat32Array()
+var pos := PackedFloat32Array()
+var gpos := PackedFloat32Array()
+var gcount := PackedInt32Array()
+var rcount := PackedInt32Array()
+var rprot := PackedInt32Array()
+var sum_off := PackedFloat64Array()
+var wbar := PackedFloat32Array()
+var dbar := PackedFloat32Array()
+var tmp := PackedFloat32Array()
+var steps := 0
+# корзина товаров: у каждого агента свои доли расходов (возраст, доход и группа задают, на что он тратит)
+var NG := 0
+var gkg := PackedFloat32Array()
+var gprof := PackedFloat32Array()
+var gae := PackedFloat32Array()
+var gic := PackedFloat32Array()
+var gw := PackedFloat32Array()
+var gwbar := PackedFloat32Array()
+
+func setup(spec: Dictionary) -> void:
+	R = int(spec["R"])
+	P = int(spec["P"])
+	k = int(spec["k"])
+	rng.seed = int(spec["seed"])
+	var counts: Array = spec["counts"]
+	var secw: Array = spec["secw"]
+	var pos_in: Array = spec["pos"]
+	var ur: float = float(spec["ur"])
+	var sup: Array = spec["sup"]
+	NG = int(spec.get("ng", 0))
+	gkg.resize(NG)
+	gae.resize(NG)
+	gic.resize(NG)
+	gprof.resize(G * NG)
+	for j in NG:
+		gkg[j] = float(spec["gkg"][j])
+		gae[j] = float(spec["gae"][j])
+		gic[j] = float(spec["gic"][j])
+		for g in G:
+			gprof[g * NG + j] = float(spec["gprof"][g][j])
+	pos.resize(P * AX)
+	for p in P:
+		for a in AX:
+			pos[p * AX + a] = float(pos_in[p][a])
+	gpos.resize(AX)
+	for a in AX:
+		gpos[a] = float(spec["gpos"][a])
+	cell_start.resize(R * G + 1)
+	var tot := 0
+	for r in R:
+		for g in G:
+			cell_start[r * G + g] = tot
+			tot += int(counts[r][g])
+	cell_start[R * G] = tot
+	n = tot
+	reg.resize(n)
+	grp.resize(n)
+	sec.resize(n)
+	emp.resize(n)
+	prot.resize(n)
+	faith.resize(n)
+	devout.resize(n)
+	frng.seed = int(spec["seed"]) + 7
+	var relsh: Array = spec.get("rel", [])
+	age.resize(n)
+	inc.resize(n)
+	ide.resize(n * AX)
+	ide0.resize(n * AX)
+	cw.resize(n * NK)
+	gw.resize(n * NG)
+	eps.resize(n)
+	off.resize(n)
+	dist.resize(n)
+	aff.resize(n * P)
+	cellnorm.resize(R * G * P)
+	tmp.resize(P)
+	var sums := PackedFloat64Array()
+	sums.resize(P)
+	for r in R:
+		for g in G:
+			var c := r * G + g
+			var s: int = cell_start[c]
+			var e: int = cell_start[c + 1]
+			for p in P:
+				sums[p] = 0.0
+			for i in range(s, e):
+				gen_agent(i, r, g, secw[r], ur)
+				gen_faith(i, r, g, relsh)
+				for p in P:
+					sums[p] += aff[i * P + p]
+			var cnt: int = e - s
+			for p in P:
+				var m: float = sums[p] / float(maxi(1, cnt)) if cnt > 0 else 1.0
+				cellnorm[c * P + p] = m
+				if cnt > 0 and m > 0.0:
+					for i in range(s, e):
+						aff[i * P + p] /= m
+	recompute_stats()
+	init_off(sup, ur)
+	faith_base()
+
+var f0: Array = []   # стартовые доли вер по регионам (по агентам)
+
+func faith_shares() -> Array:
+	var R: int = 0
+	for i in n:
+		R = maxi(R, reg[i] + 1)
+	var cnt: Array = []
+	for r in R:
+		cnt.append([0, 0, 0, 0, 0, 0, 0])
+	for i in n:
+		cnt[reg[i]][faith[i]] += 1
+	var out: Array = []
+	for r in R:
+		var tot := 0
+		for f in 7:
+			tot += int(cnt[r][f])
+		var row: Array = []
+		for f in 7:
+			row.append(float(cnt[r][f]) / float(maxi(1, tot)))
+		out.append(row)
+	return out
+
+func faith_base() -> void:
+	f0 = faith_shares()
+
+# подтянуть веру агентов к модели: цель = стартовая доля агентов + (доля модели − стартовая доля модели)
+func sync_faith(rel: Array, rel0: Array) -> void:
+	if f0.is_empty():
+		return
+	var cur: Array = faith_shares()
+	var R: int = mini(cur.size(), rel.size())
+	var leave: Array = []
+	var need: Array = []
+	for r in R:
+		var t: Array = []
+		var tot := 0.0
+		for f in 7:
+			var x: float = maxf(0.0, float(f0[r][f]) + float(rel[r][f]) - float(rel0[r][f]))
+			t.append(x)
+			tot += x
+		var lv: Array = []
+		var nd: Array = []
+		var nsum := 0.0
+		for f in 7:
+			var tf: float = float(t[f]) / maxf(0.0001, tot)
+			var cf: float = float(cur[r][f])
+			lv.append(clampf((cf - tf) / maxf(0.0001, cf), 0.0, 1.0) if cf > tf else 0.0)
+			var nn: float = maxf(0.0, tf - cf)
+			nd.append(nn)
+			nsum += nn
+		leave.append(lv)
+		need.append([nd, nsum])
+	for i in n:
+		var r2: int = reg[i]
+		if r2 >= R:
+			continue
+		var f2: int = faith[i]
+		var pl: float = float(leave[r2][f2])
+		if pl > 0.0 and frng.randf() < pl:
+			var nd2: Array = need[r2][0]
+			var ns: float = float(need[r2][1])
+			if ns <= 0.0:
+				continue
+			var t2: float = frng.randf() * ns
+			for g in 7:
+				t2 -= float(nd2[g])
+				if t2 <= 0.0:
+					faith[i] = g
+					if g == 6:
+						devout[i] = 0
+					break
+
+func gen_faith(i: int, r: int, g: int, relsh: Array) -> void:
+	# вера агента: доли региона, поправка на группу и возраст; отдельный генератор, чтобы не сдвигать остальные случайные числа
+	if relsh.is_empty() or r >= relsh.size():
+		faith[i] = 6
+		devout[i] = 0
+		return
+	var sh: Array = relsh[r]
+	var m: float = float(REL_GM[g]) * (0.8 if age[i] > 60.0 else (1.15 if age[i] < 30.0 else 1.0))
+	var tot := 0.0
+	var w: Array = []
+	for f in 7:
+		var x: float = float(sh[f]) * (m if f == 6 else 1.0)
+		w.append(x)
+		tot += x
+	var t: float = frng.randf() * tot
+	var pick := 6
+	for f in 7:
+		t -= float(w[f])
+		if t <= 0.0:
+			pick = f
+			break
+	faith[i] = pick
+	var dev_p: float = 0.0 if pick == 6 else clampf(0.25 + (age[i] - 40.0) * 0.006 + (0.15 if g == 2 else 0.0), 0.05, 0.9)
+	devout[i] = 1 if frng.randf() < dev_p else 0
+
+
+func faith_counts(region: int = -1) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(7)
+	for i in n:
+		if region < 0 or reg[i] == region:
+			out[faith[i]] += 1
+	return out
+
+
+func gen_agent(i: int, r: int, g: int, secw: Array, ur: float) -> void:
+	reg[i] = r
+	grp[i] = g
+	var ag: Array = G_AGE[g]
+	age[i] = lerpf(float(ag[0]), float(ag[1]), (rng.randf() + rng.randf()) * 0.5)
+	inc[i] = float(G_INC[g]) * exp(rng.randfn(0.0, 0.35))
+	sec[i] = sector_pick(g, secw)
+	emp[i] = 0 if rng.randf() < clampf(ur * float(G_UNEMP[g]), 0.0, 0.6) else 1
+	var mu: Array = MU[g]
+	for a in AX:
+		var v: float = float(mu[a]) + rng.randfn(0.0, SD_IDE)
+		ide[i * AX + a] = v
+		ide0[i * AX + a] = v
+	var cwg: Array = CW[g]
+	for kk in NK:
+		cw[i * NK + kk] = maxf(0.0, float(cwg[kk]) * (1.0 + rng.randfn(0.0, 0.35)))
+	eps[i] = rng.randfn(0.0, 4.0)
+	calc_aff_raw(i, g)
+	if NG > 0:
+		var tot := 0.0
+		var b := i * NG
+		for j in NG:
+			var w: float = gkg[j] * gprof[g * NG + j] * exp(gae[j] * (age[i] - 45.0) / 30.0) * pow(inc[i], gic[j]) * exp(rng.randfn(0.0, 0.25))
+			gw[b + j] = w
+			tot += w
+		for j in NG:
+			gw[b + j] /= maxf(tot, 0.000001)
+
+func sector_pick(g: int, secw: Array) -> int:
+	if g == 2:
+		return 5
+	if g == 4 or g == 6:
+		return 4
+	var w: Array = SEC_W[g]
+	var keys := ["ind", "agr", "srv", "res"]
+	var tot := 0.0
+	var ws: Array[float] = []
+	for j in 4:
+		var x: float = float(w[j]) * float((secw as Array)[j]) if secw is Array else 0.0
+		ws.append(x)
+		tot += x
+	var t: float = rng.randf() * tot
+	for j in 4:
+		t -= ws[j]
+		if t <= 0.0:
+			return j
+	return 2
+
+func calc_aff_raw(i: int, g: int) -> void:
+	var mu: Array = MU[g]
+	var d0: float = ide[i * AX] - float(mu[0])
+	var d1: float = ide[i * AX + 1] - float(mu[1])
+	var d2: float = ide[i * AX + 2] - float(mu[2])
+	var d3: float = ide[i * AX + 3] - float(mu[3])
+	for p in P:
+		var q := p * AX
+		aff[i * P + p] = exp(BETA * (d0 * pos[q] + d1 * pos[q + 1] + d2 * pos[q + 2] + d3 * pos[q + 3]))
+	var g0: float = ide[i * AX] - gpos[0]
+	var g1: float = ide[i * AX + 1] - gpos[1]
+	var g2: float = ide[i * AX + 2] - gpos[2]
+	var g3: float = ide[i * AX + 3] - gpos[3]
+	dist[i] = sqrt(g0 * g0 + g1 * g1 + g2 * g2 + g3 * g3)
+
+func calc_aff(i: int) -> void:
+	var g: int = grp[i]
+	calc_aff_raw(i, g)
+	var c: int = int(reg[i]) * G + g
+	for p in P:
+		var m: float = cellnorm[c * P + p]
+		if m > 0.0:
+			aff[i * P + p] /= m
+
+func recompute_stats() -> void:
+	gcount.resize(G)
+	rcount.resize(R)
+	wbar.resize(G * NK)
+	gwbar.resize(G * NG)
+	dbar.resize(G)
+	var ws := PackedFloat64Array()
+	ws.resize(G * NK)
+	var ds := PackedFloat64Array()
+	ds.resize(G)
+	var gs := PackedFloat64Array()
+	gs.resize(G * NG)
+	for g in G:
+		gcount[g] = 0
+		dbar[g] = 0.0
+	for r in R:
+		rcount[r] = 0
+	for i in n:
+		var g: int = grp[i]
+		gcount[g] += 1
+		rcount[reg[i]] += 1
+		ds[g] += dist[i]
+		for kk in NK:
+			ws[g * NK + kk] += cw[i * NK + kk]
+		for j in NG:
+			gs[g * NG + j] += gw[i * NG + j]
+	for g in G:
+		var c: float = float(maxi(1, gcount[g]))
+		dbar[g] = ds[g] / c
+		for kk in NK:
+			wbar[g * NK + kk] = ws[g * NK + kk] / c
+		for j in NG:
+			gwbar[g * NG + j] = gs[g * NG + j] / c
+
+func ugp(ur: float, g: int) -> float:
+	return clampf(ur * float(G_UNEMP[g]), 0.0, 0.6)
+
+func init_off(sup: Array, ur: float) -> void:
+	sum_off.resize(G)
+	for g in G:
+		sum_off[g] = 0.0
+	rprot.resize(R)
+	for r in R:
+		rprot[r] = 0
+	for i in n:
+		var g: int = grp[i]
+		var t: float = eps[i] - UNEMP_PEN * (float(1 - emp[i]) - ugp(ur, g)) - DIST_K * (dist[i] - dbar[g])
+		off[i] = t
+		sum_off[g] += t
+	var ob := group_offbar()
+	for i in n:
+		var g: int = grp[i]
+		var a: float = float(sup[g]) + off[i] - ob[g]
+		var pr: int = 1 if a < PROT_AT else 0
+		prot[i] = pr
+		rprot[reg[i]] += pr
+
+func group_offbar() -> PackedFloat32Array:
+	var ob := PackedFloat32Array()
+	ob.resize(G)
+	for g in G:
+		ob[g] = float(sum_off[g] / float(maxi(1, gcount[g])))
+	return ob
+
+func approval_of(i: int, sup: Array, ob: PackedFloat32Array) -> float:
+	var g: int = grp[i]
+	return clampf(float(sup[g]) + off[i] - ob[g], 0.0, 100.0)
+
+# один шаг: обновляется каждый stride-й агент (со сдвигом phase)
+func step(ctx: Dictionary, phase: int, stride: int) -> void:
+	var z: PackedFloat32Array = ctx["z"]
+	var sup: Array = ctx["sup"]
+	var ur: float = float(ctx["ur"])
+	var zg: PackedFloat32Array = ctx.get("zg", PackedFloat32Array())
+	var gp: Array = ctx["gpos"]
+	for a in AX:
+		gpos[a] = float(gp[a])
+	var ob := group_offbar()
+	var up := PackedFloat32Array()
+	up.resize(G)
+	for g in G:
+		up[g] = ugp(ur, g)
+	var i := phase
+	while i < n:
+		var g: int = grp[i]
+		if up[g] > 0.0:
+			emp[i] = 0 if rng.randf() < up[g] else 1
+		var j := i * AX
+		var d0: float = ide[j] - gpos[0]
+		var d1: float = ide[j + 1] - gpos[1]
+		var d2: float = ide[j + 2] - gpos[2]
+		var d3: float = ide[j + 3] - gpos[3]
+		dist[i] = sqrt(d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3)
+		var t: float = eps[i] - UNEMP_PEN * (float(1 - emp[i]) - up[g]) - DIST_K * (dist[i] - dbar[g])
+		var b := i * NK
+		var wb := g * NK
+		for kk in NK:
+			t += (cw[b + kk] - wbar[wb + kk]) * z[kk]
+		if NG > 0 and zg.size() == NG:
+			var bg := i * NG
+			var wg := g * NG
+			for jg in NG:
+				t -= (gw[bg + jg] - gwbar[wg + jg]) * zg[jg]
+		var nv: float = off[i] + (t - off[i]) * 0.5
+		sum_off[g] += nv - off[i]
+		off[i] = nv
+		var a: float = clampf(float(sup[g]) + nv - ob[g], 0.0, 100.0)
+		var pr: int = 1 if a < PROT_AT else 0
+		if pr != prot[i]:
+			rprot[reg[i]] += pr - prot[i]
+			prot[i] = pr
+		# дрейф: недовольные уходят к суверенитету и порядку, довольные возвращаются к себе
+		var changed := false
+		if a < 35.0:
+			ide[j + 3] = minf(2.5, ide[j + 3] + 0.04)
+			ide[j + 1] = minf(2.5, ide[j + 1] + 0.02)
+			changed = true
+		else:
+			for ax in [1, 3]:
+				var dv: float = ide[j + ax] - ide0[j + ax]
+				if absf(dv) > 0.01:
+					ide[j + ax] -= dv * 0.1
+					changed = true
+		if changed:
+			calc_aff(i)
+		i += stride
+	steps += 1
+
+# подсчёт голосов региона r: out (G*P) копит доли агентов, cnt (G) — число агентов
+func tally(r: int, bw: PackedFloat32Array, sup: Array, loyoff: float, e0: float, p0: int, p9: int, stride: int, out: PackedFloat64Array, cnt: PackedInt32Array) -> void:
+	var ob := group_offbar()
+	for g in G:
+		var c := r * G + g
+		var s: int = cell_start[c]
+		var e: int = cell_start[c + 1]
+		if e <= s:
+			continue
+		var base := g * P
+		var tb := 0.0
+		for p in P:
+			tb += bw[base + p]
+		if tb <= 0.0:
+			continue
+		var eff_c: float = clampf(float(sup[g]) + loyoff, 5.0, 100.0)
+		var o0: float = float(sup[g]) - ob[g] + loyoff
+		var den9: float = maxf(100.0 - eff_c, 1.0)
+		# средние множители ячейки: личный разброс оценок не должен сдвигать итог группы
+		var m0 := 0.0
+		var m9 := 0.0
+		var mc := 0
+		var i := s
+		while i < e:
+			var ei0: float = clampf(o0 + off[i], 5.0, 100.0)
+			var q0: float = ei0 / eff_c
+			var h0: float = q0 * q0 * q0
+			if e0 > 3.5:
+				h0 *= q0
+			var h9: float = clampf((100.0 - ei0) / den9, 0.2, 3.0)
+			m0 += h0
+			m9 += h9 * h9
+			mc += 1
+			i += stride
+		m0 = m0 / float(maxi(1, mc))
+		m9 = m9 / float(maxi(1, mc))
+		i = s
+		while i < e:
+			var ei: float = clampf(o0 + off[i], 5.0, 100.0)
+			var q: float = ei / eff_c
+			var f0: float = q * q * q
+			if e0 > 3.5:
+				f0 *= q
+			f0 /= m0
+			var q9: float = clampf((100.0 - ei) / den9, 0.2, 3.0)
+			var ai := i * P
+			var tot := 0.0
+			for p in P:
+				var v: float = bw[base + p] * aff[ai + p]
+				tmp[p] = v
+				tot += v
+			if p0 < P:
+				tot += tmp[p0] * (f0 - 1.0)
+				tmp[p0] *= f0
+			if p9 < P:
+				var f9 := q9 * q9 / m9
+				tot += tmp[p9] * (f9 - 1.0)
+				tmp[p9] *= f9
+			if tot > 0.0:
+				var inv := 1.0 / tot
+				for p in P:
+					out[base + p] += tmp[p] * inv
+			cnt[g] += 1
+			i += stride
+
+# подгонка симпатий ячейки: aff *= ratio (старт игры совпадает с прежней моделью)
+func calib_cell(r: int, g: int, ratio: PackedFloat32Array) -> void:
+	var c := r * G + g
+	for p in P:
+		cellnorm[c * P + p] /= ratio[p]
+	for i in range(cell_start[c], cell_start[c + 1]):
+		for p in P:
+			aff[i * P + p] *= ratio[p]
+
+# статистика по группам
+func group_stats(sup: Array) -> Array:
+	var ob := group_offbar()
+	var res: Array = []
+	var acc := PackedFloat64Array()
+	acc.resize(G * 8)
+	for i in n:
+		var g: int = grp[i]
+		var a: float = clampf(float(sup[g]) + off[i] - ob[g], 0.0, 100.0)
+		var b := g * 8
+		acc[b] += a
+		acc[b + 1] += float(prot[i])
+		acc[b + 2] += float(1 - emp[i])
+		acc[b + 3] += age[i]
+		acc[b + 4] += inc[i]
+		acc[b + 5] += ide[i * AX]
+		acc[b + 6] += ide[i * AX + 1]
+		acc[b + 7] += a * a
+	for g in G:
+		var c: float = float(maxi(1, gcount[g]))
+		var b := g * 8
+		var m: float = acc[b] / c
+		res.append({"n": gcount[g], "appr": m, "sd": sqrt(maxf(0.0, acc[b + 7] / c - m * m)), "prot": acc[b + 1] / c, "unemp": acc[b + 2] / c,
+			"age": acc[b + 3] / c, "inc": acc[b + 4] / c, "ex": acc[b + 5] / c, "es": acc[b + 6] / c})
+	return res
+
+func hist(sup: Array, g: int, bins: int) -> PackedInt32Array:
+	var h := PackedInt32Array()
+	h.resize(bins)
+	var ob := group_offbar()
+	for i in n:
+		if g >= 0 and grp[i] != g:
+			continue
+		var a: float = clampf(float(sup[grp[i]]) + off[i] - ob[grp[i]], 0.0, 99.999)
+		h[int(a / 100.0 * float(bins))] += 1
+	return h
+
+func region_prot(r: int) -> float:
+	return float(rprot[r]) / float(maxi(1, rcount[r]))
+
+func favourite(i: int, lean_g: Array, pmul: Array) -> int:
+	var best := 0
+	var bv := -1.0
+	for p in P:
+		var v: float = float(lean_g[p]) * aff[i * P + p] * float(pmul[p])
+		if v > bv:
+			bv = v
+			best = p
+	return best
+
+
+# ============================================================
+#  НАСЕЛЕНИЕ: подключение агентов к игре
+# ============================================================

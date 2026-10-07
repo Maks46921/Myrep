@@ -1,0 +1,741 @@
+# Текущее состояние партии: показатели, законы, парламент, узлы интерфейса.
+extends "res://scripts/state/state_data.gd"
+
+static var pending_code := ""
+static var pending_party := 0
+
+# Настройки новой игры (задаются в меню перед стартом и не меняются во время игры; переживают перезагрузку сцены)
+static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1}
+
+var ccode := "DE"
+var map_reg_pick: OptionButton = null   # список регионов в окне карты
+var emit_note: Label = null   # пояснение под ползунком эмиссии
+
+var risk_prem := 0.0
+
+var minority_ok := false
+
+var turn := 0                # месяцев с начала игры
+
+var year := START_YEAR
+
+var month := 1
+
+var gdp := 4600.0            # годовой ВВП, млрд €
+
+var debt := 2950.0
+
+var growth := 0.8            # годовой темп роста, %
+
+var inflation := 2.2         # годовая инфляция, %
+
+var unemployment := 6.3
+
+var shock := 0.0             # разовые толчки роста, затухают
+
+var other_rev := 6.7
+
+var pol := {}                # текущие значения ползунков
+
+var pol_def := {}
+
+var prev_pol := {}
+
+var policy_by_key := {}
+
+var lvl := {"edu_lvl": 50.0, "health_lvl": 50.0, "security_lvl": 50.0, "infra_lvl": 50.0,
+	"env_lvl": 50.0, "equality": 50.0, "corruption": 50.0}
+
+var support := {}            # поддержка власти по группам, 0-100
+
+var bias := {}               # постоянные сдвиги поддержки (от законов)
+
+var mods: Dictionary = BASE_MODS.duplicate()
+
+var cooldown := {}
+
+var capital := 40.0
+
+var seats: Array[int] = []
+
+var in_coalition: Array[bool] = []
+
+var warned := {}
+
+var crisis_months := 0
+
+var impeach_warned := false
+
+var last_parl := -11
+
+var last_pres := 0
+
+var pres_due := -1           # номер хода, когда выбирают главу государства (-1 — не предвидится)
+
+var pres_camp := 0.0         # бонус вашему кандидату от кампании
+
+var pres_camp_done := -100
+
+var pres_party := -1         # партия действующего президента (если выбран на выборах в игре)
+
+var hemi_rad := 0.036
+
+var el_head
+
+var game_over := false
+
+var current_event := {}
+
+var event_region := -1
+
+var prev_items := {}
+
+var year_start := {}
+
+var charisma: Array[float] = []
+
+var satis := {}              # довольство партнёров по коалиции
+
+var joined := {}             # когда партия вошла в коалицию (месяц)
+
+var conc := {}               # бонус/штраф от уступок и законов (затухает)
+
+var ministries: Array[int] = []   # кто держит министерство (0 — ваша партия)
+
+var selected_party := 1
+
+var last_nocon := -100
+# --- оппозиция и выбор партии (opposition.gd) ---
+var player_orig := 0            # какая партия была выбрана игроком (0 — по умолчанию)
+var opp_mode := false           # вы в оппозиции: бюджет и министерства у других
+var opp_gov := {}               # правительство без вас: members, pm, seats, stab
+var opp_cd := {}                # перезарядка действий оппозиции и переговоров
+var prel := []                  # отношения вашей партии с остальными (0–100)
+var pacts := {}                 # действующие соглашения: партия -> {вид: месяцев}
+var offer_pending := false
+var offer_gov := {}
+var opp_ap_saved := {}
+# --- партийный ИИ, идеология, законопроекты (aiparty.gd) ---
+var pcap := []                  # политический капитал каждой партии (0 — не используется, у вас свой capital)
+var prm := []                   # отношения партий друг с другом (prm[0] — это prel)
+var ai_pen := {}                # партия -> месяцев штрафа от атак других партий
+var ai_blocs := {}              # партия -> партнёр по предвыборному блоку (ИИ)
+var ai_stats := {}              # счётчики действий ИИ (для тестов и журнала)
+var ideo_c := {}                # кэш идеологии
+var idl := 70.0                 # верность партийной линии (0–100)
+var idl_low := 0
+var idl_warned := false
+var bills: Array = []           # законопроекты в работе
+var bill_seq := 0
+var vote_sponsor := 0           # чья партия вносит закон при голосовании
+var cost_mult := 1.0
+var bill_sel := -1
+
+var pop_w: Array[float] = []
+
+var gdp_w: Array[float] = []
+
+var neighbors: Array = []
+
+var auto0 := 12.0
+
+var pol_abs := {}            # суммы статей в млрд/год (для режима «млрд»)
+
+var pol_abs_mode := {}       # key -> true, если ползунок в режиме «млрд»
+
+var locks := {}              # обязательства: key -> {dir, share, amount, until}
+
+var slider_busy := false
+
+var growth_ema := 0.8
+
+var gdp_base := 4600.0       # ВВП без учёта развития регионов
+
+var pot0 := 1.0
+
+var pop0 := 80.0
+
+var hemi_pos: Array = []
+
+var hemi_party: Array[int] = []
+
+var hemi_px: Array = []
+
+var hemi_dot := 5.0
+
+var hemi_hover := -1
+
+var table_order: Array[int] = []
+
+var sort_col := 0
+
+var sort_desc := false
+
+var regions: Array = []      # состояние регионов
+
+var reg_mix: Array = []      # доли групп в регионах
+
+var ag_on := true
+
+var ag_k_pref := 0           # 0 = авто
+
+var ag_exact := false        # true: считать всех агентов (выборы), false: выборка (опросы)
+
+var ag_cache := {}
+
+var ag_ver := 0
+
+var ag_phase := 0
+
+var ag_pos: Array = []       # позиции партий (стандартизованные)
+
+var ag_pos_raw: Array = []   # позиции партий в осях групп
+
+var ag_prot0: Array = []
+
+var ag_sel := -1
+
+var ag_ui := {}
+
+var ag_ui_ver := -1
+
+var reg_cd: Array = []       # перерывы действий по регионам
+
+var reg_poll: Array = []     # доли партий по регионам (для карты)
+
+var region_polys: Array = [] # полигоны регионов (0..100)
+
+var region_centers: Array = []
+
+var selected_region := 0
+
+var hover_region := -1
+
+var map_layer := 0
+
+# ============================================================
+#  ЭЛЕМЕНТЫ ИНТЕРФЕЙСА
+# ============================================================
+
+var workspace: Control
+
+var wins := {}
+
+var current_desk := 0
+
+var desk_buttons: Array = []
+
+var top_label: Label
+
+var next_btn: Button
+var map_base: Control        # карта на всю рабочую область (основа интерфейса); остальные окна лежат поверх
+var win_menu: MenuButton
+var fmap_sel_unit := -1      # чужой регион, открытый вторым щелчком по стране
+var fmap_win_open := false
+
+var play_btn: Button
+var speed_opt: OptionButton
+var speed_last := 1
+var day_btn: Button
+var week_btn: Button
+
+var day := 1                  # день месяца (календарь; месячный шаг экономики — на границе месяцев)
+var month_done := 0.0
+var last_ecf := {"g": 0.0, "infl": 0.0, "unemp": 0.0}
+var last_deficit_pct := 0.0
+var month_snap := {}
+var day_total := 0            # дней с начала игры
+var play_idx := 0             # скорость авто-хода: индекс в PLAY_SPEEDS (0 — пауза)
+var day_acc := 0.0
+
+var sliders := {}            # key -> {"slider", "label", "title"}
+
+var bars := {}
+
+var tax_total_label: Label
+
+var spend_total_label: Label
+
+var forecast_rt: RichTextLabel
+var forecast_sum_rt: RichTextLabel
+var ec_pp_fold: RichTextLabel
+var ec_cb_fold: RichTextLabel
+var ec_gf_fold: RichTextLabel
+var ec_st_fold: RichTextLabel
+var ui_detail: bool = false   # показывать ли все пояснения
+var note_nodes: Array = []
+var tails: Dictionary = {}
+var fold_nodes: Array = []
+
+var stats_label: RichTextLabel
+
+var measure_rows := {}
+
+var action_rows := {}
+
+var party_rows: Array = []
+
+var seat_bar: HBoxContainer
+
+var pol_header: Label
+
+var polls_rt: RichTextLabel
+
+var log_box: RichTextLabel
+
+var event_label: RichTextLabel
+
+var ev_banner: PanelContainer
+
+var ev_glyph: Label
+
+var ev_kind_lbl: Label
+
+var ev_meta_lbl: Label
+
+var ev_ctx: RichTextLabel
+
+var ev_hint: Label
+
+var election_open := false
+
+var elec_end := ""
+
+var prev_vote: Array = []
+
+var camp_turn := -100
+
+var el_view
+
+var el_banner: PanelContainer
+
+var el_title: Label
+
+var el_sub: Label
+
+var el_meta: Label
+
+var el_verdict_box: PanelContainer
+
+var el_verdict_title: Label
+
+var el_verdict_rt: RichTextLabel
+
+var el_btn: Button
+
+var el_tween: Tween
+
+var event_text := ""
+
+var event_buttons: Array = []
+
+var map_ctl: Control
+
+var map_legend: Label
+
+var reg_info_rt: RichTextLabel
+
+var reg_action_rows := {}
+
+var reg_table := {}
+
+var hemi_ctl: Control
+
+var hemi_legend: RichTextLabel
+
+var party_detail_rt: RichTextLabel
+
+var party_btns: Array = []
+
+var gov_header: Label
+
+var min_buttons: Array = []
+
+var reg_table_rows: Array = []
+
+var reg_summary: Label
+
+var gov_info_rt: RichTextLabel
+
+var gov_buttons: Array = []
+
+var proj_option: OptionButton
+
+var proj_start: Button
+
+var proj_cancel: Button
+
+var proj_label: Label
+
+var reg_transfer_slider: HSlider
+
+var reg_transfer_label: Label
+
+var transfer_sliders: Array = []
+
+var transfer_labels: Array = []
+
+var level_fx_rt: RichTextLabel
+
+var chips := {}
+
+var top_prev := {}
+
+var log_detail := false
+
+var log_toggle: Button
+
+var event_boxes: Array = []
+
+var event_fx_rts: Array = []
+
+var budget_viz: Control
+
+var viz_rev: Array = []
+
+var viz_exp: Array = []
+
+var low_months := 0
+
+var wrap_timer: Timer
+
+var wrap_pass := 0
+
+var law_state := {}
+
+var law_cd := {}
+
+var law_index := {}
+
+var sel_topic := "elect_threshold"
+
+var sel_variant := 1
+
+var law_cat := 0
+
+var politics_page := 1
+var econ_page := 5
+var law_filter := 0
+var law_query := ""
+var law_search: LineEdit = null
+var law_filter_btns: Array = []
+var law_prog: Array = []
+var law_demand_rt: RichTextLabel = null
+var subbar2: HBoxContainer = null
+var subbar3: HBoxContainer = null
+var sub3_buttons: Array = []
+var map_page := 2
+var sub2_buttons: Array = []
+var gv_goods: Control = null
+var gv_groups: Control = null
+var gd_head_rt: RichTextLabel = null
+var gd_drv_rt: RichTextLabel = null
+var gd_grp_rt: RichTextLabel = null
+var gd_mode_opt: OptionButton = null
+
+var subbar: HBoxContainer
+
+var sub_buttons: Array = []
+
+var law_cat_buttons: Array = []
+
+var law_list_box: VBoxContainer
+
+var law_topic_buttons := {}
+
+var law_effects_rt: RichTextLabel
+
+var law_detail_head: RichTextLabel
+
+var law_cards: Array = []
+
+var lv_head: RichTextLabel
+
+var lv_bar: StatBar
+
+var lv_sum: Label
+
+var lv_rows: Array = []
+
+var lv_neg: Button
+
+var ministers: Array = []
+
+var commitments: Array = []
+
+var used_names := {}
+
+var event_party := -1
+
+var event_min := -1
+
+var sel_ministry := 0
+
+var neg_party := 1
+
+var neg_promise := false
+
+var coal_head: RichTextLabel
+
+var coal_rows: Array = []
+
+var cab_buttons: Array = []
+
+var min_head: RichTextLabel
+
+var min_cand_rows: Array = []
+
+var min_replace_btn: Button
+
+var neg_option: OptionButton
+
+var neg_rt: RichTextLabel
+
+var neg_promise_btn: Button
+
+var neg_main_btn: Button
+
+var neg_conc_btn: Button
+
+var neg_dem_btn: Button
+
+var cabfx_rt: RichTextLabel
+
+var commit_rt: RichTextLabel
+
+# ============================================================
+#  ЗАПУСК
+# ============================================================
+
+var end_reason := ""
+
+var map_zoom := 1.0
+
+var map_center := Vector2(300.0, 250.0)
+
+var map_inited := false
+
+var map_drag := false
+
+var map_drag_moved := false
+
+var map_drag_start := Vector2.ZERO
+
+var map_unit_parts: Array = []
+
+var map_unit_rect: Array = []
+
+var map_unit_local: Dictionary = {}
+
+var map_ctx_parts: Array = []
+
+var map_ctx_cent: Array = []
+
+var map_bounds := Rect2()
+
+var map_hover_unit := -1
+
+var map_hover_ctx := -1
+
+var map_sel_unit := -1
+
+var map_mode := "own"
+
+# ============================================================
+#  ЭКОНОМИКА v9: модель
+# ============================================================
+var ec := {}
+
+# ============================================================
+#  ЭКОНОМИКА v9: экран и окна
+# ============================================================
+var ec_mk_bars := {}
+
+var ec_head_rt: RichTextLabel
+
+var ec_pp_rt: RichTextLabel
+
+var ec_bz_rt: RichTextLabel
+
+var ec_cb_rt: RichTextLabel
+
+var ec_cb_auto: CheckButton
+
+var ec_cb_slider: HSlider
+
+var ec_cb_val: Label
+
+var ec_gf_rt: RichTextLabel
+
+var ec_tariff: HSlider
+
+var ec_tariff_val: Label
+
+var ec_roy: HSlider
+
+var ec_roy_val: Label
+
+var ec_focus_opt: OptionButton
+
+var ec_st_rt: RichTextLabel
+
+var ec_repair_btn: Button
+
+var ec_chart: EconChart
+
+var ec_chart_opt: OptionButton
+
+var ec_chart_keys: Array = ["growth", "infl", "unemp", "rate", "bconf", "cconf", "inv", "util", "ppi", "cpi", "fxs", "nx"]
+
+var comp_loss := 0.0          # сколько голосов партия власти потеряла из-за конкуренции (доля) на последнем подсчёте
+
+# ============================================================
+#  ОКНО ЗАКОНОВ: ползунок для числовых законов, фундаментальные законы, список по разделам
+# ============================================================
+var law_slider_box: VBoxContainer
+
+var law_slider: HSlider
+
+var law_slider_val: Label
+
+var law_slider_range: Label
+
+var law_slider_busy := false
+var law_pow := {}              # tid -> сила действия принятого варианта (0.5…1.5)
+var law_pow_sel := {}          # tid -> сила, выбранная в окне законов
+var law_sel_key := ""
+var law_pow_slider: HSlider
+var law_pow_box: VBoxContainer
+var law_pow_lbl: Label
+
+var law_headers: Array = []
+
+var log_entries: Array = []
+
+var log_filter := 0
+
+var log_filter_btns: Array = []
+
+# ============================================================
+#  ПОМОЩНИК И АВТОПИЛОТ
+# ============================================================
+var auto_floor_on := false
+var floor_check: CheckButton
+var ap := {"bal": false, "target": 0.5, "events": false, "style": 0, "repair": false, "build": false}
+
+var ap_log := {}
+
+var ap_checks := {}
+
+var ap_target_slider: HSlider
+
+var ap_target_label: Label
+
+var ap_style_opt: OptionButton
+
+var ap_advisor_rt: RichTextLabel
+
+var ap_btns: Array = []
+
+var def0 := 3.0                # дефицит бюджета на старте, % ВВП (нейтральный уровень для роста и инфляции)
+
+var loy_off: Array[float] = []
+
+var unr_off: Array[float] = []
+
+var region_parts: Array = []
+
+# --- долговой тормоз ---
+var fund_left := 500.0
+
+var brake_over := 0
+
+var dip := {}
+
+var dip_sel := "FR"
+
+var dip_layer := 0
+
+var dip_hover := ""
+
+var dip_ctl: Control
+
+var dip_polys := {}
+
+var dip_info_rt: RichTextLabel
+
+var dip_table_rt: RichTextLabel
+
+var dip_legend: Label
+
+var dip_act_box: VBoxContainer
+var dip_far_box: VBoxContainer
+var dip_far_lbl: Label
+var ex_sel := ""
+
+var dip_act_btns := {}
+
+var dip_track_btns := {}
+
+var dip_track_lbls := {}
+
+var dip_mod_rt: RichTextLabel
+
+var dip_bonus0 := 1.0
+
+var dip_last_summit := -10
+
+var ea_infl := 2.1
+
+
+# ============================================================
+#  ЖИВОЙ МИР: страны, которыми управляет компьютер
+# ============================================================
+
+var wsim := {}
+
+var w_shock := {}
+
+var w_stress := 0.0
+
+var w_crises_log: Array = []
+
+var ea_rest := 2.0
+
+var w_pot_player := 1.0
+
+var scripted_done := {}
+
+var regime_risk := 0.0
+
+var regime_t := 0
+
+var last_regime := ""
+
+var shortage := 0.0
+
+var plan_t := 0
+
+var default_t := -999
+
+var eu_left_t := -999
+
+var last_uprising := -99
+
+var rad_enacted := {}
+
+var law_index_pre := {}
+
+var res_price := 1.0
+
+var agr_wx := 1.0
+
+var re_rt: RichTextLabel
+
+var re_tool_label: Label
+
+var re_tool_opt: OptionButton
+
+var re_tool_btn: Button
+
+var re_tool_note: Label

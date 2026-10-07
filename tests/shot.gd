@@ -1,0 +1,28 @@
+extends SceneTree
+# Скриншот экрана: аргументы country=XX desk=N months=N out=путь.png (см. tools/shot.sh)
+func _init():
+	var desk := 6
+	var months := 14
+	var outp := ""
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("desk="): desk = int(String(a).substr(5))
+		if String(a).begins_with("months="): months = int(String(a).substr(7))
+		if String(a).begins_with("out="): outp = String(a).substr(4)
+	var g = load("res://main.gd").new()
+	root.add_child(g)
+	for i in 5: await process_frame
+	for m in months:
+		if g.election_open: g.election_continue()
+		if not g.current_event.is_empty(): g.choose(0)
+		g.next_turn()
+	if g.election_open: g.election_continue()
+	if not g.current_event.is_empty(): g.choose(0)
+	g.show_desk(desk)
+	if desk == 6: g.ag_random_agent()
+	for i in 12: await process_frame
+	await create_timer(0.8).timeout
+	if outp == "": outp = "/tmp/shot_%s.png" % g.ccode
+	var img: Image = root.get_viewport().get_texture().get_image()
+	img.save_png(outp)
+	print("saved ", outp)
+	quit()
