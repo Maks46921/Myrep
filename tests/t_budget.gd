@@ -1,5 +1,5 @@
 extends SceneTree
-# Бюджет: два ползунка субсидий, авто-подъём расходов до минимума коалиции, без кнопок пропуска времени.
+# Бюджет: два ползунка субсидий, авто-подъём расходов до ожиданий групп, без кнопок пропуска времени.
 var bad := 0
 func check(ok: bool, msg: String) -> void:
 	if not ok:
@@ -17,18 +17,12 @@ func _init():
 	var g0: float = g.growth
 	g.set_policy("agri", float(g.pol["agri"]) + 1.0)
 	check(g.target_support("Село") > 0.0, "поддержка считается")
-	# искусственное требование коалиции
-	var p := -1
-	for k in range(1, g.PARTY_NAMES.size()):
-		p = k
-		break
-	g.in_coalition[p] = true
-	var old_d = g.PARTY_DEMANDS[p]
-	g.PARTY_DEMANDS[p] = [{"key": "edu", "op": ">=", "val": float(g.pol["edu"]) + 1.0, "text": "тест"}]
+	# v35: авто-подъём поднимает статьи до ожиданий социальных групп
+	var fl: float = g.floor_share("edu")
+	g.pol["edu"] = maxf(0.0, fl - 1.0)
 	var e0: float = g.pol["edu"]
 	var n: int = g.auto_floor()
-	check(n >= 1 and float(g.pol["edu"]) > e0 + 0.9, "расходы подняты до минимума (%s → %s)" % [str(e0), str(g.pol["edu"])])
-	g.PARTY_DEMANDS[p] = old_d
+	check(n >= 1 and float(g.pol["edu"]) >= minf(fl, e0 + 0.9), "расходы подняты до ожиданий групп (%s → %s, ждут %s)" % [str(e0), str(g.pol["edu"]), str(fl)])
 	g.next_turn()
 	check(is_finite(g.gdp), "месяц идёт")
 	print("t_budget: проблем ", bad)

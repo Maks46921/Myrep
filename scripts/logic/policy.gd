@@ -788,8 +788,22 @@ func demand_cur(d: Dictionary) -> float:
 const HYBRID_IDS := ["party_funding", "media_law", "healthcare", "education_law", "family_policy", "housing", "migration", "ecology_law", "security_law", "agri_law", "energy_policy", "digital_law"]
 
 
+# v35: силу действия можно менять у любого обычного закона (не числового, не фундаментального и без радикальных вариантов)
 func is_hybrid(tid: String) -> bool:
-	return tid in HYBRID_IDS and law_index.has(tid) and not (law_index[tid] as Dictionary).has("param")
+	if not law_index.has(tid):
+		return false
+	var t: Dictionary = law_index[tid]
+	if t.has("_hyb"):
+		return bool(t["_hyb"])
+	var ok: bool = not t.has("param")
+	if ok and not (tid in HYBRID_IDS):
+		if bool(t.get("fund", false)):
+			ok = false
+		for v in t["v"]:
+			if (v as Dictionary).has("rid") or (v as Dictionary).has("set"):
+				ok = false
+	t["_hyb"] = ok
+	return ok
 
 
 func pw_of(tid: String, cand: bool = false) -> float:

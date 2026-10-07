@@ -101,33 +101,30 @@ func party_stance(p: int, sup: Dictionary) -> float:
 	return num / den
 
 
-# расходы сами поднимаются до минимума, которого требуют партии коалиции (кнопка в окне «Расходы»)
+# v35: расходы сами поднимаются до ожиданий социальных групп («группы ждут ≈» под статьёй бюджета)
+func floor_share(key: String) -> float:
+	var want: float = expected_pp(key) * (GDP0 / 100.0) * pop_ratio() * std_index()
+	return want / gdp * 100.0
+
+
 func auto_floor() -> int:
 	var n := 0
 	var parts: PackedStringArray = []
-	for p in range(1, PARTY_NAMES.size()):
-		if not in_coalition[p]:
+	for d in POLICY:
+		var key: String = d["key"]
+		if String(d["kind"]) != "spend":
 			continue
-		for d in PARTY_DEMANDS[p]:
-			var key: String = d["key"]
-			if String(d["op"]) != ">=" or not policy_by_key.has(key) or String(policy_by_key[key]["kind"]) != "spend":
-				continue
-			if demand_met(d):
-				continue
-			var is_amt: bool = d.get("abs", false)
-			var share: float = float(d["val"]) / gdp * 100.0 if is_amt else float(d["val"])
-			if key == "subs" and is_amt:
-				share = maxf(0.0, share - float(pol["agri"]))
-			share = lock_allowed_share(key, share + 0.005)
-			var old: float = pol[key]
-			if share <= old:
-				continue
-			set_policy(key, share)
-			prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
-			n += 1
-			parts.append("«%s» %.1f → %.1f%% ВВП" % [policy_title(key), old, float(pol[key])])
+		var share: float = minf(float(d["max"]), floor_share(key) + 0.005)
+		share = lock_allowed_share(key, share)
+		var old: float = pol[key]
+		if share <= old + 0.001:
+			continue
+		set_policy(key, share)
+		prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
+		n += 1
+		parts.append("«%s» %.1f → %.1f%% ВВП" % [policy_title(key), old, float(pol[key])])
 	if n > 0:
-		log_tag("БЮДЖЕТ", COL_TEAL, "автоподъём расходов до требуемого коалицией минимума: %s." % "; ".join(parts))
+		log_tag("БЮДЖЕТ", COL_TEAL, "автоподъём расходов до ожиданий социальных групп: %s." % "; ".join(parts))
 	return n
 
 

@@ -577,8 +577,8 @@ func build_budget_windows() -> void:
 			add_slider(w.body, d)
 	spend_total_label = add_wrap_label(w.body, "")
 	var fl := CheckButton.new()
-	fl.text = "Авто-подъём до минимума коалиции"
-	fl.tooltip_text = "Если партия коалиции требует тратить на статью не меньше определённой суммы, ползунок сам поднимется до этого минимума (раз в месяц и при включении)."
+	fl.text = "Авто-подъём до ожиданий групп"
+	fl.tooltip_text = "Если на статью тратится меньше, чем ждут социальные группы («группы ждут ≈» под ползунком), ползунок сам поднимется до этого уровня (раз в месяц и при включении)."
 	fl.focus_mode = Control.FOCUS_NONE
 	fl.clip_text = true
 	fl.toggled.connect(on_floor_toggle)

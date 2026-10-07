@@ -586,8 +586,9 @@ func update_law_detail() -> void:
 		fx.visible = expanded
 		btn.visible = expanded
 		if is_cur:
-			fx.text = ""
-			fx.visible = false
+			var own: Array = variant_own_items(tid, vi)
+			fx.text = ("[font_size=13][color=%s]Пока действует, даёт:[/color]\n%s[/font_size]" % [COL_DIM, items_pros_cons(own)]) if own.size() > 0 else ""
+			fx.visible = own.size() > 0
 			vote.text = ""
 			vote.visible = false
 			bar.visible = false

@@ -746,7 +746,68 @@ func build_law_topics() -> Array:
 				var a: Dictionary = (vv.get("a", {}) as Dictionary).duplicate()
 				a["dem_shift"] = float(tbl[idx])
 				vv["a"] = a
+	for t in out:
+		sq_effects(t)
 	return out
+
+
+# v35: действующий порядок (вариант 0) тоже действует: если у него нет своих постоянных эффектов,
+# он получает зеркальные к альтернативам, ослабленные (что дают альтернативы — того сейчас нет, и наоборот).
+const SQ_K := 0.3
+
+
+func sq_effects(t: Dictionary) -> void:
+	if t.has("param") or bool(t.get("rad", false)):
+		return
+	var vs: Array = t["v"]
+	if vs.size() < 2:
+		return
+	var v0: Dictionary = vs[0]
+	if not (v0.get("a", {}) as Dictionary).is_empty() or not (v0.get("x", {}) as Dictionary).is_empty():
+		return
+	var sa := {}
+	var sx := {}
+	var n: float = float(vs.size() - 1)
+	for i in range(1, vs.size()):
+		var ad: Dictionary = (vs[i] as Dictionary).get("a", {})
+		for k in ad:
+			if k == "dem_shift":
+				continue
+			sa[k] = float(sa.get(k, 0.0)) + float(ad[k]) / n
+		var xd: Dictionary = (vs[i] as Dictionary).get("x", {})
+		for k in xd:
+			sx[k] = float(sx.get(k, 0.0)) + (float(xd[k]) - 1.0) / n
+	var a0 := {}
+	var x0 := {}
+	for k in sa:
+		if absf(float(sa[k])) > 0.0005:
+			a0[k] = -float(sa[k]) * SQ_K
+	for k in sx:
+		if absf(float(sx[k])) > 0.0005:
+			x0[k] = 1.0 - float(sx[k]) * SQ_K
+	if a0.is_empty() and x0.is_empty():
+		return
+	if not a0.is_empty():
+		v0["a"] = a0
+	if not x0.is_empty():
+		v0["x"] = x0
+	v0["sq"] = true
+
+
+# постоянные эффекты варианта (то, что он даёт, пока действует)
+func variant_own_items(tid: String, idx: int) -> Array:
+	var v := variant_of(tid, idx)
+	var pw: float = pw_of(tid) if idx > 0 else 1.0
+	var items: Array = []
+	var xs: Dictionary = v.get("x", {})
+	for k in xs:
+		if MOD_INFO.has(k) and absf(float(xs[k]) - 1.0) > 0.0001:
+			items.append(mod_item(k, 1.0, 1.0 + (float(xs[k]) - 1.0) * pw))
+	var ad: Dictionary = v.get("a", {})
+	for k in ad:
+		if MOD_INFO.has(k) and absf(float(ad[k])) > 0.0001:
+			items.append(mod_item(k, 0.0, float(ad[k]) * pw))
+	return items
 
 
 func is_fund(tid: String) -> bool:
