@@ -8,6 +8,10 @@ func ex_bot_g(c: String) -> float:
 	return 0.0
 
 
+func mil_dip_term(c: String) -> float:
+	return 0.0
+
+
 func open_mult(c: String) -> float:
 	return 0.0
 
@@ -64,7 +68,7 @@ func dip_target(c: String) -> float:
 	var dl := 0
 	for k in lv:
 		dl += int(lv[k]) - int((d["lv0"] as Dictionary)[k])
-	t += 2.0 * float(dl)
+	t += 2.0 * float(dl) + mil_dip_term(c)
 	return clampf(t, 5.0, 98.0)
 
 

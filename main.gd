@@ -4,7 +4,7 @@
 # Все окна плавающие: двигайте за заголовок, меняйте размер за правый/нижний край и угол,
 # двойной щелчок по заголовку (или кнопка «–») сворачивает окно.
 # Весь интерфейс создаётся кодом. Повесьте скрипт на корневой узел Control (Godot 4.x).
-extends "res://scripts/ui/ui_opp.gd"
+extends "res://scripts/ui/ui_war.gd"
 
 # ============================================================
 #  СТРАНЫ: применение пакета данных
@@ -473,6 +473,7 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	opt_choice(box, "Требования регионов", "Регионы с растущим недовольством сами выдвигают требования об автономии (их можно принять или отклонить). «Нет» — регионы молчат, всё решаете вы.", ["Нет", "Да"], clampi(int(game_opts["fedev"]), 0, 1), func(i: int) -> void: game_opts["fedev"] = i)
 	opt_choice(box, "Живая демография (религии, миграция)", "«Да» — религиозный состав и миграция меняются сами (рождаемость, секуляризация, волны беженцев, события). «Нет» — меняется только от ваших решений.", ["Нет, только мои решения", "Да"], clampi(int(game_opts["socev"]), 0, 1), func(i: int) -> void: game_opts["socev"] = i)
 	opt_choice(box, "Давление партнёров", "Другие страны сами вводят пошлины, предлагают соглашения, поднимают цены на энергию и просят помощи.", ["Нет", "Да"], clampi(int(game_opts["exev"]), 0, 1), func(i: int) -> void: game_opts["exev"] = i)
+	opt_choice(box, "Военные угрозы и происшествия на море", "«Да» — соседи с очень плохими отношениями и сильной армией могут сами напасть на вас; на морских путях случаются штормы, аварии и нападения. «Нет» — войны начинаете только вы, море спокойно.", ["Нет", "Да"], clampi(int(game_opts.get("milev", 1)), 0, 1), func(i: int) -> void: game_opts["milev"] = i)
 	opt_slider(box, "Громкость музыки", "Спокойная фоновая музыка. 0 — выключена. Свои треки (*.ogg) можно положить в папку audio/music проекта.", 0.0, 1.0, 0.05, float(game_opts.get("music", 0.45)), func(x: float) -> String: return "%.0f%%" % (x * 100.0), func(x: float) -> void:
 		game_opts["music"] = x
 		audio_apply_volume())
@@ -493,7 +494,7 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	rs.text = "Сбросить все настройки"
 	rs.focus_mode = Control.FOCUS_NONE
 	rs.pressed.connect(func() -> void:
-		game_opts.merge({"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1}, true)
+		game_opts.merge({"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1}, true)
 		for ch in sc.get_children():
 			ch.queue_free()
 		build_settings_panel(sc)
@@ -522,6 +523,7 @@ func opts_from_args() -> void:
 			"fedev": game_opts["fedev"] = int(kv[1])
 			"socev": game_opts["socev"] = int(kv[1])
 			"exev": game_opts["exev"] = int(kv[1])
+			"milev": game_opts["milev"] = int(kv[1])
 			"observer": game_opts["observer"] = kv[1] != "0"
 
 

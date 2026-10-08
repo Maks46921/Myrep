@@ -1038,34 +1038,39 @@ func terr_sell(i: int, cc: String, mult: float, force: int = 0) -> Dictionary:
 	elif not fed_roll(float(q["p_dom"]), force):
 		res["msg"] = "Избиратели отвергли продажу «%s» на вашем референдуме." % nm
 	else:
-		var ui := fed_ui_of_region(i)
-		var uid := String(REGIONS[i]["uid"])
-		var wr := {"id": uid, "code": String(REGIONS[i]["code"]), "name": nm, "short": String(REGIONS[i]["short"]), "popm": float(regions[i]["popm"]),
-			"pc": float(REGIONS[i]["pc"]), "dev": float(regions[i]["dev"]), "unrest": float(regions[i]["unrest"]), "auto": float(regions[i]["auto"]),
-			"infra": float(regions[i]["infra"]), "edu": float(regions[i]["edu"]), "health": float(regions[i]["health"]), "env": float(regions[i]["env"]),
-			"loy": 50.0, "desc": String(REGIONS[i]["desc"]), "sh": []}
-		var pn: Array = WORLD[cc]["pn"]
-		for p in pn.size():
-			(wr["sh"] as Array).append(1.0 / float(pn.size()))
-		fed_backup_world(cc)
-		var g_r := float(q["gdp_r"])
-		(WORLD[cc]["regions"] as Array).append(wr)
-		wsim[cc]["gdp"] = float(wsim[cc]["gdp"]) + g_r
-		debt = maxf(0.0, debt - float(q["price"]))
-		fed_set_unit_cc(ui, cc)
-		var old_auto := reg_avg("auto")
-		fed_drop_region(i)
-		recalc_weights()
-		auto0 += reg_avg("auto") - old_auto
-		fst["ceded"] = int(fst["ceded"]) + 1
-		gdp = maxf(1.0, gdp - g_r)
-		fed_rebuild()
+		terr_transfer(i, cc, float(q["gdp_r"]), float(q["price"]))
 		res = {"done": true, "msg": "Регион «%s» продан стране «%s» за %.0f млрд (долг уменьшен)." % [nm, q["country"], float(q["price"])]}
 		add_support("Рабочие", -2.0)
 		add_support("Село", -1.0)
 	log_line("[b]%s: %s[/b]" % [date_text(), res["msg"]])
 	refresh()
 	return res
+
+
+# v37: передача своего региона i стране cc (продажа или мирный договор); g_r — ВВП региона, price — снижение долга
+func terr_transfer(i: int, cc: String, g_r: float, price: float) -> void:
+	var nm := String(REGIONS[i]["name"])
+	var ui := fed_ui_of_region(i)
+	var uid := String(REGIONS[i]["uid"])
+	var wr := {"id": uid, "code": String(REGIONS[i]["code"]), "name": nm, "short": String(REGIONS[i]["short"]), "popm": float(regions[i]["popm"]),
+		"pc": float(REGIONS[i]["pc"]), "dev": float(regions[i]["dev"]), "unrest": float(regions[i]["unrest"]), "auto": float(regions[i]["auto"]),
+		"infra": float(regions[i]["infra"]), "edu": float(regions[i]["edu"]), "health": float(regions[i]["health"]), "env": float(regions[i]["env"]),
+		"loy": 50.0, "desc": String(REGIONS[i]["desc"]), "sh": []}
+	var pn: Array = WORLD[cc]["pn"]
+	for p in pn.size():
+		(wr["sh"] as Array).append(1.0 / float(pn.size()))
+	fed_backup_world(cc)
+	(WORLD[cc]["regions"] as Array).append(wr)
+	wsim[cc]["gdp"] = float(wsim[cc]["gdp"]) + g_r
+	debt = maxf(0.0, debt - price)
+	fed_set_unit_cc(ui, cc)
+	var old_auto := reg_avg("auto")
+	fed_drop_region(i)
+	recalc_weights()
+	auto0 += reg_avg("auto") - old_auto
+	fst["ceded"] = int(fst["ceded"]) + 1
+	gdp = maxf(1.0, gdp - g_r)
+	fed_rebuild()
 
 
 func fed_drop_region(i: int) -> void:
@@ -1158,45 +1163,51 @@ func union_do(cc: String, terms: int, force: int = 0) -> Dictionary:
 		(fst["terr_cd"] as Dictionary)[cc] = 12
 		res["msg"] = "«%s» согласилась, но ваши избиратели отвергли объединение (шанс был %.0f%%)." % [nm, float(q["p_dom"]) * 100.0]
 	else:
-		var k0: float = gdp / maxf(0.001, regional_potential())
-		var old_auto := reg_avg("auto")
-		var units: Array = []
-		for ui in WORLD_UNITS.size():
-			if fed_unit_cc(ui) == cc:
-				units.append(ui)
-		fed_backup_world(cc)
-		var pop_in := 0.0
-		var first := regions.size()
-		for ui in units:
-			fed_take_unit(ui, "subject", k0, 1 if terms == 1 else 0)
-			fed_set_unit_cc(ui, ccode)
-		for i in range(first, regions.size()):
-			pop_in += float(regions[i]["popm"])
-		debt += float(q["debt"])
-		WORLD[cc]["regions"] = []
-		wsim.erase(cc)
-		dip.erase(cc)
-		DIP_ORDER.erase(cc)
-		if dip_sel == cc:
-			dip_sel = String(DIP_ORDER[0]) if not DIP_ORDER.is_empty() else ""
-		(fst["merged"] as Array).append(cc)
-		recalc_weights()
-		auto0 += reg_avg("auto") - old_auto
-		fed_rebuild()
-		for i in range(first, regions.size()):
-			fed_calibrate_new(i)
-		# новые субъекты получают места в верхней палате, если она есть
-		var seats_n: int = int(fed_cfg()["seats"])
-		if seats_n > 0 and not UPPER.is_empty() and String(UPPER.get("kind", "none")) != "none":
-			for i in range(first, regions.size()):
-				(UPPER["blocs"] as Array).append([seats_n, fed_party_for_bloc(i)])
-				UPPER["total"] = int(UPPER["total"]) + seats_n
-		fst["acq"] = int(fst["acq"]) + units.size()
-		add_support("Рабочие", 1.0)
-		res = {"done": true, "msg": "Страна «%s» добровольно объединилась с вами: +%d субъектов, +%.1f млн жителей, принят долг %.0f млрд." % [nm, units.size(), pop_in, float(q["debt"])]}
+		res = union_absorb(cc, terms, float(q["debt"]))
+		res["msg"] = "Страна «%s» добровольно объединилась с вами: %s" % [nm, String(res["msg"])]
 	log_line("[b]%s: %s[/b]" % [date_text(), res["msg"]])
 	refresh()
 	return res
+
+
+# v37: страна cc целиком входит в вашу (добровольно или после капитуляции); take_debt — принятый долг
+func union_absorb(cc: String, terms: int, take_debt: float) -> Dictionary:
+	var k0: float = gdp / maxf(0.001, regional_potential())
+	var old_auto := reg_avg("auto")
+	var units: Array = []
+	for ui in WORLD_UNITS.size():
+		if fed_unit_cc(ui) == cc and not WORLD_UNITS[ui].has("dead"):
+			units.append(ui)
+	fed_backup_world(cc)
+	var pop_in := 0.0
+	var first := regions.size()
+	for ui in units:
+		fed_take_unit(ui, "subject", k0, 1 if terms == 1 else 0)
+		fed_set_unit_cc(ui, ccode)
+	for i in range(first, regions.size()):
+		pop_in += float(regions[i]["popm"])
+	debt += take_debt
+	WORLD[cc]["regions"] = []
+	wsim.erase(cc)
+	dip.erase(cc)
+	DIP_ORDER.erase(cc)
+	if dip_sel == cc:
+		dip_sel = String(DIP_ORDER[0]) if not DIP_ORDER.is_empty() else ""
+	(fst["merged"] as Array).append(cc)
+	recalc_weights()
+	auto0 += reg_avg("auto") - old_auto
+	fed_rebuild()
+	for i in range(first, regions.size()):
+		fed_calibrate_new(i)
+	# новые субъекты получают места в верхней палате, если она есть
+	var seats_n: int = int(fed_cfg()["seats"])
+	if seats_n > 0 and not UPPER.is_empty() and String(UPPER.get("kind", "none")) != "none":
+		for i in range(first, regions.size()):
+			(UPPER["blocs"] as Array).append([seats_n, fed_party_for_bloc(i)])
+			UPPER["total"] = int(UPPER["total"]) + seats_n
+	fst["acq"] = int(fst["acq"]) + units.size()
+	add_support("Рабочие", 1.0)
+	return {"done": true, "msg": "+%d субъектов, +%.1f млн жителей, принят долг %.0f млрд." % [units.size(), pop_in, take_debt]}
 
 
 # ============================================================

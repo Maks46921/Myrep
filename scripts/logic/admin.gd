@@ -856,59 +856,67 @@ func ate_buy(sel: Array, mult: float, dst: int, force: int = 0) -> Dictionary:
 		res["msg"] = "Сделка заключена, но на вашем референдуме избиратели отвергли присоединение (шанс был %.0f%%)." % (float(q["p_dom"]) * 100.0)
 	else:
 		debt += float(q["price"])
-		var old_auto := reg_avg("auto")
-		var tgt := dst
-		var tgt_name := ""
-		var parts: Array = q["parts"]
-		if tgt < 0:
-			# новый регион: шаблон — ближайший свой регион, показатели — от продавца
-			var nb_i := -1
-			for a in sel:
-				for b in ate_nbs(int(a)):
-					if ate_cc(b) == ccode:
-						nb_i = ate_region(b)
-						break
-				if nb_i >= 0:
-					break
-			var wr0 := fed_wreg(cc, String(parts[0]["uid"]))
-			tgt_name = "%s (присоединённая часть)" % String(wr0.get("short", "Новая территория"))
-			tgt = adm_new_region(nb_i, tgt_name)
-			regions[tgt]["terr"] = true
-			regions[tgt]["comp"] = [0, 0, 0, 0, 0]
-			regions[tgt]["cbase"] = [0, 0, 0, 0, 0]
-			adm_upper_seat(-1)
-			# пустой регион получает показатели первой части сделки целиком (вес 1), остальные смешиваются
-		else:
-			tgt_name = String(REGIONS[tgt]["name"])
-		var tui := adm_region_ui(tgt)
-		for pt in parts:
-			var wr := fed_wreg(cc, String(pt["uid"]))
-			adm_absorb(tgt, float(pt["pop"]), float(pt["g"]), wr)
-			if int(pt["ui"]) in q["whole"]:
-				fed_rebuild_world_side(cc, String(pt["uid"]))
-			else:
-				fed_backup_world(cc)
-				var wr2 := fed_wreg(cc, String(pt["uid"]))
-				wr2["popm"] = maxf(0.001, float(wr2["popm"]) - float(pt["pop"]))
-				wsim[cc]["gdp"] = maxf(1.0, float(wsim[cc]["gdp"]) - float(pt["g"]))
-		var ch: Array = [tui]
-		for a in sel:
-			if not (ate_unit[int(a)] in ch):
-				ch.append(ate_unit[int(a)])
-			ate_unit[int(a)] = tui
-		ate_rebuild(ch)
-		fst["acq"] = int(fst["acq"]) + 1
-		recalc_weights()
-		auto0 += reg_avg("auto") - old_auto
-		regions[tgt]["adm"] = ADM_SHOCK / 2
-		fed_rebuild()
-		if dst < 0:
-			fed_calibrate_new(tgt)
-		if dip.has(cc):
-			dip_change(cc, -1.0)
-		ate_sel.clear()
-		res = {"done": true, "idx": tgt, "msg": "Куплено у страны «%s»: %s за %.1f млрд (в долг); %s." % [q["country"], what, float(q["price"]),
-			("территория вошла в регион «%s»" % tgt_name) if dst >= 0 else ("образована федеральная территория «%s»" % tgt_name)]}
+		var at := ate_attach(q, sel, dst)
+		res = {"done": true, "idx": int(at["tgt"]), "msg": "Куплено у страны «%s»: %s за %.1f млрд (в долг); %s." % [q["country"], what, float(q["price"]),
+			("территория вошла в регион «%s»" % String(at["name"])) if dst >= 0 else ("образована федеральная территория «%s»" % String(at["name"]))]}
 	log_line("[b]%s: %s[/b]" % [date_text(), res["msg"]])
 	refresh()
 	return res
+
+
+# v37: присоединение АТЕ чужой страны (покупка или мирный договор). q — из ate_buy_quote (проверки не требуются).
+# dst — свой регион или -1 (новая территория). Возвращает {tgt, name}.
+func ate_attach(q: Dictionary, sel: Array, dst: int) -> Dictionary:
+	var cc := String(q["cc"])
+	var old_auto := reg_avg("auto")
+	var tgt := dst
+	var tgt_name := ""
+	var parts: Array = q["parts"]
+	if tgt < 0:
+		# новый регион: шаблон — ближайший свой регион, показатели — от продавца
+		var nb_i := -1
+		for a in sel:
+			for b in ate_nbs(int(a)):
+				if ate_cc(b) == ccode:
+					nb_i = ate_region(b)
+					break
+			if nb_i >= 0:
+				break
+		var wr0 := fed_wreg(cc, String(parts[0]["uid"]))
+		tgt_name = "%s (присоединённая часть)" % String(wr0.get("short", "Новая территория"))
+		tgt = adm_new_region(nb_i, tgt_name)
+		regions[tgt]["terr"] = true
+		regions[tgt]["comp"] = [0, 0, 0, 0, 0]
+		regions[tgt]["cbase"] = [0, 0, 0, 0, 0]
+		adm_upper_seat(-1)
+		# пустой регион получает показатели первой части сделки целиком (вес 1), остальные смешиваются
+	else:
+		tgt_name = String(REGIONS[tgt]["name"])
+	var tui := adm_region_ui(tgt)
+	for pt in parts:
+		var wr := fed_wreg(cc, String(pt["uid"]))
+		adm_absorb(tgt, float(pt["pop"]), float(pt["g"]), wr)
+		if int(pt["ui"]) in q["whole"]:
+			fed_rebuild_world_side(cc, String(pt["uid"]))
+		else:
+			fed_backup_world(cc)
+			var wr2 := fed_wreg(cc, String(pt["uid"]))
+			wr2["popm"] = maxf(0.001, float(wr2["popm"]) - float(pt["pop"]))
+			wsim[cc]["gdp"] = maxf(1.0, float(wsim[cc]["gdp"]) - float(pt["g"]))
+	var ch: Array = [tui]
+	for a in sel:
+		if not (ate_unit[int(a)] in ch):
+			ch.append(ate_unit[int(a)])
+		ate_unit[int(a)] = tui
+	ate_rebuild(ch)
+	fst["acq"] = int(fst["acq"]) + 1
+	recalc_weights()
+	auto0 += reg_avg("auto") - old_auto
+	regions[tgt]["adm"] = ADM_SHOCK / 2
+	fed_rebuild()
+	if dst < 0:
+		fed_calibrate_new(tgt)
+	if dip.has(cc):
+		dip_change(cc, -1.0)
+	ate_sel.clear()
+	return {"tgt": tgt, "name": tgt_name}

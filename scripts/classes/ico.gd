@@ -114,6 +114,10 @@ static func draw_icon(k: String, o: Vector2, u: float, w: float, c: Color, d: Ca
 			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.1, 0.55), P(o, u, 0.9, 0.55), P(o, u, 0.72, 0.8), P(o, u, 0.28, 0.8)]), c)
 			d.draw_line(P(o, u, 0.5, 0.55), P(o, u, 0.5, 0.15), c, w * 0.8)
 			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.54, 0.18), P(o, u, 0.54, 0.48), P(o, u, 0.82, 0.48)]), c)
+		"shield":
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.18, 0.14), P(o, u, 0.82, 0.14), P(o, u, 0.8, 0.52), P(o, u, 0.5, 0.9), P(o, u, 0.2, 0.52), P(o, u, 0.18, 0.14)]), c, w * 0.8)
+			d.draw_line(P(o, u, 0.5, 0.22), P(o, u, 0.5, 0.74), c, w * 0.7)
+			d.draw_line(P(o, u, 0.3, 0.42), P(o, u, 0.7, 0.42), c, w * 0.7)
 		"grid":
 			for i in 2:
 				for j in 2:

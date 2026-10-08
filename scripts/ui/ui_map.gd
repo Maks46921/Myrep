@@ -4,6 +4,14 @@ extends "res://scripts/ui/ui_core.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func draw_war_overlay(c: Control, ci: RID, s: float) -> void:
+	pass
+
+
+func draw_war_tokens(c: Control, s: float, off: Vector2, font: Font) -> void:
+	pass
+
+
 func fed_btn(text: String, parent: Control, tip: String = "") -> Button:
 	return null
 
@@ -17,6 +25,14 @@ func fed_pct(p: float) -> String:
 
 
 func update_fregion() -> void:
+	pass
+
+
+func war_hover(pos: Vector2) -> void:
+	pass
+
+
+func war_map_click(pos: Vector2, shift: bool) -> void:
 	pass
 
 
@@ -504,6 +520,9 @@ func on_map_input(ev: InputEvent) -> void:
 				map_clamp()
 				map_ctl.queue_redraw()
 			return
+		if current_desk == 13 or current_desk == 14:
+			war_hover(mm.position)
+			return
 		var ui := unit_at(mm.position)
 		var ha := ate_at(mm.position) if ate_mode else -1
 		var ci := -1
@@ -537,7 +556,9 @@ func on_map_input(ev: InputEvent) -> void:
 			map_drag_moved = false
 			map_drag_start = mb.position
 		else:
-			if map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT:
+			if map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT and (current_desk == 13 or current_desk == 14):
+				war_map_click(mb.position, mb.shift_pressed)
+			elif map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT:
 				if current_desk != 2 and current_desk != 8 and current_desk != 9:
 					show_desk(2)
 				if ate_mode and current_desk == 2:
@@ -934,6 +955,7 @@ func draw_map() -> void:
 		var ss := map_border_segs("s")
 		if not ss.is_empty():
 			c.draw_multiline(ss, Color(1.0, 0.85, 0.2, 1.0), 2.0 / s)
+	draw_war_overlay(c, ci, s)
 	c.draw_set_transform_matrix(Transform2D.IDENTITY)
 	var px_parts: Dictionary = {}
 	for ui in vis:
@@ -1062,6 +1084,7 @@ func draw_map() -> void:
 			c.draw_rect(Rect2(lx + lw * float(k) / 26.0, ly, lw / 26.0 + 0.6, 8.0), col2)
 		c.draw_string(font, Vector2(lx, ly - 4.0), String(ramp[1]), HORIZONTAL_ALIGNMENT_LEFT, lw, 11, C_DIM)
 		c.draw_string(font, Vector2(lx, ly - 4.0), String(ramp[2]), HORIZONTAL_ALIGNMENT_RIGHT, lw, 11, C_DIM)
+	draw_war_tokens(c, s, off, font)
 
 
 func region_tip(i: int) -> String:

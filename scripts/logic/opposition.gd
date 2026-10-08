@@ -1,5 +1,5 @@
 # Выбор партии, оппозиция и соглашения между партиями.
-extends "res://scripts/logic/influence.gd"
+extends "res://scripts/logic/military.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 

@@ -32,6 +32,14 @@ func council_split(fx: Dictionary) -> Dictionary:
 	return {}
 
 
+func fleet_resolve(i: int) -> void:
+	pass
+
+
+func mil_resolve(i: int) -> void:
+	pass
+
+
 func opp_resolve_offer(i: int) -> void:
 	pass
 
@@ -251,6 +259,10 @@ func choose(i: int) -> void:
 		resolve_crisis(opt)
 	elif special == "offer":
 		opp_resolve_offer(i)
+	elif special == "fleet":
+		fleet_resolve(i)
+	elif special == "war":
+		mil_resolve(i)
 	refresh()
 
 

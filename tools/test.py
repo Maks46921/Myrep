@@ -40,17 +40,19 @@ TESTS = {
     'fed':    ('t_fed.gd', [], 240),
     'adm':    ('t_adm.gd', [], 240),
     'quit':   ('t_quit.gd', [], 120),
+    'war':    ('t_war.gd', [], 400),
+    'fleet':  ('t_fleet.gd', [], 200),
     'soc':    ('t_soc.gd', [], 300),
     'menu':   ('shot_menu.gd', [], 60),     # меню выбора страны (карта + карточка), нужен xvfb-run
     'width':  ('audit_width.gd', [], 120),  # элементы шире окна при 1366x768, нужен xvfb-run
     'click':  ('shot_click.gd', [], 120),
     'socclick': ('shot_socclick.gd', [], 120),
     'fedclick': ('shot_fedclick.gd', [], 120),   # реальные щелчки мышью, нужен xvfb-run
-    'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0'], 200),
+    'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0'], 200),
     'long':   ('t_long.gd', [], 400),
 }
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')

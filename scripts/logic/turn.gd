@@ -72,6 +72,26 @@ func fed_month() -> void:
 	pass
 
 
+func fleet_day() -> void:
+	pass
+
+
+func fleet_g() -> float:
+	return 0.0
+
+
+func fleet_infl() -> float:
+	return 0.0
+
+
+func fleet_init() -> void:
+	pass
+
+
+func fleet_month() -> void:
+	pass
+
+
 func h12_snap() -> void:
 	pass
 
@@ -94,6 +114,30 @@ func junior_quit() -> void:
 
 func log_add(e: Dictionary) -> void:
 	pass
+
+
+func mil_day() -> void:
+	pass
+
+
+func mil_g() -> float:
+	return 0.0
+
+
+func mil_infl() -> float:
+	return 0.0
+
+
+func mil_init() -> void:
+	pass
+
+
+func mil_month() -> void:
+	pass
+
+
+func mil_unemp() -> float:
+	return 0.0
 
 
 func observer_step() -> void:
@@ -186,6 +230,8 @@ func blocked() -> bool:
 
 func day_tick() -> void:
 	day_total += 1
+	fleet_day()
+	mil_day()
 
 
 func advance_day() -> bool:
@@ -281,6 +327,8 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		+ world_spill_g()
 		+ soc_g()
 		+ ex_g()
+		+ fleet_g()
+		+ mil_g()
 	)
 	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
@@ -298,8 +346,8 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl()) / 12.0 * dt, 0.0, 40.0)
-	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp()
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl()) / 12.0 * dt, 0.0, 40.0)
+	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp()
 	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
 	for i in regions.size():
@@ -424,6 +472,8 @@ func next_turn() -> void:
 	update_regions()
 	fed_month()
 	adm_month()
+	fleet_month()
+	mil_month()
 	soc_month()
 	ex_month()
 
@@ -642,6 +692,8 @@ func init_state() -> void:
 	fed_init()
 	soc_init()
 	ex_init()
+	fleet_init()
+	mil_init()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}
