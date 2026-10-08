@@ -590,6 +590,8 @@ func adm_month() -> void:
 
 func adm_admin_mult() -> float:
 	# госаппарат: каждый регион сверх стартового числа дороже на 1.2%, каждый упразднённый — дешевле
+	if wu_cc0.is_empty() or ate_unit.size() != ate_n:
+		return 1.0      # до загрузки АТЕ (калибровка бюджета в начале игры)
 	return maxf(0.6, 1.0 + 0.012 * float(regions.size() - wu_cc0.count(ccode)))
 
 
