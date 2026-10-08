@@ -158,6 +158,8 @@ func set_policy(key: String, v: float) -> void:
 
 
 func apply_reg_delta(i: int, d: Dictionary, invest: bool = false) -> void:
+	if i < 0 or i >= regions.size():
+		return      # регион уже упразднён или продан (событие пришло раньше)
 	var r: Dictionary = regions[i]
 	for k in d:
 		var key: String = REG_KEYS[k]
@@ -312,6 +314,8 @@ func describe_fx(fx: Dictionary, rid: int = -1) -> String:
 			parts.append("%s %s" % [g, sg(fx["support"][g], 0)])
 	if fx.has("capital"):
 		parts.append("политкапитал %s" % sg(fx["capital"], 0))
+	if rid >= REGIONS.size():
+		rid = -1
 	if fx.has("reg") and rid >= 0:
 		parts.append("регион «%s»: %s" % [REGIONS[rid]["name"], describe_reg(fx["reg"])])
 	if fx.has("reg_transfer") and rid >= 0:
@@ -392,6 +396,8 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 		capital = clampf(capital + float(fx["capital"]), 0.0, 100.0)
 	if fx.has("pcamp"):
 		pres_camp += float(fx["pcamp"])
+	if rid >= REGIONS.size():
+		rid = -1
 	if fx.has("reg") and rid >= 0:
 		apply_reg_delta(rid, fx["reg"])
 	if fx.has("reg_transfer") and rid >= 0:

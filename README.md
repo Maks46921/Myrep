@@ -27,6 +27,7 @@ python3 tools/stubs.py     # после добавления функции, к�
 python3 tools/mapdoc.py    # обновить docs/MAP.md
 tools/shot.sh FR 6 14      # скриншот вкладки (страна, экран, месяцев игры)
 python3 tools/styles.py -j 4 # стили игры × партии × страны × 30 лет (долго)
+python3 tools/gen_ate.py   # пересобрать АТЕ (data/ate.dat) после правки границ регионов
 ```
 Фиксированный seed для воспроизводимых прогонов: аргумент `seed=N`.
 Правила проекта и чек-лист новой страны: `docs/RULES.md`.
