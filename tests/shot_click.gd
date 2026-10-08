@@ -54,14 +54,10 @@ func pick_point(g, ui: int, v: Array, gr: Rect2) -> Vector2:
 	var lp := cen * float(v[0]) + (v[1] as Vector2)
 	if g.unit_at(lp) == ui and not covered(g, gr.position + lp):
 		return cen
+	# v36: кандидаты — центры АТЕ региона
 	var cands: Array = []
-	var parts: Array = g.map_unit_parts[ui]
-	for part in parts:
-		var bb := Rect2(part[0], Vector2.ZERO)
-		for q in part: bb = bb.expand(q)
-		for iy in 16:
-			for ix in 16:
-				cands.append(bb.position + Vector2((ix + 0.5) / 16.0 * bb.size.x, (iy + 0.5) / 16.0 * bb.size.y))
+	for a in g.ate_lists[ui]:
+		cands.append(g.ate_c[a])
 	for c in cands:
 		var px: Vector2 = c * float(v[0]) + (v[1] as Vector2)
 		if g.unit_at(px) == ui and gr.has_point(gr.position + px) and not covered(g, gr.position + px):

@@ -352,13 +352,13 @@ func opp_ap_force() -> void:
 
 
 # ---------- смена режима: оппозиция ↔ власть ----------
-func opp_enter(reason: String) -> void:
+func opp_enter(reason: String, keep: Dictionary = {}) -> void:
 	if opp_mode:
 		return
 	opp_mode = true
 	opp_ap_saved = ap.duplicate()
 	opp_ap_force()
-	var g := ai_form_gov(false)
+	var g := keep if not keep.is_empty() else ai_form_gov(false)
 	if g.is_empty():
 		g = {"members": [1], "pm": 1, "seats": 0, "ok": false}
 	opp_set_gov(g)
@@ -367,6 +367,27 @@ func opp_enter(reason: String) -> void:
 	crisis_months = 0
 	commitments.clear()
 	log_tag("ОППОЗИЦИЯ", COL_WARN, "%s Правительство: %s. Теперь вы в оппозиции: бюджет и министерства у других, но вы можете критиковать власть, вносить законопроекты, договариваться с партиями и искать пути к власти." % [reason, opp_gov_text()])
+
+
+func junior_quit() -> void:
+	# v36: младший партнёр с провальным рейтингом не уходит в отставку, а выходит из коалиции —
+	# прежние партнёры правят дальше (если хватает мест) или собирают новое правительство
+	var jn := junior_info()
+	var members: Array = []
+	for p in PARTY_NAMES.size():
+		if p != 0 and in_coalition[p]:
+			members.append(p)
+	var g := {}
+	if not members.is_empty():
+		var s := 0
+		for q in members:
+			s += int(seats[int(q)])
+		g = {"members": members, "pm": int(jn["pm"]), "seats": s, "ok": s * 2 > SEATS, "stab": 52.0}
+		if not bool(g["ok"]):
+			g = {}
+	low_months = 0
+	opp_enter("Рейтинг упал до %.0f%%: чтобы не тонуть вместе с правительством, ваша партия вышла из коалиции." % approval(), g)
+	add_support("Молодёжь", 1.0)
 
 
 func opp_to_gov(members: Array, pm: int, why: String) -> void:

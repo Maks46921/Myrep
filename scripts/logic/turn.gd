@@ -88,6 +88,10 @@ func junior_power() -> float:
 	return 0.0
 
 
+func junior_quit() -> void:
+	pass
+
+
 func log_add(e: Dictionary) -> void:
 	pass
 
@@ -446,8 +450,11 @@ func next_turn() -> void:
 		return
 	low_months = low_months + 1 if (approval() < 25.0 and not opp_mode) else 0
 	if low_months >= 3:
-		end_game("Рейтинг упал до %.0f%%, партия отказала вам в доверии: вы вынуждены уйти в отставку." % approval())
-		return
+		if bool(junior_info()["junior"]):
+			junior_quit()
+		else:
+			end_game("Рейтинг упал до %.0f%%, партия отказала вам в доверии: вы вынуждены уйти в отставку." % approval())
+			return
 	var riots := 0
 	for r in regions:
 		if float(r["unrest"]) >= 90.0:

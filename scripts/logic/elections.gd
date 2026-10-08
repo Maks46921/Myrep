@@ -44,12 +44,20 @@ func opp_campaign() -> void:
 	pass
 
 
-func opp_enter(reason: String) -> void:
+func opp_enter(reason: String, keep: Dictionary = {}) -> void:
 	pass
+
+
+func opp_gov_seats() -> int:
+	return 0
 
 
 func opp_gov_text() -> String:
 	return ""
+
+
+func opp_to_gov(members: Array, pm: int, why: String) -> void:
+	pass
 
 
 func pact_mult(p: int) -> float:
@@ -491,15 +499,31 @@ func hold_head_council(reason: String) -> void:
 	var vt := ""
 	var vc: Color = C_GOOD
 	var vtx := ""
+	var members: Array = []
+	var pm := -1
+	for p in n:
+		if got[p] > 0 and p != 0:
+			members.append(p)
+			if pm < 0 or got[p] > got[pm] or (got[p] == got[pm] and seats[p] > seats[pm]):
+				pm = p
 	if got[0] >= 1:
-		vt = "Вы сохранили место в правительстве"
+		vt = "Вы сохранили место в правительстве" if not opp_mode else "Вы снова в правительстве"
 		capital = clampf(capital + 5.0, 0.0, 100.0)
 		vtx = "Федеральное собрание подтвердило состав Федерального совета: у вашей партии %d из %d мест. Политкапитал +5." % [got[0], cn]
+		if opp_mode:
+			opp_to_gov(members, 0, "Федеральное собрание избрало представителей вашей партии в Федеральный совет.")
 	else:
+		# v36: без места в Федеральном совете партия остаётся в парламенте — игра продолжается в оппозиции
 		vt = "Вас не переизбрали"
 		vc = C_BAD
-		end_msg = "Федеральное собрание не переизбрало вас в Федеральный совет: ваша партия осталась без мест в правительстве."
-		vtx = end_msg
+		vtx = "Федеральное собрание не переизбрало вас в Федеральный совет: ваша партия осталась без мест в правительстве, но сохраняет %d мест в парламенте. Игра продолжается в оппозиции: критикуйте власть, вносите законопроекты и добивайтесь места в совете на следующих выборах." % seats[0]
+		if not opp_mode and pm > 0:
+			in_coalition[0] = false
+			opp_enter("Федеральное собрание не переизбрало вас в Федеральный совет.", {"members": members, "pm": pm, "seats": 0, "ok": true, "stab": 70.0})
+			opp_gov["seats"] = opp_gov_seats()
+		elif pm <= 0:
+			end_msg = "Федеральное собрание не переизбрало вас в Федеральный совет, а другого состава совета собрать не удалось."
+			vtx = end_msg
 	var out_t := "Новый состав Федерального совета: " + ", ".join(PackedStringArray(rows.map(func(r): return "%s — %s" % [r["name"], r["lab"]])))
 	var rep := {"title": "ВЫБОРЫ ФЕДЕРАЛЬНОГО СОВЕТА", "reason": reason, "rounds": rounds, "sham": false,
 		"meta": "Новый парламент избирает всех семерых членов правительства. Президент Конфедерации — выборная должность на один год, глава правительства лишь первый среди равных.",
