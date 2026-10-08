@@ -47,12 +47,13 @@ TESTS = {
     'width':  ('audit_width.gd', [], 120),  # элементы шире окна при 1366x768, нужен xvfb-run
     'click':  ('shot_click.gd', [], 120),
     'socclick': ('shot_socclick.gd', [], 120),
-    'fedclick': ('shot_fedclick.gd', [], 120),   # реальные щелчки мышью, нужен xvfb-run
+    'fedclick': ('shot_fedclick.gd', [], 120),
+    'warclick': ('shot_warclick.gd', [], 150),   # реальные щелчки мышью, нужен xvfb-run
     'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0'], 200),
     'long':   ('t_long.gd', [], 400),
 }
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')
@@ -79,7 +80,7 @@ def run_one(test, cc, update):
     if test == 'stubs':
         return run_stubs()
     script, extra, tmo = TESTS[test]
-    gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick')
+    gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick')
     cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', 'tests/' + script, '--', 'country=' + cc] + extra
     if gui:
         cmd = ['xvfb-run', '-a', '-s', '-screen 0 %s' % ('1366x768x24' if test == 'width' else '1700x900x24')] + cmd

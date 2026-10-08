@@ -15,9 +15,15 @@ func own_ates(m) -> int:
 func play_days(m, n: int) -> void:
 	for i in n:
 		if m.game_over:
-			return
+			# проигранная война может довести до дефолта — для проверки механик войны игру продолжаем
+			print("игра окончена: ", m.end_reason, " (тест продолжает)")
+			m.game_over = false
 		if m.election_open:
 			m.election_continue()
+		if m.opp_mode:
+			# проигранные выборы или капитуляция уводят в оппозицию — тест проверяет войну, поэтому возвращаем власть
+			print("ушли в оппозицию на ходу %d (тест возвращает власть)" % m.turn)
+			m.opp_to_gov([0], 0, "Тест.")
 		if not m.current_event.is_empty():
 			m.choose(0)
 		m.advance_day()
@@ -32,6 +38,7 @@ func consistent(m, tag: String) -> void:
 	check(empty == 0, tag + ": пустых регионов %d" % empty)
 	check(is_finite(m.gdp) and m.gdp > 0.0, tag + ": ВВП %.1f" % m.gdp)
 	check(is_finite(m.debt), tag + ": долг")
+	print("  ", tag, ": долг %.0f%% ВВП, ВВП %.0f, одобрение %.0f" % [m.debt / m.gdp * 100.0, m.gdp, m.approval()])
 	var cap: int = int(m.ate_cap.get(m.ccode, -1))
 	check(cap < 0 or m.ate_cc(cap) == m.ccode, tag + ": столица своя")
 
@@ -182,6 +189,10 @@ func _init():
 		consistent(m, "после присоединения страны")
 		play_days(m, 35)
 		consistent(m, "месяц после присоединения")
+	if m.game_over:
+		# серия войн подряд в тесте может уронить рейтинг до отставки — это не ошибка; продолжаем проверять механику
+		print("игра окончена: ", m.end_reason, " (тест продолжает)")
+		m.game_over = false
 	# десант: своя прибрежная АТЕ -> чужое побережье
 	m.mil_coast_build()
 	if m.flt_has_sea() and not bool(m.flt["land"]):
@@ -209,10 +220,60 @@ func _init():
 				var why: String = m.mil_land_order(int(fl["id"]), dst)
 				check(why == "", "десант: " + why)
 				play_days(m, 30)
-				check(int(fl["a"]) >= 0, "десант завершён (высадка или эвакуация)")
+				check(int(fl["a"]) >= 0, "десант завершён (высадка или эвакуация): game_over %s, sea %s, fight %d" % [m.game_over, fl["sea"], int(fl["fight"])])
 				print("десант на ", m.ate_name(dst), ": соединение в ", m.ate_name(int(fl["a"])) if int(fl["a"]) >= 0 else "море")
 			m.mil_peace("white")
 			consistent(m, "после десанта")
+	if m.game_over:
+		print("игра окончена: ", m.end_reason, " (тест продолжает)")
+		m.game_over = false
+	# переброска морем на свой остров (без войны)
+	m.mil_coast_build()
+	var fz: Dictionary = m.mil_units_of(cc)[0] if m.mil_units_of(cc).size() > 0 else {}
+	if not fz.is_empty() and m.mil_coast.has(int(fz["a"])) == false:
+		for a in m.mil_coast:
+			if m.ate_cc(int(a)) == cc:
+				fz["a"] = int(a)
+				break
+	if not fz.is_empty() and m.mil_coast.has(int(fz["a"])):
+		m.mil_bfs(int(fz["a"]), cc)
+		var isl := -1
+		for a in m.mil_coast:
+			if m.ate_cc(int(a)) == cc and not m.mil_reached(int(a)):
+				isl = int(a)
+				break
+		if isl >= 0:
+			var why2: String = m.mil_order_move(int(fz["id"]), isl)
+			check(why2 == "", "переброска на остров: " + why2)
+			play_days(m, 25)
+			check(int(fz["a"]) == isl, "соединение доставлено на остров %s (game_over %s, sea %s, a %d)" % [m.ate_name(isl), m.game_over, fz["sea"], int(fz["a"])])
+			print("переброска на ", m.ate_name(isl), ": ", int(fz["a"]) == isl)
+	# нападение ИИ: плохие отношения и слабая армия
+	m.game_opts["milev"] = 1
+	var att := ""
+	for c in m.mil_targets():
+		if m.mil_land_neighbor(c) and int((m.mil["truce"] as Dictionary).get(c, 0)) == 0 and m.wsim.has(c):
+			att = String(c)
+	if att != "" and not m.mil_at_war():
+		if m.dip.has(att):
+			m.dip[att]["rel"] = 0.0
+		else:
+			m.fst["rel_x"][att] = -45.0
+		for f in m.mil_units_of(cc):
+			f["str"] = 0.05
+		m.turn = maxi(m.turn, 13)
+		for k in 800:
+			if not m.current_event.is_empty(): m.choose(0)
+			m.mil_ai_declare()
+			if m.mil_at_war(): break
+		check(m.mil_at_war() and m.mil_side(att) == 1, "ИИ объявил войну (%s): opp %s, rel %.0f, сила %.1f / %.1f, перемирие %s" % [att, m.opp_mode, m.fed_rel(att), m.mil_country_power(att), m.mil_country_power(cc), m.mil["truce"]])
+		if m.mil_at_war():
+			check(not m.current_event.is_empty() and String(m.current_event.get("special", "")) == "war", "событие о нападении")
+			m.choose(1)
+			check(int(m.mil["mob"]) == 1, "по выбору объявлена мобилизация")
+			play_days(m, 20)
+			m.mil_peace("white")
+		consistent(m, "после нападения ИИ")
 	for i in 3:
 		m.next_turn()
 	consistent(m, "месячные ходы")

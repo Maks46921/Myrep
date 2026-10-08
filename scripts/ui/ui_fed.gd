@@ -141,6 +141,9 @@ func build_fed_windows() -> void:
 		eb.focus_mode = Control.FOCUS_NONE
 		eb.text = String(FED_EQ[k]).capitalize()
 		eb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		eb.theme_type_variation = "SmallButton"      # v37: при 1366×768 четыре кнопки не помещались
+		eb.clip_text = true
+		eb.custom_minimum_size = Vector2(30.0, 0.0)
 		eb.pressed.connect(on_fed_eq.bind(k))
 		eqr.add_child(eb)
 		fw_eq_btns.append(eb)

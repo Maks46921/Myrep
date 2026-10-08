@@ -34,5 +34,5 @@ func _init():
 			print("мир: ", m.mil["last"]["msg"])
 			break
 		var w = m.mil["war"]
-		print("мес %d: %d мс, счёт %.0f, занято у них %.1f%%, у нас %.1f%%, силы %.0f / %.0f, потери %.1f / %.1f, бои %d:%d, рост %.2f, одобрение %.1f" % [mo + 1, Time.get_ticks_msec() - t0, w["score"], w["occ"][1] * 100, w["occ"][0] * 100, m.mil_side_total(0), m.mil_side_total(1), w["kia"][0], w["kia"][1], w["won"], w["lost"], m.growth, m.approval()])
+		print("мес %d: %d мс, счёт %.0f, занято у них %.1f%%, у нас %.1f%%, силы %.0f / %.0f, потери %.1f / %.1f, бои %d:%d, рост %.2f, одобрение %.1f, ВВП %.0f, цель %.2f, mil_g %.2f, fleet_g %.2f, f %.2f" % [mo + 1, Time.get_ticks_msec() - t0, w["score"], w["occ"][1] * 100, w["occ"][0] * 100, m.mil_side_total(0), m.mil_side_total(1), w["kia"][0], w["kia"][1], w["won"], w["lost"], m.growth, m.approval(), m.gdp, m.g_target_last, m.mil_g(), m.fleet_g(), float(m.flt.get("f", 1.0))])
 	quit()

@@ -11,7 +11,10 @@ func _init():
 	if g.election_open: g.election_continue()
 	if not g.current_event.is_empty(): g.choose(0)
 	var bad := 0
-	for d in 8:
+	for d in 15:
+		if d == 14 and not g.mil_targets().is_empty():
+			g.mil_declare(String(g.mil_targets()[0]), true)       # v37: экраны армии и флота во время войны
+			for k in 10: g.advance_day()
 		g.show_desk(d)
 		for i in 6: await process_frame
 		for w in g.workspace.get_children():

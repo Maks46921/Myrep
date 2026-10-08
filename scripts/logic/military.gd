@@ -538,6 +538,17 @@ func mil_order_move(id: int, to: int) -> String:
 	mil_bfs(int(f["a"]), ccode)
 	var p := mil_path_to(to)
 	if p.is_empty() and to != int(f["a"]):
+		# своё побережье за морем (острова): переброска паромами и транспортами
+		mil_coast_build()
+		if mil_side(mil_ctl(to)) == mil_side(ccode) and mil_coast.has(to):
+			if not mil_coast.has(int(f["a"])):
+				return "Пути по суше нет: отведите соединение к побережью, оттуда его перевезут морем."
+			var sp := flt_path(String(mil_coast[int(f["a"])]), String(mil_coast[to]))
+			f["sea"] = {"to": to, "days": 2 + int(ceil(flt_path_len(sp) / 350.0)), "from": int(f["a"]), "ferry": true}
+			f["a"] = -1
+			f["path"] = []
+			f["mode"] = "hold"
+			return ""
 		return "Пути по суше нет (нужен десант)."
 	f["path"] = p
 	f["prog"] = 0.0
@@ -755,6 +766,7 @@ func mil_day() -> void:
 			mil_mob_arrive()
 	if not mil_at_war():
 		mil_move_all()
+		mil_sea_day()
 		return
 	var w: Dictionary = mil["war"]
 	w["days"] = int(w["days"]) + 1
@@ -818,10 +830,20 @@ func mil_take(a: int, cc: String) -> void:
 	if mil_side(mil_ctl(a)) == sd:
 		return          # передвижение по своей территории фронт не сдвигает
 	mil_set_ctl(a, cc)
-	# зона контроля: соседние АТЕ противника без его войск тоже переходят под контроль (свои земли освобождают, только войдя в них)
+	# зона контроля: соседняя АТЕ противника без его войск переходит под контроль, если уже почти окружена
+	# (не меньше трёх её соседей держит наша сторона); свою занятую землю без войск противника — уже при двух
 	for b in ate_nbs(a):
 		var ob := mil_side(ate_cc(b))
-		if ob >= 0 and ob != sd and mil_side(mil_ctl(b)) == ob and mil_hostile_units_at(b, cc).is_empty():
+		if ob < 0 or not mil_hostile_units_at(b, cc).is_empty():
+			continue
+		var home: bool = ob == sd and mil_side(mil_ctl(b)) != sd
+		if not home and (ob == sd or mil_side(mil_ctl(b)) != ob):
+			continue
+		var ours := 0
+		for b2 in ate_nbs(b):
+			if mil_side(mil_ctl(b2)) == sd:
+				ours += 1
+		if ours >= (2 if home else 3):
 			mil_set_ctl(b, cc)
 
 
@@ -886,13 +908,24 @@ func mil_join_battles() -> void:
 	if fronts.is_empty():
 		return
 	for f in mil["units"]:
-		if int(f["fight"]) >= 0 or int(f["a"]) < 0 or String(f["mode"]) != "auto" or float(f["org"]) < 0.5:
+		if int(f["fight"]) >= 0 or int(f["a"]) < 0 or float(f["org"]) < 0.5 or not (f["sea"] as Dictionary).is_empty():
 			continue
+		var md := String(f["mode"])
 		var sd := mil_side(String(f["cc"]))
-		for b in ate_nbs(int(f["a"])):
-			if fronts.has(b) and int(fronts[b]) == sd:
+		var a: int = int(f["a"])
+		if fronts.has(a) and int(fronts[a]) != sd:
+			continue      # сами под ударом — держат свою АТЕ
+		for b in ate_nbs(a):
+			if not fronts.has(b):
+				continue
+			if int(fronts[b]) == sd and md == "auto":
 				f["fight"] = b
 				f["path"] = [b]
+				break
+			# оборона: свободные соседние части («оборонять», «наступать сами», ИИ) подкрепляют атакованную АТЕ
+			if int(fronts[b]) != sd and md in ["auto", "def"] and mil_side(mil_ctl(b)) == sd and (f["path"] as Array).size() != 1:
+				f["path"] = [b]
+				f["prog"] = maxf(float(f["prog"]), 0.5)
 				break
 
 
@@ -964,7 +997,8 @@ func mil_battles() -> void:
 				def_left += 1
 		var att_left := 0
 		for f in att:
-			if float(f["org"]) < 0.2:
+			# сломленные прекращают атаку; самостоятельные (не по прямому приказу) — и при явно проигранном бою
+			if float(f["org"]) < 0.2 or (r < 0.6 and String(f["mode"]) != "move" and float(f["org"]) < 0.8):
 				f["fight"] = -1
 				f["path"] = []
 				if not (f["sea"] as Dictionary).is_empty():
@@ -1107,18 +1141,37 @@ func mil_plan(side: int) -> void:
 	var k := 0
 	for f in mine:
 		k += 1
-		if float(f["org"]) < 0.35:
-			f["path"] = []
-			continue
 		var order := mil_bfs(int(f["a"]), String(f["cc"]))
+		if float(f["org"]) < 0.35:
+			# потрёпанное соединение отводят в тыл — на свою АТЕ, рядом с которой нет войск противника
+			f["path"] = []
+			for ai in order:
+				if mil_cs[ai] != side or (mil_un[ai] & ebit) != 0:
+					continue
+				var calm := true
+				for j2 in range(no[ai], no[ai + 1]):
+					if (mil_un[nb[j2]] & ebit) != 0:
+						calm = false
+						break
+				if calm:
+					if ai != int(f["a"]):
+						f["path"] = mil_path_to(ai)
+					break
+			continue
 		var occ_home := -1
 		var near_en := -1
 		var frontier := -1
 		var en_unit := -1
+		var intruder := -1
+		var home_line := -1
 		for ai in order:
+			if home_line < 0 and mil_os[ai] == side and mil_cs[ai] == side:
+				home_line = ai
 			var cs: int = mil_cs[ai]
 			if occ_home < 0 and mil_os[ai] == side and cs != side:
 				occ_home = ai
+			if intruder < 0 and mil_os[ai] == side and (mil_un[ai] & ebit) != 0:
+				intruder = ai
 			if near_en < 0 and cs >= 0 and cs != side and not claimed.has(ai):
 				near_en = ai
 			if en_unit < 0 and (mil_un[ai] & ebit) != 0:
@@ -1129,11 +1182,14 @@ func mil_plan(side: int) -> void:
 					if mil_cs[b] >= 0 and mil_cs[b] != side:
 						frontier = ai
 						break
-			if occ_home >= 0 and near_en >= 0 and frontier >= 0 and en_unit >= 0:
+			if occ_home >= 0 and near_en >= 0 and frontier >= 0 and en_unit >= 0 and intruder >= 0 and home_line >= 0:
 				break
 		var tgt := -1
-		var offense: bool = (ratio >= 1.15 and String(f["cc"]) != ccode) or String(f["mode"]) == "auto" and String(f["cc"]) == ccode
-		if occ_home >= 0 and ratio > 0.7:
+		var offense: bool = (ratio >= 1.15 and String(f["cc"]) != ccode) or (String(f["mode"]) == "auto" and String(f["cc"]) == ccode and ratio >= 0.9)
+		# при перевесе часть сил гонится за прорвавшимися соединениями противника, остальные освобождают землю
+		if intruder >= 0 and ratio > 1.0 and k % 2 == 0:
+			tgt = intruder
+		elif occ_home >= 0 and ratio > 0.7:
 			tgt = occ_home
 		elif offense:
 			if k % 3 == 0 and en_cap >= 0 and mil_reached(en_cap):
@@ -1142,6 +1198,8 @@ func mil_plan(side: int) -> void:
 				tgt = en_unit
 			else:
 				tgt = near_en if near_en >= 0 else en_unit
+		elif mil_os[int(f["a"])] != side and home_line >= 0 and (ratio < 0.75 or (not (mil_supply[side] as Dictionary).is_empty() and not (mil_supply[side] as Dictionary).has(int(f["a"])))):
+			tgt = home_line      # перевес у противника или нет снабжения — отходим на свою землю, пока не окружили
 		else:
 			tgt = frontier
 		if tgt < 0 or tgt == int(f["a"]):
@@ -1224,11 +1282,12 @@ func mil_sea_day() -> void:
 
 func mil_land(f: Dictionary) -> void:
 	var to: int = int(f["sea"]["to"])
+	var ferry: bool = bool(f["sea"].get("ferry", false))
 	f["sea"] = {}
 	f["a"] = to
 	f["fight"] = -1
 	mil_take(to, String(f["cc"]))
-	mil_log("%s высадилась на «%s»." % [String(f["nm"]), ate_name(to)], COL_GOOD)
+	mil_log(("%s переброшена морем в «%s»." if ferry else "%s высадилась на «%s».") % [String(f["nm"]), ate_name(to)], COL_TEAL if ferry else COL_GOOD)
 
 
 func mil_evacuate(f: Dictionary) -> void:
@@ -1575,6 +1634,8 @@ func mil_peace_propose(kind: String) -> Dictionary:
 
 # заключение мира. kind: white, repar, annex, capit, full — условия игрока; lose_cede, lose_capit — условия противника
 func mil_peace(kind: String) -> Dictionary:
+	if not mil_at_war():
+		return {"done": false, "msg": "Войны нет."}
 	var w: Dictionary = mil["war"]
 	var lead := String(w["lead"])
 	var enemies: Array = mil_side_ccs(1)
@@ -1748,7 +1809,8 @@ func mil_cede(sel: Array, cc: String) -> String:
 func mil_ai_peace() -> void:
 	var w: Dictionary = mil["war"]
 	var sc: float = float(w["score"])
-	if sc <= -90.0 or (int(w["cap_lost"]) >= 20 and sc <= -60.0):
+	# вынужденная капитуляция — не раньше двух месяцев войны: за это время можно мобилизоваться и ответить
+	if int(w["days"]) >= 60 and (sc <= -90.0 or (int(w["cap_lost"]) >= 20 and sc <= -60.0)):
 		mil_log("армия разбита, столица под угрозой: правительство вынуждено подписать капитуляцию.", COL_BAD)
 		mil_peace("lose_capit")
 		return
