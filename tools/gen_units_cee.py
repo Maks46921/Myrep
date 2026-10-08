@@ -215,4 +215,5 @@ def main():
     gdconst.put(DC, "WORLD_CTX", ctx, True)
     for u in new:
         print(u["id"], [allu[j]["id"] for j in u["nb"]], sum(len(p) // 2 for p in u["parts"]))
-main()
+if __name__ == "__main__":
+    main()

@@ -75,6 +75,15 @@ EXD = {  # en — доля импортной энергии, fdebt — доля
  "GB": (.35, .3, 0), "IE": (.85, .65, 0),
  "SI": (0.48, 0.55, 0), "SK": (0.6, 0.45, 0), "HU": (0.6, 0.35, 0), "FI": (0.4, 0.55, 0),
 }
+# v38: новые страны дают свои данные в tools/newc/<cc>_extras.py (SOC_BASE, SOC_OVR, SOC_MIG, SOC_EXD)
+import glob, importlib.util
+for _f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "newc", "*_extras.py"))):
+    _sp = importlib.util.spec_from_file_location(os.path.basename(_f)[:-3], _f); _m = importlib.util.module_from_spec(_sp); _sp.loader.exec_module(_m)
+    _cc = os.path.basename(_f)[:2].upper()
+    if hasattr(_m, "SOC_BASE"): BASE[_cc] = list(_m.SOC_BASE)
+    if getattr(_m, "SOC_OVR", None): OVR[_cc] = dict(_m.SOC_OVR)
+    if hasattr(_m, "SOC_MIG"): MIG[_cc] = tuple(_m.SOC_MIG)
+    if hasattr(_m, "SOC_EXD"): EXD[_cc] = tuple(_m.SOC_EXD)
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def norm(a):
     s = sum(a) or 1.0

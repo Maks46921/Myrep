@@ -58,6 +58,11 @@ D = {
         "note":"Унитарное государство: 19 областей (маакунта) ведают региональным развитием, а с 2023 года 21 округ благосостояния (hyvinvointialue) отвечает за здравоохранение, соцобслуживание и спасательную службу на деньги государства, без собственного налога. Особый случай — Аландские острова: шведоязычная демилитаризованная автономия с собственным парламентом (Лагтинг), правительством, полицией, школами и почтой; изменить Закон об автономии можно только квалифицированным большинством Эдускунты (2/3) и с согласия Лагтинга. Уступка территории — конституционный порядок (ст. 4 Конституции о неделимости).",
         "spec":{"AHV":"демилитаризованная автономия (Закон об автономии Аландов, Лагтинг)"}},
 }
+# v38: новые страны дают свои данные в tools/newc/<cc>_extras.py (FED)
+import glob, importlib.util
+for _f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "newc", "*_extras.py"))):
+    _sp = importlib.util.spec_from_file_location(os.path.basename(_f)[:-3], _f); _m = importlib.util.module_from_spec(_sp); _sp.loader.exec_module(_m)
+    if hasattr(_m, "FED"): D[os.path.basename(_f)[:2].upper()] = dict(_m.FED)
 os.makedirs(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"), exist_ok=True)
 p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "fed.dat")
 open(p, "w", encoding="utf-8").write(json.dumps(D, ensure_ascii=False, indent=1))
