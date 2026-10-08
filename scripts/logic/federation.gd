@@ -4,6 +4,10 @@ extends "res://scripts/logic/world.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func ate_unit_has_capital(cc: String, ui: int) -> bool:
+	return false
+
+
 func map_rebuild() -> void:
 	pass
 
@@ -57,6 +61,7 @@ func fed_cfg() -> Dictionary:
 
 
 func fed_reset_world() -> void:
+	ate_reset()
 	for ui in fed_u0:
 		WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
 	for cc in fed_w0:
@@ -670,16 +675,8 @@ func fed_wreg_gdp(cc: String, uid: String) -> float:
 
 
 func fed_unit_is_capital(cc: String, ui: int) -> bool:
-	if not WORLD_CAPS.has(cc):
-		return false
-	var cp: Vector2 = WORLD_CAPS[cc]
-	for part in WORLD_UNITS[ui]["parts"]:
-		var pts := PackedVector2Array()
-		for k in range(0, (part as Array).size(), 2):
-			pts.append(Vector2(float(part[k]), float(part[k + 1])))
-		if pts.size() > 2 and Geometry2D.is_point_in_polygon(cp, pts):
-			return true
-	return false
+	# v36: столица — в АТЕ, принадлежащей этой единице карты
+	return ate_unit_has_capital(cc, ui)
 
 
 func fed_unit_cc(ui: int) -> String:

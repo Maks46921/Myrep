@@ -4,6 +4,10 @@ extends "res://scripts/logic/economy.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func adm_dev_term(i: int) -> float:
+	return 0.0
+
+
 func ag_unrest_term(i: int) -> float:
 	return 0.0
 
@@ -139,7 +143,7 @@ func update_regions() -> void:
 			+ (float(r["infra"]) - float(d["infra"])) * 0.15 + (float(r["edu"]) - float(d["edu"])) * 0.10
 			+ (float(r["health"]) - float(d["health"])) * 0.05
 			+ tr * 0.8 + reg_dev_bonus * 2.0 - maxf(0.0, float(r["unrest"]) - 40.0) * 0.10)
-		dt += fed_dev_term(i)
+		dt += fed_dev_term(i) + adm_dev_term(i)
 		if gk == 2:
 			dt += 4.0 * gs
 		r["dev"] = clampf(float(r["dev"]) + (dt - float(r["dev"])) * mrate(0.12), 0.0, 100.0)

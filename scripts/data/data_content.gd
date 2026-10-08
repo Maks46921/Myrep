@@ -683,3 +683,5 @@ const RAD_EVENTS := [
 
 # Единая карта: 15 стран, регионы + контекст. Проекция: x=(lon+6)*cos50*40, y=(56.5-lat)*40
 var WORLD_UNITS: Array = ext_load("res://data/world_units.dat")
+# v36: административно-территориальные единицы (tools/gen_ate.py)
+var ATE: Dictionary = ext_load("res://data/ate.dat")

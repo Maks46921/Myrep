@@ -758,3 +758,25 @@ var re_tool_opt: OptionButton
 var re_tool_btn: Button
 
 var re_tool_note: Label
+
+# v36: административно-территориальные единицы (АТЕ). Статические данные — ATE (data/ate.dat), остальное считается в admin.gd
+var ate_n := 0
+var ate_c := PackedVector2Array()       # точка подписи АТЕ
+var ate_rect: Array = []                # Rect2 АТЕ
+var ate_km := PackedFloat32Array()
+var ate_pw := PackedFloat32Array()      # доля АТЕ в населении исходного региона
+var ate_gw := PackedFloat32Array()      # доля АТЕ в ВВП исходного региона
+var ate_unit0 := PackedInt32Array()
+var ate_unit := PackedInt32Array()      # АТЕ -> единица карты (WORLD_UNITS) — регион своей или чужой страны
+var ate_lists: Array = []               # единица карты -> PackedInt32Array её АТЕ
+var ate_cap := {}                       # код страны -> АТЕ со столицей
+var ate_sea: Array = []                 # морские связи исходных единиц [ui, uj]
+var ate_ver := 0                        # растёт при каждом изменении принадлежности АТЕ
+var ate_sel: Array = []                 # АТЕ, выделенные на карте
+var ate_mode := false                   # щелчок по карте выделяет АТЕ
+var wu_n0 := 0
+var wu_cc0: Array = []
+var wu_nb0: Array = []
+var wu_c0: Array = []
+var adm_count := 0                      # число проведённых административных реформ
+var adm_new_n := 0                      # счётчик новых регионов (для кодов)

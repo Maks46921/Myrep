@@ -4,6 +4,18 @@ extends "res://scripts/ui/ui_core.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func fed_btn(text: String, parent: Control, tip: String = "") -> Button:
+	return null
+
+
+func fed_opt(parent: Control, items: Array, tip: String = "") -> OptionButton:
+	return null
+
+
+func fed_pct(p: float) -> String:
+	return ""
+
+
 func update_fregion() -> void:
 	pass
 
@@ -13,6 +25,19 @@ func update_fregion() -> void:
 
 var reg_grid: GridContainer
 var transfer_parent: Control
+# v36: карта из АТЕ
+const MAP_HCELL := 12.0
+var map_ate_tris: Array = []          # АТЕ -> треугольники (PackedVector2Array, по 3 точки)
+var map_all_mesh: ArrayMesh            # все АТЕ одним мешем (тень)
+var map_unit_mesh: Array = []          # единица карты -> меш её АТЕ
+var map_ln_ate := PackedVector2Array() # тонкие границы АТЕ внутри регионов
+var map_ln_reg := PackedVector2Array() # границы регионов одной страны (пары точек)
+var map_ln_cty := PackedVector2Array() # границы стран и побережье
+var map_hash := {}
+var map_seg_cache := {}
+var map_hover_ate := -1
+var map_fit_cc := ""
+var adm_ui := {}
 
 func on_layer_selected(i: int) -> void:
 	map_layer = int(MAP_LAYER_ORDER[i])
@@ -96,46 +121,96 @@ func map_rebuild() -> void:
 
 
 func map_prepare() -> void:
+	# v36: карта строится из АТЕ — заливка регионов сеткой треугольников (меш на каждую единицу карты),
+	# линии трёх уровней: тонкие границы АТЕ, границы регионов, границы стран и побережье
+	ate_load()
+	if ate_unit.size() != ate_n:
+		ate_reset()
+	elif ate_lists.size() != WORLD_UNITS.size():
+		ate_rebuild([])
 	map_unit_parts.clear()
 	map_unit_rect.clear()
 	map_unit_local.clear()
 	map_ctx_parts.clear()
 	map_cc_outline.clear()
 	map_ctx_cent.clear()
-	var lo := Vector2(1e9, 1e9)
-	var hi := Vector2(-1e9, -1e9)
+	map_seg_cache.clear()
+	var tv: PackedFloat32Array = ATE["tv"]
+	var to: PackedInt32Array = ATE["to"]
+	if map_ate_tris.size() != ate_n:
+		map_ate_tris.clear()
+		map_all_mesh = null
+		var all := PackedVector2Array()
+		for a in ate_n:
+			var pts := PackedVector2Array()
+			pts.resize((to[a + 1] - to[a]) * 3)
+			var k0: int = to[a] * 6
+			for k in pts.size():
+				pts[k] = Vector2(tv[k0 + 2 * k], tv[k0 + 2 * k + 1])
+			map_ate_tris.append(pts)
+			all.append_array(pts)
+		map_all_mesh = map_tri_mesh(all)
+		# сетка-«хэш» для поиска АТЕ под курсором
+		var hh := {}
+		for a in ate_n:
+			var r: Rect2 = ate_rect[a]
+			for gx in range(floori(r.position.x / MAP_HCELL), floori(r.end.x / MAP_HCELL) + 1):
+				for gy in range(floori(r.position.y / MAP_HCELL), floori(r.end.y / MAP_HCELL) + 1):
+					var key := Vector2i(gx, gy)
+					if not hh.has(key):
+						hh[key] = []
+					(hh[key] as Array).append(a)
+		map_hash.clear()
+		for key in hh:
+			map_hash[key] = PackedInt32Array(hh[key])
 	var local := {}
 	for i in REGIONS.size():
 		local[String(REGIONS[i].get("uid", ccode + "-" + String(REGIONS[i]["code"])))] = i
+	var lo := Vector2(1e9, 1e9)
+	var hi := Vector2(-1e9, -1e9)
+	map_unit_mesh.clear()
 	for ui in WORLD_UNITS.size():
 		var u: Dictionary = WORLD_UNITS[ui]
-		var lst: Array = []
-		var rlo := Vector2(1e9, 1e9)
-		var rhi := Vector2(-1e9, -1e9)
-		for part in u["parts"]:
-			var pts := PackedVector2Array()
-			for k in range(0, (part as Array).size(), 2):
-				var p := Vector2(float(part[k]), float(part[k + 1]))
-				pts.append(p)
-				rlo = Vector2(minf(rlo.x, p.x), minf(rlo.y, p.y))
-				rhi = Vector2(maxf(rhi.x, p.x), maxf(rhi.y, p.y))
-			lst.append(pts)
-		var fixed: Array = []
-		for pts in lst:
-			if (Geometry2D.triangulate_polygon(pts) as PackedInt32Array).is_empty():
-				for q in Geometry2D.offset_polygon(pts, 0.02):
-					if not (Geometry2D.triangulate_polygon(q) as PackedInt32Array).is_empty():
-						fixed.append(q)
-			else:
-				fixed.append(pts)
-		lst = fixed
-		map_unit_parts.append(lst)
-		map_unit_rect.append(Rect2(rlo, rhi - rlo))
-		lo = Vector2(minf(lo.x, rlo.x), minf(lo.y, rlo.y))
-		hi = Vector2(maxf(hi.x, rhi.x), maxf(hi.y, rhi.y))
-		if local.has(String(u["id"])):
+		var lst: PackedInt32Array = ate_lists[ui] if ui < ate_lists.size() else PackedInt32Array()
+		map_unit_parts.append([])
+		if lst.is_empty():
+			map_unit_rect.append(Rect2())
+			map_unit_mesh.append(null)
+			continue
+		var rr: Rect2 = ate_rect[lst[0]]
+		var pts := PackedVector2Array()
+		for a in lst:
+			rr = rr.merge(ate_rect[a])
+			pts.append_array(map_ate_tris[a])
+		map_unit_rect.append(rr)
+		map_unit_mesh.append(map_tri_mesh(pts))
+		lo = Vector2(minf(lo.x, rr.position.x), minf(lo.y, rr.position.y))
+		hi = Vector2(maxf(hi.x, rr.end.x), maxf(hi.y, rr.end.y))
+		if String(u["cc"]) == ccode and local.has(String(u["id"])):
 			map_unit_local[ui] = int(local[String(u["id"])])
 	map_bounds = Rect2(lo, hi - lo)
+	# линии: каждое общее ребро АТЕ относится к одному из трёх уровней
+	var ea: PackedInt32Array = ATE["ea"]
+	var eb: PackedInt32Array = ATE["eb"]
+	var eo: PackedInt32Array = ATE["eo"]
+	var ep: PackedFloat32Array = ATE["ep"]
+	var l_ate := PackedVector2Array()
+	map_ln_reg = PackedVector2Array()
+	map_ln_cty = PackedVector2Array()
+	for e in ea.size():
+		var ua: int = ate_unit[ea[e]]
+		var lvl := 2
+		if eb[e] >= 0:
+			var ub: int = ate_unit[eb[e]]
+			if ua == ub:
+				lvl = 0
+			elif String(WORLD_UNITS[ua]["cc"]) == String(WORLD_UNITS[ub]["cc"]):
+				lvl = 1
+		var dst: PackedVector2Array = l_ate if lvl == 0 else (map_ln_reg if lvl == 1 else map_ln_cty)
+		for k in range(eo[e], eo[e + 1] - 1):
+			dst.append(Vector2(ep[2 * k], ep[2 * k + 1]))
+			dst.append(Vector2(ep[2 * k + 2], ep[2 * k + 3]))
+	map_ln_ate = l_ate
 	for cx in WORLD_CTX:
 		var lst2: Array = []
 		var best := PackedVector2Array()
@@ -154,7 +229,53 @@ func map_prepare() -> void:
 		for p in best:
 			cen += p
 		map_ctx_cent.append(cen / float(maxi(1, best.size())))
-	map_inited = false
+	if map_fit_cc != ccode:
+		map_fit_cc = ccode
+		map_inited = false
+
+
+func map_tri_mesh(pts: PackedVector2Array) -> ArrayMesh:
+	if pts.is_empty():
+		return null
+	var arr: Array = []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = pts
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
+
+
+func map_border_segs(key: String) -> PackedVector2Array:
+	# контур набора АТЕ как отрезки: "u<номер>" — единица карты, "c<код>" — страна, "s" — выделенные АТЕ
+	if map_seg_cache.has(key):
+		return map_seg_cache[key]
+	var inside := func(a: int) -> bool: return false
+	if key.begins_with("u"):
+		var ui: int = int(key.substr(1))
+		inside = func(a: int) -> bool: return ate_unit[a] == ui
+	elif key.begins_with("c"):
+		var cc := key.substr(1)
+		inside = func(a: int) -> bool: return String(WORLD_UNITS[ate_unit[a]]["cc"]) == cc
+	else:
+		var ss := {}
+		for a in ate_sel:
+			ss[int(a)] = true
+		inside = func(a: int) -> bool: return ss.has(a)
+	var ea: PackedInt32Array = ATE["ea"]
+	var eb: PackedInt32Array = ATE["eb"]
+	var eo: PackedInt32Array = ATE["eo"]
+	var ep: PackedFloat32Array = ATE["ep"]
+	var out := PackedVector2Array()
+	for e in ea.size():
+		var ia: bool = inside.call(ea[e])
+		var ib: bool = eb[e] >= 0 and inside.call(eb[e])
+		if ia == ib:
+			continue
+		for k in range(eo[e], eo[e + 1] - 1):
+			out.append(Vector2(ep[2 * k], ep[2 * k + 1]))
+			out.append(Vector2(ep[2 * k + 2], ep[2 * k + 3]))
+	map_seg_cache[key] = out
+	return out
 
 
 func map_view() -> Array:
@@ -244,47 +365,56 @@ func unit_is_tiny(ui: int, s: float) -> bool:
 	return maxf(r.size.x, r.size.y) * s < 16.0
 
 
+func ate_at(local: Vector2) -> int:
+	# АТЕ под точкой экрана
+	var v := map_view()
+	var pt: Vector2 = (local - (v[1] as Vector2)) / float(v[0])
+	var key := Vector2i(floori(pt.x / MAP_HCELL), floori(pt.y / MAP_HCELL))
+	if not map_hash.has(key):
+		return -1
+	for a in (map_hash[key] as PackedInt32Array):
+		if not (ate_rect[a] as Rect2).has_point(pt):
+			continue
+		var t: PackedVector2Array = map_ate_tris[a]
+		for k in range(0, t.size(), 3):
+			if Geometry2D.point_is_inside_triangle(pt, t[k], t[k + 1], t[k + 2]):
+				return a
+	return -1
+
+
 func unit_at(local: Vector2) -> int:
 	var v := map_view()
 	var s: float = v[0]
 	var off: Vector2 = v[1]
 	# 1) булавки малых регионов своей страны
-	for ui in map_unit_local:
-		if unit_is_tiny(ui, s):
-			var cp := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
-			if cp.distance_to(local) <= 9.0:
-				return ui
+	if not ate_mode:
+		for ui in map_unit_local:
+			if unit_is_tiny(ui, s):
+				var cp := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
+				if cp.distance_to(local) <= 9.0:
+					return ui
+	var a := ate_at(local)
+	if a >= 0:
+		return ate_unit[a]
+	# 2) допуск у границы: щелчок рядом с регионом своей страны (побережье, дрожание руки)
 	var pt: Vector2 = (local - off) / s
-	# если точка попадает в несколько областей (анклавы вроде Берлина внутри Бранденбурга) — берём самую маленькую
-	var best := -1
-	var best_area := 1e30
-	for ui in map_unit_parts.size():
-		var r: Rect2 = map_unit_rect[ui]
-		if not r.has_point(pt):
-			continue
-		var area: float = r.size.x * r.size.y
-		if area >= best_area:
-			continue
-		for part in (map_unit_parts[ui] as Array):
-			if Geometry2D.is_point_in_polygon(pt, part):
-				best = ui
-				best_area = area
-				break
-	if best >= 0:
-		return best
-	# 2) допуск у границы: щелчок рядом с регионом своей страны (щель между полигонами, дрожание руки)
 	var tol: float = 7.0 / s
+	var best := -1
 	var bd := tol * tol
-	for ui in map_unit_local:
-		var r2: Rect2 = map_unit_rect[ui]
-		if not r2.grow(tol).has_point(pt):
-			continue
-		for part in (map_unit_parts[ui] as Array):
-			for q in (part as PackedVector2Array):
-				var d2: float = q.distance_squared_to(pt)
-				if d2 < bd:
-					bd = d2
-					best = ui
+	var key := Vector2i(floori(pt.x / MAP_HCELL), floori(pt.y / MAP_HCELL))
+	for dx in [-1, 0, 1]:
+		for dy in [-1, 0, 1]:
+			var k2 := key + Vector2i(dx, dy)
+			if not map_hash.has(k2):
+				continue
+			for b in (map_hash[k2] as PackedInt32Array):
+				if not map_unit_local.has(ate_unit[b]) or not (ate_rect[b] as Rect2).grow(tol).has_point(pt):
+					continue
+				for q in (map_ate_tris[b] as PackedVector2Array):
+					var d2: float = q.distance_squared_to(pt)
+					if d2 < bd:
+						bd = d2
+						best = ate_unit[b]
 	return best
 
 
@@ -375,14 +505,18 @@ func on_map_input(ev: InputEvent) -> void:
 				map_ctl.queue_redraw()
 			return
 		var ui := unit_at(mm.position)
+		var ha := ate_at(mm.position) if ate_mode else -1
 		var ci := -1
 		if ui < 0:
 			ci = ctx_at(mm.position)
 		map_ctl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if ui >= 0 else Control.CURSOR_ARROW
-		if ui != map_hover_unit or ci != map_hover_ctx:
+		if ui != map_hover_unit or ci != map_hover_ctx or ha != map_hover_ate:
 			map_hover_unit = ui
 			map_hover_ctx = ci
-			if ui >= 0:
+			map_hover_ate = ha
+			if ha >= 0:
+				map_ctl.tooltip_text = ate_tip(ha)
+			elif ui >= 0:
 				map_ctl.tooltip_text = unit_tip(ui)
 			elif ci >= 0:
 				map_ctl.tooltip_text = "%s\nСтрана пока не входит в игру." % String(WORLD_CTX[ci]["name"])
@@ -406,7 +540,10 @@ func on_map_input(ev: InputEvent) -> void:
 			if map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT:
 				if current_desk != 2 and current_desk != 8 and current_desk != 9:
 					show_desk(2)
-				map_click(unit_at(mb.position))
+				if ate_mode and current_desk == 2:
+					ate_click(ate_at(mb.position), mb.shift_pressed)
+				else:
+					map_click(unit_at(mb.position))
 			map_drag = false
 
 
@@ -450,6 +587,7 @@ func build_map_windows() -> void:
 	map_ctl.mouse_exited.connect(func() -> void:
 		map_drag = false
 		map_hover_unit = -1
+		map_hover_ate = -1
 		map_ctl.queue_redraw())
 	map_prepare()
 	var zrow := HBoxContainer.new()
@@ -463,6 +601,9 @@ func build_map_windows() -> void:
 		zbtn.theme_type_variation = "SmallButton"
 		zbtn.pressed.connect(map_zoom_cmd.bind(int(zb[2])))
 		zrow.add_child(zbtn)
+	var ab := make_button("Административная реформа (АТЕ)…", w.body)
+	ab.tooltip_text = "Регионы состоят из АТЕ — единиц ~600 км². Здесь можно перекроить границы регионов, создать или упразднить регион, купить часть земли соседа."
+	ab.pressed.connect(adm_open)
 	map_legend = add_note(w.body, "")
 
 	w = new_window("regtable", "Регионы: сводка (заголовки сортируют)", 2, Rect2(0.25, 0.70, 0.45, 0.30))
@@ -554,6 +695,7 @@ func build_map_windows() -> void:
 	b2.pressed.connect(equalize_transfers.bind(2))
 	transfer_parent = w.body
 	fill_transfer_rows()
+	build_adm_window()
 
 
 func on_transfer_slider(v: float, i: int) -> void:
@@ -700,6 +842,8 @@ func unit_color(ui: int) -> Color:
 func draw_map() -> void:
 	if map_ctl == null or map_unit_parts.is_empty() or wsim.is_empty():
 		return
+	if map_unit_rect.size() != WORLD_UNITS.size() or ate_lists.size() != WORLD_UNITS.size():
+		map_prepare()
 	var c := map_ctl
 	if not map_inited and c.size.x > 50.0:
 		map_inited = true
@@ -723,65 +867,77 @@ func draw_map() -> void:
 			var cp: Vector2 = (map_ctx_cent[ci] as Vector2) * s + off
 			c.draw_string(font, cp + Vector2(-30.0, 0.0), String(WORLD_CTX[ci]["name"]), HORIZONTAL_ALIGNMENT_CENTER, 60.0, 10, Color(0.45, 0.50, 0.58))
 	var view_rect := Rect2(Vector2.ZERO, c.size).grow(40.0)
-	var px_parts: Dictionary = {}
-	for ui in map_unit_parts.size():
+	var vis: Array = []
+	for ui in map_unit_rect.size():
 		var rr: Rect2 = map_unit_rect[ui]
-		var scr := Rect2(rr.position * s + off, rr.size * s)
-		if not view_rect.intersects(scr):
+		if rr.size == Vector2.ZERO:
 			continue
-		var lst: Array = []
-		for part in (map_unit_parts[ui] as Array):
-			var px2 := PackedVector2Array()
-			for p in (part as PackedVector2Array):
-				px2.append(p * s + off)
-			lst.append(px2)
-		px_parts[ui] = lst
-	for ui in px_parts:
-		for fp in (px_parts[ui] as Array):
-			var sh := PackedVector2Array()
-			for p in (fp as PackedVector2Array):
-				sh.append(p + Vector2(2.0, 3.0))
-			c.draw_colored_polygon(sh, Color(0, 0, 0, 0.30))
-	for ui in px_parts:
-		var col := unit_color(ui)
-		var cc: String = String(WORLD_UNITS[ui]["cc"])
-		for fp in (px_parts[ui] as Array):
-			c.draw_colored_polygon(fp, col)
-			if ui == map_hover_unit:
-				c.draw_colored_polygon(fp, Color(1, 1, 1, 0.13))
-			var closed: PackedVector2Array = (fp as PackedVector2Array).duplicate()
-			closed.append(fp[0])
-			c.draw_polyline(closed, Color(0.04, 0.05, 0.08, 0.95), 1.0 if cc == ccode and s > 2.0 else 1.3)
+		if view_rect.intersects(Rect2(rr.position * s + off, rr.size * s)):
+			vis.append(ui)
+	# v36: всё, что ниже, рисуется в координатах карты (масштаб задаёт преобразование); толщина линий — в пикселях / s
+	var ci := c.get_canvas_item()
+	var xf := Transform2D(0.0, Vector2(s, s), 0.0, off)
+	if map_all_mesh != null:
+		c.draw_mesh(map_all_mesh, null, Transform2D(0.0, Vector2(s, s), 0.0, off + Vector2(2.0, 3.0)), Color(0, 0, 0, 0.30))
+	for ui in vis:
+		var m: ArrayMesh = map_unit_mesh[ui]
+		if m == null:
+			continue
+		c.draw_mesh(m, null, xf, unit_color(ui))
+		if ui == map_hover_unit and not ate_mode:
+			c.draw_mesh(m, null, xf, Color(1, 1, 1, 0.13))
+	c.draw_set_transform_matrix(xf)
+	# выделенные АТЕ и АТЕ под курсором
+	if not ate_sel.is_empty():
+		var sp := PackedVector2Array()
+		for a in ate_sel:
+			sp.append_array(map_ate_tris[int(a)])
+		RenderingServer.canvas_item_add_triangle_array(ci, PackedInt32Array(), sp, PackedColorArray([Color(1.0, 0.92, 0.45, 0.45)]))
+	if ate_mode and map_hover_ate >= 0:
+		RenderingServer.canvas_item_add_triangle_array(ci, PackedInt32Array(), map_ate_tris[map_hover_ate], PackedColorArray([Color(1, 1, 1, 0.22)]))
+	# тонкие границы АТЕ (заметнее при приближении; в режиме АТЕ — всегда)
+	var cell_px: float = 8.5 * s
+	var al: float = clampf((cell_px - 4.0) / 14.0, 0.0, 0.42)
+	if ate_mode:
+		al = maxf(al, 0.30)
+	if al > 0.01 and not map_ln_ate.is_empty():
+		c.draw_multiline(map_ln_ate, Color(0.02, 0.03, 0.06, al), -1.0)
+	if not map_ln_reg.is_empty():
+		c.draw_multiline(map_ln_reg, Color(0.04, 0.05, 0.08, 0.9), 1.1 / s)
+	if not map_ln_cty.is_empty():
+		c.draw_multiline(map_ln_cty, Color(0.02, 0.02, 0.04, 1.0), 1.9 / s)
 	# выбранный объект: своя страна — регион; чужая — вся страна, а после второго щелчка только регион
 	var whole_cc := ""
 	if map_mode == "foreign" and dip_sel != "" and not fmap_win_open:
 		whole_cc = dip_sel
 	if whole_cc != "":
-		for ui in px_parts:
-			if String(WORLD_UNITS[ui]["cc"]) != whole_cc:
-				continue
-			for sp2 in (px_parts[ui] as Array):
-				c.draw_colored_polygon(sp2, Color(1, 1, 1, 0.12))
-		for ring in country_outline(whole_cc):
-			var pr := PackedVector2Array()
-			for p in (ring as PackedVector2Array):
-				pr.append(p * s + off)
-			pr.append(pr[0])
-			c.draw_polyline(pr, Color(1, 1, 1, 0.25), 7.0)
-			c.draw_polyline(pr, Color(1, 1, 1, 0.97), 2.6)
-	for ui in px_parts:
-		var cc2: String = String(WORLD_UNITS[ui]["cc"])
-		var sel := false
-		if cc2 == ccode and map_mode == "own":
-			sel = int(map_unit_local[ui]) == selected_region
-		elif cc2 == dip_sel and map_mode == "foreign" and fmap_win_open:
-			sel = ui == map_sel_unit
-		if sel:
-			for sp in (px_parts[ui] as Array):
-				var sc: PackedVector2Array = (sp as PackedVector2Array).duplicate()
-				sc.append(sp[0])
-				c.draw_polyline(sc, Color(1, 1, 1, 0.22), 7.0)
-				c.draw_polyline(sc, Color(1, 1, 1, 0.95), 2.4)
+		for ui in vis:
+			if String(WORLD_UNITS[ui]["cc"]) == whole_cc and map_unit_mesh[ui] != null:
+				c.draw_mesh(map_unit_mesh[ui], null, Transform2D.IDENTITY, Color(1, 1, 1, 0.12))
+		var cs := map_border_segs("c" + whole_cc)
+		if not cs.is_empty():
+			c.draw_multiline(cs, Color(1, 1, 1, 0.25), 7.0 / s)
+			c.draw_multiline(cs, Color(1, 1, 1, 0.97), 2.6 / s)
+	var sel_ui := -1
+	if map_mode == "own":
+		for ui in map_unit_local:
+			if int(map_unit_local[ui]) == selected_region:
+				sel_ui = int(ui)
+	elif map_mode == "foreign" and fmap_win_open:
+		sel_ui = map_sel_unit
+	if sel_ui >= 0 and sel_ui < map_unit_mesh.size():
+		var us := map_border_segs("u%d" % sel_ui)
+		if not us.is_empty():
+			c.draw_multiline(us, Color(1, 1, 1, 0.22), 7.0 / s)
+			c.draw_multiline(us, Color(1, 1, 1, 0.95), 2.4 / s)
+	if not ate_sel.is_empty():
+		var ss := map_border_segs("s")
+		if not ss.is_empty():
+			c.draw_multiline(ss, Color(1.0, 0.85, 0.2, 1.0), 2.0 / s)
+	c.draw_set_transform_matrix(Transform2D.IDENTITY)
+	var px_parts: Dictionary = {}
+	for ui in vis:
+		px_parts[ui] = true
 	# булавки малых регионов своей страны (иначе их не поймать курсором) и подпись выбранного
 	for ui in map_unit_local:
 		if not unit_is_tiny(ui, s):
@@ -946,6 +1102,7 @@ func update_regions_ui() -> void:
 	update_regecon()
 	update_region_table()
 	update_transfer_ui()
+	update_adm_ui()
 
 
 func update_region_table() -> void:
@@ -1243,15 +1400,316 @@ func regecon_inject() -> void:
 	LAW_TOPICS.append(tg)
 
 
-# v35: внешний контур целой страны — объединение полигонов её единиц карты (внутренние границы и мелкие щели между
-# единицами из разных источников не рисуются). Считается один раз и кэшируется до следующего map_prepare.
-func country_outline(cc: String) -> Array:
-	if map_cc_outline.has(cc):
-		return map_cc_outline[cc]
-	var parts: Array = []
-	for ui in WORLD_UNITS.size():
-		if String(WORLD_UNITS[ui]["cc"]) == cc:
-			parts.append_array(map_unit_parts[ui] as Array)
-	var out: Array = CountryMap.outline_of(parts)
-	map_cc_outline[cc] = out
+# ============================================================
+#  v36: АТЕ на карте — выделение, подсказка
+# ============================================================
+
+
+func ate_tip(a: int) -> String:
+	var cc := ate_cc(a)
+	var i := ate_region(a)
+	var t := "АТЕ «%s» — %.0f км², ≈%s жителей\n" % [ate_name(a), ate_km[a], fmt_people(ate_pop(a))]
+	if i >= 0:
+		t += "Регион: %s\n" % String(REGIONS[i]["name"])
+	else:
+		var u: Dictionary = WORLD_UNITS[ate_unit[a]]
+		t += "%s — %s\n" % [String(WORLD[cc]["name"]) if WORLD.has(cc) else cc, String(fed_wreg(cc, String(u["id"])).get("name", ""))]
+	if ate_cap.has(cc) and int(ate_cap[cc]) == a:
+		t += "Здесь столица страны.\n"
+	return t + ("Щелчок — выделить/снять; с Shift — выделить весь регион." if not (a in ate_sel) else "Выделена. Щелчок — снять выделение.")
+
+
+func fmt_people(m: float) -> String:
+	if m >= 1.0:
+		return "%.2f млн" % m
+	return "%.0f тыс." % (m * 1000.0)
+
+
+func ate_click(a: int, whole: bool) -> void:
+	if a < 0:
+		return
+	# выделение только одной страны: щелчок по другой стране начинает новое выделение
+	if not ate_sel.is_empty() and ate_cc(int(ate_sel[0])) != ate_cc(a):
+		ate_sel.clear()
+	if whole:
+		var lst: PackedInt32Array = ate_lists[ate_unit[a]]
+		var all_in := true
+		for b in lst:
+			if not (b in ate_sel):
+				all_in = false
+		for b in lst:
+			if all_in:
+				ate_sel.erase(b)
+			elif not (b in ate_sel):
+				ate_sel.append(b)
+	elif a in ate_sel:
+		ate_sel.erase(a)
+	else:
+		ate_sel.append(a)
+	map_seg_cache.erase("s")
+	if ate_cc(a) == ccode:
+		var i := ate_region(a)
+		if i >= 0 and ate_sel.size() <= 1:
+			selected_region = i
+	update_adm_ui()
+	map_ctl.queue_redraw()
+
+
+# ============================================================
+#  v36: окно «Административная реформа (АТЕ)»
+# ============================================================
+
+
+func build_adm_window() -> void:
+	var w: FloatWindow = new_window("adm", "Административная реформа (АТЕ)", 2, Rect2(0.25, 0.0, 0.21, 0.66))
+	var cb := CheckButton.new()
+	cb.text = "Режим АТЕ: щелчок по карте выделяет АТЕ"
+	cb.focus_mode = Control.FOCUS_NONE
+	cb.tooltip_text = "АТЕ — административно-территориальная единица (~600 км²), из которых состоят регионы. В этом режиме щелчок выделяет АТЕ (с Shift — весь регион), повторный щелчок снимает выделение."
+	cb.toggled.connect(func(on: bool) -> void:
+		ate_mode = on
+		if not on:
+			ate_sel.clear()
+			map_seg_cache.erase("s")
+		update_adm_ui()
+		map_ctl.queue_redraw())
+	w.body.add_child(cb)
+	adm_ui["mode"] = cb
+	var clr := fed_btn("Снять выделение", w.body)
+	clr.pressed.connect(func() -> void:
+		ate_sel.clear()
+		map_seg_cache.erase("s")
+		update_adm_ui()
+		map_ctl.queue_redraw())
+	adm_ui["clear"] = clr
+	adm_ui["sel"] = make_rt(w.body)
+	# свои АТЕ: передать или создать регион
+	var own := VBoxContainer.new()
+	w.body.add_child(own)
+	adm_ui["own"] = own
+	add_title(own, "Перекроить границы")
+	adm_ui["dst"] = fed_opt(own, [], "Регион, которому перейдут выделенные АТЕ (только соседний с ними).")
+	adm_ui["dst"].item_selected.connect(func(_i: int) -> void: update_adm_ui())
+	adm_ui["move"] = fed_btn("Передать выделенные АТЕ", own)
+	adm_ui["move"].pressed.connect(on_adm_move)
+	var nrow := HBoxContainer.new()
+	own.add_child(nrow)
+	var le := LineEdit.new()
+	le.placeholder_text = "Название нового региона"
+	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nrow.add_child(le)
+	adm_ui["name"] = le
+	adm_ui["create"] = fed_btn("Создать регион из выделенных", own)
+	adm_ui["create"].pressed.connect(on_adm_create)
+	adm_ui["own_why"] = add_note(own, "")
+	# чужие АТЕ: покупка
+	var fr := VBoxContainer.new()
+	w.body.add_child(fr)
+	adm_ui["for"] = fr
+	add_title(fr, "Купить выделенные АТЕ")
+	adm_ui["bdst"] = fed_opt(fr, [], "Куда войдёт купленная земля: в соседний ваш регион или отдельной федеральной территорией.")
+	adm_ui["bdst"].item_selected.connect(func(_i: int) -> void: update_adm_ui())
+	adm_ui["bmult"] = fed_opt(fr, ["Цена: рыночная", "Цена: щедрая (×1.5)", "Цена: очень щедрая (×2)"])
+	adm_ui["bmult"].item_selected.connect(func(_i: int) -> void: update_adm_ui())
+	adm_ui["bq"] = make_rt(fr)
+	adm_ui["buy"] = fed_btn("Предложить сделку", fr)
+	adm_ui["buy"].pressed.connect(on_adm_buy)
+	# выбранный регион: переименовать, упразднить
+	var rg := VBoxContainer.new()
+	w.body.add_child(rg)
+	adm_ui["reg"] = rg
+	adm_ui["rtitle"] = add_title(rg, "Регион")
+	adm_ui["rinfo"] = add_wrap_label(rg, "")
+	var rrow := HBoxContainer.new()
+	rg.add_child(rrow)
+	var rn := LineEdit.new()
+	rn.placeholder_text = "Новое название"
+	rn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rrow.add_child(rn)
+	adm_ui["rname"] = rn
+	var rb := make_button("Переименовать", rrow)
+	rb.pressed.connect(func() -> void:
+		adm_rename(selected_region, String((adm_ui["rname"] as LineEdit).text))
+		(adm_ui["rname"] as LineEdit).text = "")
+	adm_ui["merge_to"] = fed_opt(rg, [], "Соседний регион, к которому отойдёт вся территория упразднённого.")
+	adm_ui["merge_to"].item_selected.connect(func(_i: int) -> void: update_adm_ui())
+	adm_ui["merge"] = fed_btn("Упразднить регион (присоединить к соседу)", rg)
+	adm_ui["merge"].pressed.connect(on_adm_delete)
+	adm_ui["reg_why"] = add_note(rg, "")
+	add_note(w.body, "Перекройка границ меняет население, экономику и политический состав регионов (а значит, и выборы). Затронутые регионы на время теряют лояльность и спокойствие, развитие замедляется на 2 года; каждый регион сверх стартового числа удорожает госаппарат на 1.2%%, упразднение — удешевляет. Реформа — не чаще раза в %d мес." % ADM_CD)
+
+
+func adm_open() -> void:
+	var w: FloatWindow = wins["adm"]
+	w.closed = false
+	ate_mode = true
+	show_desk(2)
+	w.move_to_front()
+	update_adm_ui()
+	map_ctl.queue_redraw()
+
+
+func adm_opt_fill(o: OptionButton, items: Array, keep_id: int) -> void:
+	# items: [[id, текст], ...]; сохраняет выбранный id, если он остался
+	var cur: int = o.get_item_id(o.selected) if o.selected >= 0 and o.item_count > 0 else keep_id
+	o.clear()
+	for it in items:
+		o.add_item(String(it[1]), int(it[0]))
+	var k: int = o.get_item_index(cur)
+	if k >= 0:
+		o.select(k)
+	elif o.item_count > 0:
+		o.select(0)
+
+
+func adm_sel_regions_adjacent() -> Array:
+	# свои регионы, граничащие с выделением (кроме тех, где всё выделение уже лежит)
+	var out: Array = []
+	var inset := {}
+	for a in ate_sel:
+		inset[int(a)] = true
+	for a in ate_sel:
+		for b in ate_nbs(int(a)):
+			if inset.has(b) or ate_cc(b) != ccode:
+				continue
+			var i := ate_region(b)
+			if i >= 0 and not (i in out):
+				out.append(i)
+	for a in ate_sel:
+		var i2 := ate_region(int(a))
+		if i2 >= 0 and not (i2 in out):
+			out.append(i2)
 	return out
+
+
+func update_adm_ui() -> void:
+	if adm_ui.is_empty():
+		return
+	(adm_ui["mode"] as CheckButton).set_pressed_no_signal(ate_mode)
+	(adm_ui["clear"] as Button).visible = not ate_sel.is_empty()
+	var own_sel: bool = not ate_sel.is_empty() and ate_cc(int(ate_sel[0])) == ccode
+	var for_sel: bool = not ate_sel.is_empty() and not own_sel
+	var t := ""
+	if ate_sel.is_empty():
+		t = "[color=%s]Включите режим АТЕ и щёлкайте по карте, чтобы выделить единицы. Своя страна — перекройка границ регионов; соседняя — покупка части её территории.[/color]" % COL_DIM if ate_mode else "[color=%s]Регионы состоят из АТЕ (~600 км² каждая). Включите режим АТЕ, чтобы перекраивать границы, создавать регионы или покупать землю соседей по частям.[/color]" % COL_DIM
+	else:
+		var by := {}
+		for a in ate_sel:
+			var ui: int = ate_unit[int(a)]
+			by[ui] = int(by.get(ui, 0)) + 1
+		var names: Array = []
+		for ui in by:
+			var u: Dictionary = WORLD_UNITS[int(ui)]
+			var nm := String(u["id"])
+			if String(u["cc"]) == ccode:
+				var ri := fed_idx_of_uid(nm)
+				if ri >= 0:
+					nm = String(REGIONS[ri]["short"])
+			else:
+				nm = String(fed_wreg(String(u["cc"]), nm).get("short", nm))
+			names.append("%s (%d)" % [nm, int(by[ui])])
+		t = "Выделено [b]%d АТЕ[/b]: %.0f км², ≈[b]%s[/b] жителей\n%s%s" % [ate_sel.size(), adm_sel_km(ate_sel), fmt_people(adm_sel_pop(ate_sel)),
+			("" if own_sel else "[b]%s[/b]: " % String(WORLD[ate_cc(int(ate_sel[0]))]["name"]) if WORLD.has(ate_cc(int(ate_sel[0]))) else ""), ", ".join(PackedStringArray(names))]
+	(adm_ui["sel"] as RichTextLabel).text = t
+	(adm_ui["own"] as Control).visible = own_sel
+	(adm_ui["for"] as Control).visible = for_sel
+	if own_sel:
+		var items: Array = []
+		for i in adm_sel_regions_adjacent():
+			items.append([i, String(REGIONS[i]["name"])])
+		adm_opt_fill(adm_ui["dst"], items, -1)
+		var o: OptionButton = adm_ui["dst"]
+		var dst: int = o.get_item_id(o.selected) if o.selected >= 0 else -1
+		var why := adm_move_check(ate_sel, dst)
+		var cost := adm_cost(adm_sel_pop(ate_sel), ate_sel.size())
+		(adm_ui["move"] as Button).text = "Передать выделенные АТЕ (капитал %.1f)" % cost
+		(adm_ui["move"] as Button).disabled = why != ""
+		var why2 := adm_create_check(ate_sel)
+		(adm_ui["create"] as Button).text = "Создать регион из выделенных (капитал %.1f)" % (cost + 4.0)
+		(adm_ui["create"] as Button).disabled = why2 != ""
+		var notes: Array = []
+		if why != "":
+			notes.append("Передать нельзя: " + why)
+		if why2 != "" and why2 != why:
+			notes.append("Создать нельзя: " + why2)
+		(adm_ui["own_why"] as Label).text = "\n".join(PackedStringArray(notes))
+	if for_sel:
+		var items2: Array = []
+		var inset := {}
+		for a in ate_sel:
+			inset[int(a)] = true
+		for a in ate_sel:
+			for b in ate_nbs(int(a)):
+				if ate_cc(b) == ccode:
+					var i := ate_region(b)
+					if i >= 0 and not ([i, String(REGIONS[i]["name"])] in items2):
+						items2.append([i, String(REGIONS[i]["name"])])
+		items2.append([1000, "Отдельной федеральной территорией"])
+		adm_opt_fill(adm_ui["bdst"], items2, -1)
+		var ob: OptionButton = adm_ui["bdst"]
+		var bd: int = ob.get_item_id(ob.selected) if ob.selected >= 0 else 1000
+		var mult: float = [1.0, 1.5, 2.0][maxi(0, (adm_ui["bmult"] as OptionButton).selected)]
+		var q := ate_buy_quote(ate_sel, mult, -1 if bd == 1000 else bd)
+		var qt := ""
+		if q.has("price"):
+			qt = "Цена ≈ [b]%.1f млрд[/b] (%.2f%% вашего ВВП, в долг), политкапитал %.1f\nСогласие правительства %s · жителей %s%s → итого [b]%s[/b]" % [float(q["price"]), float(q["gdp_pct"]), float(q["cap"]),
+				fed_pct(float(q["p_gov"])), fed_pct(float(q["p_loc"])), (" · вашего референдума " + fed_pct(float(q["p_dom"]))) if float(q["p_dom"]) < 1.0 else "", fed_pct(float(q["p"]))]
+		if not bool(q["ok"]):
+			qt += ("\n" if qt != "" else "") + "[color=%s]%s[/color]" % [COL_BAD, "\n".join(PackedStringArray(q["why"]))]
+		(adm_ui["bq"] as RichTextLabel).text = qt
+		(adm_ui["buy"] as Button).disabled = not bool(q["ok"]) or not bool(q.get("afford", false))
+	# выбранный регион
+	var ok_reg: bool = selected_region >= 0 and selected_region < regions.size()
+	(adm_ui["reg"] as Control).visible = ok_reg and map_mode == "own"
+	if ok_reg:
+		var i := selected_region
+		(adm_ui["rtitle"] as Label).text = "Регион «%s»" % String(REGIONS[i]["name"])
+		(adm_ui["rinfo"] as Label).text = "%d АТЕ, %.0f км², %s жителей. Регионов в стране: %d (на старте %d)." % [adm_region_ates(i).size(), adm_region_km(i), fmt_people(float(regions[i]["popm"])), regions.size(), wu_cc0.count(ccode)]
+		var items3: Array = []
+		for j in adm_region_nbs(i):
+			items3.append([j, String(REGIONS[j]["name"])])
+		adm_opt_fill(adm_ui["merge_to"], items3, -1)
+		var om: OptionButton = adm_ui["merge_to"]
+		var mj: int = om.get_item_id(om.selected) if om.selected >= 0 else -1
+		var why3 := adm_delete_check(i, mj)
+		(adm_ui["merge"] as Button).text = "Упразднить «%s» (капитал %.1f)" % [String(REGIONS[i]["short"]), adm_cost(float(regions[i]["popm"]), adm_region_ates(i).size()) + 2.0]
+		(adm_ui["merge"] as Button).disabled = why3 != ""
+		(adm_ui["reg_why"] as Label).text = "" if why3 == "" else "Упразднить нельзя: " + why3
+
+
+func on_adm_move() -> void:
+	var o: OptionButton = adm_ui["dst"]
+	if o.selected < 0:
+		return
+	var r := adm_move(ate_sel.duplicate(), o.get_item_id(o.selected))
+	if not bool(r["done"]):
+		log_line("[color=%s]%s[/color]" % [COL_BAD, r["msg"]])
+		refresh()
+
+
+func on_adm_create() -> void:
+	var r := adm_create(ate_sel.duplicate(), String((adm_ui["name"] as LineEdit).text))
+	if bool(r["done"]):
+		(adm_ui["name"] as LineEdit).text = ""
+	else:
+		log_line("[color=%s]%s[/color]" % [COL_BAD, r["msg"]])
+		refresh()
+
+
+func on_adm_delete() -> void:
+	var om: OptionButton = adm_ui["merge_to"]
+	if om.selected < 0:
+		return
+	var r := adm_delete(selected_region, om.get_item_id(om.selected))
+	if not bool(r["done"]):
+		log_line("[color=%s]%s[/color]" % [COL_BAD, r["msg"]])
+		refresh()
+
+
+func on_adm_buy() -> void:
+	var ob: OptionButton = adm_ui["bdst"]
+	var bd: int = ob.get_item_id(ob.selected) if ob.selected >= 0 else 1000
+	var mult: float = [1.0, 1.5, 2.0][maxi(0, (adm_ui["bmult"] as OptionButton).selected)]
+	var r := ate_buy(ate_sel.duplicate(), mult, -1 if bd == 1000 else bd)
+	if not bool(r["done"]):
+		refresh()

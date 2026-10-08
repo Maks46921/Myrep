@@ -125,7 +125,7 @@ func new_window(id: String, title: String, desk: int, fr: Rect2, scrolling: bool
 
 
 # окна, закрытые по умолчанию (открываются через «Окна»)
-const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable"]
+const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm"]
 
 
 func win_vis(id: String, on: bool) -> void:

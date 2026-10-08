@@ -15,6 +15,7 @@ scripts/logic/events.gd
 scripts/logic/turn.gd
 scripts/logic/world.gd
 scripts/logic/federation.gd
+scripts/logic/admin.gd
 scripts/logic/society.gd
 scripts/logic/influence.gd
 scripts/logic/opposition.gd

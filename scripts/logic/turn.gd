@@ -4,6 +4,10 @@ extends "res://scripts/logic/events.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func adm_month() -> void:
+	pass
+
+
 func ag_build() -> void:
 	pass
 
@@ -17,6 +21,10 @@ func ai_init() -> void:
 
 
 func ai_parties_step() -> void:
+	pass
+
+
+func ate_reset() -> void:
 	pass
 
 
@@ -411,6 +419,7 @@ func next_turn() -> void:
 	update_levels()
 	update_regions()
 	fed_month()
+	adm_month()
 	soc_month()
 	ex_month()
 
@@ -618,6 +627,7 @@ func init_state() -> void:
 	ai_init()
 	recompute_mods()
 	init_economy()
+	ate_reset()
 	build_geometry()
 	calibrate_regions()
 	dip_init()

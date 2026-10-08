@@ -8,6 +8,10 @@ func add_commitment(p: int) -> void:
 	pass
 
 
+func adm_admin_mult() -> float:
+	return 0.0
+
+
 func apply_econ(e: Dictionary) -> void:
 	pass
 
@@ -475,7 +479,7 @@ func compute_budget() -> Dictionary:
 		"Экология": gdp * pol["eco"] / 100.0,
 		"Субсидии бизнесу": gdp * pol["subs"] / 100.0,
 		"Субсидии аграриям": gdp * pol["agri"] / 100.0,
-		"Госаппарат": gdp * pol["admin"] * mods["admin_mult"] / 100.0,
+		"Госаппарат": gdp * pol["admin"] * mods["admin_mult"] * adm_admin_mult() / 100.0,
 	}
 	var tr := 0.0
 	var pj := 0.0
