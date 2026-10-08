@@ -120,6 +120,10 @@ func variant_of(tid: String, idx: int) -> Dictionary:
 	return {}
 
 
+func war_prem() -> float:
+	return 0.0
+
+
 func world_help(c: String) -> void:
 	pass
 
@@ -992,7 +996,7 @@ func describe_econ(e: Dictionary) -> String:
 
 func debt_rate() -> float:
 	var ratio: float = debt / gdp * 100.0
-	var rate: float = float(MACRO.get("debt_base", 0.014)) + maxf(0.0, ratio - float(MACRO.get("debt_thr", 80.0))) * float(MACRO.get("debt_slope", 0.0007)) + risk_prem / 100.0
+	var rate: float = float(MACRO.get("debt_base", 0.014)) + maxf(0.0, ratio - float(MACRO.get("debt_thr", 80.0))) * float(MACRO.get("debt_slope", 0.0007)) + risk_prem / 100.0 + war_prem() / 100.0
 	if not ec.is_empty():
 		rate += (float(ec["rate"]) - RATE0) / 100.0 * 0.35
 	return maxf(rate, 0.005)

@@ -48,10 +48,16 @@ func _init():
 		quit()
 		return
 	g.war_tgt.select(0)
+	# v38: войну утверждает парламент — нужна вражда с целью
+	var t0: String = String(g.war_tgt_ids[0])
+	if g.dip.has(t0):
+		g.dip[t0]["rel"] = -40.0
+	else:
+		g.fst["rel_x"][t0] = -90.0
 	g.refresh()
 	await click(g.war_btn["declare"])
 	for i in 3: await process_frame
-	check(g.mil_at_war(), "щелчок «Объявить войну» не начал войну: " + g.war_msg)
+	check(g.mil_at_war(), "щелчок «Объявить войну» не начал войну: " + g.war_msg + " / " + g.mil_declare_check(t0) + " / disabled " + str(g.war_btn["declare"].disabled))
 	# соединение на карте: щелчок по значку, затем по своей АТЕ
 	g.map_fit_rect(g.map_country_rect(g.ccode))
 	for i in 4: await process_frame
@@ -80,7 +86,7 @@ func _init():
 	check(tgt >= 0, "не нашлось видимой своей АТЕ для приказа")
 	if tgt >= 0:
 		await click_at(g.ate_c[tgt] * float(v[0]) + (v[1] as Vector2) + org)
-		check(not (fs["path"] as Array).is_empty() and int(fs["path"][-1]) == tgt, "щелчок по АТЕ не дал приказ: " + g.war_msg)
+		check(not (fs["path"] as Array).is_empty() and int(fs["path"][-1]) == tgt, "щелчок по АТЕ не дал приказ: " + g.war_msg + " / под курсором " + str(root.get_viewport().gui_get_hovered_control()) + " sel " + str(g.mil["sel"]) + " a " + str(fs["a"]) + " tgt " + str(tgt) + " path " + str(fs["path"]) + " free " + str(free) + " talk " + str(g.wins["war_talk"].get_global_rect()) + " vis " + str(g.wins["war_talk"].visible) + " pt " + str(g.ate_c[tgt] * float(v[0]) + (v[1] as Vector2) + org) + " map " + str(g.map_ctl.get_global_rect()))
 	# флот: щелчок по району
 	await click(g.sub3_buttons[4])
 	for i in 4: await process_frame

@@ -1,5 +1,5 @@
 # Выбор партии, оппозиция и соглашения между партиями.
-extends "res://scripts/logic/military.gd"
+extends "res://scripts/logic/warpol.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
@@ -88,6 +88,7 @@ func prel_base(p: int) -> float:
 		b -= 22.0
 	if not opp_mode and in_coalition[p]:
 		b += 6.0
+	b += war_prel_term(p)
 	return clampf(b, 4.0, 92.0)
 
 

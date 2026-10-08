@@ -329,7 +329,7 @@ func map_free_rect() -> Rect2:
 		var b := wr.end.x - gr.position.x
 		if (a + b) * 0.5 < c.size.x * 0.5: lo = maxf(lo, b)
 		else: hi = minf(hi, a)
-	if hi - lo < c.size.x * 0.35:      # окна закрывают почти всё — вписываем в карту целиком
+	if hi - lo < c.size.x * 0.25:      # окна закрывают почти всё — вписываем в карту целиком
 		return Rect2(Vector2.ZERO, c.size)
 	return Rect2(Vector2(lo, 0.0), Vector2(hi - lo, c.size.y))
 

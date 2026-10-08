@@ -17,6 +17,13 @@ func _init():
 		g.next_turn()
 	if g.election_open: g.election_continue()
 	if not g.current_event.is_empty(): g.choose(0)
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("war="):
+			g.capital = 100.0
+			g.mil_declare(String(a).substr(4), true)
+			for k in 40:
+				if not g.current_event.is_empty(): g.choose(0)
+				g.advance_day()
 	g.show_desk(desk)
 	if desk == 6: g.ag_random_agent()
 	for i in 12: await process_frame

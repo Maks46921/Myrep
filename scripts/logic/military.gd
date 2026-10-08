@@ -8,6 +8,100 @@
 # Без войны и мобилизации система не меняет экономику: расходы на армию уже в бюджете.
 extends "res://scripts/logic/fleet.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func talk_apply(t: Dictionary, enemies: Array, lead: String, parts: PackedStringArray) -> void:
+	pass
+
+
+func talk_avail(id: String) -> String:
+	return ""
+
+
+func talk_border_ates(cc: String) -> Array:
+	return []
+
+
+func talk_budget() -> float:
+	return 0.0
+
+
+func talk_ceasefire() -> Dictionary:
+	return {}
+
+
+func talk_cost(id: String, lvl: int = 0) -> float:
+	return 0.0
+
+
+func talk_mediator() -> Dictionary:
+	return {}
+
+
+func talk_pkg_text(pkg: Array) -> String:
+	return ""
+
+
+func talk_terms(pkg: Array) -> Dictionary:
+	return {}
+
+
+func war_demo(cc: String) -> float:
+	return 0.0
+
+
+func war_dip_extra(c: String) -> float:
+	return 0.0
+
+
+func war_intl(w: Dictionary) -> Dictionary:
+	return {}
+
+
+func war_intl_g() -> float:
+	return 0.0
+
+
+func war_intl_infl() -> float:
+	return 0.0
+
+
+func war_intl_init(w: Dictionary) -> void:
+	pass
+
+
+func war_intl_month() -> void:
+	pass
+
+
+func war_on_declare(cc: String) -> String:
+	return ""
+
+
+func war_sanctions_update(w: Dictionary) -> void:
+	pass
+
+
+func war_timers_month() -> void:
+	pass
+
+
+func war_trade_g() -> float:
+	return 0.0
+
+
+func war_vote(cc: String) -> Dictionary:
+	return {}
+
+
+func war_vote_text(cc: String) -> String:
+	return ""
+
+
+# --- конец заглушек ---
+
+
 # кадровая армия (тыс.), резерв (тыс.), выучка. Источник — открытые оценки 2024 г., округлено.
 const MIL_BASE := {
 	"DE": [180.0, 30.0, 1.05], "FR": [205.0, 40.0, 1.15], "NL": [34.0, 5.0, 1.05], "BE": [24.0, 5.0, 0.95], "LU": [1.0, 0.0, 0.9],
@@ -277,7 +371,8 @@ func mil_country_power(cc: String) -> float:
 			s += float(f["str"]) * float(f["q"])
 		return s
 	var b: Array = MIL_BASE.get(cc, [5.0, 0.0, 1.0])
-	return float(b[0]) * MIL_COMBAT * float(b[2]) * float((mil.get("loss", {}) as Dictionary).get(cc, 1.0))
+	var lim: Dictionary = (mil.get("lim", {}) as Dictionary).get(cc, {})
+	return float(b[0]) * MIL_COMBAT * float(b[2]) * float((mil.get("loss", {}) as Dictionary).get(cc, 1.0)) * float(lim.get("arm", 1.0))
 
 
 func mil_log(txt: String, col: String = "") -> void:
@@ -593,17 +688,21 @@ func mil_targets() -> Array:
 	return out
 
 
+# общая сухопутная граница по АТЕ (морские переходы между регионами — не граница: туда только морем)
 func mil_land_neighbor(cc: String) -> bool:
-	for ui in fed_adjacent_units():
-		if String(WORLD_UNITS[ui]["cc"]) == cc:
-			return true
+	for a in mil_cc_ates(cc):
+		if ate_cc(int(a)) != cc:
+			continue
+		for b in ate_nbs(int(a)):
+			if ate_cc(b) == ccode:
+				return true
 	return false
 
 
 func mil_allies_for(victim: String, aggressor: String) -> Array:
 	# НАТО защищает своих: если на члена НАТО нападает страна вне НАТО — вступают члены НАТО, граничащие с агрессором
 	var out: Array = []
-	if not (victim in MIL_NATO) or (aggressor in MIL_NATO):
+	if not (victim in MIL_NATO) or (aggressor in MIL_NATO) or victim in mil.get("neutral", []):
 		return out
 	for c in wsim:
 		if c == victim or c == aggressor or c == ccode or not (c in MIL_NATO) or not MIL_BASE.has(c):
@@ -636,9 +735,9 @@ func mil_declare_check(cc: String) -> String:
 		return "Действует мирный договор: ещё %d мес." % int(mil["truce"][cc])
 	if capital < 15.0:
 		return "Нужно 15 политического капитала."
-	var dm := fed_dom(false)
-	if not bool(dm["ok"]):
-		return "Объявление войны утверждает парламент. " + String(dm["text"])
+	var vt := war_vote(cc)
+	if not bool(vt["ok"]):
+		return "Парламент не поддержит войну: «за» %d из %d мест." % [int(vt["yes"]), int(vt["total"])]
 	return ""
 
 
@@ -649,6 +748,7 @@ func mil_declare(cc: String, force: bool = false) -> Dictionary:
 			return {"done": false, "msg": why}
 		capital -= 15.0
 	var allies := mil_allies_for(cc, ccode)
+	var vtxt := war_vote_text(cc)
 	mil_start_war(cc, allies, [], true)
 	var both_eu: bool = bool(WORLD.get(ccode, {}).get("eu", false)) and bool(WORLD[cc].get("eu", false))
 	var msg := "Вы объявили войну стране «%s»." % String(WORLD[cc]["name"])
@@ -657,15 +757,14 @@ func mil_declare(cc: String, force: bool = false) -> Dictionary:
 		for c in allies:
 			nms.append(String(WORLD[c]["name"]))
 		msg += " На её сторону по договору НАТО встают: %s." % ", ".join(nms)
-	if both_eu:
+	if bool(mil["war"].get("sanct", false)):
 		msg += " Евросоюз вводит санкции против вас."
+	var dom := war_on_declare(cc)
+	if dom != "":
+		msg += " " + dom
 	log_line("[b][color=%s]%s: %s[/color][/b]" % [COL_BAD, date_text(), msg])
+	log_line(vtxt)
 	mil_log(msg, COL_BAD)
-	add_support("Силовики", 3.0)
-	add_support("Молодёжь", -6.0)
-	add_support("Экологи", -4.0)
-	add_support("Пенсионеры", -3.0)
-	add_support("Бизнес", -4.0)
 	refresh()
 	return {"done": true, "msg": msg}
 
@@ -698,22 +797,11 @@ func mil_start_war(lead: String, foes_extra: Array, friends: Array, we_attack: b
 	for c in side:
 		if String(c) == ccode:
 			continue
-		var b: Array = MIL_BASE[c]
-		var lf: float = float((mil["loss"] as Dictionary).get(c, 1.0))
-		var total: float = float(b[0]) * MIL_COMBAT * lf
-		var n: int = mil_n_units(total)
 		var foes: Array = []
 		for c2 in side:
 			if int(side[c2]) != int(side[c]):
 				foes.append(String(c2))
-		var nb_n: int = int(ceil(float(n) * 0.6))
-		var spots := mil_border_spots(String(c), foes, nb_n)
-		var home := mil_home_spots(String(c), n)
-		for k in n:
-			var a: int = int(spots[k]) if k < spots.size() else int(home[k % home.size()])
-			var f := mil_new_unit(String(c), total / float(n), mil_q(String(c)), a, "reg")
-			f["mode"] = "auto"
-		(mil["war"]["str0"] as Dictionary)[c] = total
+		mil_spawn_army(String(c), foes)
 	(mil["war"]["str0"] as Dictionary)[ccode] = mil_total(ccode)
 	# свои соединения без приказа встают на оборону границы
 	for f in mil_units_of(ccode):
@@ -729,6 +817,7 @@ func mil_start_war(lead: String, foes_extra: Array, friends: Array, we_attack: b
 			p0 += float(int(nv0.get(String(cl["id"]), 0))) * float(cl["pow"])
 		if p0 > 0.0:
 			var hn := mil_home_node(String(c))
+			p0 *= float((mil.get("nvl", {}) as Dictionary).get(c, 1.0))
 			mil["war"]["nv"][c] = {"pow": p0 * float((mil["loss"] as Dictionary).get(c, 1.0)), "pow0": p0, "node": hn, "home": hn, "ports": mil_port_nodes(String(c))}
 	# отношения
 	for c in side:
@@ -741,9 +830,31 @@ func mil_start_war(lead: String, foes_extra: Array, friends: Array, we_attack: b
 		else:
 			(fst["rel_x"] as Dictionary)[c_s] = float((fst["rel_x"] as Dictionary).get(c_s, 0.0)) + dd
 	if we_attack:
-		dip_all(-12.0 if not both_eu else -22.0, false)
+		dip_all((-12.0 if not both_eu else -22.0) * (0.5 + 0.5 * war_demo(lead)), false)
+	war_intl_init(mil["war"])
 	mil_plan_t = 0
 	mil_supply_update()
+
+
+# армия страны cc на карте: кадровая армия с учётом потерь прошлой войны и ограничений мирного договора;
+# в демилитаризованной зоне войска стоят в глубине страны, а не у границы
+func mil_spawn_army(cc: String, foes: Array) -> void:
+	var b: Array = MIL_BASE[cc]
+	var lf: float = float((mil["loss"] as Dictionary).get(cc, 1.0))
+	var lim: Dictionary = (mil.get("lim", {}) as Dictionary).get(cc, {})
+	var total: float = float(b[0]) * MIL_COMBAT * lf * float(lim.get("arm", 1.0))
+	var n: int = mil_n_units(total)
+	var dmz: bool = int((mil.get("dmz", {}) as Dictionary).get(cc, 0)) > 0
+	var nb_n: int = 0 if dmz else int(ceil(float(n) * 0.6))
+	var spots := mil_border_spots(cc, foes, nb_n) if nb_n > 0 else []
+	var home := mil_home_spots(cc, n)
+	if home.is_empty():
+		return
+	for k in n:
+		var a: int = int(spots[k]) if k < spots.size() else int(home[k % home.size()])
+		var f := mil_new_unit(cc, total / float(n), mil_q(cc), a, "reg")
+		f["mode"] = "auto"
+	(mil["war"]["str0"] as Dictionary)[cc] = total
 
 
 # ============================================================
@@ -775,6 +886,20 @@ func mil_day() -> void:
 		return
 	var w: Dictionary = mil["war"]
 	w["days"] = int(w["days"]) + 1
+	if int(w.get("cf_cd", 0)) > 0:
+		w["cf_cd"] = int(w["cf_cd"]) - 1
+	if int(w.get("cf", 0)) > 0:
+		# перемирие: бои стоят, войска на местах, переговоры идут
+		w["cf"] = int(w["cf"]) - 1
+		if int(w["cf"]) == 0:
+			mil_log("перемирие истекло: бои возобновились.", COL_WARN)
+		if int(w["prop_cd"]) > 0:
+			w["prop_cd"] = int(w["prop_cd"]) - 1
+		mil_recover()
+		w["offer_cd"] = int(w["offer_cd"]) - 1
+		if int(w["days"]) % 7 == 0:
+			mil_ai_peace()
+		return
 	if int(w["days"]) % 3 == 1:
 		mil_supply_update()
 	mil_plan_t -= 1
@@ -1432,6 +1557,7 @@ func mil_month() -> void:
 			if game_over:
 				return
 	mil["dm"] = 0
+	war_timers_month()
 	var tr: Dictionary = mil["truce"]
 	for c in tr.keys():
 		tr[c] = int(tr[c]) - 1
@@ -1481,12 +1607,15 @@ func mil_war_month() -> void:
 	var months: float = float(w["days"]) / 30.0
 	debt += gdp * 0.0025 + mil_total(ccode) * 0.004
 	var op: float = float(w["occ"][0])
-	add_support("Молодёжь", -0.8 - op * 6.0)
+	# в демократии затяжная наступательная война бьёт по рейтингу сильнее
+	var dk: float = 1.0 + (0.6 * war_demo(ccode) * war_demo(String(w["lead"])) if bool(w["aggr"]) else 0.0)
+	add_support("Молодёжь", (-0.8 - op * 6.0) * dk)
 	add_support("Пенсионеры", -0.4 - op * 4.0)
 	add_support("Рабочие", -0.4 - op * 4.0)
 	add_support("Экологи", -0.5)
 	if bool(w["aggr"]):
-		add_support("Бизнес", -0.5)
+		add_support("Бизнес", -0.5 * dk)
+		add_support("Пенсионеры", -0.3 * (dk - 1.0))
 	if float(w["score"]) > 10.0:
 		add_support("Силовики", 0.8)
 	elif float(w["score"]) < -10.0:
@@ -1509,6 +1638,7 @@ func mil_war_month() -> void:
 			var f := mil_new_unit(lead, add / float(n), float(b[2]) * 0.8, int(home[k % home.size()]), "res")
 			f["mode"] = "auto"
 		mil_log("«%s» объявила мобилизацию: +%.0f тыс. резервистов." % [String(WORLD[lead]["name"]), add], COL_WARN)
+	war_intl_month()
 	# чистка контроля над АТЕ, сменившими владельца
 	for a in (mil["ctl"] as Dictionary).keys():
 		if mil_side(ate_cc(int(a))) < 0:
@@ -1544,13 +1674,16 @@ func mil_g() -> float:
 		g -= 0.8 + minf(8.0, float(w["occ"][0]) * 40.0)
 		if bool(w["sanct"]):
 			g -= 1.2
-	return clampf(g, -12.0, 0.0)
+	g += war_intl_g()
+	return clampf(g, -14.0, 0.0) + war_trade_g()
 
 
 func mil_infl() -> float:
 	if not mil_on() or not mil_at_war():
 		return 0.0
-	return 1.2 + (0.6 if bool(mil["war"]["sanct"]) else 0.0)
+	if int(mil["war"].get("cf", 0)) > 0:
+		return 0.6
+	return 1.2 + (0.6 if bool(mil["war"]["sanct"]) else 0.0) + war_intl_infl()
 
 
 func mil_unemp() -> float:
@@ -1561,14 +1694,16 @@ func mil_unemp() -> float:
 
 
 func mil_dip_term(c: String) -> float:
-	if not mil_at_war():
+	if mil.is_empty():
 		return 0.0
+	if not mil_at_war():
+		return war_dip_extra(c)
 	var sd := mil_side(c)
 	if sd == 1:
 		return -60.0
 	if sd == 0:
 		return 5.0
-	return -18.0 if bool(mil["war"]["sanct"]) else -6.0
+	return (-18.0 if bool(mil["war"]["sanct"]) else -6.0) + war_dip_extra(c)
 
 
 # ============================================================
@@ -1637,26 +1772,31 @@ func mil_peace_propose(kind: String) -> Dictionary:
 	return mil_peace(kind)
 
 
-# заключение мира. kind: white, repar, annex, capit, full — условия игрока; lose_cede, lose_capit — условия противника
-func mil_peace(kind: String) -> Dictionary:
+# заключение мира. kind: white, repar, annex, capit, full — условия игрока; lose_cede, lose_capit — условия противника.
+# terms (v38) — пакет требований с переговоров: {land|border|repar(%)|disarm|dmz|fleet|trade|guilt|neutral: …}
+func mil_peace(kind: String, terms: Dictionary = {}) -> Dictionary:
 	if not mil_at_war():
 		return {"done": false, "msg": "Войны нет."}
 	var w: Dictionary = mil["war"]
 	var lead := String(w["lead"])
 	var enemies: Array = mil_side_ccs(1)
 	var parts: PackedStringArray = []
-	var won: bool = kind in ["repar", "annex", "capit", "full"]
+	var won: bool = kind in ["repar", "annex", "capit", "full"] or not terms.is_empty()
 	var lost: bool = kind.begins_with("lose")
+	var annexed := false
 	# земли
 	if kind == "annex" or kind == "capit":
 		for c in enemies:
 			var sel := mil_occupied_by_us(String(c))
+			if terms.has("border") and not terms.has("land"):
+				sel = talk_border_ates(String(c))
 			if sel.is_empty() or not wsim.has(c):
 				continue
 			var r := mil_annex(String(c), sel)
 			if r != "":
 				parts.append(r)
-	if lost:
+				annexed = true
+	if lost and kind != "lose_pay":
 		for c in enemies:
 			var sel2: Array = []
 			for a in mil["ctl"]:
@@ -1665,13 +1805,15 @@ func mil_peace(kind: String) -> Dictionary:
 			if not sel2.is_empty() and wsim.has(c):
 				parts.append(mil_cede(sel2, String(c)))
 	# деньги
-	if kind == "repar" or kind == "capit":
-		var amt: float = float(wsim[lead]["gdp"]) * (0.02 if kind == "repar" else 0.03)
+	if (kind == "repar" or kind == "capit" or terms.has("repar")) and wsim.has(lead):
+		var amt: float = float(wsim[lead]["gdp"]) * (float(terms["repar"]) / 100.0 if terms.has("repar") else (0.02 if kind == "repar" else 0.03))
 		debt = maxf(0.0, debt - amt)
 		wsim[lead]["debt"] = float(wsim[lead]["debt"]) + amt / maxf(1.0, float(wsim[lead]["gdp"])) * 100.0
 		parts.append("репарации %.1f млрд € (долг уменьшен)" % amt)
 	if lost:
 		var amt2: float = gdp * (0.01 if kind == "lose_cede" else 0.03)
+		if kind == "lose_pay":
+			amt2 = gdp * 0.03 + 0.01 * gdp * clampf(-float(w["score"]) / 40.0 - 1.0, 0.0, 2.0)
 		debt += amt2
 		parts.append("вы выплачиваете %.1f млрд € репараций" % amt2)
 	var full_msg := ""
@@ -1679,11 +1821,21 @@ func mil_peace(kind: String) -> Dictionary:
 		var res := union_absorb(lead, 0, float(WORLD[lead].get("debt", 0.0)) * 0.8)
 		full_msg = String(res.get("msg", ""))
 		parts.append("страна «%s» полностью присоединена" % String(WORLD[lead]["name"]))
+		annexed = true
+	if not terms.is_empty():
+		talk_apply(terms, enemies, lead, parts)
+	# аннексия земель демократии нападавшим не признаётся
+	if annexed and bool(w["aggr"]) and war_demo(lead) >= 0.5:
+		var nr: Dictionary = mil.get("nonrec", {})
+		nr[lead] = 36
+		mil["nonrec"] = nr
+		parts.append("мир не признаёт аннексию (3 года)")
 	# конец войны
 	var nm := String(WORLD[lead]["name"]) if WORLD.has(lead) else lead
 	var title := {"white": "белый мир — довоенные границы", "repar": "мир с репарациями", "annex": "мир с присоединением занятых земель",
-		"capit": "капитуляция противника", "full": "капитуляция и полное присоединение", "lose_cede": "мир на условиях противника", "lose_capit": "капитуляция"}
-	var msg := "Мир со страной «%s»: %s" % [nm, String(title.get(kind, kind))]
+		"capit": "капитуляция противника", "full": "капитуляция и полное присоединение", "lose_cede": "мир на условиях противника", "lose_capit": "капитуляция",
+		"lose_pay": "мир с выкупом: земли остаются за вами, но вы платите противнику"}
+	var msg := "Мир со страной «%s»: %s" % [nm, "мир на ваших условиях" if not terms.is_empty() and kind != "capit" else String(title.get(kind, kind))]
 	if not parts.is_empty():
 		msg += "; " + "; ".join(parts)
 	msg += "."
@@ -1832,8 +1984,29 @@ func mil_ai_peace() -> void:
 		mil_event(ks, "«%s» проиграла войну и готова капитулировать. Военный счёт %+.0f." % [nm, sc], op)
 	elif sc <= -40.0:
 		w["offer_cd"] = 45
-		mil_event(["", "lose_cede"], "«%s» предлагает мир: вы уступаете занятые ею земли и платите репарации (1%% ВВП). Военный счёт %+.0f." % [nm, sc],
-			[{"l": "Отклонить: воюем дальше", "fx": {"support": {"Силовики": 1.0}}}, {"l": "Принять мир на условиях противника", "fx": {}}])
+		var pay: float = (0.03 + 0.01 * clampf(-sc / 40.0 - 1.0, 0.0, 2.0)) * 100.0
+		mil_event(["", "lose_cede", "lose_pay"], "«%s» предлагает мир: вы уступаете занятые ею земли и платите репарации (1%% ВВП). Через посредников можно выторговать другой вариант: оставить земли, но заплатить больше. Военный счёт %+.0f." % [nm, sc],
+			[{"l": "Отклонить: воюем дальше", "fx": {"support": {"Силовики": 1.0}}}, {"l": "Принять мир на условиях противника", "fx": {}},
+			{"l": "Выкупить земли: репарации %.0f%% ВВП" % pay, "fx": {"support": {"Бизнес": -1.0}}}])
+	elif sc >= 25.0 and int(w["days"]) >= 45 and mil_rng.randf() < 0.35:
+		# противник сам предлагает уступки — столько, сколько готов отдать при нынешнем счёте
+		w["offer_cd"] = 50
+		var want: Array = []
+		for id in ["land", "repar", "trade", "guilt", "disarm", "dmz"]:
+			if talk_avail(id) == "":
+				want.append([id, 1 if id == "repar" else 0])
+		var b := talk_budget()
+		var cnt: Array = []
+		var c := 0.0
+		for it in want:
+			var ci := talk_cost(String(it[0]), int(it[1]))
+			if c + ci <= b:
+				cnt.append(it)
+				c += ci
+		if not cnt.is_empty():
+			mil["cnt"] = cnt
+			mil_event(["", "talk_cnt"], "«%s» проигрывает и сама предлагает мир: %s. Военный счёт %+.0f." % [nm, talk_pkg_text(cnt), sc],
+				[{"l": "Отклонить: добиваться большего", "fx": {}}, {"l": "Принять предложение", "fx": {"support": {"Бизнес": 1.0}}}])
 	elif float(w["days"]) > 120.0 and absf(sc) < 12.0 and mil_rng.randf() < 0.3:
 		w["offer_cd"] = 60
 		mil_event(["", "white"], "Фронт встал. «%s» предлагает белый мир — вернуться к довоенным границам. Военный счёт %+.0f." % [nm, sc],
@@ -1857,7 +2030,24 @@ func mil_resolve(i: int) -> void:
 	var k: String = String(ks[i]) if i < ks.size() else ""
 	if k == "mob1":
 		mil_mobilize(1)
-	elif k != "" and mil_at_war():
+	elif not mil_at_war():
+		return
+	elif k == "talk_cnt":
+		var cnt: Array = mil.get("cnt", [])
+		var t := talk_terms(cnt)
+		mil_peace("annex" if t.has("land") or t.has("border") else "white", t)
+	elif k == "press_cf":
+		talk_ceasefire()
+	elif k == "press_med":
+		var r := talk_mediator()
+		if not bool(r["done"]):
+			talk_ceasefire()
+	elif k == "press_no":
+		var it := war_intl(mil["war"])
+		it["cond"] = minf(100.0, float(it["cond"]) + 10.0)
+		war_sanctions_update(mil["war"])
+		mil_log("вы отвергли требование прекратить огонь: осуждение растёт, санкций больше.", COL_BAD)
+	elif k != "":
 		mil_peace(k)
 
 

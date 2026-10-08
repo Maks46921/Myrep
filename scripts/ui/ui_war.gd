@@ -19,6 +19,10 @@ var war_occ_ver := -1
 var war_occ_tris: Array = [PackedVector2Array(), PackedVector2Array()]
 var war_front := PackedVector2Array()
 var war_hover_tok := -1
+var war_talk_rt: RichTextLabel = null
+var war_intl_rt: RichTextLabel = null
+var war_talk_chk: Dictionary = {}
+var war_repar: OptionButton = null
 
 
 func build_war_windows() -> void:
@@ -78,23 +82,74 @@ func build_war_windows() -> void:
 	war_note = add_note(w.body, "Приказы на карте: щёлкните по значку своего соединения, затем по АТЕ, куда ему идти. Shift+щелчок по побережью противника — морской десант (нужны десантные корабли и перевес флота у цели).", true)
 
 	w = new_window("war_ops", "Война и мир", 13, Rect2(0.0, 0.5, 0.22, 0.5))
-	war_ops_rt = make_rt(w.body)
 	war_tgt = fed_opt(w.body, [], "Страна, которой можно объявить войну: соседи по суше и (при своём флоте) по морю.")
 	war_tgt.item_selected.connect(func(_i: int) -> void: refresh())
-	war_btn["declare"] = fed_btn("Объявить войну (15)", w.body, "Нужны большинство в парламенте и 15 политического капитала. Отношения со всеми странами упадут; война внутри ЕС — санкции.")
+	war_btn["declare"] = fed_btn("Объявить войну (15)", w.body, "Нужны большинство в парламенте (голосуют партии) и 15 политического капитала. Отношения со всеми странами упадут; война внутри ЕС — санкции. В демократии война бьёт по рейтингу и отношениям с партиями, против другой демократии — сильнее.")
 	war_btn["declare"].pressed.connect(on_war_declare)
-	for k in MIL_PEACE_KINDS:
-		var nm: String = {"white": "Белый мир", "repar": "Мир с репарациями", "annex": "Присоединить занятые АТЕ", "capit": "Потребовать капитуляции", "full": "Присоединить всю страну"}[k]
-		var tip: String = {"white": "Вернуться к довоенным границам. Противник согласится, если не выигрывает войну.",
-			"repar": "Противник платит 2% своего ВВП (снижает ваш долг). Нужен военный счёт не ниже +35.",
-			"annex": "Все занятые вами АТЕ противника (кроме столицы) переходят к вам: части у ваших регионов входят в них, остальное — новые территории.",
-			"capit": "Занятые АТЕ, репарации 3% ВВП противника и ослабление его армии. Нужен счёт +75 (или +50 при взятой столице).",
-			"full": "Страна противника целиком входит в вашу (как при объединении). Нужен счёт +90 и взятая столица."}[k]
-		var b2 := fed_btn(nm, w.body, tip)
-		b2.pressed.connect(on_war_peace.bind(k))
-		war_btn["p_" + k] = b2
+	war_ops_rt = make_rt(w.body)
 	add_title(w.body, "Журнал войны")
 	war_log_rt = make_rt(w.body)
+
+	# v38: переговоры и реакция мира
+	w = new_window("war_talk", "Переговоры и мир", 13, Rect2(0.22, 0.36, 0.19, 0.64))
+	war_talk_rt = make_rt(w.body)
+	add_title(w.body, "Требования")
+	for id in TALK_IDS:
+		if id == "repar":
+			var rr := HBoxContainer.new()
+			w.body.add_child(rr)
+			var lb := Label.new()
+			lb.text = "Репарации:"
+			rr.add_child(lb)
+			war_repar = fed_opt(rr, ["нет", "1% ВВП", "2% ВВП", "3% ВВП", "5% ВВП"], String(TALK_INFO["repar"][1]))
+			war_repar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			war_repar.item_selected.connect(func(i: int) -> void:
+				talk_sel()["repar"] = i
+				refresh())
+			continue
+		var cb := CheckBox.new()
+		cb.text = String(TALK_INFO[id][0])
+		cb.tooltip_text = String(TALK_INFO[id][1])
+		cb.focus_mode = Control.FOCUS_NONE
+		cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cb.custom_minimum_size = Vector2(40.0, 0.0)
+		cb.toggled.connect(func(on: bool) -> void:
+			talk_sel()[id] = on
+			refresh())
+		w.body.add_child(cb)
+		war_talk_chk[id] = cb
+	var t0 := HBoxContainer.new()
+	w.body.add_child(t0)
+	war_btn["propose"] = fed_btn("Предложить мир", t0, "Предложить противнику мир на выбранных условиях. При отказе он может прислать встречное предложение; новое предложение — через 15 суток.")
+	war_btn["propose"].pressed.connect(func() -> void:
+		war_msg = String(talk_propose()["msg"])
+		refresh())
+	war_btn["p_white"] = fed_btn("Белый мир", t0, "Вернуться к довоенным границам. Противник согласится, если не выигрывает войну.")
+	war_btn["p_white"].pressed.connect(on_war_peace.bind("white"))
+	var t1 := HBoxContainer.new()
+	w.body.add_child(t1)
+	war_btn["cf"] = fed_btn("Перемирие", t1, "Остановить бои на 30 суток: фронт замирает, противник уступчивее, мир меньше осуждает. Повторно — через 60 суток.")
+	war_btn["cf"].pressed.connect(func() -> void:
+		war_msg = String(talk_ceasefire()["msg"])
+		refresh())
+	war_btn["cf_break"] = fed_btn("Возобновить бои", t1, "Прервать перемирие: войска снова воюют, мир осуждает срыв переговоров.")
+	war_btn["cf_break"].pressed.connect(func() -> void:
+		talk_ceasefire_break()
+		war_msg = "Перемирие прервано."
+		refresh())
+	var t1b := HBoxContainer.new()
+	w.body.add_child(t1b)
+	war_btn["med"] = fed_btn("Посредник (3)", t1b, "Пригласить посредника (ЕС, нейтральная страна или ООН): противник уступчивее, осуждение ниже. 3 политического капитала.")
+	war_btn["med"].pressed.connect(func() -> void:
+		war_msg = String(talk_mediator()["msg"])
+		refresh())
+	war_btn["p_capit"] = fed_btn("Капитуляция", t1b, "Занятые АТЕ, репарации 3% ВВП противника и ослабление его армии. Нужен счёт +75 (или +50 при взятой столице).")
+	war_btn["p_capit"].pressed.connect(on_war_peace.bind("capit"))
+	war_btn["p_full"] = fed_btn("Присоединить всю страну", w.body, "Страна противника целиком входит в вашу (как при объединении). Нужен счёт +90 и взятая столица.")
+	war_btn["p_full"].pressed.connect(on_war_peace.bind("full"))
+	add_title(w.body, "Реакция мира")
+	war_intl_rt = make_rt(w.body)
 
 
 func on_war_declare() -> void:
@@ -104,6 +159,45 @@ func on_war_declare() -> void:
 	var r := mil_declare(String(war_tgt_ids[i]))
 	war_msg = String(r["msg"])
 	refresh()
+
+
+func update_war_talk() -> void:
+	var at_war := mil_at_war()
+	win_vis("war_talk", at_war and current_desk == 13)
+	if not at_war or war_talk_rt == null:
+		return
+	var w: Dictionary = mil["war"]
+	var sel := talk_sel()
+	var q := talk_quote()
+	var t := "Противник готов уступить: [b]%.0f[/b] · ваши требования: [b]%.0f[/b]\n" % [float(q["budget"]), float(q["cost"])]
+	t += "Условия: %s\n" % talk_pkg_text(q.get("pkg", []))
+	var p: float = float(q["p"])
+	t += "Согласие: [b][color=%s]%.0f%%[/color][/b]%s\n" % [COL_GOOD if p >= 0.9 else (COL_WARN if p > 0.0 else COL_BAD), p * 100.0, " — " + String(q["why"]) if String(q["why"]) != "" else ""]
+	if String(w.get("med", "")) != "":
+		t += "Посредник: %s\n" % String(w["med"])
+	t += "[color=%s]Готовность растёт с военным счётом, занятыми землями, длительностью войны, посредником и перемирием.[/color]" % COL_DIM
+	war_talk_rt.text = t
+	for id in war_talk_chk:
+		var cb: CheckBox = war_talk_chk[id]
+		var why := talk_avail(String(id))
+		cb.set_pressed_no_signal(bool(sel.get(id, false)))
+		cb.disabled = why != ""
+		cb.text = "%s (%.0f)" % [String(TALK_INFO[id][0]), talk_cost(String(id))]
+		cb.tooltip_text = String(TALK_INFO[id][1]) + ("\n" + why if why != "" else "")
+	war_repar.select(clampi(int(sel.get("repar", 0)), 0, 4))
+	for k in ["white", "capit", "full"]:
+		var mq := mil_peace_quote(k)
+		var b5: Button = war_btn["p_" + k]
+		b5.disabled = not bool(mq["ok"])
+		b5.tooltip_text = String(b5.tooltip_text).split("\n")[0] + "\n" + ("Противник согласится." if bool(mq["ok"]) else String(mq["why"]))
+	(war_btn["propose"] as Button).disabled = String(q["why"]) != ""
+	var cf_on: bool = int(w.get("cf", 0)) > 0
+	(war_btn["cf"] as Button).visible = not cf_on
+	(war_btn["cf"] as Button).disabled = talk_ceasefire_check() != ""
+	(war_btn["cf"] as Button).tooltip_text = String((war_btn["cf"] as Button).tooltip_text).split("\n")[0] + ("\n" + talk_ceasefire_check() if talk_ceasefire_check() != "" else "")
+	(war_btn["cf_break"] as Button).visible = cf_on
+	(war_btn["med"] as Button).disabled = String(w.get("med", "")) != "" or capital < 3.0
+	war_intl_rt.text = war_intl_text()
 
 
 func on_war_peace(kind: String) -> void:
@@ -191,8 +285,7 @@ func update_war_windows() -> void:
 	var o := ""
 	war_btn["declare"].visible = not mil_at_war()
 	war_tgt.visible = not mil_at_war()
-	for k in MIL_PEACE_KINDS:
-		(war_btn["p_" + k] as Button).visible = mil_at_war()
+	update_war_talk()
 	if not mil_at_war():
 		var ts := mil_targets()
 		if ts != war_tgt_ids:
@@ -202,6 +295,7 @@ func update_war_windows() -> void:
 				war_tgt.add_item(String(WORLD[c]["name"]))
 		var ci: int = war_tgt.selected
 		o += "[b]Мир.[/b] Войн проведено: %d.\n" % int(mil["wars"])
+		o += war_intl_text()
 		if not (mil["last"] as Dictionary).is_empty():
 			o += "Последняя война: %s\n" % String(mil["last"]["msg"])
 		if ci >= 0 and ci < war_tgt_ids.size():
@@ -215,6 +309,8 @@ func update_war_windows() -> void:
 				for a in al:
 					nms.append(String(WORLD[a]["name"]))
 				o += "[color=%s]На её сторону встанут: %s.[/color]\n" % [COL_BAD, ", ".join(nms)]
+			o += war_vote_text(c2) + "\n"
+			o += war_preview_text(c2) + "\n"
 			var why := mil_declare_check(c2)
 			if why != "":
 				o += "[color=%s]%s[/color]\n" % [COL_DIM, why]
@@ -245,14 +341,11 @@ func update_war_windows() -> void:
 		o += "Противник занял у вас: [b]%.1f%%[/b]%s\n" % [float(w["occ"][0]) * 100.0, " · [color=%s]столица у противника![/color]" % COL_BAD if mil_cap_held(ccode) else ""]
 		o += "Силы: ваши %.0f тыс., противника %.0f тыс.\n" % [mil_total(ccode), mil_side_total(1)]
 		o += "Потери: ваши ≈ %.1f тыс., противника ≈ %.1f тыс. · бои: %d побед, %d поражений\n" % [float(w["kia"][0]), float(w["kia"][1]), int(w["won"]), int(w["lost"])]
+		if int(w.get("cf", 0)) > 0:
+			o += "[color=%s]Перемирие: ещё %d сут.[/color]\n" % [COL_GOOD, int(w["cf"])]
 		if bool(w["sanct"]):
 			o += "[color=%s]Санкции ЕС: рост −1,2 п.п.[/color]\n" % COL_BAD
 		o += "Война стоит: рост %+.1f п.п., инфляция %+.1f п.п., долг +%.1f млрд/мес.\n" % [mil_g(), mil_infl(), gdp * 0.0025 + mil_total(ccode) * 0.004]
-		for k in MIL_PEACE_KINDS:
-			var q := mil_peace_quote(k)
-			var b5: Button = war_btn["p_" + k]
-			b5.disabled = not bool(q["ok"])
-			b5.tooltip_text = String(b5.tooltip_text).split("\n")[0] + "\n" + ("Противник согласится." if bool(q["ok"]) else String(q["why"]))
 	if war_msg != "" and current_desk == 13:
 		o += "\n[color=%s]%s[/color]" % [COL_WARN, war_msg]
 	war_ops_rt.text = o

@@ -40,6 +40,10 @@ func show_crisis_exit() -> bool:
 	return false
 
 
+func war_sat_term(p: int) -> float:
+	return 0.0
+
+
 # --- конец заглушек ---
 
 
@@ -686,6 +690,9 @@ func sat_breakdown(p: int) -> Array:
 		out.append(["Рейтинг власти", float(tr["rating_w"]) * (approval() - 50.0)])
 	if float(tr["base"]) != 0.0:
 		out.append(["Характер лидера", float(tr["base"])])
+	var wt := war_sat_term(p)
+	if absf(wt) > 0.05:
+		out.append(["Война", wt])
 	return out
 
 

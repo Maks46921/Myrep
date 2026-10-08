@@ -253,7 +253,8 @@ func _init():
 	var att := ""
 	for c in m.mil_targets():
 		if m.mil_land_neighbor(c) and int((m.mil["truce"] as Dictionary).get(c, 0)) == 0 and m.wsim.has(c):
-			att = String(c)
+			if att == "" or m.mil_country_power(c) > m.mil_country_power(att):
+				att = String(c)
 	if att != "" and not m.mil_at_war():
 		if m.dip.has(att):
 			m.dip[att]["rel"] = 0.0
@@ -263,10 +264,11 @@ func _init():
 			f["str"] = 0.05
 		m.turn = maxi(m.turn, 13)
 		for k in 800:
+			if m.election_open: m.election_continue()
 			if not m.current_event.is_empty(): m.choose(0)
 			m.mil_ai_declare()
 			if m.mil_at_war(): break
-		check(m.mil_at_war() and m.mil_side(att) == 1, "ИИ объявил войну (%s): opp %s, rel %.0f, сила %.1f / %.1f, перемирие %s" % [att, m.opp_mode, m.fed_rel(att), m.mil_country_power(att), m.mil_country_power(cc), m.mil["truce"]])
+		check(m.mil_at_war() and m.mil_side(String(m.mil["war"]["lead"])) == 1 if m.mil_at_war() else false, "ИИ объявил войну (%s): opp %s, rel %.0f, сила %.1f / %.1f, перемирие %s, событие %s, выборы %s, сосед %s, war %s" % [att, m.opp_mode, m.fed_rel(att), m.mil_country_power(att), m.mil_country_power(cc), m.mil["truce"], String(m.current_event.get("t", "")).left(80), m.election_open, m.mil_land_neighbor(att), m.mil_side(att)])
 		if m.mil_at_war():
 			check(not m.current_event.is_empty() and String(m.current_event.get("special", "")) == "war", "событие о нападении")
 			m.choose(1)
