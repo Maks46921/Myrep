@@ -45,6 +45,13 @@ func _init():
 	var up: Button = row["up"]
 	var cap0: float = g.capital
 	var lv0: int = int(g.regions[g.selected_region]["comp"][sp])
+	# v35: у полномочий появились описания, строки выше — нижние могут быть ниже края прокрутки, как у пользователя
+	var sc = up.get_parent()
+	while sc != null and not (sc is ScrollContainer):
+		sc = sc.get_parent()
+	if sc != null:
+		(sc as ScrollContainer).ensure_control_visible(up)
+		for i in 3: await process_frame
 	await click(up)
 	check(g.capital < cap0 and int(g.regions[g.selected_region]["comp"][sp]) == lv0 + 1, "щелчок по ▶ не передал полномочие")
 	check((row["lbl"] as Label).text.contains("(+1)"), "подпись полномочия не обновилась: " + (row["lbl"] as Label).text)

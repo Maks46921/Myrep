@@ -245,7 +245,8 @@ func _init():
 	var before: float = float(J.pol[kk2])
 	var rng: float = float(J.policy_by_key[kk2]["max"]) - float(J.policy_by_key[kk2]["min"])
 	var al: float = J.lock_allowed(kk2, before + rng * 0.5)
-	check(al - before <= rng * 0.10 + 0.001, "бюджет у младшего партнёра меняется медленнее (%.2f)" % (al - before))
+	# v35: ограничение на изменение бюджета младшим партнёром убрано — изменения идут на обсуждение коалиции (council_budget)
+	check(absf(al - (before + rng * 0.5)) < 0.001, "у младшего партнёра нет ограничения на изменение бюджета (%.2f)" % (al - before))
 	J.capital = 10.0
 	var cap_a: float = J.capital
 	J.week_tick() if false else null
