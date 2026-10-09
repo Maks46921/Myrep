@@ -74,7 +74,10 @@ func dip_target(c: String) -> float:
 
 func dip_rel_factor(c: String) -> float:
 	var d: Dictionary = DIP_C[c]
-	return clampf((float(dip[c]["rel"]) - 35.0) / (float(d["rel0"]) - 35.0), 0.0, 1.5)
+	var den: float = float(d["rel0"]) - 35.0
+	if absf(den) < 0.5:          # v38: стартовое отношение ровно 35 (Северная Македония — Болгария) давало 0/0 и NaN во всей экономике
+		den = 0.5
+	return clampf((float(dip[c]["rel"]) - 35.0) / den, 0.0, 1.5)
 
 
 func dip_growth() -> float:
