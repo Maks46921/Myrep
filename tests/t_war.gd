@@ -210,6 +210,8 @@ func _init():
 					src = int(a)
 				if m.ate_cc(int(a)) == foe4 and m.mil_hostile_units_at(int(a), cc).is_empty() and dst < 0:
 					dst = int(a)
+			if src >= 0 and dst >= 0 and m.mil_units_of(cc).is_empty():
+				m.mil_new_unit(cc, 3.0, 1.0, src, "reg")      # маленькая армия могла погибнуть в прошлых войнах теста
 			if src >= 0 and dst >= 0:
 				m.flt["navy"]["amp"] = maxi(2, int(m.flt["navy"]["amp"]))
 				var fl: Dictionary = m.mil_units_of(cc)[0]
