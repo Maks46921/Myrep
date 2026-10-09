@@ -772,7 +772,7 @@ func national_shares(pres: bool, only: Array = []) -> Array[float]:
 
 
 func democracy_index() -> float:
-	return clampf(DEM_BASE + float(mods.get("dem_shift", 0.0)), 0.0, 1.0)
+	return clampf(minf(DEM_BASE, float(MIL_DEMO.get(ccode, DEM_BASE))) + float(mods.get("dem_shift", 0.0)), 0.0, 1.0)
 
 
 func democracy_name(d: float) -> String:

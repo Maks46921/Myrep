@@ -16,7 +16,10 @@ func _init():
 	print(t)
 	print("места ", g.seats, " коалиция ", g.gov_seats(), " рейтинг %.1f" % g.approval())
 	print("def0 ", g.def0, " growth ", g.growth, " rate ", g.ec["rate"])
-	var n := int(OS.get_cmdline_user_args()[0]) if OS.get_cmdline_user_args().size() > 0 else 24
+	var n := 24
+	for a in OS.get_cmdline_user_args():
+		if String(a).is_valid_int():
+			n = int(a)
 	for i in range(n):
 		if not g.current_event.is_empty():
 			g.choose(0)
