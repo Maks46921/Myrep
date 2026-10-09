@@ -2,7 +2,7 @@
 """Единый запуск тестов PolitGame.
 
   tools/test.py quick                 быстрая проверка (~1 мин)
-  tools/test.py full                  все тесты по всем странам (21)
+  tools/test.py full                  все тесты по всем странам (34)
   tools/test.py agents head -c DE,FR  выбранные тесты и страны
   tools/test.py golden --update       пересоздать эталоны (после ОСОЗНАННОГО изменения поведения)
   tools/test.py --list                список тестов

@@ -25,6 +25,7 @@ func _init():
 			g.seats[big] += d
 			g.seats[0] -= d
 		g.in_coalition[big] = true
+		g.pm_lead = false          # v38: в Румынии и Боснии игрок на старте глава правительства при меньшей партии
 		check(bool(g.junior_info()["junior"]), "партия игрока не стала младшим партнёром")
 		for gr in g.support: g.support[gr] = 3.0
 		g.low_months = 2

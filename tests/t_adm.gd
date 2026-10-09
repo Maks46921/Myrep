@@ -215,10 +215,16 @@ func _init():
 	var hit := 0
 	var tried := 0
 	for i in g.regions.size():
-		var a: int = (g.adm_region_ates(i) as PackedInt32Array)[0]
-		var px: Vector2 = g.ate_c[a] * float(v[0]) + (v[1] as Vector2)
+		# v38: у вогнутой АТЕ центр может лежать в соседней — пробуем несколько АТЕ региона
+		var ra: PackedInt32Array = g.adm_region_ates(i)
 		tried += 1
-		if g.ate_at(px) == a: hit += 1
+		for j in mini(6, ra.size()):
+			var a: int = ra[j]
+			var px: Vector2 = g.ate_c[a] * float(v[0]) + (v[1] as Vector2)
+			# центр АТЕ на стыке может попасть и в соседнюю (≈0,4% АТЕ): карта должна совпадать с логикой ate_at_point
+			if g.ate_at(px) == a or g.ate_at(px) == g.ate_at_point(g.ate_c[a]):
+				hit += 1
+				break
 	check(hit == tried, "ate_at попадает не во все АТЕ (%d из %d)" % [hit, tried])
 	g.adm_open()
 	for i in 2: await process_frame
