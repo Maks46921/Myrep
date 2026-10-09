@@ -588,6 +588,7 @@ func hold_parliament_core(reason: String) -> void:
 	crisis_offered = false
 	minority_gov = false
 	techno_until = -1
+	pm_lead = false
 	extra_mins.clear()
 	impeach_warned = false
 	warned.clear()

@@ -314,7 +314,7 @@ func junior_info() -> Dictionary:
 	for p in PARTY_NAMES.size():
 		if in_coalition[p] and seats[p] > seats[pm]:
 			pm = p
-	if pm == 0:
+	if pm == 0 or pm_lead:
 		return res
 	var share: float = float(seats[0]) / float(maxi(1, gov_seats()))
 	res["junior"] = true

@@ -228,6 +228,7 @@ func _init():
 	# ---------- E. младший партнёр ----------
 	var J = mk(0)
 	for i in 3: await process_frame
+	J.pm_lead = false          # v38: в Румынии и Боснии игрок на старте глава правительства при меньшей партии
 	var other := -1
 	for p in range(1, n):
 		if not (p in [6, 8, 9]): other = p; break

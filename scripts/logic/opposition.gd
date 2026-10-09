@@ -322,12 +322,19 @@ func opp_gov_seats() -> int:
 	return n
 
 
+# v38: страны, где на старте правительство возглавляет не крупнейшая партия коалиции
+# (Румыния: премьер Боложан от НЛП при большей СДП; Босния: председатель Совета министров Кришто от ХДЗ по этнической ротации)
+const PM_LEAD_START := ["RO", "BA"]
+
+
 func opp_init() -> void:
 	opp_mode = false
 	opp_gov = {}
 	offer_pending = false
 	prel_init()
+	pm_lead = false
 	if 0 in COALITION0:
+		pm_lead = player_orig == 0 and ccode in PM_LEAD_START
 		return
 	opp_mode = true
 	var members: Array = []
