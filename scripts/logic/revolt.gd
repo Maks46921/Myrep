@@ -443,6 +443,7 @@ func rv_region_act(id: String, i: int) -> bool:
 			r["loy"] = rv_clamp(float(r["loy"]) - 2.0)
 			rv["nat"]["hate"] = rv_clamp(float(rv["nat"]["hate"]) + 1.0)
 		"troops":
+			fa_notify("repression", "", 0.6)
 			if st >= 3 and rv_conf_of(rv_uid(i)) < 0:
 				var kind := "secession" if float(rg["sep"]) >= 55.0 and not rv_is_capital(i) else "insurgency"
 				rv_conf_start(kind, i, 12.0 + float(rg["sep"]) * 0.2, "подавление мятежа в регионе «%s»" % nm)
@@ -1090,6 +1091,7 @@ func revolt_resolve(opt: Dictionary) -> void:
 			nat["wave"] = rv_clamp(float(nat["wave"]) - 20.0)
 			rv_log("уступки против дороговизны остудили улицу.", COL_GOOD)
 		"wave_crack":
+			fa_notify("repression", "", 1.0)
 			var ok: bool = randf() < clampf(0.45 + (float(lvl["security_lvl"]) - 50.0) * 0.008, 0.2, 0.85)
 			nat["hate"] = rv_clamp(float(nat["hate"]) + 10.0)
 			nat["rev"] = rv_clamp(float(nat["rev"]) + 3.0)
@@ -1104,6 +1106,7 @@ func revolt_resolve(opt: Dictionary) -> void:
 		"wave_ignore":
 			nat["wave"] = rv_clamp(float(nat["wave"]) + 4.0)
 		"rev_force":
+			fa_notify("repression", "", 1.5)
 			var p: float = clampf(0.30 + (float(support["Силовики"]) - 40.0) * 0.012 + (float(lvl["security_lvl"]) - 50.0) * 0.004 + (0.12 if decree_power() else 0.0), 0.08, 0.92)
 			if randf() < p:
 				nat["rev"] = rv_clamp(float(nat["rev"]) - 30.0)

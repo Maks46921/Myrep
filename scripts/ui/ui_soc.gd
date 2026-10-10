@@ -279,7 +279,7 @@ func update_ex_desk() -> void:
 	s += "Наше влияние на них: [b]%.0f[/b] · их влияние на нас: [b]%.0f[/b]\n" % [ex_leverage(c2), ex_leverage_on_us(c2)]
 	s += "Соглашение: %s · пошлины: %s · ответ партнёра: %s\n" % [EX_DEAL[int(p2["deal"])], EX_TAR[int(p2["tar"])], EX_TAR[int(p2["ret"])]]
 	s += "[color=%s]Чем выше наше влияние, тем легче просить об услугах; чем выше их влияние на нас, тем сильнее они могут давить (пошлины, ставки, энергия).[/color]" % COL_DIM
-	xw_info_rt.text = s
+	xw_info_rt.text = s + ("\n" + fa_explain(ex_sel) if fa_explain(ex_sel) != "" else "")
 	var off: bool = game_over
 	xw_btn["deal-"].disabled = off or int(p2["deal"]) <= 0 or ex_cd_get(c2, "deal") > 0
 	xw_btn["deal+"].disabled = off or int(p2["deal"]) >= 3 or ex_cd_get(c2, "deal") > 0

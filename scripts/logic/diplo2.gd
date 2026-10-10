@@ -3,6 +3,16 @@
 # Состояние — словарь dx. Работает только при включённом модуле «Государство и мир» (game_opts["rlev"] > 0).
 extends "res://scripts/logic/realism.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func fpai_resolve(opt: Dictionary) -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 const DX_TREATIES := [
 	{"id": "tech", "name": "Научный обмен", "cap": 5.0, "rel": 55.0, "desc": "Обмен учёными и данными: скорость исследований +2%, пассивное изучение от партнёра быстрее. Расход 0,02% ВВП в год."},
 	{"id": "energy", "name": "Энергетическое партнёрство", "cap": 5.0, "rel": 50.0, "desc": "Долгие контракты и общие сети: зависимость от импорта энергии постепенно падает, скачки цен слабее."},
@@ -560,6 +570,8 @@ func diplo_resolve(opt: Dictionary) -> void:
 			if mods.has("army_q"):
 				dx["adj"].append({"m": 1.0, "left": 1})
 			add_support("Молодёжь", -1.0)
+		_:
+			fpai_resolve(opt)
 
 
 # ============================================================
@@ -639,6 +651,7 @@ func dx_treaty_do(id: String, c: String) -> bool:
 		tr[c].erase(tid)
 		ex_rel_change(c, -5.0)
 		dx_log("договор с «%s» расторгнут." % dx_name(c), COL_WARN)
+		fa_notify("treaty_break", c, 1.0)
 		if (tr[c] as Dictionary).is_empty():
 			tr.erase(c)
 	else:
@@ -646,6 +659,7 @@ func dx_treaty_do(id: String, c: String) -> bool:
 		ex_rel_change(c, 3.0)
 		if tid == "defense":
 			add_support("Силовики", 1.5)
+		fa_notify("treaty", c, 1.0)
 		dx_log("заключён договор «%s» с «%s»." % [String(found["name"]).substr(String(found["name"]).find(": ") + 2), dx_name(c)], COL_GOOD)
 	return true
 
@@ -721,12 +735,14 @@ func dx_spy_do(id: String, c: String) -> bool:
 				dx_log("кибератака на «%s» удалась." % nm, COL_GOOD)
 		if randf() < 0.12:
 			ex_rel_change(c, -10.0)
+			fa_notify("spy", c, 0.7)
 			dx_log("позже в «%s» нашли следы вашей операции: отношения испорчены." % nm, COL_WARN)
 	else:
 		var pen: float = {"steal": 8.0, "destab": 12.0, "cyber": 10.0}.get(kind, 8.0)
 		ex_rel_change(c, -pen)
 		dx["exposed"] = int(dx["exposed"]) + 1
 		add_support("Молодёжь", -1.0)
+		fa_notify("spy", c, 1.0)
 		dx_log("[b]провал:[/b] операция против «%s» раскрыта, дипломатический скандал." % nm, COL_BAD)
 	return true
 

@@ -2,6 +2,20 @@
 # Зависимость считается от торговли (w_share), энергии и долга; рычаги — торговые соглашения, пошлины, помощь, выкуп долга.
 extends "res://scripts/logic/tech.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func fa_notify(kind: String, c: String, mag: float) -> void:
+	pass
+
+
+func fa_sanctioning(c: String) -> bool:
+	return false
+
+
+# --- конец заглушек ---
+
+
 const EX_DEAL := ["нет", "базовое", "расширенное", "полный союз"]
 const EX_TAR := ["нет", "лёгкие", "заметные", "торговая война"]
 # убывающая отдача: вклад ступеней соглашения/пошлин (ступень 3 ≠ втрое больше ступени 1)
@@ -159,7 +173,7 @@ func ex_month() -> void:
 				p["ret"] = int(p["ret"]) + 1
 				ex_rel_change(c, -4.0)
 				log_tag("ТОРГОВЛЯ", COL_WARN, "%s — «%s» вводит ответные пошлины (уровень %d)." % [date_text(), WORLD[c]["name"], int(p["ret"])])
-			elif int(p["tar"]) < int(p["ret"]) and ex_rng.randf() < 0.12:
+			elif int(p["tar"]) < int(p["ret"]) and not fa_sanctioning(c) and ex_rng.randf() < 0.12:
 				p["ret"] = int(p["ret"]) - 1
 				log_tag("ТОРГОВЛЯ", COL_GOOD, "%s — «%s» смягчает ответные пошлины (уровень %d)." % [date_text(), WORLD[c]["name"], int(p["ret"])])
 		# рейтинг влияния
@@ -256,6 +270,7 @@ func ex_deal_set(c: String, dir: int) -> bool:
 	ex_rel_change(c, 4.0 if dir > 0 else -3.0)
 	add_support("Бизнес", 1.5 if dir > 0 else -1.0)
 	log_line("[b]%s: торговое соглашение с «%s» — %s.[/b]" % [date_text(), WORLD[c]["name"], EX_DEAL[v]])
+	fa_notify("deal", c, float(dir))
 	refresh()
 	return true
 
@@ -276,6 +291,7 @@ func ex_tariff_set(c: String, dir: int) -> bool:
 	else:
 		ex_rel_change(c, 3.0)
 	log_line("[b]%s: пошлины против «%s» — %s.[/b]" % [date_text(), WORLD[c]["name"], EX_TAR[v]])
+	fa_notify("tariff", c, float(dir))
 	refresh()
 	return true
 
@@ -292,6 +308,7 @@ func ex_aid_give(c: String) -> bool:
 	ex_rel_change(c, 3.0)
 	add_support("Бизнес", -0.5)
 	log_line("%s: помощь и инвестиции в «%s» (0.1%% ВВП в долг): влияние растёт." % [date_text(), WORLD[c]["name"]])
+	fa_notify("aid", c, 1.0)
 	refresh()
 	return true
 

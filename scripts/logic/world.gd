@@ -8,6 +8,14 @@ func ex_bot_g(c: String) -> float:
 	return 0.0
 
 
+func fa_explain(c: String) -> String:
+	return ""
+
+
+func fa_rel_term(c: String) -> float:
+	return 0.0
+
+
 func mil_dip_term(c: String) -> float:
 	return 0.0
 
@@ -68,7 +76,7 @@ func dip_target(c: String) -> float:
 	var dl := 0
 	for k in lv:
 		dl += int(lv[k]) - int((d["lv0"] as Dictionary)[k])
-	t += 2.0 * float(dl) + mil_dip_term(c)
+	t += 2.0 * float(dl) + mil_dip_term(c) + fa_rel_term(c)
 	return clampf(t, 5.0, 98.0)
 
 
@@ -637,6 +645,8 @@ func world_info(c: String) -> String:
 	if not is_me and dip.has(c):
 		t += "Отношения с вами: [b]%.0f[/b] (%s) · торговля %s млрд € в год\n" % [float(dip[c]["rel"]), dip_rel_name(float(dip[c]["rel"])), fmt_n(float((DIP_C[c] as Dictionary)["trade"]))]
 		t += "Влияние на вашу экономику: рост %s п.п., связано с темпом их роста\n" % sg(w_share(ccode, c) * (float(w["growth"]) - float(w["pot"])) * 0.30, 2)
+	if not is_me:
+		t += fa_explain(c)
 	return t
 
 

@@ -756,6 +756,7 @@ func mil_declare(cc: String, force: bool = false) -> Dictionary:
 	var allies := mil_allies_for(cc, ccode)
 	var vtxt := war_vote_text(cc)
 	mil_start_war(cc, allies, [], true)
+	fa_notify("war", cc, 1.0)
 	var both_eu: bool = bool(WORLD.get(ccode, {}).get("eu", false)) and bool(WORLD[cc].get("eu", false))
 	var msg := "Вы объявили войну стране «%s»." % String(WORLD[cc]["name"])
 	if not allies.is_empty():

@@ -52,6 +52,20 @@ var faith := PackedByteArray()   # вероисповедание агента (
 var devout := PackedByteArray()  # 1 — практикующий верующий
 var frng := RandomNumberGenerator.new()
 const REL_GM := [1.0, 1.05, 0.55, 1.35, 0.95, 0.8, 0.9, 1.4]   # во сколько раз у группы чаще «нерелигиозный»
+# v47_1: личная история и поведение
+var edu := PackedByteArray()      # образование: 0 — базовое, 1 — среднее/профессиональное, 2 — высшее
+var unm := PackedByteArray()      # сколько месяцев подряд без работы (до 120)
+var pb := PackedFloat32Array()    # «кошелёк»: как менялся личный реальный доход (п.п., скользящее)
+var trust := PackedFloat32Array() # доверие к институтам 0..1
+var tp := PackedFloat32Array()    # склонность прийти на выборы 0..1
+var act := PackedByteArray()      # 1 — активист (протест заразителен и вдвое весомее)
+var peers := PackedInt32Array()   # окружение: 3 знакомых на агента (2 — та же группа и регион, 1 — тот же регион)
+var emul := PackedFloat32Array()  # личный риск потерять работу (образование, отрасль)
+var emul_g := PackedFloat32Array()
+var sw_cnt := 0                   # переходов работа/безработица за последний шаг (для статистики)
+const NPEER := 3
+const EDU_NAMES := ["базовое", "среднее", "высшее"]
+const G_EDU := [[0.35, 0.55, 0.10], [0.05, 0.30, 0.65], [0.40, 0.45, 0.15], [0.10, 0.50, 0.40], [0.05, 0.35, 0.60], [0.40, 0.50, 0.10], [0.10, 0.60, 0.30], [0.08, 0.37, 0.55]]
 var age := PackedFloat32Array()
 var inc := PackedFloat32Array()
 var ide := PackedFloat32Array()
@@ -127,6 +141,13 @@ func setup(spec: Dictionary) -> void:
 	frng.seed = int(spec["seed"]) + 7
 	var relsh: Array = spec.get("rel", [])
 	age.resize(n)
+	edu.resize(n)
+	unm.resize(n)
+	pb.resize(n)
+	trust.resize(n)
+	tp.resize(n)
+	act.resize(n)
+	emul.resize(n)
 	inc.resize(n)
 	ide.resize(n * AX)
 	ide0.resize(n * AX)
@@ -159,6 +180,8 @@ func setup(spec: Dictionary) -> void:
 				if cnt > 0 and m > 0.0:
 					for i in range(s, e):
 						aff[i * P + p] /= m
+	build_peers()
+	norm_emul()
 	recompute_stats()
 	init_off(sup, ur)
 	faith_base()
@@ -275,9 +298,20 @@ func gen_agent(i: int, r: int, g: int, secw: Array, ur: float) -> void:
 	grp[i] = g
 	var ag: Array = G_AGE[g]
 	age[i] = lerpf(float(ag[0]), float(ag[1]), (rng.randf() + rng.randf()) * 0.5)
-	inc[i] = float(G_INC[g]) * exp(rng.randfn(0.0, 0.35))
+	var ep: Array = G_EDU[g]
+	var ru: float = rng.randf()
+	edu[i] = 0 if ru < float(ep[0]) else (1 if ru < float(ep[0]) + float(ep[1]) else 2)
+	if age[i] > 60.0 and edu[i] == 2 and rng.randf() < 0.3:
+		edu[i] = 1
+	inc[i] = float(G_INC[g]) * exp(rng.randfn(0.0, 0.35)) * [0.8, 1.0, 1.3][edu[i]]
 	sec[i] = sector_pick(g, secw)
-	emp[i] = 0 if rng.randf() < clampf(ur * float(G_UNEMP[g]), 0.0, 0.6) else 1
+	emul[i] = [1.5, 1.0, 0.55][edu[i]] * (1.3 if sec[i] == 0 or sec[i] == 3 else (0.6 if sec[i] == 4 else 1.0)) * exp(rng.randfn(0.0, 0.25))
+	emp[i] = 0 if rng.randf() < clampf(ur * float(G_UNEMP[g]) * emul[i], 0.0, 0.6) else 1
+	unm[i] = 0 if emp[i] == 1 else rng.randi_range(1, 14)
+	pb[i] = 0.0
+	trust[i] = clampf(0.55 + rng.randfn(0.0, 0.18) + 0.06 * float(edu[i]) - (0.1 if emp[i] == 0 else 0.0), 0.02, 0.98)
+	act[i] = 0
+	tp[i] = 0.5
 	var mu: Array = MU[g]
 	for a in AX:
 		var v: float = float(mu[a]) + rng.randfn(0.0, SD_IDE)
@@ -286,7 +320,13 @@ func gen_agent(i: int, r: int, g: int, secw: Array, ur: float) -> void:
 	var cwg: Array = CW[g]
 	for kk in NK:
 		cw[i * NK + kk] = maxf(0.0, float(cwg[kk]) * (1.0 + rng.randfn(0.0, 0.35)))
+	# образование сдвигает взгляды: высшее — к свободе и открытости, базовое — к порядку и суверенитету
+	ide[i * AX + 1] += (1.0 - float(edu[i])) * 0.18
+	ide[i * AX + 3] += (1.0 - float(edu[i])) * 0.15
+	ide0[i * AX + 1] = ide[i * AX + 1]
+	ide0[i * AX + 3] = ide[i * AX + 3]
 	eps[i] = rng.randfn(0.0, 4.0)
+	tp[i] = turnout_of(i, 50.0)
 	calc_aff_raw(i, g)
 	if NG > 0:
 		var tot := 0.0
@@ -317,6 +357,48 @@ func sector_pick(g: int, secw: Array) -> int:
 		if t <= 0.0:
 			return j
 	return 2
+
+# v47_1: окружение — 2 знакомых из той же группы и региона, 1 — из того же региона
+func build_peers() -> void:
+	peers.resize(n * NPEER)
+	for r in R:
+		var r0: int = cell_start[r * G]
+		var r1: int = cell_start[r * G + G]
+		for g in G:
+			var c := r * G + g
+			var s0: int = cell_start[c]
+			var e0: int = cell_start[c + 1]
+			for i in range(s0, e0):
+				for kq in NPEER:
+					var j := i
+					if kq < 2 and e0 - s0 > 1:
+						j = rng.randi_range(s0, e0 - 1)
+					elif r1 - r0 > 1:
+						j = rng.randi_range(r0, r1 - 1)
+					peers[i * NPEER + kq] = j
+
+
+# средний риск безработицы в группе = 1, чтобы доля безработных группы совпадала с макромоделью
+func norm_emul() -> void:
+	emul_g.resize(G)
+	var sm := PackedFloat64Array()
+	sm.resize(G)
+	var cn := PackedInt32Array()
+	cn.resize(G)
+	for i in n:
+		sm[grp[i]] += emul[i]
+		cn[grp[i]] += 1
+	for g in G:
+		emul_g[g] = float(sm[g] / float(maxi(1, cn[g]))) if cn[g] > 0 else 1.0
+	for i in n:
+		emul[i] /= maxf(0.05, emul_g[grp[i]])
+
+
+func turnout_of(i: int, a: float) -> float:
+	# склонность голосовать: возраст, образование, доверие, сила чувств (очень довольные и очень злые ходят чаще), безработица
+	var t: float = 0.42 + 0.0045 * (age[i] - 18.0) + 0.07 * float(edu[i]) + 0.18 * (trust[i] - 0.5) + 0.12 * absf(a - 50.0) / 50.0 - (0.12 if emp[i] == 0 and grp[i] != 2 else 0.0)
+	return clampf(t, 0.08, 0.97)
+
 
 func calc_aff_raw(i: int, g: int) -> void:
 	var mu: Array = MU[g]
@@ -411,31 +493,69 @@ func approval_of(i: int, sup: Array, ob: PackedFloat32Array) -> float:
 	return clampf(float(sup[g]) + off[i] - ob[g], 0.0, 100.0)
 
 # один шаг: обновляется каждый stride-й агент (со сдвигом phase)
+# v47_1: у агента есть личная история — работа с памятью (месяцы без работы), «кошелёк», доверие, явка;
+# взгляды меняются от опыта (безработица, цены, безопасность, природа, миграция, коррупция) и от окружения.
 func step(ctx: Dictionary, phase: int, stride: int) -> void:
 	var z: PackedFloat32Array = ctx["z"]
 	var sup: Array = ctx["sup"]
 	var ur: float = float(ctx["ur"])
 	var zg: PackedFloat32Array = ctx.get("zg", PackedFloat32Array())
 	var gp: Array = ctx["gpos"]
-	for a in AX:
-		gpos[a] = float(gp[a])
+	var infl: float = float(ctx.get("infl", 2.0))
+	var grw: float = float(ctx.get("growth", 1.0))
+	var secl: float = float(ctx.get("sec", 50.0))
+	var envl: float = float(ctx.get("env", 50.0))
+	var migr: float = float(ctx.get("mig", 0.0))
+	var corl: float = float(ctx.get("cor", 50.0))
+	var rloy: PackedFloat32Array = ctx.get("rloy", PackedFloat32Array())
+	var months: float = float(stride)
+	for a0 in AX:
+		gpos[a0] = float(gp[a0])
 	var ob := group_offbar()
 	var up := PackedFloat32Array()
 	up.resize(G)
 	for g in G:
 		up[g] = ugp(ur, g)
+	sw_cnt = 0
+	var lam: float = clampf(0.45 * months / 4.0, 0.05, 0.9)
 	var i := phase
 	while i < n:
 		var g: int = grp[i]
-		if up[g] > 0.0:
-			emp[i] = 0 if rng.randf() < up[g] else 1
 		var j := i * AX
+		# --- работа: потеря и поиск с памятью ---
+		if g != 2 and up[g] > 0.0:
+			var ut: float = clampf(up[g] * emul[i], 0.0, 0.9)
+			if emp[i] == 1:
+				if rng.randf() < lam * ut:
+					emp[i] = 0
+					unm[i] = 0
+					sw_cnt += 1
+			else:
+				# чем дольше без работы, тем труднее найти (эффект «рубца»)
+				var fnd: float = lam * (1.0 - ut) * (1.0 - minf(0.5, float(unm[i]) / 60.0))
+				if rng.randf() < fnd:
+					emp[i] = 1
+					sw_cnt += 1
+				else:
+					unm[i] = mini(120, int(unm[i]) + int(months))
+		# --- кошелёк: личный реальный доход ---
+		var shock_i: float = grw - infl * (1.3 if g == 2 or edu[i] == 0 else 0.9) + rng.randfn(0.0, 1.5)
+		if emp[i] == 0 and g != 2:
+			shock_i -= 12.0
+		pb[i] = pb[i] * 0.75 + shock_i * 0.25
+		# --- доверие: коррупция, безработица, личный опыт ---
+		var tr: float = trust[i] + 0.01 * (50.0 - corl) / 10.0 + (0.01 if pb[i] > 0.0 else -0.012) - (0.015 if unm[i] >= 12 else 0.0)
+		trust[i] = clampf(tr + (0.55 + 0.06 * float(edu[i]) - trust[i]) * 0.02, 0.02, 0.98)
+		# --- оценка власти ---
 		var d0: float = ide[j] - gpos[0]
 		var d1: float = ide[j + 1] - gpos[1]
 		var d2: float = ide[j + 2] - gpos[2]
 		var d3: float = ide[j + 3] - gpos[3]
 		dist[i] = sqrt(d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3)
-		var t: float = eps[i] - UNEMP_PEN * (float(1 - emp[i]) - up[g]) - DIST_K * (dist[i] - dbar[g])
+		var t: float = eps[i] - UNEMP_PEN * (float(1 - emp[i]) - up[g] * emul[i]) - DIST_K * (dist[i] - dbar[g])
+		t += clampf(pb[i], -15.0, 10.0) * 0.22 + (trust[i] - 0.55) * 8.0
+		if rloy.size() == R:
+			t += rloy[reg[i]]
 		var b := i * NK
 		var wb := g * NK
 		for kk in NK:
@@ -449,24 +569,52 @@ func step(ctx: Dictionary, phase: int, stride: int) -> void:
 		sum_off[g] += nv - off[i]
 		off[i] = nv
 		var a: float = clampf(float(sup[g]) + nv - ob[g], 0.0, 100.0)
-		var pr: int = 1 if a < PROT_AT else 0
-		if pr != prot[i]:
-			rprot[reg[i]] += pr - prot[i]
-			prot[i] = pr
-		# дрейф: недовольные уходят к суверенитету и порядку, довольные возвращаются к себе
-		var changed := false
+		# --- окружение: протест заразителен ---
+		var pp := 0
+		var pa := 0
+		var mi := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+		for kq in NPEER:
+			var q: int = peers[i * NPEER + kq]
+			pp += prot[q]
+			pa += act[q]
+			for ax in AX:
+				mi[ax] += ide[q * AX + ax]
+		var thr: float = PROT_AT + (3.0 if pp >= 2 else 0.0) + (2.0 if pa >= 1 else 0.0)
+		var pr: int = 1 if a < thr else 0
+		var na: int = 1 if (pr == 1 and a < 25.0 and (edu[i] == 2 or age[i] < 32.0 or pa >= 1)) else 0
+		var wpr: int = pr * (2 if na == 1 else 1)
+		var wold: int = prot[i] * (2 if act[i] == 1 else 1)
+		if wpr != wold:
+			rprot[reg[i]] += wpr - wold
+		prot[i] = pr
+		act[i] = na
+		tp[i] = turnout_of(i, a)
+		# --- взгляды: опыт и окружение (небольшие шаги, якорь — собственные взгляды) ---
+		var dx := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+		if emp[i] == 0 and unm[i] >= 6:
+			dx[0] -= 0.035                                  # долгая безработица — за соцгарантии
+			dx[3] += 0.02 if edu[i] == 0 else 0.0
+		if infl > 5.0:
+			dx[0] -= 0.012 if (g == 0 or g == 2) else 0.0
+			dx[1] += 0.008
+		if secl < 45.0:
+			dx[1] += 0.02 * (45.0 - secl) / 15.0              # небезопасно — за порядок
+		if envl < 45.0 and (age[i] < 40.0 or edu[i] == 2):
+			dx[2] += 0.02 * (45.0 - envl) / 15.0              # плохая экология — молодые и образованные зеленеют
+		if migr > 0.0:
+			dx[3] += migr * (0.02 if edu[i] == 0 else (-0.01 if edu[i] == 2 else 0.005))  # миграция поляризует по образованию
+		if trust[i] < 0.3:
+			dx[3] += 0.01                                   # недоверие — к антисистемным «суверенистам»
 		if a < 35.0:
-			ide[j + 3] = minf(2.5, ide[j + 3] + 0.04)
-			ide[j + 1] = minf(2.5, ide[j + 1] + 0.02)
-			changed = true
-		else:
-			for ax in [1, 3]:
-				var dv: float = ide[j + ax] - ide0[j + ax]
-				if absf(dv) > 0.01:
-					ide[j + ax] -= dv * 0.1
-					changed = true
-		if changed:
-			calc_aff(i)
+			dx[1] += 0.01
+			dx[3] += 0.015
+		if pb[i] > 2.0 and g == 1:
+			dx[0] += 0.01                                   # успешный бизнес — за рынок
+		for ax2 in AX:
+			var peer_m: float = mi[ax2] / float(NPEER)
+			dx[ax2] += (peer_m - ide[j + ax2]) * 0.03 + (ide0[j + ax2] - ide[j + ax2]) * (0.03 if a >= 35.0 else 0.012)
+			ide[j + ax2] = clampf(ide[j + ax2] + dx[ax2] * months / 4.0, -2.5, 2.5)
+		calc_aff(i)
 		i += stride
 	steps += 1
 
@@ -506,6 +654,15 @@ func tally(r: int, bw: PackedFloat32Array, sup: Array, loyoff: float, e0: float,
 			i += stride
 		m0 = m0 / float(maxi(1, mc))
 		m9 = m9 / float(maxi(1, mc))
+		# v47_1: явка — голос агента весит пропорционально его склонности голосовать (среднее по ячейке = 1)
+		var tps := 0.0
+		var tpn := 0
+		i = s
+		while i < e:
+			tps += tp[i]
+			tpn += 1
+			i += stride
+		var tpm: float = maxf(0.05, tps / float(maxi(1, tpn)))
 		i = s
 		while i < e:
 			var ei: float = clampf(o0 + off[i], 5.0, 100.0)
@@ -529,7 +686,7 @@ func tally(r: int, bw: PackedFloat32Array, sup: Array, loyoff: float, e0: float,
 				tot += tmp[p9] * (f9 - 1.0)
 				tmp[p9] *= f9
 			if tot > 0.0:
-				var inv := 1.0 / tot
+				var inv := tp[i] / tpm / tot
 				for p in P:
 					out[base + p] += tmp[p] * inv
 			cnt[g] += 1

@@ -72,6 +72,14 @@ func ex_month() -> void:
 	pass
 
 
+func fa_init() -> void:
+	pass
+
+
+func fa_month() -> void:
+	pass
+
+
 func fed_init() -> void:
 	pass
 
@@ -533,6 +541,7 @@ func next_turn() -> void:
 	tech_month()
 	realism_month()
 	diplo_month()
+	fa_month()
 	ex_month()
 
 	# --- экономика ---
@@ -756,6 +765,7 @@ func init_state() -> void:
 	revolt_init()
 	rl_init()
 	dx_init()
+	fa_init()
 	ex_init()
 	fleet_init()
 	mil_init()

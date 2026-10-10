@@ -245,6 +245,7 @@ func rl_accept(k: String) -> void:
 		add_all_support(2.0)
 		dip_all(4.0, true)
 		rl_log("Страна принята в Евросоюз! Рынок, фонды и правила ЕС теперь для вас.", COL_GOOD)
+		fa_notify("join", "eu", 1.0)
 	elif k == "euro":
 		b["euro"] = true
 		MACRO["euro"] = true
@@ -261,6 +262,7 @@ func rl_accept(k: String) -> void:
 		add_support("Силовики", 3.0)
 		dip_all(2.0, false)
 		rl_log("Страна принята в НАТО: гарантии безопасности по статье 5 теперь и для вас.", COL_GOOD)
+		fa_notify("join", "nato", 1.0)
 
 
 # ---------- А3. Демография ----------
@@ -707,6 +709,7 @@ func rl_do(id: String) -> bool:
 			dip_all(-4.0, false)
 			add_support("Силовики", -4.0)
 			rl_log("Страна вышла из НАТО и объявила нейтралитет.", COL_WARN)
+			fa_notify("leave_nato", "", 1.0)
 		"ctrl":
 			b["ctrl"] = not bool(b["ctrl"])
 			add_support("Силовики", 2.0 if bool(b["ctrl"]) else -1.0)

@@ -710,7 +710,7 @@ func fed_adjacent_units() -> Array:
 func fed_rel(cc: String) -> float:
 	if dip.has(cc):
 		return float(dip[cc]["rel"])
-	return 45.0 + float((fst["rel_x"] as Dictionary).get(cc, 0.0))
+	return clampf(45.0 + float((fst["rel_x"] as Dictionary).get(cc, 0.0)) + fa_rel_term(cc), 0.0, 100.0)
 
 
 func fed_court(cc: String) -> bool:
