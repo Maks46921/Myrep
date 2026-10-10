@@ -25,13 +25,13 @@ func soc_btn(key: String, text: String, parent: Control, cb: Callable, tip: Stri
 
 func build_soc_windows() -> void:
 	# ---- desk 11: религия и миграция ----
-	var w: FloatWindow = new_window("sw_rel", "Религиозный состав", 11, Rect2(0.0, 0.0, 0.36, 0.45))
+	var w: FloatWindow = new_window("sw_rel", "Религиозный состав", 11, Rect2(0.0, 0.0, 0.36, 0.38))
 	sw_chart = FaithChart.new()
 	w.body.add_child(sw_chart)
 	sw_rel_rt = make_rt(w.body)
 	add_note(w.body, "У каждого агента своя вера. Влияние зависит от того, насколько доля конфессии выше или ниже её обычного уровня в стране: чем больше её сторонников, тем сильнее эффект. Данные приблизительные.", true)
 
-	w = new_window("sw_pol", "Религия и государство", 11, Rect2(0.36, 0.0, 0.34, 0.45))
+	w = new_window("sw_pol", "Религия и государство", 11, Rect2(0.36, 0.0, 0.34, 0.38))
 	sw_pol_rt = make_rt(w.body)
 	var r1 := HBoxContainer.new()
 	w.body.add_child(r1)
@@ -43,7 +43,7 @@ func build_soc_windows() -> void:
 	soc_btn("fund+", "Больше поддержки общин (6)", r2, on_soc_fund.bind(1))
 	soc_btn("dial", "Межконфессиональный совет", w.body, on_soc_dialog, "Снижает напряжённость между общинами.")
 
-	w = new_window("sw_mig", "Миграционная политика", 11, Rect2(0.0, 0.45, 0.36, 0.30))
+	w = new_window("sw_mig", "Миграционная политика", 11, Rect2(0.0, 0.38, 0.36, 0.40))
 	sw_mig_rt = make_rt(w.body)
 	var r3 := HBoxContainer.new()
 	w.body.add_child(r3)
@@ -62,14 +62,14 @@ func build_soc_windows() -> void:
 	sw_spk_n = Spark.new()
 	w.body.add_child(sw_spk_n)
 
-	w = new_window("sw_reg", "Регионы: вера и напряжённость", 11, Rect2(0.36, 0.45, 0.34, 0.30))
+	w = new_window("sw_reg", "Регионы: вера и напряжённость", 11, Rect2(0.36, 0.38, 0.34, 0.40))
 	sw_regchart = FaithChart.new()
 	w.body.add_child(sw_regchart)
 	sw_reg_rt = make_rt(w.body)
 	sw_reg_rt.visible = false
 
 	# ---- desk 10: влияние и зависимость ----
-	w = new_window("xw_list", "Партнёры и зависимость", 10, Rect2(0.0, 0.0, 0.40, 0.58))
+	w = new_window("xw_list", "Партнёры и зависимость", 10, Rect2(0.0, 0.0, 0.40, 0.66))
 	xw_chart = DepChart.new()
 	xw_chart.picked.connect(on_ex_meta)
 	w.body.add_child(xw_chart)
@@ -77,7 +77,7 @@ func build_soc_windows() -> void:
 	xw_list_rt.visible = false
 	add_note(w.body, "Зависимость — доля торговли, энергии и долга в ВВП. «Мы зависим» — насколько ваша страна зависит от партнёра, «Они зависят» — насколько партнёр зависит от вас. Щёлкните по стране, чтобы действовать.", true)
 
-	w = new_window("xw_info", "Действия с выбранной страной", 10, Rect2(0.40, 0.0, 0.30, 0.58))
+	w = new_window("xw_info", "Действия с выбранной страной", 10, Rect2(0.40, 0.0, 0.30, 0.66))
 	xw_info_rt = make_rt(w.body)
 	var r6 := HBoxContainer.new()
 	w.body.add_child(r6)

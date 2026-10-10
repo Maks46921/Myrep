@@ -51,12 +51,12 @@ func rm_attach(key: String, parent: Control, title: String, fn: Callable) -> voi
 
 
 func build_realm_windows() -> void:
-	rm_win("blocs", "rm_blocs", "Союзы и блоки", 10, Rect2(0.0, 0.58, 0.22, 0.42), rm_b_blocs)
-	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.22, 0.58, 0.26, 0.42), rm_b_treaty)
-	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.48, 0.58, 0.22, 0.42), rm_b_spy)
+	rm_win("blocs", "rm_blocs", "Союзы и блоки", 10, Rect2(0.0, 0.66, 0.22, 0.34), rm_b_blocs)
+	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.22, 0.66, 0.26, 0.34), rm_b_treaty)
+	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.48, 0.66, 0.22, 0.34), rm_b_spy)
 	rm_win("energy", "rm_energy", "Энергия и климат", 7, Rect2(0.0, 0.58, 0.30, 0.42), rm_b_energy)
 	rm_win("hist", "rm_hist", "История показателей", 7, Rect2(0.30, 0.58, 0.405, 0.42), rm_b_hist)
-	rm_win("demo", "rm_demo", "Демография и пенсии", 11, Rect2(0.0, 0.75, 0.705, 0.25), rm_b_demo)
+	rm_win("demo", "rm_demo", "Демография и пенсии", 11, Rect2(0.0, 0.78, 0.705, 0.22), rm_b_demo)
 	rm_win("law", "rm_law", "Право, коррупция и СМИ", 3, Rect2(0.48, 0.60, 0.222, 0.40), rm_b_law)
 	rm_win("army", "rm_army", "Армия как политический игрок", 13, Rect2(0.22, 0.0, 0.19, 0.36), rm_b_army)
 	rm_attach("conf", cr_right_box, "Вмешательство, переговоры и признание новых государств", rm_b_conf)
