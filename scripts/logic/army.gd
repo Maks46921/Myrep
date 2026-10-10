@@ -177,11 +177,16 @@ func ar_auto_type(cc: String, kind: String) -> String:
 			cnt[ar_tp(f)] = int(cnt.get(ar_tp(f), 0)) + 1
 			n += 1
 	if kind == "res":
-		return "td" if n % 3 == 2 else "inf"
+		# резервисты: мотопехота, территориальная оборона и — где артиллерия важна (Финляндия, Греция) — артиллерия
+		if n % 3 == 2:
+			return "td"
+		return "art" if n % 3 == 1 and float(ar_data(cc)[2]) >= 0.2 else "inf"
+	if n == 0:
+		return "inf"
 	var d: Array = ar_data(cc)
 	var want := {"arm": float(d[1]), "art": float(d[2]), "lgt": float(d[3])}
 	var best := "inf"
-	var bv := 0.45
+	var bv := 0.35
 	for tp in want:
 		var gap: float = float(want[tp]) * float(n + 1) - float(int(cnt.get(tp, 0)))
 		if gap > bv:
@@ -430,6 +435,24 @@ func ar_world_month() -> void:
 				fa_hit(c, -2.0, "гонка вооружений")
 		elif threat < lv - 0.15:
 			(ar["wlog"] as Dictionary)[c] = threat
+	# союзники по НАТО раз в год оценивают ваши расходы на оборону (цели: 2% ВВП и 3,5% к 2035 г.)
+	if fa_on() and mil_is_nato(ccode) and turn > 0 and turn % 12 == 0:
+		var pct: float = ar_nato_pct()
+		var n_up := 0
+		for c3 in fa_bots():
+			if not mil_is_nato(String(c3)):
+				continue
+			var hk: float = float(fa_pers(String(c3))["hawk"])
+			if pct >= 3.5:
+				fa_hit(String(c3), 1.0 + hk, "расходы на оборону по целям НАТО")
+				n_up += 1
+			elif pct < 2.0 and hk >= 0.5:
+				fa_hit(String(c3), -1.0, "недостаточные расходы на оборону")
+				n_up -= 1
+		if n_up > 0:
+			ar_log("союзники по НАТО отмечают: вы тратите на оборону %.1f%% ВВП — больше новой цели 3,5%%." % pct, COL_GOOD)
+		elif n_up < 0:
+			ar_log("союзники по НАТО недовольны: расходы на оборону %.1f%% ВВП — ниже обязательных 2%%." % pct, COL_WARN)
 	var dt: Dictionary = ar["deter"]
 	for c2 in dt.keys():
 		dt[c2] = int(dt[c2]) - 1
