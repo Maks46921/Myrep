@@ -652,3 +652,29 @@ func tech_nb_pick(c: String, b: int, t: int) -> String:
 			best = String(id)
 	cache[key] = best
 	return best
+
+
+func tech_audit_profiles() -> Array:
+	# профили для аудита баланса: потребности 34 стран мира и 10 условных ситуаций поверх нейтрального игрока (имена в паре [имя, потребности])
+	var out: Array = []
+	for c in WORLD:
+		out.append([String(c), tech_needs_bot(String(c))])
+	var base := tech_needs_player()
+	var sit := {
+		"война": {"army_q": 2.5, "sec_bonus": 1.5, "dip_bonus": 0.5},
+		"безработица": {"unemp_base": 2.0, "gb_Рабочие": 1.0},
+		"долг": {"extra_spend": 1.5, "admin_mult": 1.2, "eff_bonus": 1.5, "corp_mult": 1.0},
+		"волнения": {"reg_unrest_shift": 2.0, "mood_shift": 1.5, "sec_bonus": 1.0, "equal_shift": 1.0},
+		"коррупция": {"corr_shift": 2.5},
+		"стагнация": {"growth_bonus": 2.0, "corp_mult": 1.0, "zone_eff": 1.0},
+		"экология": {"env_eff": 2.0, "gb_Экологи": 1.5},
+		"старение": {"health_eff": 1.5, "gb_Пенсионеры": 1.5},
+		"молодёжь": {"edu_eff": 1.5, "gb_Молодёжь": 1.5, "rs": 1.5},
+		"сильная власть": {"capital_bonus": 1.5, "admin_mult": 1.0, "sec_bonus": 0.8},
+	}
+	for k in sit:
+		var n: Dictionary = base.duplicate()
+		for key in sit[k]:
+			n[key] = float(n.get(key, 0.0)) * 0.5 + float(sit[k][key])
+		out.append(["#" + String(k), n])
+	return out

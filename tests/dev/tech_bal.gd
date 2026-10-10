@@ -52,6 +52,7 @@ func _init():
 			rows.append("  %3d лет: техн. %2d/%d скор %.1f/потолок %.1f сыр %.1f | рост+ %.2f эфф %.2f корр %.0f | ВВП %.0f долг%% %.0f безр %.1f" % [g.turn / 12, g.tech_count(), g.tech_total(), g.tech["speed"], g.tech["cap"], g.tech["raw"], float(g.mods["growth_bonus"]), float(g.mods["edu_eff"]), float(g.lvl["corruption"]), g.gdp, g.debt / g.gdp * 100.0, g.unemployment])
 	print("== %s edu×%.1f bld=%d media=%d" % [g.ccode, kmul, bld, media])
 	for r in rows: print(r)
+	print("RES|%s|%d|%.1f|%d|%s|%d|%.0f|%d|%.2f" % [g.ccode, seed, kmul, bld, str(notech), years, g.gdp, g.tech_count(), float(g.mods["growth_bonus"])])
 	var ch := PackedStringArray()
 	for id in g.tech["done"]:
 		if g.tech_is_choice(String(id)): ch.append(String(id))
