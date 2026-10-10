@@ -57,6 +57,7 @@ var edu := PackedByteArray()      # образование: 0 — базовое
 var unm := PackedByteArray()      # сколько месяцев подряд без работы (до 120)
 var pb := PackedFloat32Array()    # «кошелёк»: как менялся личный реальный доход (п.п., скользящее)
 var trust := PackedFloat32Array() # доверие к институтам 0..1
+var trust0 := PackedFloat32Array() # личная «норма» доверия (к ней доверие возвращается в спокойные времена)
 var tp := PackedFloat32Array()    # склонность прийти на выборы 0..1
 var act := PackedByteArray()      # 1 — активист (протест заразителен и вдвое весомее)
 var peers := PackedInt32Array()   # окружение: 3 знакомых на агента (2 — та же группа и регион, 1 — тот же регион)
@@ -145,6 +146,7 @@ func setup(spec: Dictionary) -> void:
 	unm.resize(n)
 	pb.resize(n)
 	trust.resize(n)
+	trust0.resize(n)
 	tp.resize(n)
 	act.resize(n)
 	emul.resize(n)
@@ -309,7 +311,8 @@ func gen_agent(i: int, r: int, g: int, secw: Array, ur: float) -> void:
 	emp[i] = 0 if rng.randf() < clampf(ur * float(G_UNEMP[g]) * emul[i], 0.0, 0.6) else 1
 	unm[i] = 0 if emp[i] == 1 else rng.randi_range(1, 14)
 	pb[i] = 0.0
-	trust[i] = clampf(0.55 + rng.randfn(0.0, 0.18) + 0.06 * float(edu[i]) - (0.1 if emp[i] == 0 else 0.0), 0.02, 0.98)
+	trust0[i] = clampf(0.55 + rng.randfn(0.0, 0.18) + 0.06 * float(edu[i]), 0.05, 0.95)
+	trust[i] = clampf(trust0[i] - (0.1 if emp[i] == 0 else 0.0), 0.02, 0.98)
 	act[i] = 0
 	tp[i] = 0.5
 	var mu: Array = MU[g]
@@ -539,13 +542,14 @@ func step(ctx: Dictionary, phase: int, stride: int) -> void:
 				else:
 					unm[i] = mini(120, int(unm[i]) + int(months))
 		# --- кошелёк: личный реальный доход ---
-		var shock_i: float = grw - infl * (1.3 if g == 2 or edu[i] == 0 else 0.9) + rng.randfn(0.0, 1.5)
+		# зарплаты растут вместе с экономикой плюс обычная индексация (~2%), инфляция бьёт сильнее по бедным и пенсионерам
+		var shock_i: float = grw + 2.0 - infl * (1.25 if g == 2 or edu[i] == 0 else 0.95) + rng.randfn(0.0, 1.5)
 		if emp[i] == 0 and g != 2:
 			shock_i -= 12.0
 		pb[i] = pb[i] * 0.75 + shock_i * 0.25
-		# --- доверие: коррупция, безработица, личный опыт ---
-		var tr: float = trust[i] + 0.01 * (50.0 - corl) / 10.0 + (0.01 if pb[i] > 0.0 else -0.012) - (0.015 if unm[i] >= 12 else 0.0)
-		trust[i] = clampf(tr + (0.55 + 0.06 * float(edu[i]) - trust[i]) * 0.02, 0.02, 0.98)
+		# --- доверие: коррупция, безработица, личный опыт; возвращается к личной норме, поэтому без кризисов не скатывается ---
+		var tr: float = trust[i] + 0.004 * (50.0 - corl) / 10.0 + 0.002 * clampf(pb[i], -5.0, 3.0) - (0.01 if unm[i] >= 12 else 0.0)
+		trust[i] = clampf(tr + (trust0[i] - trust[i]) * 0.04, 0.02, 0.98)
 		# --- оценка власти ---
 		var d0: float = ide[j] - gpos[0]
 		var d1: float = ide[j + 1] - gpos[1]
@@ -592,7 +596,7 @@ func step(ctx: Dictionary, phase: int, stride: int) -> void:
 		# --- взгляды: опыт и окружение (небольшие шаги, якорь — собственные взгляды) ---
 		var dx := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 		if emp[i] == 0 and unm[i] >= 6:
-			dx[0] -= 0.035                                  # долгая безработица — за соцгарантии
+			dx[0] -= 0.025                                  # долгая безработица — за соцгарантии
 			dx[3] += 0.02 if edu[i] == 0 else 0.0
 		if infl > 5.0:
 			dx[0] -= 0.012 if (g == 0 or g == 2) else 0.0
@@ -606,13 +610,13 @@ func step(ctx: Dictionary, phase: int, stride: int) -> void:
 		if trust[i] < 0.3:
 			dx[3] += 0.01                                   # недоверие — к антисистемным «суверенистам»
 		if a < 35.0:
-			dx[1] += 0.01
-			dx[3] += 0.015
+			dx[1] += 0.006
+			dx[3] += 0.008
 		if pb[i] > 2.0 and g == 1:
 			dx[0] += 0.01                                   # успешный бизнес — за рынок
 		for ax2 in AX:
 			var peer_m: float = mi[ax2] / float(NPEER)
-			dx[ax2] += (peer_m - ide[j + ax2]) * 0.03 + (ide0[j + ax2] - ide[j + ax2]) * (0.03 if a >= 35.0 else 0.012)
+			dx[ax2] += (peer_m - ide[j + ax2]) * 0.03 + (ide0[j + ax2] - ide[j + ax2]) * (0.03 if a >= 35.0 else 0.018)
 			ide[j + ax2] = clampf(ide[j + ax2] + dx[ax2] * months / 4.0, -2.5, 2.5)
 		calc_aff(i)
 		i += stride

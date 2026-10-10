@@ -148,8 +148,22 @@ func ag_agent_text(i: int) -> String:
 	idx.sort_custom(func(p, q): return float(v[p]) > float(v[q]))
 	var t := "[b]Агент №%d[/b] — «%s», %s\n" % [i, GROUPS[g], String(REGIONS[r]["name"])]
 	t += "Представляет [b]%d чел.[/b]\n" % AG.k
-	t += "Возраст: %d, отрасль: %s, %s\n" % [int(AG.age[i]), AgentPop.SEC_NAMES[AG.sec[i]], "[color=#ff8a80]безработный[/color]" if AG.emp[i] == 0 and g != 2 else ("пенсионер" if g == 2 else "работает")]
+	var jt: String = "пенсионер" if g == 2 else "работает"
+	if AG.emp[i] == 0 and g != 2:
+		jt = "[color=#ff8a80]безработный[/color]" + (" уже %d мес." % int(AG.unm[i]) if AG.unm.size() > i and AG.unm[i] > 0 else "")
+	t += "Возраст: %d, образование: %s\nОтрасль: %s, %s\n" % [int(AG.age[i]), AgentPop.EDU_NAMES[AG.edu[i]] if AG.edu.size() > i else "—", AgentPop.SEC_NAMES[AG.sec[i]], jt]
 	t += "Доход: ×%.2f от среднего по группе-эталону\n" % AG.inc[i]
+	if AG.pb.size() > i:
+		var pbv: float = AG.pb[i]
+		t += "Кошелёк: [color=%s]%s[/color] (%s)\n" % ["#8be08b" if pbv >= 0.5 else ("#ff8a80" if pbv <= -1.5 else "#e8d27a"), "живёт лучше" if pbv >= 0.5 else ("живёт хуже" if pbv <= -1.5 else "без перемен"), sg(pbv, 1)]
+		t += "Доверие к институтам: %.0f%%, придёт на выборы: %.0f%%%s\n" % [AG.trust[i] * 100.0, AG.tp[i] * 100.0, "  [color=#ffb74d]активист[/color]" if AG.act[i] == 1 else ""]
+		var pp := 0
+		for q in AgentPop.NPEER:
+			var j: int = AG.peers[i * AgentPop.NPEER + q]
+			if j >= 0 and j != i and AG.prot[j] == 1:
+				pp += 1
+		if pp > 0:
+			t += "Знакомых, готовых протестовать: %d из %d\n" % [pp, AgentPop.NPEER]
 	t += "Вера: [color=%s][b]%s[/b][/color]%s\n" % [SOC_FCOL[AG.faith[i]], SOC_FAITH[AG.faith[i]], " (практикующий)" if AG.devout[i] == 1 else ""]
 	t += "Оценка власти: [b]%.0f[/b] (группа: %.0f)%s\n\n" % [a, sup_g, "  [color=#ff8a80]готов протестовать[/color]" if AG.prot[i] == 1 else ""]
 	t += "[b]Взгляды[/b]\n"

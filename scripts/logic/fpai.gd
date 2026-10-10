@@ -271,7 +271,11 @@ func fa_sanctions_step() -> void:
 		var p := fa_pers(c)
 		var score: float = fa_sanc_score(c)
 		var on: bool = sanc.has(c)
-		if not on and score < FA_SANC_AT and (p["values"] >= 0.4 or score < FA_SANC_AT - 15.0) and not p["neutral"]:
+		# нейтральные страны осторожнее, но при серьёзной обиде тоже присоединяются к санкциям
+		var bar: float = FA_SANC_AT - (10.0 if p["neutral"] else 0.0)
+		# «ценности» нужны для санкций за чужие грехи (авторитаризм, разница режимов); за личную обиду санкции вводит любой
+		var personal: bool = float((fa["mem"] as Dictionary).get(c, 0.0)) < bar
+		if not on and score < bar and (p["values"] >= 0.4 or personal or score < bar - 15.0):
 			sanc[c] = turn
 			if ex.has("p") and (ex["p"] as Dictionary).has(c):
 				ex["p"][c]["ret"] = mini(3, int(ex["p"][c]["ret"]) + 1)
@@ -301,7 +305,11 @@ func fa_sanctions_step() -> void:
 
 
 func fa_initiatives() -> void:
-	if not current_event.is_empty() or election_open or game_over or observer or randf() > 0.07:
+	if not current_event.is_empty() or election_open or game_over or observer:
+		return
+	# темп: обычно 5% в месяц, но чем дольше страны молчали, тем вероятнее инициатива (не бывает долгих «пустых» лет)
+	var quiet: int = turn - int(fa.get("last_ini", 0))
+	if randf() > clampf(0.05 + 0.006 * float(quiet - 12), 0.05, 0.25):
 		return
 	var bots: Array = fa_bots()
 	bots.shuffle()
@@ -315,6 +323,7 @@ func fa_initiatives() -> void:
 		# помощь друга в беде
 		if crisis and rel >= 60.0 and (p["trade"] >= 0.6 or p["eu"] >= 0.6) and fa_cd("aid" + c):
 			(fa["cd"] as Dictionary)["aid" + c] = 36
+			fa["last_ini"] = turn
 			rl_event("fa_aid", "«%s» предлагает помощь в трудный момент: льготный кредит и экспертов. Условия — прозрачность и реформы." % nm, [
 				{"l": "Принять помощь", "fx": {"debt": -0.5, "support": {"Силовики": -1.0}}, "act": "fa_aid_yes", "arg": c},
 				{"l": "Поблагодарить и отказаться", "fx": {}, "act": "fa_aid_no", "arg": c}])
@@ -322,6 +331,7 @@ func fa_initiatives() -> void:
 		# давление ястреба-соседа на слабого
 		if weak and rel < 32.0 and p["hawk"] >= 0.5 and c in tech_nb() and fa_cd("press" + c):
 			(fa["cd"] as Dictionary)["press" + c] = 30
+			fa["last_ini"] = turn
 			rl_event("fa_press", "«%s» стягивает войска к границе и требует уступок по спорным вопросам, пользуясь вашей слабостью." % nm, [
 				{"l": "Мобилизовать резервы (армия +0,2% ВВП)", "fx": {"slider": {"army": 0.2}, "support": {"Силовики": 3.0}}, "act": "fa_press_arm", "arg": c},
 				{"l": "Пойти на уступки (капитал −4)", "fx": {"capital": -4.0, "all": -1.0}, "act": "fa_press_give", "arg": c},
@@ -330,6 +340,7 @@ func fa_initiatives() -> void:
 		# предложение сотрудничества от друга
 		if rel >= 70.0 and dx_on() and not dx_has_treaty(c, "tech") and fa_cd("coop" + c):
 			(fa["cd"] as Dictionary)["coop" + c] = 48
+			fa["last_ini"] = turn
 			rl_event("fa_coop", "«%s» предлагает договор о научном обмене и совместных проектах: «у наших стран общие интересы»." % nm, [
 				{"l": "Подписать (капитал −2)", "fx": {"capital": -2.0}, "act": "fa_coop_yes", "arg": c},
 				{"l": "Отклонить вежливо", "fx": {}, "act": "fa_coop_no", "arg": c}])
@@ -337,6 +348,7 @@ func fa_initiatives() -> void:
 		# предложение «перезагрузки» после старой обиды
 		if mem < -22.0 and turn - int((fa["last_hit"] as Dictionary).get(c, 0)) > 18 and fa_cd("reset" + c):
 			(fa["cd"] as Dictionary)["reset" + c] = 36
+			fa["last_ini"] = turn
 			rl_event("fa_reset", "Новое руководство «%s» предлагает перевернуть страницу: встреча лидеров и общее заявление о будущем отношений." % nm, [
 				{"l": "Принять: встреча и уступки в спорных вопросах (капитал −3)", "fx": {"capital": -3.0}, "act": "fa_reset_yes", "arg": c},
 				{"l": "Отказаться: обиды не забыты", "fx": {"support": {"Силовики": 1.0}}, "act": "fa_reset_no", "arg": c}])

@@ -1,7 +1,7 @@
-m12 gdp 8.591 debt 5.245 infl 3.4473 unemp 10.4049 appr 44.624 cap 45.55 seats [19, 16, 13, 7, 6, 4, 6, 3, 4, 3]
-m24 gdp 8.853 debt 5.550 infl 3.0024 unemp 10.3543 appr 43.743 cap 58.35 seats [15, 20, 13, 7, 4, 3, 4, 5, 4, 6]
-m36 gdp 9.109 debt 5.735 infl 2.5835 unemp 10.6056 appr 41.429 cap 49.15 seats [15, 20, 13, 7, 4, 3, 4, 5, 4, 6]
-m48 gdp 9.524 debt 6.070 infl 2.2746 unemp 10.8034 appr 42.472 cap 51.95 seats [15, 20, 13, 7, 4, 3, 4, 5, 4, 6]
-m60 gdp 10.082 debt 6.392 infl 2.1593 unemp 10.7064 appr 43.289 cap 56.75 seats [15, 20, 13, 7, 4, 3, 4, 5, 4, 6]
-m72 gdp 10.449 debt 6.719 infl 2.0613 unemp 10.7589 appr 45.002 cap 71.20 seats [14, 20, 14, 7, 4, 3, 4, 5, 4, 6]
-shares 0.172 0.251 0.176 0.094 0.057 0.031 0.046 0.057 0.046 0.070  over false turn 72
+m12 gdp 8.592 debt 5.245 infl 3.4473 unemp 10.4050 appr 44.624 cap 45.55 seats [19, 16, 13, 7, 6, 4, 6, 3, 4, 3]
+m24 gdp 8.853 debt 5.541 infl 3.0112 unemp 10.3287 appr 45.627 cap 61.35 seats [15, 21, 13, 8, 5, 0, 4, 5, 4, 6]
+m36 gdp 9.239 debt 5.747 infl 2.8300 unemp 10.0857 appr 44.446 cap 54.15 seats [15, 21, 13, 8, 5, 0, 4, 5, 4, 6]
+m48 gdp 9.569 debt 6.054 infl 2.4255 unemp 10.1456 appr 45.407 cap 58.95 seats [15, 21, 13, 8, 5, 0, 4, 5, 4, 6]
+m60 gdp 9.831 debt 6.312 infl 2.1768 unemp 10.5670 appr 44.826 cap 60.40 seats [15, 21, 13, 8, 5, 0, 4, 5, 4, 6]
+m72 gdp 10.145 debt 6.635 infl 2.0928 unemp 10.6671 appr 47.097 cap 75.00 seats [16, 20, 14, 8, 5, 0, 4, 5, 4, 5]
+shares 0.200 0.248 0.170 0.097 0.058 0.016 0.045 0.055 0.047 0.064  over false turn 72
