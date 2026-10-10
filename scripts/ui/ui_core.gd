@@ -297,7 +297,15 @@ func build_ui() -> void:
 	top.custom_minimum_size = Vector2(0.0, 58.0)
 	var tsb := sbox(C_PANEL, C_BORDER, 0, 0, 10.0, 6.0)
 	tsb.border_width_bottom = 1
+	tsb.shadow_color = Color(0, 0, 0, 0.45)
+	tsb.shadow_size = 8
+	tsb.shadow_offset = Vector2(0.0, 2.0)
 	top.add_theme_stylebox_override("panel", tsb)
+	# v45_1: отблеск сверху и тонкая светящаяся линия снизу
+	top.draw.connect(func() -> void:
+		Gfx.vgrad(top, Rect2(0.0, 0.0, top.size.x, top.size.y), Color(1, 1, 1, 0.045), Color(0, 0, 0, 0.0))
+		Gfx.hgrad(top, Rect2(0.0, top.size.y - 1.0, top.size.x * 0.5, 1.0), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.0), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.55))
+		Gfx.hgrad(top, Rect2(top.size.x * 0.5, top.size.y - 1.0, top.size.x * 0.5, 1.0), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.55), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.0)))
 	add_child(top)
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE, Control.PRESET_MODE_MINSIZE, 0)
 	var hb := HBoxContainer.new()
@@ -1016,6 +1024,10 @@ func make_theme() -> Theme:
 		th.set_stylebox("hover_pressed", t, sbox(C_ACCENT.darkened(0.40), C_ACCENT.lightened(0.1), 1, 6, 10.0, 5.0))
 		th.set_stylebox("disabled", t, sbox(C_PANEL, C_BORDER.darkened(0.25), 1, 6, 10.0, 5.0))
 		th.set_stylebox("focus", t, StyleBoxEmpty.new())
+		# v45_1: глубина (тень снизу) и мягкое свечение при наведении
+		sdepth(th.get_stylebox("normal", t), Color(0, 0, 0, 0.32), 2, Vector2(0.0, 1.5))
+		sdepth(th.get_stylebox("hover", t), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.22), 6, Vector2.ZERO)
+		sdepth(th.get_stylebox("pressed", t), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.30), 4, Vector2.ZERO)
 		th.set_color("font_color", t, C_TEXT)
 		th.set_color("font_hover_color", t, Color(1, 1, 1))
 		th.set_color("font_pressed_color", t, Color(1, 1, 1))
@@ -1028,6 +1040,8 @@ func make_theme() -> Theme:
 	th.set_stylebox("hover", "AccentButton", sbox(C_ACCENT, Color(1, 1, 1, 0.5), 1, 8, 14.0, 6.0))
 	th.set_stylebox("pressed", "AccentButton", sbox(C_ACCENT.darkened(0.45), C_ACCENT, 1, 8, 14.0, 6.0))
 	th.set_stylebox("disabled", "AccentButton", sbox(C_PANEL2, C_BORDER, 1, 8, 14.0, 6.0))
+	sdepth(th.get_stylebox("normal", "AccentButton"), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.30), 6, Vector2.ZERO)
+	sdepth(th.get_stylebox("hover", "AccentButton"), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.55), 10, Vector2.ZERO)
 	th.set_font_size("font_size", "AccentButton", 16)
 	# вкладки экранов
 	th.set_type_variation("TabButton", "Button")
@@ -1035,6 +1049,9 @@ func make_theme() -> Theme:
 	th.set_stylebox("hover", "TabButton", sbox(C_PANEL2.lightened(0.12), C_ACCENT.darkened(0.2), 1, 8, 8.0, 6.0))
 	var tab_on := sbox(C_ACCENT.darkened(0.30), C_ACCENT, 1, 8, 8.0, 6.0)
 	tab_on.border_width_bottom = 3
+	sdepth(tab_on, Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.28), 7, Vector2.ZERO)
+	sdepth(th.get_stylebox("normal", "TabButton"), Color(0, 0, 0, 0.30), 2, Vector2(0.0, 1.5))
+	sdepth(th.get_stylebox("hover", "TabButton"), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.18), 5, Vector2.ZERO)
 	th.set_stylebox("pressed", "TabButton", tab_on)
 	th.set_stylebox("hover_pressed", "TabButton", tab_on)
 	th.set_font_size("font_size", "TabButton", 15)
@@ -1067,7 +1084,9 @@ func make_theme() -> Theme:
 		th.set_stylebox(st, "SmallButton", base)
 	th.set_font_size("font_size", "SmallButton", 12)
 	# --- выпадающее меню ---
-	th.set_stylebox("panel", "PopupMenu", sbox(C_PANEL2, C_ACCENT.darkened(0.3), 1, 7, 6.0, 6.0))
+	var pmb := sbox(C_PANEL2, C_ACCENT.darkened(0.3), 1, 7, 6.0, 6.0)
+	sdepth(pmb, Color(0, 0, 0, 0.45), 10, Vector2(0.0, 3.0))
+	th.set_stylebox("panel", "PopupMenu", pmb)
 	th.set_stylebox("hover", "PopupMenu", sbox(C_ACCENT.darkened(0.45), Color(0, 0, 0, 0), 0, 4, 6.0, 3.0))
 	th.set_color("font_color", "PopupMenu", C_TEXT)
 	th.set_color("font_hover_color", "PopupMenu", Color(1, 1, 1))
@@ -1085,7 +1104,9 @@ func make_theme() -> Theme:
 		th.set_stylebox("grabber_highlight", t, sbox(C_ACCENT.darkened(0.25), Color(0, 0, 0, 0), 0, 4, 3.0, 3.0))
 		th.set_stylebox("grabber_pressed", t, sbox(C_ACCENT, Color(0, 0, 0, 0), 0, 4, 3.0, 3.0))
 	# --- подсказки и разделители ---
-	th.set_stylebox("panel", "TooltipPanel", sbox(Color(0.055, 0.067, 0.095, 0.98), C_ACCENT.darkened(0.3), 1, 8, 11.0, 8.0))
+	var tip := sbox(Color(0.055, 0.067, 0.095, 0.98), C_ACCENT.darkened(0.3), 1, 8, 11.0, 8.0)
+	sdepth(tip, Color(0, 0, 0, 0.45), 10, Vector2(0.0, 3.0))
+	th.set_stylebox("panel", "TooltipPanel", tip)
 	th.set_color("font_color", "TooltipLabel", C_TEXT)
 	th.set_font_size("font_size", "TooltipLabel", 14)
 	var line := StyleBoxLine.new()
@@ -1094,6 +1115,16 @@ func make_theme() -> Theme:
 	th.set_stylebox("separator", "HSeparator", line)
 	th.set_constant("separation", "HSeparator", 8)
 	return th
+
+
+func sdepth(sb: StyleBox, col: Color, sz: int, off: Vector2) -> void:
+	# v45_1: тень/свечение у плоского стиля
+	if sb is StyleBoxFlat:
+		var f := sb as StyleBoxFlat
+		f.shadow_color = col
+		f.shadow_size = sz
+		f.shadow_offset = off
+		f.anti_aliasing = true
 
 
 func accent_for_desk(desk: int) -> Color:

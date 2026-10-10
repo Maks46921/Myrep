@@ -548,6 +548,13 @@ func show_country_menu(in_game: bool) -> void:
 	ov.name = "CountryMenu"
 	add_child(ov)
 	ov.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# v45_1: глубокий градиент и мягкое сияние за заголовком
+	ov.draw.connect(func() -> void:
+		Gfx.vgrad(ov, Rect2(Vector2.ZERO, ov.size), Color(0.06, 0.09, 0.16, 0.0), Color(0.0, 0.0, 0.02, 0.55))
+		var cx: float = ov.size.x * 0.5
+		for k in 6:
+			var rr: float = 60.0 + float(k) * 55.0
+			ov.draw_circle(Vector2(cx, 20.0), rr, Color(0.30, 0.50, 0.95, 0.018)))
 	var mg := MarginContainer.new()
 	for k in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
 		mg.add_theme_constant_override(k, 16)
@@ -558,7 +565,12 @@ func show_country_menu(in_game: bool) -> void:
 	mg.add_child(root_v)
 	var title := Label.new()
 	title.text = "PolitGame — выберите страну на карте"
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0))
+	title.add_theme_constant_override("outline_size", 6)
+	title.add_theme_color_override("font_outline_color", Color(0.10, 0.20, 0.45, 0.85))
+	title.add_theme_constant_override("shadow_offset_y", 3)
+	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root_v.add_child(title)
 	var sub := Label.new()

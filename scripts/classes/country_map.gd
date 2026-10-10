@@ -1,6 +1,8 @@
 # Карта Европы для выбора страны: страны закрашены по сложности, наведение подсвечивает, щелчок выбирает.
 extends Control
 
+const Gfx := preload("res://scripts/classes/gfx.gd")
+
 signal picked(code: String)
 
 var units: Array = []        # {cc, parts: Array[PackedVector2Array], rect}
@@ -24,6 +26,8 @@ const ZMAX := 14.0
 
 func _init() -> void:
 	clip_contents = true
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -214,6 +218,15 @@ func _notification(what: int) -> void:
 			tooltip_text = ""
 			queue_redraw()
 
+func _halo(pts: PackedVector2Array, s: float, off: Vector2, w: float) -> void:
+	var q := PackedVector2Array()
+	for p in pts:
+		q.append(p * s + off)
+	q.append(q[0])
+	draw_polyline(q, Color(0.45, 0.75, 0.95, 0.07), w * 2.0)
+	draw_polyline(q, Color(0.45, 0.75, 0.95, 0.10), w)
+
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.035, 0.05, 0.085))
 	if bounds.size.x <= 0.0:
@@ -221,13 +234,29 @@ func _draw() -> void:
 	var v := _view()
 	var s: float = v[0]
 	var off: Vector2 = v[1]
+	# море: текстура глубины в координатах карты, отблеск сверху, сетка
+	var wtl: Vector2 = (Vector2.ZERO - off) / s
+	var wbr: Vector2 = (size - off) / s
+	var scr := PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0.0), size, Vector2(0.0, size.y)])
+	var wpts := PackedVector2Array([wtl, Vector2(wbr.x, wtl.y), wbr, Vector2(wtl.x, wbr.y)])
+	draw_colored_polygon(scr, Color.WHITE, Gfx.uvs(wpts, Gfx.SEA_UV * 1.6), Gfx.sea_tex())
+	Gfx.vgrad(self, Rect2(0.0, 0.0, size.x, size.y * 0.5), Color(0.35, 0.55, 0.85, 0.07), Color(0, 0, 0, 0))
+	# береговая подсветка: обводки всех участков суши под заливкой
+	var hw: float = clampf(s * 7.0, 3.0, 14.0)
+	for parts0 in ctx:
+		for pts0 in (parts0 as Array):
+			_halo(pts0, s, off, hw)
+	for u0 in units:
+		for pts1 in (u0["parts"] as Array):
+			_halo(pts1, s, off, hw)
+	var ctex: Texture2D = Gfx.ctx_tex()
 	for parts in ctx:
 		for pts in (parts as Array):
 			var q := PackedVector2Array()
 			for p in pts:
 				q.append(p * s + off)
-			draw_colored_polygon(q, Color(0.13, 0.15, 0.2))
-			draw_polyline(q, Color(0.2, 0.23, 0.3), 1.0)
+			draw_colored_polygon(q, Color(0.16, 0.175, 0.20), Gfx.uvs(pts, Gfx.LAND_UV * 1.4), ctex)
+			draw_polyline(q, Color(0.5, 0.58, 0.68, 0.22), 1.0, true)
 	var order: Array = []
 	for u in units:
 		var cc: String = String(u["cc"])
@@ -240,6 +269,7 @@ func _draw() -> void:
 	for u in units:
 		if String(u["cc"]) == selected:
 			order.append(u)
+	var ltex: Texture2D = Gfx.land_tex()
 	for u in order:
 		var cc3: String = String(u["cc"])
 		var base: Color = cols.get(cc3, Color(0.4, 0.5, 0.7))
@@ -252,8 +282,8 @@ func _draw() -> void:
 			var q2 := PackedVector2Array()
 			for p in pts:
 				q2.append(p * s + off)
-			draw_colored_polygon(q2, col)
-			var edge := Color(0.03, 0.04, 0.07, 0.55)
+			draw_colored_polygon(q2, col, Gfx.uvs(pts, Gfx.LAND_UV * 1.4), ltex)
+			var edge := Color(0.03, 0.04, 0.07, 0.45)
 			var wdt := 0.8
 			if cc3 == selected:
 				edge = Color(1, 1, 1, 0.35)
@@ -270,7 +300,8 @@ func _draw() -> void:
 			for p in (ring as PackedVector2Array):
 				pr.append(p * s + off)
 			pr.append(pr[0])
-			draw_polyline(pr, Color(1, 1, 1, 0.95), 2.0)
+			draw_polyline(pr, Color(0.6, 0.85, 1.0, 0.18), 9.0, true)
+			draw_polyline(pr, Color(1, 1, 1, 0.95), 2.0, true)
 	var font := get_theme_default_font()
 	for cc4 in labels:
 		var rc: Rect2 = crect[cc4]
@@ -279,8 +310,8 @@ func _draw() -> void:
 		var fs := 13 if px > 74.0 else 11
 		var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var pos: Vector2 = (labels[cc4] as Vector2) * s + off + Vector2(-tw * 0.5, 4.0)
-		draw_string(font, pos + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.85))
-		draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.95 if cc4 == selected or cc4 == hover else 0.8))
+		Gfx.label(self, font, pos, txt, fs, Color(1, 1, 1, 0.97 if cc4 == selected or cc4 == hover else 0.86), -1.0, HORIZONTAL_ALIGNMENT_LEFT, 3)
+	Gfx.vignette(self, size, 0.40, minf(130.0, size.x * 0.12))
 	var hint := "Колёсико — масштаб · перетащите карту · щелчок — выбрать страну   (×%.1f)" % zoom
 	draw_string(font, Vector2(10.0, size.y - 8.0), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.45))
 

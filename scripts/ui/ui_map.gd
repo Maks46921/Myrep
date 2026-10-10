@@ -48,7 +48,9 @@ var map_all_mesh: ArrayMesh            # все АТЕ одним мешем (т
 var map_unit_mesh: Array = []          # единица карты -> меш её АТЕ
 var map_ln_ate := PackedVector2Array() # тонкие границы АТЕ внутри регионов
 var map_ln_reg := PackedVector2Array() # границы регионов одной страны (пары точек)
-var map_ln_cty := PackedVector2Array() # границы стран и побережье
+var map_ln_cty := PackedVector2Array() # границы стран (по суше)
+var map_sea_cache: Array = []
+var map_ln_coast := PackedVector2Array() # v45_1: побережье (для береговой подсветки и линии берега)
 var map_hash := {}
 var map_seg_cache := {}
 var map_hover_ate := -1
@@ -213,6 +215,7 @@ func map_prepare() -> void:
 	var l_ate := PackedVector2Array()
 	map_ln_reg = PackedVector2Array()
 	map_ln_cty = PackedVector2Array()
+	map_ln_coast = PackedVector2Array()
 	for e in ea.size():
 		var ua: int = ate_unit[ea[e]]
 		var lvl := 2
@@ -222,10 +225,22 @@ func map_prepare() -> void:
 				lvl = 0
 			elif String(WORLD_UNITS[ua]["cc"]) == String(WORLD_UNITS[ub]["cc"]):
 				lvl = 1
-		var dst: PackedVector2Array = l_ate if lvl == 0 else (map_ln_reg if lvl == 1 else map_ln_cty)
+		var coast: bool = eb[e] < 0
 		for k in range(eo[e], eo[e + 1] - 1):
-			dst.append(Vector2(ep[2 * k], ep[2 * k + 1]))
-			dst.append(Vector2(ep[2 * k + 2], ep[2 * k + 3]))
+			var p0 := Vector2(ep[2 * k], ep[2 * k + 1])
+			var p1 := Vector2(ep[2 * k + 2], ep[2 * k + 3])
+			if lvl == 0:
+				l_ate.append(p0)
+				l_ate.append(p1)
+			elif lvl == 1:
+				map_ln_reg.append(p0)
+				map_ln_reg.append(p1)
+			elif coast:
+				map_ln_coast.append(p0)
+				map_ln_coast.append(p1)
+			else:
+				map_ln_cty.append(p0)
+				map_ln_cty.append(p1)
 	map_ln_ate = l_ate
 	for cx in WORLD_CTX:
 		var lst2: Array = []
@@ -256,6 +271,7 @@ func map_tri_mesh(pts: PackedVector2Array) -> ArrayMesh:
 	var arr: Array = []
 	arr.resize(Mesh.ARRAY_MAX)
 	arr[Mesh.ARRAY_VERTEX] = pts
+	arr[Mesh.ARRAY_TEX_UV] = Gfx.uvs(pts, Gfx.LAND_UV)
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	return m
@@ -600,6 +616,8 @@ func build_map_windows() -> void:
 	map_reg_pick.item_selected.connect(on_region_picked)
 	hb2.add_child(map_reg_pick)
 	map_ctl = Control.new()
+	map_ctl.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	map_ctl.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	map_base.add_child(map_ctl)
 	map_ctl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	map_ctl.clip_contents = true
@@ -860,6 +878,72 @@ func unit_color(ui: int) -> Color:
 	return (WORLD_CCOL.get(cc, Color(0.55, 0.50, 0.58)) as Color).darkened(0.38)
 
 
+func map_draw_sea(c: Control, s: float, off: Vector2) -> void:
+	# море: текстура глубины в координатах карты (двигается и масштабируется вместе с картой), сетка параллелей
+	var sz: Vector2 = c.size
+	var wtl: Vector2 = (Vector2.ZERO - off) / s
+	var wbr: Vector2 = (sz - off) / s
+	var scr := PackedVector2Array([Vector2.ZERO, Vector2(sz.x, 0.0), sz, Vector2(0.0, sz.y)])
+	var wpts := PackedVector2Array([wtl, Vector2(wbr.x, wtl.y), wbr, Vector2(wtl.x, wbr.y)])
+	c.draw_colored_polygon(scr, Color.WHITE, Gfx.uvs(wpts, Gfx.SEA_UV), Gfx.sea_tex())
+	Gfx.vgrad(c, Rect2(0.0, 0.0, sz.x, sz.y * 0.55), Color(0.35, 0.55, 0.85, 0.07), Color(0, 0, 0, 0))
+	var step := 100.0
+	var gc := Color(0.55, 0.75, 1.0, 0.055)
+	var x0: float = floorf(wtl.x / step) * step
+	while x0 <= wbr.x:
+		var sx: float = x0 * s + off.x
+		c.draw_line(Vector2(sx, 0.0), Vector2(sx, sz.y), gc, 1.0)
+		x0 += step
+	var y0: float = floorf(wtl.y / step) * step
+	while y0 <= wbr.y:
+		var sy: float = y0 * s + off.y
+		c.draw_line(Vector2(0.0, sy), Vector2(sz.x, sy), gc, 1.0)
+		y0 += step
+
+
+func map_sea_points() -> Array:
+	# v45_1: положения подписей морей вычисляются от столиц (без отдельных данных): [название, точка в координатах карты]
+	var cp := func(c: String) -> Vector2: return WORLD_CAPS.get(c, Vector2.INF)
+	var out: Array = []
+	var defs := [
+		["СЕВЕРНОЕ МОРЕ", ["GB", "NO"], 0.5, Vector2(0.0, 0.0)],
+		["БАЛТИЙСКОЕ МОРЕ", ["SE", "LV"], 0.30, Vector2(-6.0, 48.0)],
+		["АДРИАТИЧЕСКОЕ МОРЕ", ["IT", "HR"], 0.42, Vector2(4.0, 10.0)],
+	]
+	for d in defs:
+		var a: Vector2 = cp.call(String(d[1][0]))
+		var b: Vector2 = cp.call(String(d[1][1]))
+		if a == Vector2.INF or b == Vector2.INF:
+			continue
+		out.append([d[0], a.lerp(b, float(d[2])) + (d[3] as Vector2)])
+	var fr: Vector2 = cp.call("FR")
+	var it: Vector2 = cp.call("IT")
+	var pt: Vector2 = cp.call("PT")
+	var es: Vector2 = cp.call("ES")
+	var ro: Vector2 = cp.call("RO")
+	var rs: Vector2 = cp.call("RS")
+	if fr != Vector2.INF and it != Vector2.INF:
+		out.append(["СРЕДИЗЕМНОЕ МОРЕ", it + (it - fr) * 0.75])
+	if pt != Vector2.INF and es != Vector2.INF:
+		out.append(["АТЛАНТИЧЕСКИЙ ОКЕАН", pt + (pt - es) * 2.6 + Vector2(0.0, -120.0)])
+	if ro != Vector2.INF and rs != Vector2.INF:
+		out.append(["ЧЁРНОЕ МОРЕ", ro + (ro - rs) * 1.25])
+	return out
+
+
+func map_draw_seas(c: Control, s: float, off: Vector2, font: Font) -> void:
+	if map_sea_cache.is_empty():
+		map_sea_cache = map_sea_points()
+	var fs: int = clampi(int(9.0 + s * 1.6), 10, 17)
+	for it in map_sea_cache:
+		var p: Vector2 = (it[1] as Vector2) * s + off
+		if not Rect2(Vector2.ZERO, c.size).grow(-20.0).has_point(p):
+			continue
+		var txt: String = Gfx.spaced(String(it[0])) if String(it[0]).length() <= 12 else String(it[0])
+		c.draw_string_outline(font, p + Vector2(-110.0, 0.0), txt, HORIZONTAL_ALIGNMENT_CENTER, 220.0, fs, 3, Color(0.02, 0.05, 0.10, 0.6))
+		c.draw_string(font, p + Vector2(-110.0, 0.0), txt, HORIZONTAL_ALIGNMENT_CENTER, 220.0, fs, Color(0.55, 0.72, 0.90, 0.55))
+
+
 func draw_map() -> void:
 	if map_ctl == null or map_unit_parts.is_empty() or wsim.is_empty():
 		return
@@ -873,20 +957,22 @@ func draw_map() -> void:
 	var s: float = v[0]
 	var off: Vector2 = v[1]
 	var font := c.get_theme_default_font()
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0.060, 0.098, 0.150))
-	# контекст
-	for ci in map_ctx_parts.size():
-		for part in (map_ctx_parts[ci] as Array):
+	map_draw_sea(c, s, off)
+	# контекст: неигровые земли — приглушённый рельеф
+	var ctx_tex: Texture2D = Gfx.ctx_tex()
+	for ci0 in map_ctx_parts.size():
+		for part in (map_ctx_parts[ci0] as Array):
 			var px := PackedVector2Array()
 			for p in (part as PackedVector2Array):
 				px.append(p * s + off)
-			c.draw_colored_polygon(px, Color(0.13, 0.16, 0.22) if ci != map_hover_ctx else Color(0.18, 0.21, 0.28))
+			var cc0 := Color(0.165, 0.18, 0.205) if ci0 != map_hover_ctx else Color(0.22, 0.24, 0.27)
+			c.draw_colored_polygon(px, cc0, Gfx.uvs(part as PackedVector2Array, Gfx.LAND_UV), ctx_tex)
 			var cl := px.duplicate()
 			cl.append(px[0])
-			c.draw_polyline(cl, Color(0.04, 0.05, 0.08, 0.7), 1.0)
+			c.draw_polyline(cl, Color(0.55, 0.62, 0.70, 0.22), 1.0, true)
 		if s < 1.6:
-			var cp: Vector2 = (map_ctx_cent[ci] as Vector2) * s + off
-			c.draw_string(font, cp + Vector2(-30.0, 0.0), String(WORLD_CTX[ci]["name"]), HORIZONTAL_ALIGNMENT_CENTER, 60.0, 10, Color(0.45, 0.50, 0.58))
+			var cp: Vector2 = (map_ctx_cent[ci0] as Vector2) * s + off
+			Gfx.label(c, font, cp + Vector2(-40.0, 0.0), String(WORLD_CTX[ci0]["name"]).to_upper(), 10, Color(0.62, 0.66, 0.72, 0.85), 80.0, HORIZONTAL_ALIGNMENT_CENTER, 3)
 	var view_rect := Rect2(Vector2.ZERO, c.size).grow(40.0)
 	var vis: Array = []
 	for ui in map_unit_rect.size():
@@ -899,14 +985,26 @@ func draw_map() -> void:
 	var ci := c.get_canvas_item()
 	var xf := Transform2D(0.0, Vector2(s, s), 0.0, off)
 	if map_all_mesh != null:
-		c.draw_mesh(map_all_mesh, null, Transform2D(0.0, Vector2(s, s), 0.0, off + Vector2(2.0, 3.0)), Color(0, 0, 0, 0.30))
+		c.draw_mesh(map_all_mesh, null, Transform2D(0.0, Vector2(s, s), 0.0, off + Vector2(3.0, 5.0)), Color(0, 0, 0, 0.32))
+	# береговая подсветка: мелководье вокруг суши (рисуется до заливки суши)
+	c.draw_set_transform_matrix(xf)
+	if not map_ln_coast.is_empty():
+		for k in 3:
+			var wpx: float = [22.0, 12.0, 5.0][k] * clampf(s / 2.2, 0.45, 1.0)
+			var al0: float = [0.05, 0.07, 0.11][k]
+			c.draw_multiline(map_ln_coast, Color(0.45, 0.75, 0.95, al0), wpx / s)
+	c.draw_set_transform_matrix(Transform2D.IDENTITY)
+	var land_tex: Texture2D = Gfx.land_tex()
 	for ui in vis:
 		var m: ArrayMesh = map_unit_mesh[ui]
 		if m == null:
 			continue
-		c.draw_mesh(m, null, xf, unit_color(ui))
+		var ucol: Color = unit_color(ui)
+		if String(WORLD_UNITS[ui]["cc"]) != ccode and not is_world_layer() and map_layer < 20:
+			ucol = ucol.lerp(Color(0.32, 0.34, 0.38), 0.18)
+		c.draw_mesh(m, land_tex, xf, ucol)
 		if ui == map_hover_unit and not ate_mode:
-			c.draw_mesh(m, null, xf, Color(1, 1, 1, 0.13))
+			c.draw_mesh(m, null, xf, Color(1, 1, 1, 0.14))
 	c.draw_set_transform_matrix(xf)
 	# выделенные АТЕ и АТЕ под курсором
 	if not ate_sel.is_empty():
@@ -918,15 +1016,25 @@ func draw_map() -> void:
 		RenderingServer.canvas_item_add_triangle_array(ci, PackedInt32Array(), map_ate_tris[map_hover_ate], PackedColorArray([Color(1, 1, 1, 0.22)]))
 	# тонкие границы АТЕ (заметнее при приближении; в режиме АТЕ — всегда)
 	var cell_px: float = 8.5 * s
-	var al: float = clampf((cell_px - 4.0) / 14.0, 0.0, 0.42)
+	var al: float = clampf((cell_px - 10.0) / 22.0, 0.0, 0.22)
 	if ate_mode:
 		al = maxf(al, 0.30)
 	if al > 0.01 and not map_ln_ate.is_empty():
 		c.draw_multiline(map_ln_ate, Color(0.02, 0.03, 0.06, al), -1.0)
 	if not map_ln_reg.is_empty():
-		c.draw_multiline(map_ln_reg, Color(0.04, 0.05, 0.08, 0.9), 1.1 / s)
+		c.draw_multiline(map_ln_reg, Color(0.03, 0.04, 0.07, 0.55), 1.6 / s)
+		c.draw_multiline(map_ln_reg, Color(1.0, 1.0, 1.0, 0.16), 0.7 / s)
+	if not map_ln_coast.is_empty():
+		c.draw_multiline(map_ln_coast, Color(0.01, 0.02, 0.05, 0.85), 2.0 / s)
+		c.draw_multiline(map_ln_coast, Color(0.62, 0.82, 0.95, 0.35), 0.8 / s)
 	if not map_ln_cty.is_empty():
-		c.draw_multiline(map_ln_cty, Color(0.02, 0.02, 0.04, 1.0), 1.9 / s)
+		c.draw_multiline(map_ln_cty, Color(0.01, 0.01, 0.03, 0.75), 3.4 / s)
+		c.draw_multiline(map_ln_cty, Color(0.93, 0.90, 0.80, 0.55), 1.0 / s)
+	# своя страна: мягкое свечение границы
+	var own := map_border_segs("c" + ccode)
+	if not own.is_empty() and not is_world_layer():
+		c.draw_multiline(own, Color(1.0, 0.86, 0.45, 0.10), 9.0 / s)
+		c.draw_multiline(own, Color(1.0, 0.88, 0.55, 0.55), 1.6 / s)
 	# выбранный объект: своя страна — регион; чужая — вся страна, а после второго щелчка только регион
 	var whole_cc := ""
 	if map_mode == "foreign" and dip_sel != "" and not fmap_win_open:
@@ -937,8 +1045,9 @@ func draw_map() -> void:
 				c.draw_mesh(map_unit_mesh[ui], null, Transform2D.IDENTITY, Color(1, 1, 1, 0.12))
 		var cs := map_border_segs("c" + whole_cc)
 		if not cs.is_empty():
-			c.draw_multiline(cs, Color(1, 1, 1, 0.25), 7.0 / s)
-			c.draw_multiline(cs, Color(1, 1, 1, 0.97), 2.6 / s)
+			c.draw_multiline(cs, Color(0.6, 0.85, 1.0, 0.16), 12.0 / s)
+			c.draw_multiline(cs, Color(1, 1, 1, 0.30), 6.0 / s)
+			c.draw_multiline(cs, Color(1, 1, 1, 0.97), 2.4 / s)
 	var sel_ui := -1
 	if map_mode == "own":
 		for ui in map_unit_local:
@@ -949,37 +1058,41 @@ func draw_map() -> void:
 	if sel_ui >= 0 and sel_ui < map_unit_mesh.size():
 		var us := map_border_segs("u%d" % sel_ui)
 		if not us.is_empty():
-			c.draw_multiline(us, Color(1, 1, 1, 0.22), 7.0 / s)
-			c.draw_multiline(us, Color(1, 1, 1, 0.95), 2.4 / s)
+			c.draw_multiline(us, Color(1.0, 0.9, 0.5, 0.16), 12.0 / s)
+			c.draw_multiline(us, Color(1, 1, 1, 0.30), 6.0 / s)
+			c.draw_multiline(us, Color(1, 1, 1, 0.97), 2.2 / s)
 	if not ate_sel.is_empty():
 		var ss := map_border_segs("s")
 		if not ss.is_empty():
 			c.draw_multiline(ss, Color(1.0, 0.85, 0.2, 1.0), 2.0 / s)
 	draw_war_overlay(c, ci, s)
 	c.draw_set_transform_matrix(Transform2D.IDENTITY)
+	Gfx.vignette(c, c.size, 0.42, minf(160.0, c.size.x * 0.12))
+	map_draw_seas(c, s, off, font)
 	var px_parts: Dictionary = {}
 	for ui in vis:
 		px_parts[ui] = true
 	# булавки малых регионов своей страны (иначе их не поймать курсором) и подпись выбранного
 	for ui in map_unit_local:
-		if not unit_is_tiny(ui, s):
+		if not unit_is_tiny(ui, s) or s < 1.3:
 			continue
 		var pp := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
 		var is_sel: bool = map_mode == "own" and int(map_unit_local[ui]) == selected_region
-		c.draw_circle(pp, 9.0, Color(0.05, 0.05, 0.08, 0.85))
-		c.draw_arc(pp, 8.0, 0.0, TAU, 20, Color(1, 1, 1, 0.95) if (is_sel or ui == map_hover_unit) else Color(1, 1, 1, 0.55), 2.0 if is_sel else 1.3)
-		c.draw_circle(pp, 3.0, unit_color(ui))
+		c.draw_circle(pp + Vector2(0.8, 1.2), 10.0, Color(0, 0, 0, 0.35))
+		c.draw_circle(pp, 9.0, Color(0.05, 0.06, 0.10, 0.88))
+		c.draw_arc(pp, 8.0, 0.0, TAU, 24, Color(1, 1, 1, 0.95) if (is_sel or ui == map_hover_unit) else Color(1, 1, 1, 0.55), 2.0 if is_sel else 1.3, true)
+		c.draw_circle(pp, 3.4, unit_color(ui))
 		var pn := String(REGIONS[int(map_unit_local[ui])]["short"])
-		c.draw_string_outline(font, pp + Vector2(11.0, 4.0), pn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.9))
-		c.draw_string(font, pp + Vector2(11.0, 4.0), pn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.95))
+		Gfx.label(c, font, pp + Vector2(12.0, 4.0), pn, 11, Color(1, 1, 1, 0.95), -1.0, HORIZONTAL_ALIGNMENT_LEFT, 3)
 	var cap_txt := "Щёлкните по региону, чтобы открыть его сведения · колёсико — масштаб, перетаскивание — сдвиг"
 	if map_mode == "own" and selected_region >= 0 and selected_region < REGIONS.size():
 		cap_txt = "Выбран регион: %s   (щёлкните по другому; малые регионы отмечены кружками)" % String(REGIONS[selected_region]["name"])
 	elif map_mode == "foreign" and dip_sel != "" and WORLD.has(dip_sel):
 		cap_txt = "Выбрана страна: %s" % String(WORLD[dip_sel]["name"])
 	var cw: float = font.get_string_size(cap_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
-	c.draw_rect(Rect2(Vector2(6.0, c.size.y - 24.0), Vector2(minf(cw + 14.0, c.size.x - 12.0), 20.0)), Color(0.03, 0.05, 0.09, 0.82))
-	c.draw_string(font, Vector2(13.0, c.size.y - 9.0), cap_txt, HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 24.0, 12, Color(1, 1, 1, 0.92))
+	Gfx.plate(c, Rect2(Vector2(8.0, c.size.y - 28.0), Vector2(minf(cw + 18.0, c.size.x - 16.0), 22.0)))
+	c.draw_string(font, Vector2(17.0, c.size.y - 12.0), cap_txt, HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 30.0, 12, Color(1, 1, 1, 0.92))
+	Gfx.compass(c, font, Vector2(c.size.x - 36.0, c.size.y - 44.0), 15.0)
 	# дипломатические линии
 	if map_layer == 20 or map_layer == 26:
 		var dep: Vector2 = (WORLD_CAPS[ccode] as Vector2) * s + off
@@ -997,7 +1110,7 @@ func draw_map() -> void:
 		var cc3: String = String(u["cc"])
 		var rr2: Rect2 = map_unit_rect[ui]
 		var wpx: float = rr2.size.x * s
-		if is_world_layer() or (cc3 != ccode and s < 2.4):
+		if is_world_layer() or (cc3 != ccode and s < 2.4) or s < 1.3:
 			continue
 		var ctr: Vector2 = Vector2(float(u["c"][0]), float(u["c"][1])) * s + off
 		var nm := ""
@@ -1011,8 +1124,7 @@ func draw_map() -> void:
 			else:
 				val = String(layer_info(li)[1])
 			if (regions[li]["proj"] as Dictionary).size() > 0 and map_layer != 14:
-				c.draw_circle(ctr + Vector2(0.0, -float(fs2) * 1.6), 4.5, Color(0.05, 0.05, 0.08))
-				c.draw_circle(ctr + Vector2(0.0, -float(fs2) * 1.6), 3.2, C_WARN)
+				Gfx.capital(c, ctr + Vector2(0.0, -float(fs2) * 1.6), C_WARN, false)
 		else:
 			for r in WORLD[cc3]["regions"]:
 				if String(r["id"]) == String(u["id"]):
@@ -1027,8 +1139,7 @@ func draw_map() -> void:
 				continue
 			var tc := Color(1, 0.95, 0.70) if ln == val else Color(1, 1, 1)
 			var pos := ctr + Vector2(-35.0, y2)
-			c.draw_string_outline(font, pos, ln, HORIZONTAL_ALIGNMENT_CENTER, 70.0, fs2, 4, Color(0, 0, 0, 0.9))
-			c.draw_string(font, pos, ln, HORIZONTAL_ALIGNMENT_CENTER, 70.0, fs2, tc)
+			Gfx.label(c, font, pos, ln, fs2, tc, 70.0, HORIZONTAL_ALIGNMENT_CENTER, 4)
 			y2 += float(fs2) + 1.0
 	# названия и показатели стран (без наложений: сначала крупные экономики)
 	if is_world_layer() or s < 2.4:
@@ -1040,8 +1151,10 @@ func draw_map() -> void:
 				continue    # новые государства (отделившиеся регионы) без столицы на карте мира
 			var cp3: Vector2 = (WORLD_CAPS[code] as Vector2) * s + off
 			var is_me: bool = code == ccode
-			c.draw_circle(cp3, 4.5, Color(0.05, 0.05, 0.08))
-			c.draw_circle(cp3, 3.2, Color(1, 0.92, 0.55) if not is_me else Color(0.5, 1.0, 0.6))
+			if is_me:
+				Gfx.star(c, cp3, 7.5, Color(1.0, 0.86, 0.35), Color(0.1, 0.07, 0.0, 0.9))
+			else:
+				Gfx.capital(c, cp3, Color(1, 0.94, 0.72), false)
 			var cn: String = String(WORLD[code]["name"])
 			var cv := ""
 			if is_world_layer():
@@ -1049,7 +1162,7 @@ func draw_map() -> void:
 			var lines: Array = [cn]
 			if cv != "":
 				lines.append(cv)
-			var bw := 8.0 + 6.4 * float(maxi(cn.length(), cv.length()))
+			var bw := 8.0 + 8.2 * float(maxi(cn.length(), cv.length()))
 			var bh := 13.0 * float(lines.size())
 			var lr := Rect2(cp3 + Vector2(-bw * 0.5, -10.0 - bh), Vector2(bw, bh))
 			var clash := false
@@ -1062,10 +1175,10 @@ func draw_map() -> void:
 			placed.append(lr)
 			var lp: Vector2 = cp3 + Vector2(0.0, -10.0 - bh + 11.0)
 			for ln in lines:
-				var tc2 := Color(1, 0.95, 0.70) if ln == cv else Color(1, 1, 1)
-				var pos2 := lp + Vector2(-50.0, 0.0)
-				c.draw_string_outline(font, pos2, ln, HORIZONTAL_ALIGNMENT_CENTER, 100.0, 12, 4, Color(0, 0, 0, 0.9))
-				c.draw_string(font, pos2, ln, HORIZONTAL_ALIGNMENT_CENTER, 100.0, 12, tc2)
+				var tc2 := Color(1, 0.93, 0.62) if ln == cv else (Color(1.0, 0.92, 0.7) if is_me else Color(0.94, 0.95, 0.98))
+				var pos2 := lp + Vector2(-70.0, 0.0)
+				var txt2: String = ln if ln == cv else Gfx.spaced(String(ln).to_upper())
+				Gfx.label(c, font, pos2, txt2, 12 if ln != cv else 12, tc2, 140.0, HORIZONTAL_ALIGNMENT_CENTER, 4)
 				lp.y += 13.0
 	var ramp := layer_ramp()
 	var kind: String = ramp[0]
@@ -1073,7 +1186,7 @@ func draw_map() -> void:
 		var lx := 10.0
 		var ly := 26.0
 		var lw := 130.0
-		c.draw_rect(Rect2(lx - 6.0, ly - 18.0, lw + 12.0, 38.0), Color(0, 0, 0, 0.45))
+		Gfx.plate(c, Rect2(lx - 8.0, ly - 20.0, lw + 16.0, 42.0))
 		for k in 26:
 			var t: float = float(k) / 25.0
 			var col2 := Color.WHITE
@@ -1083,7 +1196,7 @@ func draw_map() -> void:
 				col2 = scale_color(1.0 - t).darkened(0.1)
 			else:
 				col2 = Color.from_hsv(0.58, 0.15 + 0.6 * t, 0.55 + 0.35 * t)
-			c.draw_rect(Rect2(lx + lw * float(k) / 26.0, ly, lw / 26.0 + 0.6, 8.0), col2)
+			c.draw_rect(Rect2(lx + lw * float(k) / 26.0, ly, lw / 26.0 + 0.6, 9.0), col2)
 		c.draw_string(font, Vector2(lx, ly - 4.0), String(ramp[1]), HORIZONTAL_ALIGNMENT_LEFT, lw, 11, C_DIM)
 		c.draw_string(font, Vector2(lx, ly - 4.0), String(ramp[2]), HORIZONTAL_ALIGNMENT_RIGHT, lw, 11, C_DIM)
 	draw_war_tokens(c, s, off, font)

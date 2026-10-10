@@ -37,6 +37,7 @@ func ext_load_countries() -> Dictionary:
 	return out
 const GoodsView := preload("res://scripts/classes/goods_view.gd")
 const CountryMap := preload("res://scripts/classes/country_map.gd")
+const Gfx := preload("res://scripts/classes/gfx.gd")
 
 const START_YEAR := 2026
 

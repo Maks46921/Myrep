@@ -37,6 +37,11 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	sb.shadow_offset = Vector2(0.0, 3.0)
 	bg.add_theme_stylebox_override("panel", sb)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# v45_1: мягкий отблеск сверху окна
+	bg.draw.connect(func() -> void:
+		var hh: float = minf(90.0, bg.size.y * 0.5)
+		bg.draw_polygon(PackedVector2Array([Vector2(1.0, 1.0), Vector2(bg.size.x - 1.0, 1.0), Vector2(bg.size.x - 1.0, hh), Vector2(1.0, hh)]),
+			PackedColorArray([Color(1, 1, 1, 0.035), Color(1, 1, 1, 0.035), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)])))
 	add_child(bg)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_vb = VBoxContainer.new()
@@ -57,6 +62,14 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	_title_bar.mouse_filter = Control.MOUSE_FILTER_STOP
 	_title_bar.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	_title_bar.gui_input.connect(_title_input)
+	# v45_1: градиент цвета раздела в заголовке
+	_title_bar.draw.connect(func() -> void:
+		var r := Rect2(Vector2(3.0, 0.0), _title_bar.size - Vector2(3.0, 0.0))
+		var a0 := Color(accent.r, accent.g, accent.b, 0.30)
+		var a1 := Color(accent.r, accent.g, accent.b, 0.0)
+		_title_bar.draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+			PackedColorArray([a0, a1, a1, a0]))
+		_title_bar.draw_line(Vector2(3.0, 0.5), Vector2(_title_bar.size.x * 0.6, 0.5), Color(1, 1, 1, 0.10), 1.0))
 	_vb.add_child(_title_bar)
 	var hb := HBoxContainer.new()
 	_title_bar.add_child(hb)
