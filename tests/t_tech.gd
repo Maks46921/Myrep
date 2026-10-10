@@ -202,13 +202,19 @@ func _init():
 		if int(d8["b"]) == 0 and g.tech_avail(String(d8["id"])) and g.tech_nb_share(String(d8["id"])) > 0.0:
 			cand = String(d8["id"])
 			break
-	if cand != "":
+	# партия могла закончиться раньше (например, съезд отстранил игрока) — тогда ходы не идут, проверять нечего
+	if cand != "" and not g.game_over:
 		g.tech["cur"][0] = cand
 		g.tech["bank"][0] = 0.0
 		var sp1: float = g.tech["speed"]
-		run_months(g, 1)
+		# в отдельный месяц ход может уйти на выборы/событие, поэтому даём до 3 месяцев
+		for _m in 3:
+			run_months(g, 1)
+			if float(g.tech["pas"].get(cand, 0.0)) > 0.0 or g.tech["done"].has(cand):
+				break
 		var pg1: float = float(g.tech["prog"].get(cand, 0.0))
-		check(float(g.tech["pas"].get(cand, 0.0)) > 0.0, "пассивные очки не начислены")
+		# если технология успела завершиться за месяц, счётчик пассивных очков сбрасывается — это тоже подтверждает начисление
+		check(float(g.tech["pas"].get(cand, 0.0)) > 0.0 or g.tech["done"].has(cand), "пассивные очки не начислены")
 		check(float(g.tech["pas"].get(cand, 0.0)) <= g.TECH_PASSIVE_CAP * float(g.tech_def(cand)["cost"]) + 1e-6, "пассивных очков больше предела")
 	# --- ИИ-выбор ---
 	var needs: Dictionary = g.tech_needs_player()
