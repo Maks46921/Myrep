@@ -245,6 +245,18 @@ func election_continue() -> void:
 func build_event_window() -> void:
 	var w: FloatWindow = new_window("event", "Требуется решение", -2, Rect2(0.15, 0.02, 0.52, 0.92))
 	w.custom_minimum_size = Vector2(460.0, 320.0)
+	# v45_1: затемнение под окном решения (щелчки не перехватывает)
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.01, 0.03, 0.45)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.visible = false
+	workspace.add_child(dim)
+	workspace.move_child(dim, w.get_index())
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	w.visibility_changed.connect(func() -> void:
+		dim.visible = w.visible
+		if w.visible:
+			workspace.move_child(dim, maxi(0, w.get_index() - 1) if dim.get_index() < w.get_index() else w.get_index()))
 	ev_banner = PanelContainer.new()
 	ev_banner.add_theme_stylebox_override("panel", ev_style(C_PURPLE))
 	w.body.add_child(ev_banner)
