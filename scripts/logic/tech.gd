@@ -1,6 +1,6 @@
 # Технологии (v39_1): три ветки исследований, специальные сооружения, скорость исследований с мягким потолком.
 # Скорость = базовая × (расходы на образование) × (сооружения и технологии). Выше потолка прирост скорости убывает
-# (предел — вдвое выше потолка). Потолок растёт со временем, с ВВП и со свободой слова.
+# (предел — 1,6 потолка). Потолок растёт со временем, с ВВП и со свободой слова.
 # Готовые технологии добавляют прибавки к модификаторам страны (tech_apply_mods), сооружения усиливают их (tech_power).
 extends "res://scripts/logic/society.gd"
 
@@ -12,7 +12,7 @@ func tech_init() -> void:
 	tech_idx.clear()
 	for k in TECHS.size():
 		tech_idx[String(TECHS[k]["id"])] = k
-	tech = {"done": {}, "prog": {}, "cur": ["", "", ""], "bank": [0.0, 0.0, 0.0], "w": [1, 1, 1], "auto": true, "bld": {}, "q": [],
+	tech = {"done": {}, "prog": {}, "cur": ["", "", ""], "bank": [0.0, 0.0, 0.0], "wait": [0, 0, 0], "w": [1, 1, 1], "auto": true, "bld": {}, "q": [],
 		"speed": 0.0, "raw": 0.0, "cap": 0.0, "idle": false, "pts": 0.0,
 		"h": {"s": [], "c": [], "r": []}}
 	for d in TECH_BUILDINGS:
@@ -37,12 +37,27 @@ func tech_done(id: String) -> bool:
 	return tech.has("done") and (tech["done"] as Dictionary).has(id)
 
 
-func tech_prev(id: String) -> String:
-	# предыдущая технология той же ветки ("" у первой)
-	var k: int = int(tech_idx.get(id, 0))
-	for j in range(k - 1, -1, -1):
-		if int(TECHS[j]["b"]) == int(TECHS[k]["b"]):
-			return String(TECHS[j]["id"])
+func tech_alts(id: String) -> Array:
+	# другие технологии того же уровня и ветки: изучить можно только одну из группы
+	var d := tech_def(id)
+	var out: Array = []
+	if d.is_empty():
+		return out
+	for o in TECHS:
+		if int(o["b"]) == int(d["b"]) and int(o["t"]) == int(d["t"]) and o["id"] != id:
+			out.append(String(o["id"]))
+	return out
+
+
+func tech_is_choice(id: String) -> bool:
+	return tech_alts(id).size() > 0
+
+
+func tech_tier_done(b: int, t: int) -> String:
+	# id изученной технологии уровня t ветки b ("" — нет)
+	for o in TECHS:
+		if int(o["b"]) == b and int(o["t"]) == t and tech_done(String(o["id"])):
+			return String(o["id"])
 	return ""
 
 
@@ -53,14 +68,15 @@ func tech_missing(id: String) -> String:
 		return "нет такой технологии"
 	if tech_done(id):
 		return "уже изучена"
-	var pv := tech_prev(id)
-	if pv != "" and not tech_done(pv):
-		return "сначала «%s»" % tech_def(pv)["name"]
+	for a in tech_alts(id):
+		if tech_done(String(a)):
+			return "не выбрана: изучена «%s»" % tech_def(String(a))["name"]
+	if int(d["t"]) > 0 and tech_tier_done(int(d["b"]), int(d["t"]) - 1) == "":
+		return "нужен предыдущий уровень"
 	for r in d.get("req", []):
 		if not tech_done(String(r)):
 			return "нужна «%s»" % tech_def(String(r))["name"]
-	var yrs: float = years_passed()
-	if yrs < float(d["yr"]):
+	if years_passed() < float(d["yr"]):
 		return "доступна с %d года" % (START_YEAR + int(d["yr"]))
 	return ""
 
@@ -124,11 +140,11 @@ func tech_raw() -> float:
 
 
 func tech_soft(raw: float, cap: float) -> float:
-	# до потолка — линейно; выше — прирост убывает, предел 2×потолок
+	# до потолка — линейно; выше — прирост убывает, предел 1,6×потолок
 	if raw <= cap:
 		return maxf(raw, 0.0)
 	var ex: float = raw - cap
-	return cap + ex / (1.0 + ex / cap)
+	return cap + ex / (1.0 + ex / (0.6 * cap))
 
 
 func tech_refresh_rates() -> void:
@@ -204,21 +220,43 @@ func tech_set_weight(b: int, dw: int) -> void:
 	refresh()
 
 
-func tech_auto_pick(b: int) -> String:
+func tech_auto_pick(b: int, allow_choice: bool = false) -> String:
+	# самая дешёвая из доступных; технологии «на выбор» берёт только с allow_choice
 	var best := ""
 	var bl := 1e18
 	for d in TECHS:
-		if int(d["b"]) != b or not tech_avail(String(d["id"])):
+		var id: String = d["id"]
+		if int(d["b"]) != b or not tech_avail(id):
 			continue
-		var left: float = float(d["cost"]) - float(tech["prog"].get(d["id"], 0.0))
+		if not allow_choice and tech_is_choice(id):
+			continue
+		var left: float = float(d["cost"]) - float(tech["prog"].get(id, 0.0))
 		if left < bl:
 			bl = left
-			best = String(d["id"])
+			best = id
 	return best
+
+
+func tech_choice_waiting(b: int) -> bool:
+	# в ветке открыт выбор, а технология не выбрана
+	if String(tech["cur"][b]) != "":
+		return false
+	for d in TECHS:
+		if int(d["b"]) == b and tech_is_choice(String(d["id"])) and tech_avail(String(d["id"])):
+			return true
+	return false
 
 
 func tech_progress(id: String) -> float:
 	return float(tech["prog"].get(id, 0.0)) / maxf(1.0, float(tech_def(id).get("cost", 1.0)))
+
+
+func tech_total() -> int:
+	# сколько технологий можно изучить в одной игре (по одной на уровень ветки)
+	var seen := {}
+	for d in TECHS:
+		seen["%d_%d" % [int(d["b"]), int(d["t"])]] = true
+	return seen.size()
 
 
 func tech_count() -> int:
@@ -244,6 +282,16 @@ func tech_month() -> void:
 			tech["cur"][b] = ""
 		if String(tech["cur"][b]) == "" and bool(tech["auto"]):
 			tech["cur"][b] = tech_auto_pick(b)
+			if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
+				# выбор за вами; автовыбор берёт сам лишь после полугода ожидания (или если партией управляет ИИ)
+				tech["wait"][b] = int(tech["wait"][b]) + 1
+				if int(tech["wait"][b]) >= 6 or observer:
+					tech["cur"][b] = tech_auto_pick(b, true)
+					tech["wait"][b] = 0
+					if String(tech["cur"][b]) != "":
+						log_tag("НАУКА", COL_DIM, "%s: ветка «%s» не получила вашего выбора — автоматически выбрано «%s»." % [date_text(), String(TECH_BRANCHES[b]["name"]).to_lower(), tech_def(String(tech["cur"][b]))["name"]])
+			else:
+				tech["wait"][b] = 0
 	tech_refresh_rates()
 	var spd: float = tech["speed"]
 	var wsum := 0.0
@@ -273,6 +321,8 @@ func tech_month() -> void:
 				log_tag("НАУКА", COL_GOOD, "%s: изучена технология «%s» (%s ветка). %s" % [date_text(), d["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), tech_fx_text(d)])
 				if bool(tech["auto"]):
 					tech["cur"][b] = tech_auto_pick(b)
+					if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
+						log_tag("НАУКА", COL_WARN, "В ветке «%s» открыт выбор: изучить можно только одну из технологий. Выберите в окне ветки (иначе через полгода выберется само)." % String(TECH_BRANCHES[b]["name"]).to_lower())
 			else:
 				tech["prog"][id] = pg
 	var h: Dictionary = tech["h"]

@@ -43,7 +43,18 @@ func _init():
 				check(int(ids[r]["yr"]) <= int(d["yr"]), "%s раньше своей зависимости %s" % [d["id"], r])
 		for k in d["fx"]:
 			check(g.BASE_MODS.has(k) and g.MOD_INFO.has(k), "%s: неизвестный модификатор %s" % [d["id"], k])
-	check(per == [10, 10, 10], "в каждой ветке по 10 технологий: %s" % str(per))
+	check(per == [19, 19, 19], "в каждой ветке по 19 технологий: %s" % str(per))
+	check(g.tech_total() == 36, "36 уровней: %d" % g.tech_total())
+	# выбор: на уровнях с вариантами они взаимоисключающие
+	var nch := 0
+	for d in g.TECHS:
+		var al: Array = g.tech_alts(String(d["id"]))
+		if al.size() > 0:
+			nch += 1
+			for a in al:
+				check(g.tech_alts(String(a)).has(d["id"]), "несимметричный выбор %s/%s" % [d["id"], a])
+				check(int(ids[a]["yr"]) == int(d["yr"]), "варианты одного уровня открываются одновременно")
+	check(nch == 36, "вариантов на выбор: %d" % nch)
 	for b in g.TECH_BUILDINGS:
 		check(String(b["need"]) == "" or ids.has(b["need"]), "сооружение %s: нет технологии %s" % [b["id"], b["need"]])
 	# --- старт ---
@@ -80,7 +91,7 @@ func _init():
 		g.tech_refresh_rates()
 		var sp: float = g.tech["speed"]
 		check(sp > sp_prev, "скорость должна расти с расходами на образование (×%.1f)" % k)
-		check(sp <= 2.0 * g.tech["cap"] + 1e-6, "скорость не выше двух потолков")
+		check(sp <= 1.6 * g.tech["cap"] + 1e-6, "скорость не выше 1,6 потолка")
 		if k > 1.0 and raw_prev > g.tech["cap"]:
 			var gain: float = (sp - sp_prev) / maxf(1e-9, float(g.tech["raw"]) - raw_prev)
 			check(gain < 1.0, "выше потолка отдача должна убывать")
@@ -124,8 +135,10 @@ func _init():
 	check(any_fx, "изученные технологии должны менять модификаторы")
 	for id in g.tech["done"]:
 		check(g.tech_missing(String(id)) == "уже изучена", "изученная %s" % id)
-		var pv: String = g.tech_prev(String(id))
-		check(pv == "" or g.tech_done(pv), "%s изучена без предыдущей" % id)
+		var dd: Dictionary = g.tech_def(String(id))
+		check(int(dd["t"]) == 0 or g.tech_tier_done(int(dd["b"]), int(dd["t"]) - 1) != "", "%s изучена без предыдущего уровня" % id)
+		for a in g.tech_alts(String(id)):
+			check(not g.tech_done(String(a)), "изучены обе взаимоисключающие %s и %s" % [id, a])
 		check(int(g.tech_def(String(id))["yr"]) <= g.tech["done"][id] / 12 + 1, "%s изучена раньше срока" % id)
 	check(not is_nan(g.gdp) and not is_nan(g.debt), "NaN в экономике")
 	# --- ручной выбор ---

@@ -32,12 +32,12 @@ func build_tech_windows() -> void:
 	add_note(w.body, "Скорость исследований зависит от расходов на образование (ползунок в бюджете) и от сооружений. Выше «потолка» прирост скорости быстро слабеет. Потолок растёт со временем, ВВП и свободой слова.", true)
 
 	for b3 in 3:
-		var wb: FloatWindow = new_window("tw_b%d" % b3, "Ветка: %s" % String(TECH_BRANCHES[b3]["name"]).to_lower(), 15, Rect2(0.22 + 0.16 * b3, 0.0, 0.16, 0.64))
+		var wb: FloatWindow = new_window("tw_b%d" % b3, "Ветка: %s" % String(TECH_BRANCHES[b3]["name"]).to_lower(), 15, Rect2(0.22 + 0.16 * b3, 0.0, 0.16, 0.74))
 		var rt := make_rt(wb.body)
 		rt.meta_clicked.connect(on_tech_meta.bind(b3))
 		tw_branch_rt.append(rt)
 
-	var wc: FloatWindow = new_window("tw_bld", "Научные сооружения", 15, Rect2(0.22, 0.64, 0.48, 0.36))
+	var wc: FloatWindow = new_window("tw_bld", "Научные сооружения", 15, Rect2(0.22, 0.74, 0.48, 0.26))
 	tw_bld_rt = make_rt(wc.body)
 	tw_bld_box = VBoxContainer.new()
 	tw_bld_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -101,7 +101,7 @@ func update_tech_windows() -> void:
 	var bonus: float = tech_sum("cp") + tech_bsum("cpb", -2)
 	if bonus > 0.0:
 		s += "Технологии и лаборатории: +%.0f%%\n" % (bonus * 100.0)
-	s += "\n[b]Изучено: %d из %d[/b] · накоплено очков: %.0f" % [tech_count(), TECHS.size(), float(tech["pts"])]
+	s += "\n[b]Изучено: %d из %d[/b] · накоплено очков: %.0f" % [tech_count(), tech_total(), float(tech["pts"])]
 	if bool(tech["idle"]):
 		s += "\n[color=%s]Всем веткам задан вес 0: исследований нет.[/color]" % COL_BAD
 	var wsum := 0.0
@@ -114,6 +114,12 @@ func update_tech_windows() -> void:
 		if String(tech["cur"][b2]) == "":
 			st = " (нечего изучать — копится запас)"
 		s += "[color=%s]■[/color] %s: вес %d → %.1f очк./мес.%s\n" % [TECH_BRANCHES[b2]["col"], TECH_BRANCHES[b2]["name"], int(tech["w"][b2]), spd * sh, st]
+	var nch := 0
+	for b6 in 3:
+		if tech_choice_waiting(b6):
+			nch += 1
+	if nch > 0:
+		s += "\n[color=%s][b]Ждут вашего выбора: %d ветк.[/b] (в окнах веток отмечено «Нужен ваш выбор»)[/color]" % [COL_WARN, nch]
 	var up: float = tech_edu_upkeep()
 	if up > 0.0:
 		s += "\nСодержание сооружений: %.2f%% ВВП (%.1f млрд) в год — входит в расходы на образование." % [up, gdp * up / 100.0]
@@ -146,28 +152,44 @@ func tech_clear(box: Control) -> void:
 		c.queue_free()
 
 
+func tech_line(d: Dictionary, b: int) -> String:
+	var id: String = d["id"]
+	var bc: String = TECH_BRANCHES[b]["col"]
+	var miss := tech_missing(id)
+	if tech_done(id):
+		return "\n[color=%s]✔ %s[/color]\n[color=%s]%s[/color]" % [COL_GOOD, d["name"], COL_DIM, tech_fx_text(d)]
+	if String(tech["cur"][b]) == id:
+		return "\n[color=%s][b]▶ %s[/b][/color]\n%s %.0f%% (%d очк.)\n[color=%s]%s\n%s[/color]" % [bc, d["name"], tech_bar(tech_progress(id)), tech_progress(id) * 100.0, int(d["cost"]), COL_DIM, d["d"], tech_fx_text(d)]
+	if miss == "":
+		return "\n[url=%s][color=%s]○ %s[/color][/url] [color=%s]%d очк.[/color]\n[color=%s]%s\n%s[/color]" % [id, bc, d["name"], COL_DIM, int(d["cost"]), COL_DIM, d["d"], tech_fx_text(d)]
+	if miss.begins_with("не выбрана"):
+		return "\n[color=%s]✖ %s — %s[/color]" % [COL_DIM, d["name"], miss]
+	return "\n[color=%s]· %s — %s[/color]" % [COL_DIM, d["name"], miss]
+
+
 func tech_branch_text(b: int) -> void:
 	var rt: RichTextLabel = tw_branch_rt[b]
-	var bc: String = TECH_BRANCHES[b]["col"]
 	var t := "[color=%s]%s[/color]\nСила технологий ветки: [b]×%.2f[/b] (даёт научная инфраструктура)\n" % [COL_DIM, TECH_BRANCHES[b]["d"], tech_power(b)]
 	var bank: float = float(tech["bank"][b])
 	if bank >= 1.0:
 		t += "[color=%s]Запас очков: %.0f — достанется следующей технологии.[/color]\n" % [COL_DIM, bank]
-	if String(tech["cur"][b]) == "" and not bool(tech["auto"]):
+	if tech_choice_waiting(b):
+		t += "[color=%s][b]Нужен ваш выбор[/b] — щёлкните по названию.%s[/color]\n" % [COL_WARN, (" Авто через %d мес." % (6 - int(tech["wait"][b]))) if bool(tech["auto"]) else ""]
+	elif String(tech["cur"][b]) == "" and not bool(tech["auto"]):
 		t += "[color=%s]Ветка без задачи: выберите технологию (щелчок по названию) или включите автовыбор.[/color]\n" % COL_WARN
+	var last_t := -1
 	for d in TECHS:
 		if int(d["b"]) != b:
 			continue
-		var id: String = d["id"]
-		var miss := tech_missing(id)
-		if tech_done(id):
-			t += "\n[color=%s]✔ %s[/color]\n[color=%s]%s[/color]" % [COL_GOOD, d["name"], COL_DIM, tech_fx_text(d)]
-		elif String(tech["cur"][b]) == id:
-			t += "\n[color=%s][b]▶ %s[/b][/color]\n%s %.0f%% (%d очк.)\n[color=%s]%s[/color]" % [bc, d["name"], tech_bar(tech_progress(id)), tech_progress(id) * 100.0, int(d["cost"]), COL_DIM, d["d"]]
-		elif miss == "":
-			t += "\n[url=%s][color=%s]○ %s[/color][/url] [color=%s]%d очк.[/color]\n[color=%s]%s[/color]" % [id, bc, d["name"], COL_DIM, int(d["cost"]), COL_DIM, d["d"]]
-		else:
-			t += "\n[color=%s]· %s — %s[/color]" % [COL_DIM, d["name"], miss]
+		var tr: int = int(d["t"])
+		if tr != last_t:
+			last_t = tr
+			var opts := 1 + tech_alts(String(d["id"])).size()
+			var hdr := "Уровень %d" % (tr + 1)
+			if opts > 1:
+				hdr += " — выбор: одна из %d" % opts
+			t += "\n[color=%s][b]%s[/b][/color]" % [COL_DIM, hdr]
+		t += tech_line(d, b)
 	rt.text = t
 
 

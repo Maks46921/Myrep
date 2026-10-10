@@ -20,8 +20,8 @@
 
 Переменные (2): `WORLD_UNITS`, `ATE`
 
-### `scripts/data/data_tech.gd`  (105 строк)
-Технологии (v39_1): три ветки по 10 технологий на 100 лет вперёд и специальные сооружения.
+### `scripts/data/data_tech.gd`  (161 строк)
+Технологии (v40_1): три ветки по 12 уровней на 100 лет вперёд (57 технологий; на 5 уровнях каждой ветки выбор «одна из 2–3») и специальные сооружения.
 
 Константы (8): `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`
 
@@ -128,10 +128,10 @@ v36: административно-территориальные единиц�
 
 Переменные (3): `SOC`, `soc`, `soc_rng`
 
-### `scripts/logic/tech.gd`  (299 строк)
+### `scripts/logic/tech.gd`  (349 строк)
 Технологии (v39_1): три ветки исследований, специальные сооружения, скорость исследований с мягким потолком.
 
-Функции (27): `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_prev`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_progress`, `tech_count`, `tech_month`, `tech_fx_text`
+Функции (31): `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`
 
 Переменные (2): `tech`, `tech_idx`
 
@@ -281,10 +281,10 @@ v38: политика войны.
 
 Переменные (14): `sw_rel_rt`, `sw_pol_rt`, `sw_mig_rt`, `sw_reg_rt`, `sw_btn`, `xw_list_rt`, `xw_info_rt`, `xw_btn`, `sw_chart`, `sw_regchart`, `sw_spk_t`, `sw_spk_n`, `xw_chart`, `xw_spk`
 
-### `scripts/ui/ui_tech.gd`  (208 строк)
+### `scripts/ui/ui_tech.gd`  (230 строк)
 Интерфейс: «Технологии» (desk 15).
 
-Функции (13): `build_tech_windows`, `on_tech_meta`, `on_tech_weight`, `on_tech_auto`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `update_tech_windows`, `tech_short`, `tech_clear`, `tech_branch_text`, `tech_build_buildings`, `tech_buildings_text`
+Функции (14): `build_tech_windows`, `on_tech_meta`, `on_tech_weight`, `on_tech_auto`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `update_tech_windows`, `tech_short`, `tech_clear`, `tech_line`, `tech_branch_text`, `tech_build_buildings`, `tech_buildings_text`
 
 Переменные (8): `tw_sum_rt`, `tw_spk`, `tw_branch_rt`, `tw_bld_rt`, `tw_bld_box`, `tw_btn`, `tw_sel_b`, `tw_sig`
 
