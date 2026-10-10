@@ -8,6 +8,7 @@ var sw_reg_rt: RichTextLabel
 var sw_btn: Dictionary = {}
 var xw_list_rt: RichTextLabel
 var xw_info_rt: RichTextLabel
+var xw_fa_rt: RichTextLabel   # v47_1: «как к вам относятся» — под кнопками, чтобы они не уезжали
 var xw_btn: Dictionary = {}
 var sw_chart: Control
 var sw_regchart: Control
@@ -105,6 +106,7 @@ func build_soc_windows() -> void:
 	xw_btn["tariff"].pressed.connect(on_ex_favor.bind("tariff"))
 	xw_spk = Spark.new()
 	w.body.add_child(xw_spk)
+	xw_fa_rt = make_rt(w.body)
 
 
 func on_soc_sec(d: int) -> void:
@@ -266,6 +268,7 @@ func update_ex_desk() -> void:
 	xw_spk.queue_redraw()
 	if ex_sel == "":
 		xw_info_rt.text = "Нет партнёров."
+		xw_fa_rt.text = ""
 		return
 	var c2: String = ex_sel
 	var d2: Dictionary = ex_dep(c2)
@@ -279,7 +282,8 @@ func update_ex_desk() -> void:
 	s += "Наше влияние на них: [b]%.0f[/b] · их влияние на нас: [b]%.0f[/b]\n" % [ex_leverage(c2), ex_leverage_on_us(c2)]
 	s += "Соглашение: %s · пошлины: %s · ответ партнёра: %s\n" % [EX_DEAL[int(p2["deal"])], EX_TAR[int(p2["tar"])], EX_TAR[int(p2["ret"])]]
 	s += "[color=%s]Чем выше наше влияние, тем легче просить об услугах; чем выше их влияние на нас, тем сильнее они могут давить (пошлины, ставки, энергия).[/color]" % COL_DIM
-	xw_info_rt.text = s + ("\n" + fa_explain(ex_sel) if fa_explain(ex_sel) != "" else "")
+	xw_info_rt.text = s
+	xw_fa_rt.text = fa_explain(ex_sel)
 	var off: bool = game_over
 	xw_btn["deal-"].disabled = off or int(p2["deal"]) <= 0 or ex_cd_get(c2, "deal") > 0
 	xw_btn["deal+"].disabled = off or int(p2["deal"]) >= 3 or ex_cd_get(c2, "deal") > 0

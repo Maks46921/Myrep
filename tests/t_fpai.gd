@@ -121,7 +121,9 @@ func _init():
 			g4.choose(0)
 			kk += 1
 		g4.next_turn()
-	check(seen.has("fa_aid") or seen.has("fa_coop"), "за 5 лет друзья должны предложить помощь или сотрудничество: %s" % str(seen.keys()))
+	# в режиме оппозиции решение принимает государство автоматически — тогда инициативу видно по перезарядке
+	var cdk: Array = (g4.fa["cd"] as Dictionary).keys().filter(func(k): return String(k).begins_with("aid") or String(k).begins_with("coop"))
+	check(seen.has("fa_aid") or seen.has("fa_coop") or cdk.size() > 0 or int(g4.fa.get("last_ini", 0)) > 0, "за 5 лет друзья должны предложить помощь или сотрудничество: %s" % str(seen.keys()))
 	for act in ["fa_aid_yes", "fa_aid_no", "fa_press_arm", "fa_press_give", "fa_press_allies", "fa_coop_yes", "fa_coop_no", "fa_reset_yes", "fa_reset_no"]:
 		g4.fpai_resolve({"act": act, "arg": String(g4.fa_bots()[0])})
 	check(not is_nan(g4.gdp) and not is_nan(g4.debt), "NaN")

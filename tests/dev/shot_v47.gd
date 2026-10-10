@@ -34,6 +34,13 @@ func _init():
 	g.show_desk(10)
 	for i in 5: await process_frame
 	g.on_ex_meta(fr)
+	var wi = g.wins["xw_info"]
+	wi.size = Vector2(wi.size.x + 40.0, 900.0)
+	wi.move_to_front()
+	for i in 4: await process_frame
+	var sc = wi.body
+	while sc != null and not (sc is ScrollContainer): sc = sc.get_parent()
+	if sc != null: sc.scroll_vertical = 100000
 	await snap("strana", outp)
 	# карточка агента: безработный, если есть
 	g.show_desk(6)
