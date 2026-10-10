@@ -199,6 +199,8 @@ func fx_items(fx: Dictionary, rid: int = -1) -> Array:
 			out.append(["зоны региона сворачиваются", 0])
 	if fx.has("coal_sat"):
 		out.append(["довольство партнёров %s" % sg(fx["coal_sat"], 0), 1 if float(fx["coal_sat"]) > 0.0 else -1])
+	if fx.has("dip_all") and absf(float(fx["dip_all"])) > 0.001:
+		out.append(["отношения с другими странами %s" % sg(fx["dip_all"], 1), 1 if float(fx["dip_all"]) > 0.0 else -1])
 	if fx.get("coal_demands", false):
 		out.append(["выполнить требования партнёров", -1])
 	if fx.has("psat") and event_party > 0:

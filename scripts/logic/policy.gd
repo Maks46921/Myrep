@@ -326,6 +326,8 @@ func describe_fx(fx: Dictionary, rid: int = -1) -> String:
 			parts.append("%s %s" % [g, sg(fx["support"][g], 0)])
 	if fx.has("capital"):
 		parts.append("политкапитал %s" % sg(fx["capital"], 0))
+	if fx.has("dip_all") and absf(float(fx["dip_all"])) > 0.001:
+		parts.append("отношения с другими странами %s" % sg(fx["dip_all"], 1))
 	if rid >= REGIONS.size():
 		rid = -1
 	if fx.has("reg") and rid >= 0:

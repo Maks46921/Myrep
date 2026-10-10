@@ -109,6 +109,7 @@ func _init():
 	for i in 4: await process_frame
 	var cnt := 0
 	var seen := {}
+	var seen_t := {}
 	for m2 in 60:
 		if g3.game_over: break
 		if g3.election_open: g3.election_continue()
@@ -117,6 +118,7 @@ func _init():
 			var idx: String = g3.ev_id(g3.current_event)
 			if not seen.has(idx):
 				seen[idx] = 0
+				seen_t[idx] = String(g3.current_event.get("t", "")).substr(0, 60) + " / " + String(g3.current_event.get("special", ""))
 			seen[idx] = int(seen[idx]) + 1
 			cnt += 1
 			g3.choose(randi() % (g3.current_event["o"] as Array).size())
@@ -126,7 +128,9 @@ func _init():
 	check(per_year >= 3.0 and per_year <= 24.0, "решений в год %.1f вне 3–24" % per_year)
 	var rep := 0
 	for s in seen:
-		if int(seen[s]) > 2: rep += 1
+		if int(seen[s]) > 2:
+			rep += 1
+			print("REPEAT ", s, " x", seen[s], " ", seen_t[s])
 	check(rep <= 3, "слишком много повторов одних и тех же событий: %d" % rep)
 	check(not is_nan(g3.gdp) and not is_nan(g3.debt), "NaN за 5 лет")
 	print("events ", cc, " решений в год %.1f, разных %d, проблем %d" % [per_year, seen.size(), bad])

@@ -653,9 +653,18 @@ func dip_events() -> void:
 	if not current_event.is_empty() or dip.is_empty():
 		return
 	var summit_months := [3, 6, 10, 12]
-	if month in summit_months and turn - dip_last_summit >= 2 and randf() < 0.55:
+	if month in summit_months and turn - dip_last_summit >= 2 and randf() < 0.42:
 		dip_last_summit = turn
-		var ev: Dictionary = DIP_SUMMITS[randi() % DIP_SUMMITS.size()] if ccode == "DE" else gen_dip_event(true)
+		# v46_1: тема саммита не повторяется 18 месяцев (несколько попыток найти свежую)
+		var ev: Dictionary = {}
+		for _try in 5:
+			var cand: Dictionary = DIP_SUMMITS[randi() % DIP_SUMMITS.size()] if ccode == "DE" else gen_dip_event(true)
+			var hc: Dictionary = ev_hist.get(ev_id(cand), {})
+			if hc.is_empty() or turn - int(hc["t"]) >= 18:
+				ev = cand
+				break
+		if ev.is_empty():
+			return
 		current_event = ev
 		event_region = -1
 		if auto_event_ok(ev):
