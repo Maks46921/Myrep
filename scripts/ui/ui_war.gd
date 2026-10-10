@@ -302,7 +302,7 @@ func update_war_windows() -> void:
 			var c2 := String(war_tgt_ids[ci])
 			var b4: Array = MIL_BASE.get(c2, [0.0, 0.0, 1.0])
 			o += "\n[b]%s[/b]: армия ≈ %.0f тыс. (боевых %.0f), резерв %.0f тыс., выучка %.2f. Ваша боевая армия %.0f тыс.\n" % [String(WORLD[c2]["name"]), float(b4[0]), float(b4[0]) * MIL_COMBAT * float((mil["loss"] as Dictionary).get(c2, 1.0)), float(b4[1]), float(b4[2]), mil_total(ccode)]
-			o += "Отношения: %.0f. %s%s\n" % [fed_rel(c2), "Общая граница по суше." if mil_land_neighbor(c2) else "Только по морю (нужен десант).", " Член НАТО." if c2 in MIL_NATO else ""]
+			o += "Отношения: %.0f. %s%s\n" % [fed_rel(c2), "Общая граница по суше." if mil_land_neighbor(c2) else "Только по морю (нужен десант).", " Член НАТО." if mil_is_nato(c2) else ""]
 			var al := mil_allies_for(c2, ccode)
 			if not al.is_empty():
 				var nms: PackedStringArray = []

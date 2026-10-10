@@ -28,6 +28,7 @@ scripts/logic/aiparty.gd
 scripts/logic/council.gd
 scripts/logic/radical.gd
 scripts/logic/revolt.gd
+scripts/logic/realism.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd
 scripts/logic/log.gd

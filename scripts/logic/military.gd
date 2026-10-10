@@ -115,6 +115,12 @@ const MIL_BASE := {
 	"EE": [7.0, 30.0, 1.0], "LV": [8.0, 18.0, 0.95], "LT": [23.0, 7.0, 1.0]}
 const MIL_NATO := ["DE", "FR", "NL", "BE", "LU", "PL", "CZ", "DK", "NO", "SE", "IT", "ES", "PT", "GB", "SI", "SK", "HU", "FI",
 	"HR", "ME", "MK", "AL", "BG", "RO", "GR", "EE", "LV", "LT"]
+func mil_is_nato(cc: String) -> bool:
+	if cc == ccode and nato_ovr >= 0:
+		return nato_ovr == 1
+	return cc in MIL_NATO
+
+
 const MIL_COMBAT := 0.55         # доля боевых частей в кадровой армии (остальное — тыл, штабы, флот и авиация)
 const MIL_DIV := 10.0            # обычная численность соединения, тыс.
 const MIL_TRUCE := 60            # месяцев перемирия после войны
@@ -702,10 +708,10 @@ func mil_land_neighbor(cc: String) -> bool:
 func mil_allies_for(victim: String, aggressor: String) -> Array:
 	# НАТО защищает своих: если на члена НАТО нападает страна вне НАТО — вступают члены НАТО, граничащие с агрессором
 	var out: Array = []
-	if not (victim in MIL_NATO) or (aggressor in MIL_NATO) or victim in mil.get("neutral", []):
+	if not mil_is_nato(victim) or mil_is_nato(aggressor) or victim in mil.get("neutral", []):
 		return out
 	for c in wsim:
-		if c == victim or c == aggressor or c == ccode or not (c in MIL_NATO) or not MIL_BASE.has(c):
+		if c == victim or c == aggressor or c == ccode or not mil_is_nato(c) or not MIL_BASE.has(c):
 			continue
 		var touch := false
 		for a in mil_cc_ates(String(c)):

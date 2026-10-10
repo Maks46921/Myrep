@@ -48,6 +48,10 @@ func radical_events() -> Array:
 	return []
 
 
+func realism_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func resolve_crisis(opt: Dictionary) -> void:
 	pass
 
@@ -269,6 +273,8 @@ func choose(i: int) -> void:
 		mil_resolve(i)
 	elif special == "revolt":
 		revolt_resolve(opt)
+	elif special == "rl":
+		realism_resolve(opt)
 	refresh()
 
 

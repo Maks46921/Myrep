@@ -215,7 +215,7 @@ func talk_avail(id: String) -> String:
 			if float(FLEET.get("navy0", {}).get(lead, {}).size()) == 0.0 or not flt_has_sea() or bool(flt.get("land", true)):
 				return "У противника нет флота или у вас нет выхода к морю."
 		"neutral":
-			if not (lead in MIL_NATO) or lead in mil.get("neutral", []):
+			if not mil_is_nato(lead) or lead in mil.get("neutral", []):
 				return "Противник не в НАТО."
 	return ""
 
@@ -488,7 +488,7 @@ func war_victim() -> String:
 
 # стартовое осуждение агрессора ag за нападение на vi
 func war_cond0(ag: String, vi: String) -> float:
-	var c: float = 20.0 + 35.0 * war_demo(vi) + (15.0 if war_both_eu(ag, vi) else 0.0) + (10.0 if vi in MIL_NATO else 0.0) - 15.0 * (1.0 - war_demo(ag))
+	var c: float = 20.0 + 35.0 * war_demo(vi) + (15.0 if war_both_eu(ag, vi) else 0.0) + (10.0 if mil_is_nato(vi) else 0.0) - 15.0 * (1.0 - war_demo(ag))
 	return clampf(c, 5.0, 100.0)
 
 
@@ -595,7 +595,7 @@ func war_intl_month() -> void:
 		add_support("Пенсионеры", -0.3)
 		add_support("Рабочие", -0.3)
 	# помощь жертве: оружие, деньги, добровольцы
-	var k_aid: float = float(it["cond"]) / 100.0 * (0.05 if vi in MIL_NATO or bool(WORLD.get(vi, {}).get("eu", false)) else 0.03)
+	var k_aid: float = float(it["cond"]) / 100.0 * (0.05 if mil_is_nato(vi) or bool(WORLD.get(vi, {}).get("eu", false)) else 0.03)
 	if months >= 1 and k_aid > 0.01:
 		var add_k := 0.0
 		for f in mil_units_of(vi):

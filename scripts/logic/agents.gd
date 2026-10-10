@@ -1,5 +1,5 @@
 # Население: подключение агентов к голосованию, шагу и протестам.
-extends "res://scripts/logic/revolt.gd"
+extends "res://scripts/logic/realism.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 

@@ -847,7 +847,7 @@ func rv_conf_act_check(id: String, k: int) -> String:
 		"ally":
 			if float(c["gaid"]) >= 8.0:
 				return "помощь уже оказана"
-			if not (ccode in MIL_NATO) and not bool(MACRO.get("eu", false)):
+			if not mil_is_nato(ccode) and not bool(MACRO.get("eu", false)):
 				return "нужно членство в НАТО или ЕС"
 		"truce":
 			if int(c["truce"]) > 0 or int(c["talk_cd"]) > 0:

@@ -130,7 +130,7 @@ func tech_freedom() -> float:
 		f += 0.10
 	elif m == 2:
 		f -= 0.20
-	return clampf(f, 0.0, 1.0)
+	return clampf(f + free_adj, 0.0, 1.0)
 
 
 func tech_sum(field: String) -> float:

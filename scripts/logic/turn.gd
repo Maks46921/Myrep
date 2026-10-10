@@ -156,6 +156,10 @@ func radical_step() -> void:
 	pass
 
 
+func realism_month() -> void:
+	pass
+
+
 func revolt_g() -> float:
 	return 0.0
 
@@ -174,6 +178,18 @@ func revolt_nationwide_uprising() -> bool:
 
 func revolt_unemp() -> float:
 	return 0.0
+
+
+func rl_g() -> float:
+	return 0.0
+
+
+func rl_infl() -> float:
+	return 0.0
+
+
+func rl_init() -> void:
+	pass
 
 
 func soc_g() -> float:
@@ -358,6 +374,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		+ fleet_g()
 		+ mil_g()
 		+ revolt_g()
+		+ rl_g()
 	)
 	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
@@ -375,7 +392,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl()) / 12.0 * dt, 0.0, 40.0)
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl()) / 12.0 * dt, 0.0, 40.0)
 	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp()
 	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
@@ -506,6 +523,7 @@ func next_turn() -> void:
 	mil_month()
 	soc_month()
 	tech_month()
+	realism_month()
 	ex_month()
 
 	# --- экономика ---
@@ -727,6 +745,7 @@ func init_state() -> void:
 	soc_init()
 	tech_init()
 	revolt_init()
+	rl_init()
 	ex_init()
 	fleet_init()
 	mil_init()
