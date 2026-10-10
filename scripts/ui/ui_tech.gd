@@ -64,7 +64,7 @@ func tech_scroll_to_frontier() -> void:
 			if tech_tier_done(b, int(t)) == "":
 				best = mini(best, int(t))
 				break
-	var x := maxf(0.0, float(best - 1) * (TechView.NW + TechView.GX))
+	var x := maxf(0.0, float(best - 1) * (TechView.NW + TechView.GX)) * float(tech_view.get("zoom"))
 	tech_scroll.scroll_horizontal = int(x)
 
 
@@ -199,7 +199,7 @@ func build_tech_windows() -> void:
 	tech_view.picked.connect(on_tech_pick)
 	tech_view.hovered.connect(on_tech_hover)
 	var ip := PanelContainer.new()
-	ip.custom_minimum_size = Vector2(0.0, 132.0)
+	ip.custom_minimum_size = Vector2(0.0, 158.0)
 	ip.add_theme_stylebox_override("panel", sbox(C_PANEL, C_BORDER, 1, 8, 10.0, 6.0))
 	rv.add_child(ip)
 	var isc := ScrollContainer.new()
@@ -217,6 +217,7 @@ func on_tech_filter(k: int) -> void:
 	tech_view.set_game(self)
 	tech_view.set_visible_branches(v)
 	tech_scroll.scroll_vertical = 0
+	tech_scroll_to_frontier.call_deferred()
 	refresh()
 
 

@@ -42,12 +42,25 @@ func _init():
 	print("pressed tabs: ", g.desk_buttons.map(func(b): return b.button_pressed))
 	for k in names.size():
 		g.on_tech_filter(k)
-		g.tech_scroll.scroll_horizontal = 0
 		g.tech_scroll.scroll_vertical = 0
 		for i in 8: await process_frame
+		g.tech_scroll_to_frontier()
 		if k == 0 and a_scroll > 0:
 			g.tech_scroll.scroll_horizontal = a_scroll
-		await create_timer(0.5).timeout
+		# наведение на доступную технологию (если есть) — подсветка и описание
+		var hv := ""
+		for d in g.TECHS:
+			var hid: String = d["id"]
+			if g.tech_view.pos.has(hid) and g.tech_avail(hid) and (g.tech_nb_share(hid) > 0.0 or hv == ""):
+				hv = hid
+				if g.tech_nb_share(hid) > 0.0:
+					break
+		if hv != "":
+			g.tech_view.hover_id = hv
+			g.on_tech_hover(hv)
+			g.tech_view.queue_redraw()
+		for i in 3: await process_frame
+		await create_timer(0.4).timeout
 		var img: Image = root.get_viewport().get_texture().get_image()
 		var path := "%s_%d_%s.png" % [outp, k, names[k]]
 		img.save_png(path)
