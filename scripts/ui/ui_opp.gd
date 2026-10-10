@@ -42,7 +42,7 @@ func build_opp_windows() -> void:
 			pact_btns[String(k["id"])] = b2
 
 	# ---- законопроекты (экран «Законы») ----
-	w = new_window("bills", "Законопроекты и поправки", 3, Rect2(0.53, 0.46, 0.175, 0.54))
+	w = new_window("bills", "Законопроекты и поправки", 3, Rect2(0.48, 0.28, 0.222, 0.32))
 	bill_opt = fed_opt(w.body, [], "Законопроекты в работе.")
 	bill_opt.item_selected.connect(on_bill_pick)
 	bill_rt = make_rt(w.body)

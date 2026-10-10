@@ -18,6 +18,7 @@ var cr_sel_reg := ""
 var cr_sel_conf := -1
 var cr_confirm: ConfirmationDialog = null
 var cr_pending := ""
+var cr_right_box: VBoxContainer = null   # правая колонка окна (сюда встраиваются секции v44_1)
 
 
 func make_crisis_button(parent: Control) -> void:
@@ -46,8 +47,6 @@ func set_crisis_open(on: bool) -> void:
 		sfx("click")
 	if on and tech_ov != null and tech_ov.visible:
 		set_tech_open(false)
-	if on:
-		set_realm_open(false)
 	cr_ov.visible = on
 	if cr_btn != null:
 		cr_btn.set_pressed_no_signal(on)
@@ -142,16 +141,18 @@ func build_crisis_windows() -> void:
 	rv_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rv_box.add_theme_constant_override("separation", 6)
 	rsc.add_child(rv_box)
+	cr_right_box = rv_box
 	cr_section(rv_box, "Регионы: протесты и сепаратизм (щёлкните по названию)")
 	cr_reg_rt = make_rt(rv_box)
 	cr_reg_rt.meta_clicked.connect(on_cr_reg_meta)
 	cr_sel_rt = make_rt(rv_box)
 	var f3 := GridContainer.new()
-	f3.columns = 4
+	f3.columns = 3
 	f3.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rv_box.add_child(f3)
 	for a2 in RV_REG_ACTS:
 		var b3 := fed_btn("%s (%.0f)" % [String(a2["name"]), float(a2["cap"])], f3, String(a2["desc"]))
+		b3.custom_minimum_size = Vector2(0.0, 44.0)
 		b3.pressed.connect(on_cr_reg_act.bind(String(a2["id"])))
 		cr_reg_btn[String(a2["id"])] = b3
 	cr_section(rv_box, "Войны и мятежи")

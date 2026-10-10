@@ -86,7 +86,7 @@ func build_law_windows() -> void:
 		law_prog.append([pl, pb, pv])
 	law_effects_rt = make_rt(w.body)
 
-	w = new_window("law_detail", "Закон и его варианты", 3, Rect2(0.22, 0.0, 0.31, 1.0))
+	w = new_window("law_detail", "Закон и его варианты", 3, Rect2(0.22, 0.0, 0.26, 1.0))
 	law_detail_head = make_rt(w.body)
 	build_law_slider(w.body)
 	law_cards.clear()
@@ -127,7 +127,7 @@ func build_law_windows() -> void:
 		vb.add_child(btn)
 		law_cards.append({"panel": panel, "bar": bar, "title": title, "badge": badge, "desc": desc, "fx": fx, "vote": vote, "btn": btn})
 
-	w = new_window("law_votes", "Голосование", 3, Rect2(0.53, 0.0, 0.175, 0.46))
+	w = new_window("law_votes", "Голосование", 3, Rect2(0.48, 0.0, 0.222, 0.28))
 	lv_head = make_rt(w.body)
 	lv_bar = StatBar.new()
 	lv_bar.custom_minimum_size = Vector2(40.0, 16.0)

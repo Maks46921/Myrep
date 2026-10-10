@@ -84,10 +84,6 @@ func make_crisis_button(parent: Control) -> void:
 	pass
 
 
-func make_realm_button(parent: Control) -> void:
-	pass
-
-
 func make_tech_button(parent: Control) -> void:
 	pass
 
@@ -327,7 +323,6 @@ func build_ui() -> void:
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
 	make_tech_button(tabs)
 	make_crisis_button(tabs)
-	make_realm_button(tabs)
 	var chip_row := HBoxContainer.new()
 	chip_row.add_theme_constant_override("separation", 4)
 	chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -430,11 +425,11 @@ func build_ui() -> void:
 	build_soc_windows()
 	build_tech_windows()
 	build_crisis_windows()
-	build_realm_windows()
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
 	build_auto_window()
+	build_realm_windows()
 	build_log_and_event()
 	for wid in WIN_DEFAULT_CLOSED:
 		if wins.has(wid):

@@ -326,7 +326,7 @@ func update_econ_windows() -> void:
 
 
 func build_goods_windows() -> void:
-	var w: FloatWindow = new_window("gd_list", "Товары: цены и спрос", 7, Rect2(0.0, 0.0, 0.37, 1.0))
+	var w: FloatWindow = new_window("gd_list", "Товары: цены и спрос", 7, Rect2(0.0, 0.0, 0.37, 0.58))
 	gd_head_rt = make_rt(w.body)
 	gd_mode_opt = OptionButton.new()
 	gd_mode_opt.add_item("Цены за 12 месяцев")
@@ -339,13 +339,13 @@ func build_goods_windows() -> void:
 	w.body.add_child(gv_goods)
 	add_note(w.body, "Цвет квадрата — отрасль-поставщик. Цена товара следует за ценой его отрасли, а ещё зависит от курса, пошлин, мировых цен на сырьё и НДС. Спрос зависит от доходов (роскошь реагирует сильнее еды) и от цены.")
 
-	w = new_window("gd_groups", "Корзины групп: кому дорожает", 7, Rect2(0.37, 0.0, 0.335, 0.52))
+	w = new_window("gd_groups", "Корзины групп: кому дорожает", 7, Rect2(0.37, 0.0, 0.335, 0.29))
 	gv_groups = GoodsView.new()
 	gv_groups.span = 6.0
 	w.body.add_child(gv_groups)
 	gd_grp_rt = make_rt(w.body)
 
-	w = new_window("gd_drv", "Что двигает цены сейчас", 7, Rect2(0.37, 0.52, 0.335, 0.48))
+	w = new_window("gd_drv", "Что двигает цены сейчас", 7, Rect2(0.37, 0.29, 0.335, 0.29))
 	gd_drv_rt = make_rt(w.body)
 
 

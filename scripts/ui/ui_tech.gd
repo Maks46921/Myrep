@@ -1,20 +1,11 @@
 # Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
 extends "res://scripts/ui/ui_soc.gd"
 
-# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
-
-
-func set_realm_open(on: bool) -> void:
-	pass
-
-
-# --- конец заглушек ---
-
-
 var tech_ov: PanelContainer = null
 var tech_btn: Button = null
 var tech_view: Control = null
 var tech_scroll: ScrollContainer = null
+var tw_left_box: VBoxContainer = null   # левая колонка (сюда встраиваются секции v44_1)
 var tw_sum_rt: RichTextLabel
 var tw_info_rt: RichTextLabel
 var tw_spk: Control
@@ -54,8 +45,6 @@ func set_tech_open(on: bool) -> void:
 		on = false
 	if on != tech_ov.visible:
 		sfx("click")
-	if on:
-		set_realm_open(false)
 	tech_ov.visible = on
 	if tech_btn != null:
 		tech_btn.set_pressed_no_signal(on)
@@ -154,6 +143,7 @@ func build_tech_windows() -> void:
 	lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lv.add_theme_constant_override("separation", 6)
 	lsc.add_child(lv)
+	tw_left_box = lv
 	tw_sum_rt = make_rt(lv)
 	add_title(lv, "Силы по веткам")
 	for b2 in TECH_NB:

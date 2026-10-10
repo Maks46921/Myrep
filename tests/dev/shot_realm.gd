@@ -25,15 +25,28 @@ func _init():
 	g.rl_do("grn_up")
 	g.rl_do("fam_up")
 	var cs: Array = g.dx_countries()
-	g.rm_dip_sel = String(g.tech_nb()[0])
-	g.dx_treaty_do("summit", g.rm_dip_sel)
+	g.dx_treaty_do("summit", String(g.tech_nb()[0]))
 	g.sv_save(1)
-	g.set_realm_open(true)
-	for pg in g.RM_PAGES:
-		g.on_realm_page(String(pg[0]))
-		g.update_realm_windows()
-		for i in 4: await process_frame
+	var shots := [[10, "ex"], [7, "goods"], [11, "soc"], [3, "laws"], [13, "war"], [1, "parl"], [8, "fed"], [0, "budget"]]
+	for sh in shots:
+		g.show_desk(int(sh[0]))
+		g.rm_dirty_all()
+		g.refresh()
+		for i in 5: await process_frame
+		await create_timer(0.3).timeout
 		var img := root.get_viewport().get_texture().get_image()
-		img.save_png("%s_%s.png" % [outp, String(pg[0])])
-		print("saved ", pg[0])
+		img.save_png("%s_%s.png" % [outp, String(sh[1])])
+		print("saved ", sh[1])
+	g.show_desk(0)
+	g.tut_idx = -1
+	g.set_crisis_open(true)
+	g.refresh()
+	for i in 5: await process_frame
+	root.get_viewport().get_texture().get_image().save_png("%s_crisis.png" % outp)
+	g.set_crisis_open(false)
+	g.set_tech_open(true)
+	g.refresh()
+	for i in 5: await process_frame
+	root.get_viewport().get_texture().get_image().save_png("%s_tech.png" % outp)
+	print("saved overlays")
 	quit()
