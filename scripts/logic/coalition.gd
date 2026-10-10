@@ -507,7 +507,10 @@ func resolve_no_confidence() -> void:
 	if rebels.size() > 0:
 		txt += " К оппозиции присоединились: %s." % ", ".join(rebels)
 	log_line("[b]%s[/b]" % txt)
-	if against >= MAJORITY:
+	if against >= MAJORITY and noc_constr and randf() >= clampf(0.35 + float(against - MAJORITY) / float(MAJORITY) * 3.0, 0.1, 0.9):
+		log_line("[color=%s]Конструктивный вотум: оппозиция набрала голоса против правительства, но не смогла договориться о преемнике. Правительство остаётся.[/color]" % COL_GOOD)
+		add_all_support(1.0)
+	elif against >= MAJORITY:
 		capital = maxf(0.0, capital - 10.0)
 		log_line("[color=%s][b]Парламент выразил недоверие правительству.[/b] Назначены досрочные выборы.[/color]" % COL_BAD)
 		hold_parliament("вотум недоверия")

@@ -38,6 +38,7 @@ const RL_GREEN := {"DE": 58, "FR": 92, "NL": 45, "BE": 70, "LU": 80, "AT": 85, "
 	"SE": 98, "GB": 65, "IE": 45, "SI": 70, "SK": 85, "HU": 70, "FI": 90, "HR": 65, "RS": 30, "BA": 40, "ME": 55, "MK": 30, "AL": 100, "XK": 10, "BG": 55,
 	"RO": 65, "GR": 50, "EE": 40, "LV": 70, "LT": 65}
 
+const RL_CONSTR := ["DE", "ES", "HU", "PL", "SI", "BE"]   # конструктивный вотум недоверия
 const RL_HIST_MAX := 480
 # уровни программ (0–3): семья, миграция, пенсионный возраст, зелёный переход, запасы газа, выравнивание регионов
 const RL_LEVELS := ["fam", "imm", "ret", "grn", "gas", "eq"]
@@ -69,6 +70,7 @@ func rl_init() -> void:
 		"h": {"age": [], "tfr": [], "cor": [], "jud": [], "free": [], "price": [], "green": [], "clim": []},
 	}
 	nato_ovr = 1 if bool(rl["b"]["nato"]) else 0
+	noc_constr = cc in RL_CONSTR
 	free_adj = 0.0
 	rl_rec_hist()
 
@@ -131,6 +133,7 @@ func realism_month() -> void:
 	rl_law_step()
 	rl_media_step()
 	rl_region_step()
+	rl_parl_step()
 	rl_pending_step()
 	rl_events()
 	rl_rec_hist()
@@ -377,6 +380,30 @@ func rl_region_step() -> void:
 			rg["hate"] = minf(100.0, float(rg["hate"]) + 0.03)
 
 
+# ---------- А6. Парламент и президент ----------
+func rl_cohab() -> bool:
+	# сожительство: президент избран от партии вне правящей коалиции
+	if String(ELEC.get("head", "")) != "direct" or opp_mode:
+		return false
+	if pres_party <= 0 or pres_party >= in_coalition.size():
+		return false
+	return not in_coalition[pres_party]
+
+
+func rl_parl_step() -> void:
+	if not rl_cohab():
+		rl["cohab"] = 0
+		return
+	rl["cohab"] = int(rl.get("cohab", 0)) + 1
+	capital = maxf(0.0, capital - 0.15)
+	if rl_cd_get("cohab") == 0 and current_event.is_empty() and not observer and randf() < 0.05:
+		rl_cd_set("cohab", 18)
+		rl_event("cohab", "Сожительство: президент из оппозиции отказался подписать назначения и вернул закон на доработку. Страна смотрит, кто уступит.", [
+			{"l": "Пойти на компромисс: уступить в назначениях (капитал −3)", "fx": {"capital": -3.0}, "act": "coh_comp"},
+			{"l": "Идти до конца: парламент преодолевает вето (капитал −6)", "fx": {"capital": -6.0}, "act": "coh_fight"},
+			{"l": "Ждать, пока всё уляжется", "fx": {}, "act": "coh_wait"}])
+
+
 # ============================================================
 #  СОБЫТИЯ
 # ============================================================
@@ -498,6 +525,18 @@ func realism_resolve(opt: Dictionary) -> void:
 			rl["d"]["age0"] = float(rl["d"]["age0"]) + 0.5
 		"demo_debt":
 			pass
+		"coh_comp":
+			add_all_support(0.5)
+			rl_log("компромисс с президентом: напряжение спало.", COL_DIM)
+		"coh_fight":
+			if randf() < 0.55:
+				add_all_support(1.0)
+				rl_log("парламент преодолел вето президента.", COL_GOOD)
+			else:
+				add_all_support(-1.5)
+				rl_log("конфликт с президентом обернулся провалом: законы застряли.", COL_BAD)
+		"coh_wait":
+			add_all_support(-0.5)
 		_:
 			diplo_resolve(opt)
 
@@ -560,6 +599,9 @@ func rl_acts(page: String) -> Array:
 			out.append({"id": "ctl_up", "name": "Усилить контроль над СМИ +1", "cap": 0.0, "desc": "Рейтинг власти чуть выше, но свобода и доверие падают, коррупция растёт.", "lv": "state", "d": 1})
 			out.append({"id": "ctl_dn", "name": "Ослабить контроль над СМИ −1", "cap": 1.0, "desc": "Больше свободы, больше критики.", "lv": "state", "d": -1})
 			out.append({"id": "fact", "name": "Центр проверки фактов (фейков −10)", "cap": 4.0, "cd": 12, "desc": "Общественный сервис против дезинформации."})
+		"parl":
+			out.append({"id": "coal_summit", "name": "Саммит коалиции: пересмотр коалиционного договора", "cap": 4.0, "cd": 12, "desc": "Встреча лидеров партнёров: довольство каждого партнёра по коалиции +8."})
+			out.append({"id": "snap", "name": "Распустить парламент и назначить досрочные выборы", "cap": 8.0, "cd": 36, "desc": "Право роспуска: можно воспользоваться высоким рейтингом. Риск: потерять большинство."})
 		"region":
 			out.append({"id": "eq_up", "name": "Выравнивание регионов +1 (0,25% ВВП/год)", "cap": 4.0, "desc": "Трансферты бедным регионам: растёт лояльность, но богатые регионы недовольны платежами.", "lv": "eq", "d": 1})
 			out.append({"id": "eq_dn", "name": "Выравнивание регионов −1", "cap": 0.0, "desc": "Меньше трансфертов.", "lv": "eq", "d": -1})
@@ -590,7 +632,7 @@ func rl_do(id: String) -> bool:
 	if not rl_on() or observer or not current_event.is_empty():
 		return false
 	var found: Dictionary = {}
-	for pg in ["blocs", "demo", "energy", "law", "media", "region"]:
+	for pg in ["blocs", "demo", "energy", "law", "media", "region", "parl"]:
 		for a in rl_acts(pg):
 			if String(a["id"]) == id:
 				found = a
@@ -669,6 +711,14 @@ func rl_do(id: String) -> bool:
 			l["jud"] = maxf(3.0, float(l["jud"]) - 8.0)
 			l["cor"] = minf(98.0, float(l["cor"]) + 3.0)
 			rl_log("Судьи заменены лояльными: власть крепче, суды слабее.", COL_WARN)
+		"coal_summit":
+			for p in range(1, PARTY_NAMES.size()):
+				if in_coalition[p]:
+					satis[p] = minf(100.0, float(satis.get(p, 55.0)) + 8.0)
+			rl_log("саммит коалиции: партнёры довольнее.", COL_GOOD)
+		"snap":
+			rl_log("парламент распущен по вашей инициативе.", COL_WARN)
+			hold_parliament("досрочные выборы по инициативе правительства")
 		"pub":
 			m["free"] = minf(98.0, float(m["free"]) + 6.0)
 			m["trust"] = minf(95.0, float(m["trust"]) + 4.0)
@@ -698,6 +748,10 @@ func rl_summary_text() -> String:
 	t += "[b]Энергия[/b]: цена %.0f (норма 100) · зависимость от импорта %.0f%% · зелёная доля %.0f%% · климатический риск %.0f\n" % [float(e["price"]), float(e["dep"]), float(e["green"]), float(e["clim"])]
 	t += "[b]Право[/b]: независимость судов %.0f · коррупция %.0f\n" % [float(l["jud"]), float(l["cor"])]
 	t += "[b]СМИ[/b]: свобода прессы %.0f · доверие %.0f · дезинформация %.0f%s\n" % [float(m["free"]), float(m["trust"]), float(m["fake"]), (" · контроль власти ×%d" % int(m["state"])) if int(m["state"]) > 0 else ""]
+	if rl_cohab():
+		t += "[b]Сожительство[/b]: президент из оппозиции, месяцев: %d\n" % int(rl.get("cohab", 0))
+	if noc_constr:
+		t += "[b]Вотум недоверия[/b]: конструктивный (нужен преемник)\n"
 	var lv: Dictionary = rl["lv"]
 	t += "[b]Программы[/b]: семья %d · миграция %d · пенсионная реформа %d · зелёный переход %d · запасы %d · выравнивание регионов %d" % [lv["fam"], lv["imm"], lv["ret"], lv["grn"], lv["gas"], lv["eq"]]
 	return t

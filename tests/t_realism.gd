@@ -36,7 +36,7 @@ func _init():
 	check(bool(b["eu"]) == (cc in g.RL_EU), "членство в ЕС не совпадает с данными: %s" % cc)
 	check(bool(b["nato"]) == (cc in g.MIL_NATO), "членство в НАТО не совпадает с данными: %s" % cc)
 	check(float(g.rl["l"]["cor"]) > 0.0 and float(g.rl["d"]["age"]) > 5.0, "стартовые значения")
-	for pg in ["blocs", "demo", "energy", "law", "media", "region"]:
+	for pg in ["blocs", "demo", "energy", "law", "media", "region", "parl"]:
 		check(g.rl_acts(pg).size() > 0, "нет действий на странице " + pg)
 	check(g.rl_summary_text().length() > 100, "сводка пуста")
 	# --- действия ---
@@ -78,6 +78,12 @@ func _init():
 		for d in g.dip: g.dip[d]["rel"] = 80.0
 		months(g, 2)
 		check(bool(g.rl["b"]["eu"]) and bool(g.MACRO["eu"]), "приём в ЕС")
+	g.capital = 90.0
+	settle(g)
+	check(g.rl_do("coal_summit"), "саммит коалиции")
+	check(g.noc_constr == (cc in g.RL_CONSTR), "конструктивный вотум")
+	for k2 in ["coh_comp", "coh_fight", "coh_wait"]:
+		g.realism_resolve({"act": k2})
 	# --- события ---
 	for k in ["shock_sub", "shock_div", "shock_none", "clim_aid", "clim_adapt", "clim_min", "scand_fire", "scand_probe", "scand_hide", "fake_fact", "fake_ban", "fake_ignore", "demo_ret", "demo_tax", "demo_debt"]:
 		g.realism_resolve({"act": k})
