@@ -12,9 +12,14 @@ func tech_init() -> void:
 	tech_idx.clear()
 	for k in TECHS.size():
 		tech_idx[String(TECHS[k]["id"])] = k
-	tech = {"done": {}, "prog": {}, "cur": ["", "", ""], "bank": [0.0, 0.0, 0.0], "wait": [0, 0, 0], "w": [1, 1, 1], "auto": true, "bld": {}, "q": [],
+	tech = {"done": {}, "prog": {}, "cur": [], "bank": [], "wait": [], "w": [], "auto": true, "bld": {}, "q": [],
 		"speed": 0.0, "raw": 0.0, "cap": 0.0, "idle": false, "pts": 0.0,
 		"h": {"s": [], "c": [], "r": []}}
+	for b in TECH_NB:
+		tech["cur"].append("")
+		tech["bank"].append(0.0)
+		tech["wait"].append(0)
+		tech["w"].append(1)
 	for d in TECH_BUILDINGS:
 		tech["bld"][d["id"]] = 0
 	tech_refresh_rates()
@@ -276,7 +281,7 @@ func tech_month() -> void:
 			log_tag("НАУКА", COL_GOOD, "%s: построено — «%s». Исследования идут быстрее, технологии сильнее." % [date_text(), bd["name"]])
 			q.remove_at(i)
 	# выбор исследований
-	for b in 3:
+	for b in TECH_NB:
 		var c: String = tech["cur"][b]
 		if c != "" and (tech_done(c) or not tech_avail(c)):
 			tech["cur"][b] = ""
@@ -295,11 +300,11 @@ func tech_month() -> void:
 	tech_refresh_rates()
 	var spd: float = tech["speed"]
 	var wsum := 0.0
-	for b in 3:
+	for b in TECH_NB:
 		wsum += float(tech["w"][b])
 	tech["idle"] = wsum <= 0.0
 	if wsum > 0.0:
-		for b in 3:
+		for b in TECH_NB:
 			if float(tech["w"][b]) <= 0.0:
 				continue
 			var add: float = spd * float(tech["w"][b]) / wsum

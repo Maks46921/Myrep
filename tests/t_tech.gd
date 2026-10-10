@@ -34,7 +34,8 @@ func _init():
 	for d in g.TECHS:
 		check(not ids.has(d["id"]), "повтор id технологии %s" % d["id"])
 		ids[d["id"]] = d
-	var per := [0, 0, 0]
+	var per := []
+	for b in g.TECH_NB: per.append(0)
 	for d in g.TECHS:
 		per[int(d["b"])] += 1
 		for r in d.get("req", []):
@@ -43,8 +44,9 @@ func _init():
 				check(int(ids[r]["yr"]) <= int(d["yr"]), "%s раньше своей зависимости %s" % [d["id"], r])
 		for k in d["fx"]:
 			check(g.BASE_MODS.has(k) and g.MOD_INFO.has(k), "%s: неизвестный модификатор %s" % [d["id"], k])
-	check(per == [19, 19, 19], "в каждой ветке по 19 технологий: %s" % str(per))
-	check(g.tech_total() == 36, "36 уровней: %d" % g.tech_total())
+	for b in g.TECH_NB:
+		check(per[b] == 19, "в каждой ветке по 19 технологий: %s" % str(per))
+	check(g.tech_total() == 12 * g.TECH_NB, "12 уровней в ветке: %d" % g.tech_total())
 	# выбор: на уровнях с вариантами они взаимоисключающие
 	var nch := 0
 	for d in g.TECHS:
@@ -54,7 +56,7 @@ func _init():
 			for a in al:
 				check(g.tech_alts(String(a)).has(d["id"]), "несимметричный выбор %s/%s" % [d["id"], a])
 				check(int(ids[a]["yr"]) == int(d["yr"]), "варианты одного уровня открываются одновременно")
-	check(nch == 36, "вариантов на выбор: %d" % nch)
+	check(nch == 12 * g.TECH_NB, "вариантов на выбор: %d" % nch)
 	for b in g.TECH_BUILDINGS:
 		check(String(b["need"]) == "" or ids.has(b["need"]), "сооружение %s: нет технологии %s" % [b["id"], b["need"]])
 	# --- старт ---
@@ -143,7 +145,7 @@ func _init():
 	check(not is_nan(g.gdp) and not is_nan(g.debt), "NaN в экономике")
 	# --- ручной выбор ---
 	g.tech["auto"] = false
-	for b in 3:
+	for b in g.TECH_NB:
 		g.tech["cur"][b] = ""
 	var pick := ""
 	for d in g.TECHS:

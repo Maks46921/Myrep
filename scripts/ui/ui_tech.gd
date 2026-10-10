@@ -12,17 +12,17 @@ var tw_sig := ""
 
 
 func build_tech_windows() -> void:
-	var w: FloatWindow = new_window("tw_sum", "Исследования", 15, Rect2(0.0, 0.0, 0.22, 1.0))
+	var w: FloatWindow = new_window("tw_sum", "Исследования", 15, Rect2(0.0, 0.0, 0.2, 1.0))
 	tw_sum_rt = make_rt(w.body)
 	var rw := HBoxContainer.new()
 	w.body.add_child(rw)
-	for b in 3:
-		tw_btn["w-%d" % b] = fed_btn("%s −" % String(TECH_BRANCHES[b]["name"]).substr(0, 4) + ".", rw, "Меньше сил на ветку «%s»." % TECH_BRANCHES[b]["name"])
+	for b in TECH_NB:
+		tw_btn["w-%d" % b] = fed_btn("%s. −" % String(TECH_BRANCHES[b]["name"]).substr(0, 4), rw, "Меньше сил на ветку «%s»." % TECH_BRANCHES[b]["name"])
 		tw_btn["w-%d" % b].pressed.connect(on_tech_weight.bind(b, -1))
 	var rw2 := HBoxContainer.new()
 	w.body.add_child(rw2)
-	for b2 in 3:
-		tw_btn["w+%d" % b2] = fed_btn("%s +" % String(TECH_BRANCHES[b2]["name"]).substr(0, 4) + ".", rw2, "Больше сил на ветку «%s»." % TECH_BRANCHES[b2]["name"])
+	for b2 in TECH_NB:
+		tw_btn["w+%d" % b2] = fed_btn("%s. +" % String(TECH_BRANCHES[b2]["name"]).substr(0, 4), rw2, "Больше сил на ветку «%s»." % TECH_BRANCHES[b2]["name"])
 		tw_btn["w+%d" % b2].pressed.connect(on_tech_weight.bind(b2, 1))
 	tw_btn["auto"] = fed_btn("Автовыбор технологий", w.body, "Если включён, свободная ветка сама берёт самую дешёвую доступную технологию. Выбрать вручную можно в любой момент: щёлкните по названию в ветке.")
 	tw_btn["auto"].toggle_mode = true
@@ -31,13 +31,13 @@ func build_tech_windows() -> void:
 	w.body.add_child(tw_spk)
 	add_note(w.body, "Скорость исследований зависит от расходов на образование (ползунок в бюджете) и от сооружений. Выше «потолка» прирост скорости быстро слабеет. Потолок растёт со временем, ВВП и свободой слова.", true)
 
-	for b3 in 3:
-		var wb: FloatWindow = new_window("tw_b%d" % b3, "Ветка: %s" % String(TECH_BRANCHES[b3]["name"]).to_lower(), 15, Rect2(0.22 + 0.16 * b3, 0.0, 0.16, 0.74))
+	for b3 in TECH_NB:
+		var wb: FloatWindow = new_window("tw_b%d" % b3, "Ветка: %s" % String(TECH_BRANCHES[b3]["name"]).to_lower(), 15, Rect2(0.2 + 0.125 * b3, 0.0, 0.125, 0.74))
 		var rt := make_rt(wb.body)
 		rt.meta_clicked.connect(on_tech_meta.bind(b3))
 		tw_branch_rt.append(rt)
 
-	var wc: FloatWindow = new_window("tw_bld", "Научные сооружения", 15, Rect2(0.22, 0.74, 0.48, 0.26))
+	var wc: FloatWindow = new_window("tw_bld", "Научные сооружения", 15, Rect2(0.2, 0.74, 0.5, 0.26))
 	tw_bld_rt = make_rt(wc.body)
 	tw_bld_box = VBoxContainer.new()
 	tw_bld_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -105,17 +105,17 @@ func update_tech_windows() -> void:
 	if bool(tech["idle"]):
 		s += "\n[color=%s]Всем веткам задан вес 0: исследований нет.[/color]" % COL_BAD
 	var wsum := 0.0
-	for b in 3:
+	for b in TECH_NB:
 		wsum += float(tech["w"][b])
 	s += "\n\n[b]Распределение сил[/b]\n"
-	for b2 in 3:
+	for b2 in TECH_NB:
 		var sh: float = float(tech["w"][b2]) / wsum if wsum > 0.0 else 0.0
 		var st := ""
 		if String(tech["cur"][b2]) == "":
 			st = " (нечего изучать — копится запас)"
 		s += "[color=%s]■[/color] %s: вес %d → %.1f очк./мес.%s\n" % [TECH_BRANCHES[b2]["col"], TECH_BRANCHES[b2]["name"], int(tech["w"][b2]), spd * sh, st]
 	var nch := 0
-	for b6 in 3:
+	for b6 in TECH_NB:
 		if tech_choice_waiting(b6):
 			nch += 1
 	if nch > 0:
@@ -125,7 +125,7 @@ func update_tech_windows() -> void:
 		s += "\nСодержание сооружений: %.2f%% ВВП (%.1f млрд) в год — входит в расходы на образование." % [up, gdp * up / 100.0]
 	tw_sum_rt.text = s
 	(tw_btn["auto"] as Button).set_pressed_no_signal(bool(tech["auto"]))
-	for b3 in 3:
+	for b3 in TECH_NB:
 		(tw_btn["w-%d" % b3] as Button).disabled = game_over or int(tech["w"][b3]) <= 0
 		(tw_btn["w+%d" % b3] as Button).disabled = game_over or int(tech["w"][b3]) >= 4
 	var hh: Dictionary = tech["h"]
@@ -137,7 +137,7 @@ func update_tech_windows() -> void:
 	if sig != tw_sig:
 		tw_sig = sig
 		tech_build_buildings()
-	for b5 in 3:
+	for b5 in TECH_NB:
 		tech_branch_text(b5)
 	tech_buildings_text()
 

@@ -24,7 +24,7 @@ func _init():
 	if media >= 0:
 		g.law_state["media_law"] = media
 	if notech:
-		g.tech["w"] = [0, 0, 0]
+		g.tech["w"] = [0, 0, 0, 0]
 	var edu_fix: float = g.pol["edu"]
 	var rows := []
 	var gdp0: float = g.gdp
@@ -46,7 +46,7 @@ func _init():
 					g.tech_build(d["id"])
 		g.next_turn()
 		if g.turn % 120 == 0:
-			rows.append("  %3d лет: техн. %2d/36 скор %.1f/потолок %.1f сыр %.1f | рост+ %.2f эфф %.2f корр %.0f | ВВП %.0f долг%% %.0f безр %.1f" % [g.turn / 12, g.tech_count(), g.tech["speed"], g.tech["cap"], g.tech["raw"], float(g.mods["growth_bonus"]), float(g.mods["edu_eff"]), float(g.lvl["corruption"]), g.gdp, g.debt / g.gdp * 100.0, g.unemployment])
+			rows.append("  %3d лет: техн. %2d/%d скор %.1f/потолок %.1f сыр %.1f | рост+ %.2f эфф %.2f корр %.0f | ВВП %.0f долг%% %.0f безр %.1f" % [g.turn / 12, g.tech_count(), g.tech_total(), g.tech["speed"], g.tech["cap"], g.tech["raw"], float(g.mods["growth_bonus"]), float(g.mods["edu_eff"]), float(g.lvl["corruption"]), g.gdp, g.debt / g.gdp * 100.0, g.unemployment])
 	print("== %s edu×%.1f bld=%d media=%d" % [g.ccode, kmul, bld, media])
 	for r in rows: print(r)
 	var ch := PackedStringArray()

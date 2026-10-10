@@ -20,10 +20,10 @@
 
 Переменные (2): `WORLD_UNITS`, `ATE`
 
-### `scripts/data/data_tech.gd`  (161 строк)
+### `scripts/data/data_tech.gd`  (206 строк)
 Технологии (v40_1): три ветки по 12 уровней на 100 лет вперёд (57 технологий; на 5 уровнях каждой ветки выбор «одна из 2–3») и специальные сооружения.
 
-Константы (8): `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`
+Константы (9): `TECH_NB`, `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`
 
 ### `scripts/data/data_countries.gd`  (6 строк)
 Пакеты данных стран (генерируются tools/gen_data из Python-описаний).
@@ -128,7 +128,7 @@ v36: административно-территориальные единиц�
 
 Переменные (3): `SOC`, `soc`, `soc_rng`
 
-### `scripts/logic/tech.gd`  (349 строк)
+### `scripts/logic/tech.gd`  (354 строк)
 Технологии (v39_1): три ветки исследований, специальные сооружения, скорость исследований с мягким потолком.
 
 Функции (31): `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`
