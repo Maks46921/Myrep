@@ -545,9 +545,9 @@ func rv_secede(i: int, how: String) -> bool:
 	wsim[code] = {"gdp": g_r, "growth": float(wsim[ccode]["growth"]) - 1.0 if wsim.has(ccode) else 0.5, "infl": inflation + 1.0, "unemp": unemployment + 1.5,
 		"debt": 40.0, "def": 3.0, "stab": 55.0, "appr": 55.0, "stance": 0.0, "gov": "переходное правительство", "crisis": {},
 		"next_elec": 36, "pot": float(wsim[ccode]["pot"]) if wsim.has(ccode) else 1.5, "gdp_hist": [g_r], "g_hist": [0.5], "i_hist": [inflation]}
-	# долг делится только при мирном разводе
-	if how != "war":
-		debt = maxf(0.0, debt - debt * share * 0.8)
+	# долг делится при любом отделении: при мирном разводе — пропорционально доле ВВП региона, при войне — 70% этой доли
+	# (иначе у сильно задолженной страны потеря региона сразу даёт дефолт: ВВП падает, долг остаётся)
+	debt = maxf(0.0, debt - debt * share * (1.0 if how != "war" else 0.7))
 	fed_set_unit_cc(ui, code)
 	fed_drop_region(i)
 	recalc_weights()
