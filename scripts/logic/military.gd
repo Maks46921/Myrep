@@ -180,7 +180,7 @@ func mil_spend_ratio() -> float:
 func mil_q(cc: String) -> float:
 	var b: Array = MIL_BASE.get(cc, [10.0, 0.0, 1.0])
 	if cc == ccode:
-		return float(b[2]) * (0.8 + 0.2 * clampf(mil_spend_ratio(), 0.5, 2.0))
+		return float(b[2]) * (0.8 + 0.2 * clampf(mil_spend_ratio(), 0.5, 2.0)) * float(mods["army_q"])
 	return float(b[2])
 
 

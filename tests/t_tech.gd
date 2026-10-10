@@ -44,9 +44,10 @@ func _init():
 				check(int(ids[r]["yr"]) <= int(d["yr"]), "%s раньше своей зависимости %s" % [d["id"], r])
 		for k in d["fx"]:
 			check(g.BASE_MODS.has(k) and g.MOD_INFO.has(k), "%s: неизвестный модификатор %s" % [d["id"], k])
-	for b in g.TECH_NB:
-		check(per[b] == 19, "в каждой ветке по 19 технологий: %s" % str(per))
-	check(g.tech_total() == 12 * g.TECH_NB, "12 уровней в ветке: %d" % g.tech_total())
+	check(g.TECHS.size() == 124 and g.TECH_NB == 5, "124 технологии в 5 ветках: %d / %d" % [g.TECHS.size(), g.TECH_NB])
+	check(g.tech_total() == 14 * g.TECH_NB, "14 уровней в ветке: %d" % g.tech_total())
+	var nmil: int = per[4]
+	check(nmil >= 20, "в военной ветке мало технологий: %d" % nmil)
 	# выбор: на уровнях с вариантами они взаимоисключающие
 	var nch := 0
 	for d in g.TECHS:
@@ -56,7 +57,7 @@ func _init():
 			for a in al:
 				check(g.tech_alts(String(a)).has(d["id"]), "несимметричный выбор %s/%s" % [d["id"], a])
 				check(int(ids[a]["yr"]) == int(d["yr"]), "варианты одного уровня открываются одновременно")
-	check(nch == 12 * g.TECH_NB, "вариантов на выбор: %d" % nch)
+	check(nch >= 6 * g.TECH_NB * 2, "вариантов на выбор: %d" % nch)
 	for b in g.TECH_BUILDINGS:
 		check(String(b["need"]) == "" or ids.has(b["need"]), "сооружение %s: нет технологии %s" % [b["id"], b["need"]])
 	# --- старт ---
@@ -160,11 +161,59 @@ func _init():
 	var hs: Array = g.tech["h"]["s"]
 	check(hs.size() > 50, "история скорости")
 	# --- окно ---
-	g.show_desk(15)
+	while not g.current_event.is_empty():
+		g.choose(0)
+	if g.election_open: g.election_continue()
+	g.set_tech_open(true)
 	g.refresh()
-	check(g.current_desk == 15, "вкладка технологий не открылась")
-	check(g.tw_sum_rt.text.contains("Скорость исследований"), "текст окна пуст")
-	g.show_desk(0)
+	for i in 3: await process_frame
+	check(g.tech_ov.visible, "окно технологий не открылось")
+	check(g.tw_sum_rt.text.contains("Скорость"), "текст окна пуст")
+	check(g.tech_view.pos.size() == g.TECHS.size(), "на схеме не все технологии: %d" % g.tech_view.pos.size())
+	g.on_tech_filter(5)
+	check(g.tech_view.pos.size() == 24 and g.tech_view.lanes.size() == 1, "фильтр ветки: %d карточек" % g.tech_view.pos.size())
+	g.on_tech_filter(0)
+	g.on_tech_hover("e0")
+	check(g.tw_info_rt.text.contains("Цифровые платформы"), "описание при наведении")
+	g.set_tech_open(false)
+	check(not g.tech_ov.visible, "окно технологий не закрылось")
+	# --- соседи и пассивное изучение ---
+	var nb: Array = g.tech_nb()
+	check(nb.size() >= 1 and not (g.ccode in nb), "соседи страны %s: %s" % [g.ccode, str(nb)])
+	var e0n: int = g.tech_nb_who("e0").size()
+	check(e0n == nb.size(), "уровень 1 на старте знают все соседи (%d из %d)" % [e0n, nb.size()])
+	for id3 in ids:
+		var sh: float = g.tech_nb_share(String(id3))
+		check(sh >= 0.0 and sh <= 1.0, "доля соседей вне 0..1 у %s" % id3)
+	var yrs0: float = g.years_passed()
+	var tot_have := 0
+	for d9 in g.TECHS:
+		tot_have += g.tech_nb_who(String(d9["id"])).size()
+	check(tot_have > 0, "соседи ничего не знают")
+	for b9 in g.TECH_NB:
+		for c9 in nb:
+			check(g.tech_nb_tiers(String(c9), b9) >= 1, "сосед %s без первого уровня" % c9)
+	g.tech["cur"][0] = ""
+	g.tech["auto"] = false
+	g.tech["prog"].clear()
+	g.tech["pas"].clear()
+	var cand := ""
+	for d8 in g.TECHS:
+		if int(d8["b"]) == 0 and g.tech_avail(String(d8["id"])) and g.tech_nb_share(String(d8["id"])) > 0.0:
+			cand = String(d8["id"])
+			break
+	if cand != "":
+		g.tech["cur"][0] = cand
+		g.tech["bank"][0] = 0.0
+		var sp1: float = g.tech["speed"]
+		run_months(g, 1)
+		var pg1: float = float(g.tech["prog"].get(cand, 0.0))
+		check(float(g.tech["pas"].get(cand, 0.0)) > 0.0, "пассивные очки не начислены")
+		check(float(g.tech["pas"].get(cand, 0.0)) <= g.TECH_PASSIVE_CAP * float(g.tech_def(cand)["cost"]) + 1e-6, "пассивных очков больше предела")
+	# --- военная ветка влияет на качество армии ---
+	g.tech["done"]["m1"] = 1
+	g.recompute_mods()
+	check(float(g.mods["army_q"]) > 1.0, "военная технология должна поднимать army_q")
 	print("[%s] изучено %d, скорость %.1f/%.1f (потолок), сооружения %s, ВВП %.0f" % [cc, g.tech_count(), g.tech["speed"], g.tech["cap"], str(g.tech["bld"]), g.gdp])
 	await drop(g)
 	print("проблем %d" % bad)

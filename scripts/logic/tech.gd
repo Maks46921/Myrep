@@ -4,6 +4,24 @@
 # Готовые технологии добавляют прибавки к модификаторам страны (tech_apply_mods), сооружения усиливают их (tech_power).
 extends "res://scripts/logic/society.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func ex_dep(cc: String) -> Dictionary:
+	return {}
+
+
+func ex_partners() -> Array:
+	return []
+
+
+func mil_land_neighbor(cc: String) -> bool:
+	return false
+
+
+# --- конец заглушек ---
+
+
 var tech: Dictionary = {}
 var tech_idx: Dictionary = {}
 
@@ -12,7 +30,7 @@ func tech_init() -> void:
 	tech_idx.clear()
 	for k in TECHS.size():
 		tech_idx[String(TECHS[k]["id"])] = k
-	tech = {"done": {}, "prog": {}, "cur": [], "bank": [], "wait": [], "w": [], "auto": true, "bld": {}, "q": [],
+	tech = {"done": {}, "prog": {}, "cur": [], "bank": [], "wait": [], "w": [], "auto": true, "bld": {}, "q": [], "pas": {}, "pasm": [], "nb": [], "pace": {}, "grp": [], "ty": [],
 		"speed": 0.0, "raw": 0.0, "cap": 0.0, "idle": false, "pts": 0.0,
 		"h": {"s": [], "c": [], "r": []}}
 	for b in TECH_NB:
@@ -20,6 +38,16 @@ func tech_init() -> void:
 		tech["bank"].append(0.0)
 		tech["wait"].append(0)
 		tech["w"].append(1)
+		tech["pasm"].append(0.0)
+		tech["grp"].append({})
+	for d in TECHS:
+		var gb: Dictionary = tech["grp"][int(d["b"])]
+		if not gb.has(int(d["t"])):
+			gb[int(d["t"])] = []
+		(gb[int(d["t"])] as Array).append(String(d["id"]))
+		while (tech["ty"] as Array).size() <= int(d["t"]):
+			(tech["ty"] as Array).append(0.0)
+		tech["ty"][int(d["t"])] = float(d["yr"])
 	for d in TECH_BUILDINGS:
 		tech["bld"][d["id"]] = 0
 	tech_refresh_rates()
@@ -314,12 +342,19 @@ func tech_month() -> void:
 				# нечего изучать (или ветка на паузе): очки копятся в запасе и достанутся следующей технологии
 				tech["bank"][b] = minf(float(tech["bank"][b]) + add, spd * 12.0)
 				continue
-			var pg: float = float(tech["prog"].get(id, 0.0)) + add + float(tech["bank"][b])
-			tech["bank"][b] = 0.0
 			var d := tech_def(id)
+			var pas := 0.0
+			var room: float = TECH_PASSIVE_CAP * float(d["cost"]) - float(tech["pas"].get(id, 0.0))
+			if room > 0.0:
+				pas = minf(tech_passive_rate(id), room)
+				tech["pas"][id] = float(tech["pas"].get(id, 0.0)) + pas
+			tech["pasm"][b] = pas
+			var pg: float = float(tech["prog"].get(id, 0.0)) + add + pas + float(tech["bank"][b])
+			tech["bank"][b] = 0.0
 			if pg >= float(d["cost"]):
 				pg -= float(d["cost"])
 				tech["prog"].erase(id)
+				tech["pas"].erase(id)
 				tech["done"][id] = turn
 				tech["cur"][b] = ""
 				tech["bank"][b] = pg
@@ -351,3 +386,98 @@ func tech_fx_text(d: Dictionary) -> String:
 	if float(d.get("cp", 0.0)) > 0.0:
 		parts.append("потолок скорости +%.0f%%" % (float(d["cp"]) * 100.0))
 	return "; ".join(parts)
+
+
+# ---------- соседи и пассивное изучение ----------
+
+
+func tech_nb() -> Array:
+	# соседи: страны с общей сухопутной границей; если их меньше трёх — самые тесные торговые партнёры
+	if tech.is_empty():
+		return []
+	if (tech["nb"] as Array).is_empty():
+		var out: Array = []
+		for c in wsim:
+			if c != ccode and mil_land_neighbor(String(c)):
+				out.append(String(c))
+		if out.size() < 3:
+			var ps: Array = ex_partners()
+			ps.sort_custom(func(a, b): return float(ex_dep(a)["out"]) + float(ex_dep(a)["in"]) > float(ex_dep(b)["out"]) + float(ex_dep(b)["in"]))
+			for c2 in ps:
+				if out.size() >= 3:
+					break
+				if not (c2 in out):
+					out.append(String(c2))
+		tech["nb"] = out
+	return tech["nb"]
+
+
+func tech_hash(c: String, tag: String) -> int:
+	return int(hash(c + "|" + tag))
+
+
+func tech_nb_pace(c: String) -> float:
+	# чем богаче страна, тем раньше она осваивает уровни (0,9…1,5 от нашего графика)
+	var pc: Dictionary = tech["pace"]
+	if not pc.has(c):
+		var g0: float = float(WORLD[c]["gdp"]) / maxf(0.1, float(WORLD[c]["pop"]))
+		var lower := 0
+		var n := 0
+		for o in wsim:
+			if o == c or not WORLD.has(o):
+				continue
+			n += 1
+			if float(WORLD[o]["gdp"]) / maxf(0.1, float(WORLD[o]["pop"])) < g0:
+				lower += 1
+		pc[c] = 1.5 - 0.6 * float(lower) / maxf(1.0, float(n))
+	return float(pc[c])
+
+
+func tech_nb_tiers(c: String, b: int) -> int:
+	# сколько уровней ветки b уже открыто у страны c (с запаздыванием и своим темпом в ветке)
+	var f: float = tech_nb_pace(c) * (0.9 + 0.3 * float(tech_hash(c, "bf%d" % b) % 100) / 100.0)
+	var lag: float = 2.0 * float(tech_hash(c, "lag%d" % b) % 100) / 100.0
+	var yrs: float = years_passed()
+	var n := 0
+	var ty: Array = tech["ty"]
+	for t in ty.size():
+		if yrs >= float(ty[t]) * f + (lag if t > 0 else 0.0):
+			n = t + 1
+		else:
+			break
+	return n
+
+
+func tech_nb_has(c: String, id: String) -> bool:
+	var d := tech_def(id)
+	if d.is_empty():
+		return false
+	var b: int = int(d["b"])
+	var t: int = int(d["t"])
+	if t >= tech_nb_tiers(c, b):
+		return false
+	var grp: Array = (tech["grp"][b] as Dictionary)[t]
+	return String(grp[tech_hash(c, "pick%d_%d" % [b, t]) % grp.size()]) == id
+
+
+func tech_nb_who(id: String) -> Array:
+	var out: Array = []
+	for c in tech_nb():
+		if tech_nb_has(String(c), id):
+			out.append(String(c))
+	return out
+
+
+func tech_nb_share(id: String) -> float:
+	var n: int = tech_nb().size()
+	if n == 0:
+		return 0.0
+	return float(tech_nb_who(id).size()) / float(n)
+
+
+func tech_passive_rate(id: String) -> float:
+	# очков в месяц, которые изучаемая технология получает от того, что её знают соседи (без учёта предела)
+	var d := tech_def(id)
+	if d.is_empty():
+		return 0.0
+	return TECH_PASSIVE * float(d["cost"]) * tech_nb_share(id)

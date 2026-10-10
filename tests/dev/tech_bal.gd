@@ -44,6 +44,9 @@ func _init():
 					g.tech_build(d["id"])
 				elif bld == 2:
 					g.tech_build(d["id"])
+		for bb in g.TECH_NB:        # внимательный игрок: на уровнях «или» сразу выбирает самую дешёвую
+			if g.tech_choice_waiting(bb):
+				g.tech["cur"][bb] = g.tech_auto_pick(bb, true)
 		g.next_turn()
 		if g.turn % 120 == 0:
 			rows.append("  %3d лет: техн. %2d/%d скор %.1f/потолок %.1f сыр %.1f | рост+ %.2f эфф %.2f корр %.0f | ВВП %.0f долг%% %.0f безр %.1f" % [g.turn / 12, g.tech_count(), g.tech_total(), g.tech["speed"], g.tech["cap"], g.tech["raw"], float(g.mods["growth_bonus"]), float(g.mods["edu_eff"]), float(g.lvl["corruption"]), g.gdp, g.debt / g.gdp * 100.0, g.unemployment])

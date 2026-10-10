@@ -5,10 +5,12 @@ func _init():
 	var years := 35
 	var outp := "/tmp/tech"
 	var cc := "DE"
+	var a_scroll := 0
 	for a in OS.get_cmdline_user_args():
 		if String(a).begins_with("years="): years = int(String(a).substr(6))
 		if String(a).begins_with("out="): outp = String(a).substr(4)
 		if String(a).begins_with("country="): cc = String(a).substr(8)
+		if String(a).begins_with("scroll="): a_scroll = int(String(a).substr(7))
 	var g = load("res://main.gd").new()
 	g.game_opts.merge({"agents": false, "ev": 1.0, "fedev": 0, "socev": 0, "exev": 0, "milev": 0, "seed": 11}, true)
 	root.add_child(g)
@@ -27,28 +29,27 @@ func _init():
 		g.capital = 100.0
 		g.pol["edu"] = edu_fix
 		if g.turn % 6 == 0:
-			for id in ["rc", "campus", "tpark", "inst", "think", "pilot"]:
+			for id in ["rc", "campus", "tpark", "inst", "think", "pilot", "milab"]:
 				g.tech_build(id)
 		g.next_turn()
-	g.show_desk(15)
+	while not g.current_event.is_empty():
+		g.choose(0)
+	if g.election_open: g.election_continue()
+	g.set_tech_open(true)
 	g.refresh()
 	for i in 10: await process_frame
-	var names := ["eco", "soc", "pol", "ind"]
-	for b in g.TECH_NB:
-		for id in g.wins:
-			var w = g.wins[id]
-			if w.desk == 15:
-				w.visible = (id == "tw_b%d" % b) or id == "tw_sum"
-		var wb = g.wins["tw_b%d" % b]
-		wb.visible = true
-		wb.frac = Rect2(0.2, 0.0, 0.5, 1.0)
-		wb.apply_frac()
-		g.wins["tw_sum"].frac = Rect2(0.0, 0.0, 0.2, 1.0)
-		g.wins["tw_sum"].apply_frac()
+	var names := ["all", "eco", "soc", "pol", "ind", "mil"]
+	print("pressed tabs: ", g.desk_buttons.map(func(b): return b.button_pressed))
+	for k in names.size():
+		g.on_tech_filter(k)
+		g.tech_scroll.scroll_horizontal = 0
+		g.tech_scroll.scroll_vertical = 0
 		for i in 8: await process_frame
+		if k == 0 and a_scroll > 0:
+			g.tech_scroll.scroll_horizontal = a_scroll
 		await create_timer(0.5).timeout
 		var img: Image = root.get_viewport().get_texture().get_image()
-		var path := "%s_%d_%s.png" % [outp, b + 1, names[b]]
+		var path := "%s_%d_%s.png" % [outp, k, names[k]]
 		img.save_png(path)
 		print("saved ", path, " ", img.get_size())
 	quit()

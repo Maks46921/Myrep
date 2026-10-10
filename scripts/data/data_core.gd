@@ -15,6 +15,7 @@ const Ico := preload("res://scripts/classes/ico.gd")
 const FaithChart := preload("res://scripts/classes/faith_chart.gd")
 const DepChart := preload("res://scripts/classes/dep_chart.gd")
 const Spark := preload("res://scripts/classes/spark.gd")
+const TechView := preload("res://scripts/classes/tech_view.gd")
 
 # Крупные данные (страны, мир, карта) лежат в data/*.dat (формат var_to_str) — не в скриптах,
 # иначе редактор Godot виснет на строках по 40 000 символов. Править через tools/extdump.gd / pretty-файлы.
@@ -480,6 +481,7 @@ const MOD_INFO := {
 	"edu_eff": {"t": "отдача расходов на образование", "k": "mul", "g": 1},
 	"health_eff": {"t": "отдача расходов на здравоохранение", "k": "mul", "g": 1},
 	"env_eff": {"t": "отдача расходов на экологию", "k": "mul", "g": 1},
+	"army_q": {"t": "качество новых и мобилизованных войск", "k": "mul", "g": 1},
 	"extra_spend": {"t": "программы в бюджете", "k": "add", "g": -1, "u": "% ВВП в год", "dg": 1},
 	"growth_bonus": {"t": "рост ВВП", "k": "add", "g": 1, "u": " п.п. в год", "dg": 2},
 	"unemp_base": {"t": "безработица", "k": "add", "g": -1, "u": " п.п.", "dg": 1},

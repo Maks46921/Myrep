@@ -4,12 +4,12 @@
 
 ## Цепочка
 
-### `scripts/data/data_core.gd`  (13866 строк)
+### `scripts/data/data_core.gd`  (13868 строк)
 Справочные таблицы игры: группы, политика, уровни, рынки, цвета и т.п. (только const).
 
 Функции (2): `ext_load`, `ext_load_countries`
 
-Константы (143): `StatBar`, `PieChart`, `ElectionView`, `HeadView`, `FloatWindow`, `MarketBar`, `EconChart`, `AgentPop`, `AgentMapView`, `AgentHistView`, `Ico`, `FaithChart`, `DepChart`, `Spark`, `COUNTRY_CODES`, `GoodsView`, `CountryMap`, `START_YEAR`, `PLAY_SPEEDS`, `PLAY_NAMES`, `MONTHS_GEN`, `MONTHS`, `COALITION_JOIN`, `COALITION_JOIN_PAID`, `COALITION_LEAVE`, `CONCESSION_COST`, `COL_GOOD`, `COL_BAD`, `COL_NEUTRAL`, `COL_HEAD`, `COL_WARN`, `COL_ELECT`, `COL_PURPLE`, `COL_TEAL`, `COL_DIM`, `COL_FAINT_HEX`, `C_BG`, `C_PANEL`, `C_PANEL2`, `C_BORDER`, `C_TEXT`, `C_DIM`, `C_FAINT`, `C_ACCENT`, `C_GOOD`, `C_WARN`, `C_BAD`, `C_PURPLE`, `C_TEAL`, `REV_COLORS`, `EXP_COLORS`, `GROUPS`, `GROUP_FX`, `EXPECT_DRIFT`, `LEVELS`, `LEVEL_RATE`, `STATE_NAMES`, `LEVEL_EFFECTS`, `MIN_FX_SCALE`, `SAT_OFFSET`, `SAT_FATIGUE`, `SAT_FATIGUE_CAP`, `COAL_EVENTS`, `SAT_LEAVE`, `REG_KEYS`, `REG_TITLES`, `SECTOR_NAMES`, `GOV_KINDS`, `GOV_DESC`, `MAP_LAYERS`, `MAP_LAYER_ORDER`, `MAP_LEGENDS`, `MARKET_COLORS`, `GOOD_PROF`, `AG_GK`, `STRUCT_CATS`, `FOCUS_NAMES`, `FOCUS_IDS`, `RATE_NEUTRAL_REAL`, `PROJECTS`, `ECON_FX_INFO`, `ECON_EVENTS`, `ECON_MEASURES`, `REGION_ACTIONS`, `LAW_CATS`, `LAW_CAT_COLORS`, `PRES_RULE_NAMES`, `MOD_INFO`, `MEASURES_BASE`, `ACTIONS`, `NEWS`, `AG_STRIDE`, `AG_POLL_N`, `AG_ZK`, `HIST_KEYS`, `EC_CHART_NAMES`, `EC_CHART_COLORS`, `FUND_IDS`, `DEM_LAW`, `LAW_PARAMS_V11`, `PARAM_DEMANDS`, `DEM_BASE`, `MIL_DEMO`, `LOG_FILTERS`, `LOG_FILTER_CATS`, `LOG_CAT_COL`, `LOG_CAT_NAME`, `LOG_TAG_CAT`, `LOG_POL_WORDS`, `LOG_ECO_WORDS`, `AP_STYLES`, `AP_STYLE_TIPS`, `PRESETS`, `AP_BUILD_MAP`, `DIP_TRACKS`, `DIP_ACTIONS`, `DIP_LAYERS`, `DIP_REL_NAMES`, `DIP_EVENTS`, `DIP_SUMMITS`, `W_OPEN`, `W_KINDS`, `EMIT_MAX`, `RAD_MONARCHIES`, `RAD_AUTH`, `RAD_CUR`, `RAD_AUTH_TOPICS`, `RAD_MARKET_TOPICS`, `RSEC`, `SEC_COLORS`, `REG_TOOLS`, `REG_EVENTS_GEN`, `REG_EVENTS_CC`, `ELEC_DATA`, `WORLD_PCOL`, `WORLD_CCOL`, `WORLD_OPEN`, `WORLD_STANCE0`, `WORLD_TRADE`, `WORLD_REL`, `WORLD_LV0`, `WORLD_CTX`, `WORLD_CAPS`
+Константы (144): `StatBar`, `PieChart`, `ElectionView`, `HeadView`, `FloatWindow`, `MarketBar`, `EconChart`, `AgentPop`, `AgentMapView`, `AgentHistView`, `Ico`, `FaithChart`, `DepChart`, `Spark`, `TechView`, `COUNTRY_CODES`, `GoodsView`, `CountryMap`, `START_YEAR`, `PLAY_SPEEDS`, `PLAY_NAMES`, `MONTHS_GEN`, `MONTHS`, `COALITION_JOIN`, `COALITION_JOIN_PAID`, `COALITION_LEAVE`, `CONCESSION_COST`, `COL_GOOD`, `COL_BAD`, `COL_NEUTRAL`, `COL_HEAD`, `COL_WARN`, `COL_ELECT`, `COL_PURPLE`, `COL_TEAL`, `COL_DIM`, `COL_FAINT_HEX`, `C_BG`, `C_PANEL`, `C_PANEL2`, `C_BORDER`, `C_TEXT`, `C_DIM`, `C_FAINT`, `C_ACCENT`, `C_GOOD`, `C_WARN`, `C_BAD`, `C_PURPLE`, `C_TEAL`, `REV_COLORS`, `EXP_COLORS`, `GROUPS`, `GROUP_FX`, `EXPECT_DRIFT`, `LEVELS`, `LEVEL_RATE`, `STATE_NAMES`, `LEVEL_EFFECTS`, `MIN_FX_SCALE`, `SAT_OFFSET`, `SAT_FATIGUE`, `SAT_FATIGUE_CAP`, `COAL_EVENTS`, `SAT_LEAVE`, `REG_KEYS`, `REG_TITLES`, `SECTOR_NAMES`, `GOV_KINDS`, `GOV_DESC`, `MAP_LAYERS`, `MAP_LAYER_ORDER`, `MAP_LEGENDS`, `MARKET_COLORS`, `GOOD_PROF`, `AG_GK`, `STRUCT_CATS`, `FOCUS_NAMES`, `FOCUS_IDS`, `RATE_NEUTRAL_REAL`, `PROJECTS`, `ECON_FX_INFO`, `ECON_EVENTS`, `ECON_MEASURES`, `REGION_ACTIONS`, `LAW_CATS`, `LAW_CAT_COLORS`, `PRES_RULE_NAMES`, `MOD_INFO`, `MEASURES_BASE`, `ACTIONS`, `NEWS`, `AG_STRIDE`, `AG_POLL_N`, `AG_ZK`, `HIST_KEYS`, `EC_CHART_NAMES`, `EC_CHART_COLORS`, `FUND_IDS`, `DEM_LAW`, `LAW_PARAMS_V11`, `PARAM_DEMANDS`, `DEM_BASE`, `MIL_DEMO`, `LOG_FILTERS`, `LOG_FILTER_CATS`, `LOG_CAT_COL`, `LOG_CAT_NAME`, `LOG_TAG_CAT`, `LOG_POL_WORDS`, `LOG_ECO_WORDS`, `AP_STYLES`, `AP_STYLE_TIPS`, `PRESETS`, `AP_BUILD_MAP`, `DIP_TRACKS`, `DIP_ACTIONS`, `DIP_LAYERS`, `DIP_REL_NAMES`, `DIP_EVENTS`, `DIP_SUMMITS`, `W_OPEN`, `W_KINDS`, `EMIT_MAX`, `RAD_MONARCHIES`, `RAD_AUTH`, `RAD_CUR`, `RAD_AUTH_TOPICS`, `RAD_MARKET_TOPICS`, `RSEC`, `SEC_COLORS`, `REG_TOOLS`, `REG_EVENTS_GEN`, `REG_EVENTS_CC`, `ELEC_DATA`, `WORLD_PCOL`, `WORLD_CCOL`, `WORLD_OPEN`, `WORLD_STANCE0`, `WORLD_TRADE`, `WORLD_REL`, `WORLD_LV0`, `WORLD_CTX`, `WORLD_CAPS`
 
 Переменные (1): `WORLD`
 
@@ -20,10 +20,10 @@
 
 Переменные (2): `WORLD_UNITS`, `ATE`
 
-### `scripts/data/data_tech.gd`  (206 строк)
-Технологии (v40_1): три ветки по 12 уровней на 100 лет вперёд (57 технологий; на 5 уровнях каждой ветки выбор «одна из 2–3») и специальные сооружения.
+### `scripts/data/data_tech.gd`  (311 строк)
+Технологии (v42_1): пять веток по 14 уровней на 100 лет вперёд (124 технологии; на 6 уровнях каждой ветки выбор «одна из 2–3») и специальные сооружения.
 
-Константы (9): `TECH_NB`, `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`
+Константы (11): `TECH_NB`, `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`, `TECH_PASSIVE`, `TECH_PASSIVE_CAP`
 
 ### `scripts/data/data_countries.gd`  (6 строк)
 Пакеты данных стран (генерируются tools/gen_data из Python-описаний).
@@ -128,10 +128,10 @@ v36: административно-территориальные единиц�
 
 Переменные (3): `SOC`, `soc`, `soc_rng`
 
-### `scripts/logic/tech.gd`  (354 строк)
+### `scripts/logic/tech.gd`  (484 строк)
 Технологии (v39_1): три ветки исследований, специальные сооружения, скорость исследований с мягким потолком.
 
-Функции (31): `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`
+Функции (42): `ex_dep`, `ex_partners`, `mil_land_neighbor`, `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`, `tech_nb`, `tech_hash`, `tech_nb_pace`, `tech_nb_tiers`, `tech_nb_has`, `tech_nb_who`, `tech_nb_share`, `tech_passive_rate`
 
 Переменные (2): `tech`, `tech_idx`
 
@@ -210,10 +210,10 @@ v38: политика войны.
 
 Функции (21): `log_guess_cat`, `log_match`, `log_add`, `log_chip`, `log_render`, `log_cell`, `log_render_month`, `log_render_year`, `log_rebuild`, `log_clear`, `on_log_filter`, `build_log_filters`, `log_line`, `log_sys`, `log_header`, `log_tag`, `h12_push`, `h12_ago`, `h12_months`, `h12_label`, `h12_snap`
 
-### `scripts/ui/ui_core.gd`  (1519 строк)
+### `scripts/ui/ui_core.gd`  (1521 строк)
 Интерфейс: окна, тема, верхняя панель, экран «Бюджет», обновление.
 
-Функции (94): `build_dip_windows`, `build_econ_windows`, `build_election_window`, `build_event_window`, `build_fed_windows`, `build_fleet_windows`, `build_goods_windows`, `build_gov_windows`, `build_law_windows`, `build_map_windows`, `build_opp_windows`, `build_politics_windows`, `build_pop_windows`, `build_soc_windows`, `build_tech_windows`, `build_war_windows`, `ec_slider`, `map_apply_mode`, `show_country_menu`, `update_dip_windows`, `update_econ_windows`, `update_fed_windows`, `update_fleet_windows`, `update_goods_windows`, `update_gov_windows`, `update_law_windows`, `update_opp_windows`, `update_parliament`, `update_regions_ui`, `update_soc_windows`, `update_tech_windows`, `update_war_windows`, `new_window`, `win_vis`, `on_win_close`, `win_menu_fill`, `on_win_menu`, `layout_windows`, `fix_wraps`, `fix_wraps_later`, `on_wrap_timer`, `reset_layout`, `show_desk`, `build_ui`, `add_title`, `add_note`, `make_fold`, `make_tail`, `set_tail_text`, `on_fold_toggled`, `on_detail_toggled`, `add_wrap_label`, `make_button`, `make_rt`, `add_slider`, `set_bar`, `build_budget_windows`, `build_log_and_event`, `update_slider_label`, `update_forecast`, `update_stats`, `update_polls`, `add_bar`, `color_button`, `refresh`, `on_slider`, `slider_value_for`, `configure_slider`, `toggle_slider_mode`, `make_theme`, `accent_for_desk`, `polish_tree`, `make_chip`, `set_chip`, `update_chips`, `draw_budget_viz`, `on_log_detail`, `show_tab`, `update_subbar`, `btn_icon`, `build_subbar`, `build_auto_window`, `on_ap_toggle`, `on_ap_target`, `on_ap_style`, `update_auto_window`, `on_floor_toggle`, `audio_ok`, `audio_load`, `audio_init`, `audio_apply_volume`, `music_next`, `sfx`, `toggle_music`
+Функции (95): `build_dip_windows`, `build_econ_windows`, `build_election_window`, `build_event_window`, `build_fed_windows`, `build_fleet_windows`, `build_goods_windows`, `build_gov_windows`, `build_law_windows`, `build_map_windows`, `build_opp_windows`, `build_politics_windows`, `build_pop_windows`, `build_soc_windows`, `build_tech_windows`, `build_war_windows`, `ec_slider`, `make_tech_button`, `map_apply_mode`, `show_country_menu`, `update_dip_windows`, `update_econ_windows`, `update_fed_windows`, `update_fleet_windows`, `update_goods_windows`, `update_gov_windows`, `update_law_windows`, `update_opp_windows`, `update_parliament`, `update_regions_ui`, `update_soc_windows`, `update_tech_windows`, `update_war_windows`, `new_window`, `win_vis`, `on_win_close`, `win_menu_fill`, `on_win_menu`, `layout_windows`, `fix_wraps`, `fix_wraps_later`, `on_wrap_timer`, `reset_layout`, `show_desk`, `build_ui`, `add_title`, `add_note`, `make_fold`, `make_tail`, `set_tail_text`, `on_fold_toggled`, `on_detail_toggled`, `add_wrap_label`, `make_button`, `make_rt`, `add_slider`, `set_bar`, `build_budget_windows`, `build_log_and_event`, `update_slider_label`, `update_forecast`, `update_stats`, `update_polls`, `add_bar`, `color_button`, `refresh`, `on_slider`, `slider_value_for`, `configure_slider`, `toggle_slider_mode`, `make_theme`, `accent_for_desk`, `polish_tree`, `make_chip`, `set_chip`, `update_chips`, `draw_budget_viz`, `on_log_detail`, `show_tab`, `update_subbar`, `btn_icon`, `build_subbar`, `build_auto_window`, `on_ap_toggle`, `on_ap_target`, `on_ap_style`, `update_auto_window`, `on_floor_toggle`, `audio_ok`, `audio_load`, `audio_init`, `audio_apply_volume`, `music_next`, `sfx`, `toggle_music`
 
 Константы (1): `WIN_DEFAULT_CLOSED`
 
@@ -281,12 +281,12 @@ v38: политика войны.
 
 Переменные (14): `sw_rel_rt`, `sw_pol_rt`, `sw_mig_rt`, `sw_reg_rt`, `sw_btn`, `xw_list_rt`, `xw_info_rt`, `xw_btn`, `sw_chart`, `sw_regchart`, `sw_spk_t`, `sw_spk_n`, `xw_chart`, `xw_spk`
 
-### `scripts/ui/ui_tech.gd`  (230 строк)
-Интерфейс: «Технологии» (desk 15).
+### `scripts/ui/ui_tech.gd`  (425 строк)
+Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
 
-Функции (14): `build_tech_windows`, `on_tech_meta`, `on_tech_weight`, `on_tech_auto`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `update_tech_windows`, `tech_short`, `tech_clear`, `tech_line`, `tech_branch_text`, `tech_build_buildings`, `tech_buildings_text`
+Функции (18): `make_tech_button`, `on_tech_toggle`, `set_tech_open`, `tech_scroll_to_frontier`, `build_tech_windows`, `on_tech_filter`, `on_tech_weight`, `on_tech_auto`, `on_tech_hover`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `tech_info_text`, `tech_info_update`, `update_tech_windows`, `tech_clear`, `tech_build_buildings`, `tech_buildings_text`
 
-Переменные (8): `tw_sum_rt`, `tw_spk`, `tw_branch_rt`, `tw_bld_rt`, `tw_bld_box`, `tw_btn`, `tw_sel_b`, `tw_sig`
+Переменные (16): `tech_ov`, `tech_btn`, `tech_view`, `tech_scroll`, `tw_sum_rt`, `tw_info_rt`, `tw_spk`, `tw_bld_rt`, `tw_bld_box`, `tw_wlbl`, `tw_wbtn`, `tw_auto`, `tw_filter`, `tw_hover`, `tw_sig`, `tw_first`
 
 ### `scripts/ui/ui_opp.gd`  (209 строк)
 Интерфейс: оппозиция и переговоры между партиями (экран «Политика»).
@@ -338,3 +338,4 @@ PolitGame: корневой скрипт (вершина цепочки насл
 - `pie_chart.gd` — extends Control, 45 строк
 - `spark.gd` — extends Control, 49 строк
 - `stat_bar.gd` — extends Control, 37 строк
+- `tech_view.gd` — extends Control, 305 строк

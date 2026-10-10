@@ -1,55 +1,223 @@
-# Интерфейс: «Технологии» (desk 15).
+# Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
 extends "res://scripts/ui/ui_soc.gd"
 
+var tech_ov: PanelContainer = null
+var tech_btn: Button = null
+var tech_view: Control = null
+var tech_scroll: ScrollContainer = null
 var tw_sum_rt: RichTextLabel
+var tw_info_rt: RichTextLabel
 var tw_spk: Control
-var tw_branch_rt: Array = []
 var tw_bld_rt: RichTextLabel
 var tw_bld_box: VBoxContainer
-var tw_btn: Dictionary = {}
-var tw_sel_b := 0
+var tw_wlbl: Array = []
+var tw_wbtn: Array = []
+var tw_auto: Button
+var tw_filter: Array = []
+var tw_hover := ""
 var tw_sig := ""
+var tw_first := true
+
+
+func make_tech_button(parent: Control) -> void:
+	tech_btn = Button.new()
+	tech_btn.theme_type_variation = "TabButton"
+	tech_btn.text = "Технологии"
+	tech_btn.toggle_mode = true
+	tech_btn.focus_mode = Control.FOCUS_NONE
+	tech_btn.custom_minimum_size = Vector2(0.0, 40.0)
+	tech_btn.tooltip_text = "Окно технологий: схема исследований, сооружения, пассивное изучение от соседей."
+	tech_btn.toggled.connect(on_tech_toggle)
+	btn_icon(tech_btn, "flask")
+	parent.add_child(tech_btn)
+
+
+func on_tech_toggle(on: bool) -> void:
+	set_tech_open(on)
+
+
+func set_tech_open(on: bool) -> void:
+	if tech_ov == null:
+		return
+	if on and not current_event.is_empty():
+		on = false
+	if on != tech_ov.visible:
+		sfx("click")
+	tech_ov.visible = on
+	if tech_btn != null:
+		tech_btn.set_pressed_no_signal(on)
+	if on:
+		tw_sig = ""
+		refresh()
+		if tw_first:
+			tw_first = false
+			tech_scroll_to_frontier.call_deferred()
+
+
+func tech_scroll_to_frontier() -> void:
+	# прокрутить схему к первому неизученному уровню
+	if tech_scroll == null or tech.is_empty():
+		return
+	var best := 99
+	for b in TECH_NB:
+		for t in (tech["grp"][b] as Dictionary):
+			if tech_tier_done(b, int(t)) == "":
+				best = mini(best, int(t))
+				break
+	var x := maxf(0.0, float(best - 1) * (TechView.NW + TechView.GX))
+	tech_scroll.scroll_horizontal = int(x)
 
 
 func build_tech_windows() -> void:
-	var w: FloatWindow = new_window("tw_sum", "Исследования", 15, Rect2(0.0, 0.0, 0.2, 1.0))
-	tw_sum_rt = make_rt(w.body)
-	var rw := HBoxContainer.new()
-	w.body.add_child(rw)
+	tech_ov = PanelContainer.new()
+	tech_ov.add_theme_stylebox_override("panel", sbox(Color(0.055, 0.066, 0.096, 0.985), C_ACCENT.darkened(0.25), 2, 12, 12.0, 10.0))
+	tech_ov.visible = false
+	add_child(tech_ov)
+	tech_ov.anchor_right = 1.0
+	tech_ov.anchor_bottom = 1.0
+	tech_ov.offset_left = 8.0
+	tech_ov.offset_top = 62.0
+	tech_ov.offset_right = -8.0
+	tech_ov.offset_bottom = -8.0
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 8)
+	tech_ov.add_child(root)
+	# --- шапка ---
+	var hd := HBoxContainer.new()
+	hd.add_theme_constant_override("separation", 6)
+	root.add_child(hd)
+	var ttl := Label.new()
+	ttl.text = "Технологии"
+	ttl.add_theme_font_size_override("font_size", 22)
+	ttl.add_theme_color_override("font_color", C_TEXT)
+	hd.add_child(ttl)
+	var sp0 := Control.new()
+	sp0.custom_minimum_size = Vector2(14.0, 0.0)
+	hd.add_child(sp0)
+	var grp := ButtonGroup.new()
+	var names := ["Все ветки"]
 	for b in TECH_NB:
-		tw_btn["w-%d" % b] = fed_btn("%s. −" % String(TECH_BRANCHES[b]["name"]).substr(0, 4), rw, "Меньше сил на ветку «%s»." % TECH_BRANCHES[b]["name"])
-		tw_btn["w-%d" % b].pressed.connect(on_tech_weight.bind(b, -1))
-	var rw2 := HBoxContainer.new()
-	w.body.add_child(rw2)
+		names.append(String(TECH_BRANCHES[b]["name"]))
+	for k in names.size():
+		var fb := Button.new()
+		fb.theme_type_variation = "TabButton"
+		fb.text = names[k]
+		fb.toggle_mode = true
+		fb.button_group = grp
+		fb.focus_mode = Control.FOCUS_NONE
+		fb.custom_minimum_size = Vector2(0.0, 30.0)
+		if k > 0:
+			color_button(fb, Color(String(TECH_BRANCHES[k - 1]["col"])).lightened(0.2))
+		fb.pressed.connect(on_tech_filter.bind(k))
+		hd.add_child(fb)
+		tw_filter.append(fb)
+	(tw_filter[0] as Button).set_pressed_no_signal(true)
+	var sp1 := Control.new()
+	sp1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hd.add_child(sp1)
+	var legend := Label.new()
+	legend.text = "✔ изучено   ▶ изучается   ○ можно начать   ✖ не выбрана   ● соседи знают"
+	legend.add_theme_font_size_override("font_size", 12)
+	legend.add_theme_color_override("font_color", C_DIM)
+	hd.add_child(legend)
+	var cl := Button.new()
+	cl.text = "✕ Закрыть"
+	cl.focus_mode = Control.FOCUS_NONE
+	cl.pressed.connect(set_tech_open.bind(false))
+	hd.add_child(cl)
+	# --- тело ---
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 10)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(body)
+	var left := PanelContainer.new()
+	left.custom_minimum_size = Vector2(340.0, 0.0)
+	left.add_theme_stylebox_override("panel", sbox(C_PANEL, C_BORDER, 1, 8, 8.0, 6.0))
+	body.add_child(left)
+	var lsc := ScrollContainer.new()
+	lsc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left.add_child(lsc)
+	var lv := VBoxContainer.new()
+	lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lv.add_theme_constant_override("separation", 6)
+	lsc.add_child(lv)
+	tw_sum_rt = make_rt(lv)
+	add_title(lv, "Силы по веткам")
 	for b2 in TECH_NB:
-		tw_btn["w+%d" % b2] = fed_btn("%s. +" % String(TECH_BRANCHES[b2]["name"]).substr(0, 4), rw2, "Больше сил на ветку «%s»." % TECH_BRANCHES[b2]["name"])
-		tw_btn["w+%d" % b2].pressed.connect(on_tech_weight.bind(b2, 1))
-	tw_btn["auto"] = fed_btn("Автовыбор технологий", w.body, "Если включён, свободная ветка сама берёт самую дешёвую доступную технологию. Выбрать вручную можно в любой момент: щёлкните по названию в ветке.")
-	tw_btn["auto"].toggle_mode = true
-	tw_btn["auto"].toggled.connect(on_tech_auto)
+		var row := HBoxContainer.new()
+		lv.add_child(row)
+		var sw := ColorRect.new()
+		sw.color = Color(String(TECH_BRANCHES[b2]["col"]))
+		sw.custom_minimum_size = Vector2(10.0, 22.0)
+		row.add_child(sw)
+		var nl := Label.new()
+		nl.text = " " + String(TECH_BRANCHES[b2]["name"])
+		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(nl)
+		var bm := Button.new()
+		bm.text = "−"
+		bm.focus_mode = Control.FOCUS_NONE
+		bm.pressed.connect(on_tech_weight.bind(b2, -1))
+		row.add_child(bm)
+		var wl := Label.new()
+		wl.custom_minimum_size = Vector2(60.0, 0.0)
+		wl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		row.add_child(wl)
+		var bp := Button.new()
+		bp.text = "+"
+		bp.focus_mode = Control.FOCUS_NONE
+		bp.pressed.connect(on_tech_weight.bind(b2, 1))
+		row.add_child(bp)
+		tw_wlbl.append(wl)
+		tw_wbtn.append([bm, bp])
+	tw_auto = fed_btn("Автовыбор технологий", lv, "Если включён, свободная ветка сама берёт самую дешёвую доступную технологию. На уровнях «или» автовыбор ждёт вашего решения полгода.")
+	tw_auto.toggle_mode = true
+	tw_auto.toggled.connect(on_tech_auto)
 	tw_spk = Spark.new()
-	w.body.add_child(tw_spk)
-	add_note(w.body, "Скорость исследований зависит от расходов на образование (ползунок в бюджете) и от сооружений. Выше «потолка» прирост скорости быстро слабеет. Потолок растёт со временем, ВВП и свободой слова.", true)
-
-	for b3 in TECH_NB:
-		var wb: FloatWindow = new_window("tw_b%d" % b3, "Ветка: %s" % String(TECH_BRANCHES[b3]["name"]).to_lower(), 15, Rect2(0.2 + 0.125 * b3, 0.0, 0.125, 0.74))
-		var rt := make_rt(wb.body)
-		rt.meta_clicked.connect(on_tech_meta.bind(b3))
-		tw_branch_rt.append(rt)
-
-	var wc: FloatWindow = new_window("tw_bld", "Научные сооружения", 15, Rect2(0.2, 0.74, 0.5, 0.26))
-	tw_bld_rt = make_rt(wc.body)
+	lv.add_child(tw_spk)
+	add_title(lv, "Научные сооружения")
+	tw_bld_rt = make_rt(lv)
 	tw_bld_box = VBoxContainer.new()
 	tw_bld_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wc.body.add_child(tw_bld_box)
+	lv.add_child(tw_bld_box)
+	# схема + информация
+	var rv := VBoxContainer.new()
+	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rv.add_theme_constant_override("separation", 8)
+	body.add_child(rv)
+	var sc := PanelContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.add_theme_stylebox_override("panel", sbox(Color(0.04, 0.05, 0.075), C_BORDER, 1, 8, 4.0, 4.0))
+	rv.add_child(sc)
+	tech_scroll = ScrollContainer.new()
+	tech_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	tech_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	sc.add_child(tech_scroll)
+	tech_view = TechView.new()
+	tech_view.scroll = tech_scroll
+	tech_scroll.add_child(tech_view)
+	tech_view.picked.connect(on_tech_pick)
+	tech_view.hovered.connect(on_tech_hover)
+	var ip := PanelContainer.new()
+	ip.custom_minimum_size = Vector2(0.0, 132.0)
+	ip.add_theme_stylebox_override("panel", sbox(C_PANEL, C_BORDER, 1, 8, 10.0, 6.0))
+	rv.add_child(ip)
+	var isc := ScrollContainer.new()
+	isc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	ip.add_child(isc)
+	tw_info_rt = make_rt(isc)
 
 
-func on_tech_meta(meta: Variant, b: int) -> void:
-	var id := String(meta)
-	if id == "pause":
-		tech_select(b, "")
-	else:
-		tech_select(b, id)
+func on_tech_filter(k: int) -> void:
+	if tech.is_empty() or tech_view == null:
+		return
+	var v: Array = []
+	for b in TECH_NB:
+		v.append(k == 0 or k - 1 == b)
+	tech_view.set_game(self)
+	tech_view.set_visible_branches(v)
+	tech_scroll.scroll_vertical = 0
+	refresh()
 
 
 func on_tech_weight(b: int, d: int) -> void:
@@ -63,8 +231,24 @@ func on_tech_auto(on: bool) -> void:
 	refresh()
 
 
-func on_tech_pick(b: int, id: String) -> void:
-	tech_select(b, id)
+func on_tech_hover(id: String) -> void:
+	tw_hover = id
+	tech_info_update()
+
+
+func on_tech_pick(id: String) -> void:
+	var d := tech_def(id)
+	if d.is_empty() or game_over:
+		return
+	var b: int = int(d["b"])
+	if String(tech["cur"][b]) == id:
+		if not bool(tech["auto"]):
+			tech_select(b, "")
+		return
+	if tech_avail(id):
+		tech_select(b, id)
+		sfx("click")
+	tech_info_update()
 
 
 func on_tech_build(id: String) -> void:
@@ -76,74 +260,130 @@ func tech_bar(frac: float, n: int = 12) -> String:
 	return "█".repeat(k) + "░".repeat(n - k)
 
 
+func tech_info_text(id: String) -> String:
+	var d := tech_def(id)
+	var b: int = int(d["b"])
+	var bc: String = TECH_BRANCHES[b]["col"]
+	var t := "[color=%s][b][font_size=17]%s[/font_size][/b][/color]  [color=%s]%s ветка · уровень %d[/color]\n" % [bc, d["name"], COL_DIM, String(TECH_BRANCHES[b]["name"]), int(d["t"]) + 1]
+	t += "%s\n" % d["d"]
+	t += "[color=%s]Эффект:[/color] %s\n" % [COL_DIM, tech_fx_text(d)]
+	var miss := tech_missing(id)
+	var st := ""
+	if tech_done(id):
+		st = "[color=%s]Изучено[/color]" % COL_GOOD
+	elif String(tech["cur"][b]) == id:
+		st = "[color=%s]Изучается: %.0f%%[/color] (%d из %d очк.)" % [bc, tech_progress(id) * 100.0, int(float(tech["prog"].get(id, 0.0))), int(d["cost"])]
+	elif miss == "":
+		st = "[color=%s]Можно изучать[/color] — щёлкните по карточке. Стоимость: %d очк." % [COL_WARN, int(d["cost"])]
+	else:
+		st = "[color=%s]Недоступно: %s[/color]" % [COL_BAD, miss]
+	t += st + "\n"
+	var al := tech_alts(id)
+	if al.size() > 0:
+		var an := PackedStringArray()
+		for a in al:
+			an.append("«%s»" % tech_def(String(a))["name"])
+		t += "[color=%s]Выбор «или»: изучив эту технологию, вы закроете %s.[/color]\n" % [COL_WARN, ", ".join(an)]
+	var nbs := tech_nb()
+	if nbs.size() > 0 and not tech_done(id):
+		var who := tech_nb_who(id)
+		if who.size() > 0:
+			var wn := PackedStringArray()
+			for c in who:
+				wn.append(String(WORLD[c]["name"]))
+			t += "[color=%s]Соседи знают (%d из %d): %s. Пассивное изучение: +%.2f очк./мес. (не более %.0f%% цены).[/color]" % ["#7fd8ff", who.size(), nbs.size(), ", ".join(wn), tech_passive_rate(id), TECH_PASSIVE_CAP * 100.0]
+		else:
+			t += "[color=%s]У соседей (%d) этой технологии пока нет.[/color]" % [COL_DIM, nbs.size()]
+	return t
+
+
+func tech_info_update() -> void:
+	if tw_info_rt == null or tech.is_empty():
+		return
+	if tw_hover != "":
+		tw_info_rt.text = tech_info_text(tw_hover)
+		return
+	var t := "[color=%s]Наведите курсор на карточку технологии, чтобы увидеть описание; щёлкните, чтобы начать изучение. Схему можно двигать, зажав левую кнопку на пустом месте, или колесом (Shift — по горизонтали).[/color]\n" % COL_DIM
+	var cur := PackedStringArray()
+	for b in TECH_NB:
+		var id: String = tech["cur"][b]
+		if id != "":
+			cur.append("[color=%s]■[/color] %s — %.0f%%" % [TECH_BRANCHES[b]["col"], tech_def(id)["name"], tech_progress(id) * 100.0])
+		elif tech_choice_waiting(b):
+			cur.append("[color=%s]■[/color] [color=%s]%s: нужен ваш выбор[/color]" % [TECH_BRANCHES[b]["col"], COL_WARN, TECH_BRANCHES[b]["name"]])
+		else:
+			cur.append("[color=%s]■[/color] %s: ждёт новых открытий" % [TECH_BRANCHES[b]["col"], TECH_BRANCHES[b]["name"]])
+	t += "\n".join(cur)
+	tw_info_rt.text = t
+
+
 func update_tech_windows() -> void:
-	if tw_sum_rt == null or tech.is_empty():
+	if tech_ov == null or tech.is_empty():
+		return
+	if tech_ov.visible and not current_event.is_empty():
+		set_tech_open(false)
+	if not tech_ov.visible:
 		return
 	tech_refresh_rates()
 	var spd: float = tech["speed"]
 	var raw: float = tech["raw"]
 	var cap: float = tech["cap"]
 	var fr: float = tech_freedom()
-	var s := "[b]Скорость исследований: %.1f очк./мес.[/b]\n" % spd
+	var s := "[b][font_size=17]Скорость: %.1f очк./мес.[/font_size][/b]\n" % spd
 	s += "Потолок скорости: [b]%.1f[/b] · «сырая» скорость: %.1f\n" % [cap, raw]
 	if raw > cap:
-		s += "[color=%s]Вы выше потолка: лишние %.1f дают только %.1f. Поднять потолок — время, рост ВВП, свобода слова.[/color]\n" % [COL_WARN, raw - cap, spd - cap]
+		s += "[color=%s]Вы выше потолка: лишние %.1f дают только %.1f.[/color]\n" % [COL_WARN, raw - cap, spd - cap]
 	else:
-		s += "[color=%s]До потолка: ещё %.1f очк. Можно увеличить расходы на образование и построить сооружения.[/color]\n" % [COL_DIM, cap - raw]
-	s += "\n[b]Из чего складывается[/b]\n"
-	s += "Расходы на образование: %.1f%% ВВП (обычно %.1f%%) → ×%.2f\n" % [float(pol["edu"]), float(pol_def["edu"]), tech_edu_term()]
+		s += "[color=%s]До потолка ещё %.1f очк.: можно поднять расходы на образование и построить сооружения.[/color]\n" % [COL_DIM, cap - raw]
+	s += "\n[b]Откуда берётся скорость[/b]\n"
+	s += "Образование: %.1f%% ВВП (обычно %.1f%%) → ×%.2f\n" % [float(pol["edu"]), float(pol_def["edu"]), tech_edu_term()]
 	s += "Сооружения: %s · технологии: %s\n" % [sg(tech_bsum("sp", -2) * 100.0, 0) + "%", sg(tech_sum("rs") * 100.0, 0) + "%"]
 	var yrs: float = years_passed()
 	s += "\n[b]Что поднимает потолок[/b]\n"
-	s += "Время: ×%.2f · ВВП: ×%.2f\n" % [1.0 + TECH_CAP_YEAR * yrs, clampf(sqrt(gdp / maxf(1.0, gdp_base)), 0.8, 3.0)]
+	s += "Время ×%.2f · ВВП ×%.2f\n" % [1.0 + TECH_CAP_YEAR * yrs, clampf(sqrt(gdp / maxf(1.0, gdp_base)), 0.8, 3.0)]
 	var fcol: String = COL_GOOD if fr >= 0.6 else (COL_WARN if fr >= 0.4 else COL_BAD)
-	s += "Свобода слова: [color=%s]%.0f%%[/color] → ×%.2f (закон о СМИ и индекс демократии)\n" % [fcol, fr * 100.0, TECH_FREE_BASE + TECH_FREE_SPAN * fr]
+	s += "Свобода слова [color=%s]%.0f%%[/color] → ×%.2f\n" % [fcol, fr * 100.0, TECH_FREE_BASE + TECH_FREE_SPAN * fr]
 	var bonus: float = tech_sum("cp") + tech_bsum("cpb", -2)
 	if bonus > 0.0:
 		s += "Технологии и лаборатории: +%.0f%%\n" % (bonus * 100.0)
-	s += "\n[b]Изучено: %d из %d[/b] · накоплено очков: %.0f" % [tech_count(), tech_total(), float(tech["pts"])]
-	if bool(tech["idle"]):
-		s += "\n[color=%s]Всем веткам задан вес 0: исследований нет.[/color]" % COL_BAD
-	var wsum := 0.0
+	var pas := 0.0
 	for b in TECH_NB:
-		wsum += float(tech["w"][b])
-	s += "\n\n[b]Распределение сил[/b]\n"
-	for b2 in TECH_NB:
-		var sh: float = float(tech["w"][b2]) / wsum if wsum > 0.0 else 0.0
-		var st := ""
-		if String(tech["cur"][b2]) == "":
-			st = " (нечего изучать — копится запас)"
-		s += "[color=%s]■[/color] %s: вес %d → %.1f очк./мес.%s\n" % [TECH_BRANCHES[b2]["col"], TECH_BRANCHES[b2]["name"], int(tech["w"][b2]), spd * sh, st]
+		pas += float(tech["pasm"][b])
+	s += "\n[b]Пассивное изучение[/b]\nСоседей: %d (%s). Сейчас даёт +%.2f очк./мес.\n" % [tech_nb().size(), ", ".join(PackedStringArray(tech_nb())), pas]
+	s += "\n[b]Изучено: %d из %d[/b] · очков накоплено: %.0f" % [tech_count(), tech_total(), float(tech["pts"])]
 	var nch := 0
 	for b6 in TECH_NB:
 		if tech_choice_waiting(b6):
 			nch += 1
 	if nch > 0:
-		s += "\n[color=%s][b]Ждут вашего выбора: %d ветк.[/b] (в окнах веток отмечено «Нужен ваш выбор»)[/color]" % [COL_WARN, nch]
+		s += "\n[color=%s][b]Ждут вашего выбора: %d ветк.[/b][/color]" % [COL_WARN, nch]
 	var up: float = tech_edu_upkeep()
 	if up > 0.0:
 		s += "\nСодержание сооружений: %.2f%% ВВП (%.1f млрд) в год — входит в расходы на образование." % [up, gdp * up / 100.0]
 	tw_sum_rt.text = s
-	(tw_btn["auto"] as Button).set_pressed_no_signal(bool(tech["auto"]))
+	var wsum := 0.0
+	for b2 in TECH_NB:
+		wsum += float(tech["w"][b2])
 	for b3 in TECH_NB:
-		(tw_btn["w-%d" % b3] as Button).disabled = game_over or int(tech["w"][b3]) <= 0
-		(tw_btn["w+%d" % b3] as Button).disabled = game_over or int(tech["w"][b3]) >= 4
+		var sh: float = float(tech["w"][b3]) / wsum if wsum > 0.0 else 0.0
+		(tw_wlbl[b3] as Label).text = "%d · %.1f" % [int(tech["w"][b3]), spd * sh]
+		(tw_wbtn[b3][0] as Button).disabled = game_over or int(tech["w"][b3]) <= 0
+		(tw_wbtn[b3][1] as Button).disabled = game_over or int(tech["w"][b3]) >= 4
+	tw_auto.set_pressed_no_signal(bool(tech["auto"]))
 	var hh: Dictionary = tech["h"]
-	tw_spk.title = "Скорость и потолок по месяцам"
+	tw_spk.title = "Скорость (зелёная) и потолок (жёлтая)"
 	tw_spk.series = [{"v": hh["s"], "c": Color("#58c887"), "n": "скорость"}, {"v": hh["c"], "c": Color("#e8b84a"), "n": "потолок"}]
 	tw_spk.queue_redraw()
-	# списки пересобираем только при изменении состава
-	var sig := "%s|%s|%d|%d|%s" % [str(tech["bld"]), str(tech["done"].keys()), tech["q"].size(), int(gdp / 50.0), str(game_over)]
+	var sig := "%s|%d|%d|%s" % [str(tech["bld"]), tech["q"].size(), int(gdp / 50.0), str(game_over)]
 	if sig != tw_sig:
 		tw_sig = sig
 		tech_build_buildings()
-	for b5 in TECH_NB:
-		tech_branch_text(b5)
 	tech_buildings_text()
-
-
-func tech_short(s: String, n: int = 34) -> String:
-	return s if s.length() <= n else s.substr(0, n - 1) + "…"
+	if tech_view != null:
+		if tech_view.game == null:
+			tech_view.set_game(self)
+		tech_view.queue_redraw()
+	tech_info_update()
 
 
 func tech_clear(box: Control) -> void:
@@ -152,63 +392,19 @@ func tech_clear(box: Control) -> void:
 		c.queue_free()
 
 
-func tech_line(d: Dictionary, b: int) -> String:
-	var id: String = d["id"]
-	var bc: String = TECH_BRANCHES[b]["col"]
-	var miss := tech_missing(id)
-	if tech_done(id):
-		return "\n[color=%s]✔ %s[/color]\n[color=%s]%s[/color]" % [COL_GOOD, d["name"], COL_DIM, tech_fx_text(d)]
-	if String(tech["cur"][b]) == id:
-		return "\n[color=%s][b]▶ %s[/b][/color]\n%s %.0f%% (%d очк.)\n[color=%s]%s\n%s[/color]" % [bc, d["name"], tech_bar(tech_progress(id)), tech_progress(id) * 100.0, int(d["cost"]), COL_DIM, d["d"], tech_fx_text(d)]
-	if miss == "":
-		return "\n[url=%s][color=%s]○ %s[/color][/url] [color=%s]%d очк.[/color]\n[color=%s]%s\n%s[/color]" % [id, bc, d["name"], COL_DIM, int(d["cost"]), COL_DIM, d["d"], tech_fx_text(d)]
-	if miss.begins_with("не выбрана"):
-		return "\n[color=%s]✖ %s — %s[/color]" % [COL_DIM, d["name"], miss]
-	return "\n[color=%s]· %s — %s[/color]" % [COL_DIM, d["name"], miss]
-
-
-func tech_branch_text(b: int) -> void:
-	var rt: RichTextLabel = tw_branch_rt[b]
-	var t := "[color=%s]%s[/color]\nСила технологий ветки: [b]×%.2f[/b] (даёт научная инфраструктура)\n" % [COL_DIM, TECH_BRANCHES[b]["d"], tech_power(b)]
-	var bank: float = float(tech["bank"][b])
-	if bank >= 1.0:
-		t += "[color=%s]Запас очков: %.0f — достанется следующей технологии.[/color]\n" % [COL_DIM, bank]
-	if tech_choice_waiting(b):
-		t += "[color=%s][b]Нужен ваш выбор[/b] — щёлкните по названию.%s[/color]\n" % [COL_WARN, (" Авто через %d мес." % (6 - int(tech["wait"][b]))) if bool(tech["auto"]) else ""]
-	elif String(tech["cur"][b]) == "" and not bool(tech["auto"]):
-		t += "[color=%s]Ветка без задачи: выберите технологию (щелчок по названию) или включите автовыбор.[/color]\n" % COL_WARN
-	var last_t := -1
-	for d in TECHS:
-		if int(d["b"]) != b:
-			continue
-		var tr: int = int(d["t"])
-		if tr != last_t:
-			last_t = tr
-			var opts := 1 + tech_alts(String(d["id"])).size()
-			var hdr := "Уровень %d" % (tr + 1)
-			if opts > 1:
-				hdr += " — выбор: одна из %d" % opts
-			t += "\n[color=%s][b]%s[/b][/color]" % [COL_DIM, hdr]
-		t += tech_line(d, b)
-	rt.text = t
-
-
 func tech_build_buildings() -> void:
 	tech_clear(tw_bld_box)
-	var flow := HFlowContainer.new()
-	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tw_bld_box.add_child(flow)
 	for d in TECH_BUILDINGS:
 		var id: String = d["id"]
 		var miss := tech_build_missing(id)
-		var btn := make_button("%s (%.1f млрд)" % [d["name"], gdp * float(d["cost"]) / 100.0], flow)
+		var btn := make_button("%s (%.1f млрд)" % [d["name"], gdp * float(d["cost"]) / 100.0], tw_bld_box)
 		btn.disabled = game_over or miss != ""
 		btn.tooltip_text = "%s\nСрок: %d мес. Содержание: %.2f%% ВВП в год.%s" % [d["d"], int(d["months"]), float(d["up"]), ("\nСейчас нельзя: " + miss) if miss != "" else ""]
 		btn.pressed.connect(on_tech_build.bind(id))
 
 
 func tech_buildings_text() -> void:
-	var t := "[table=4][cell][color=%s]Сооружение[/color][/cell][cell][color=%s] Построено[/color][/cell][cell][color=%s] Строится[/color][/cell][cell][color=%s] Что даёт[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM]
+	var t := ""
 	for d in TECH_BUILDINGS:
 		var id: String = d["id"]
 		var inq := 0
@@ -224,6 +420,5 @@ func tech_buildings_text() -> void:
 			gives.append("сила %s +%.0f%%" % ["всех технологий" if int(d["br"]) < 0 else "ветки «%s»" % String(TECH_BRANCHES[int(d["br"])]["name"]).to_lower(), float(d["pw"]) * 100.0])
 		if float(d["cpb"]) > 0.0:
 			gives.append("потолок +%.0f%%" % (float(d["cpb"]) * 100.0))
-		t += "[cell]%s[/cell][cell] %d/%d[/cell][cell] %s[/cell][cell] [color=%s]%s[/color][/cell]" % [d["name"], int(tech["bld"][id]), int(d["max"]), ("%d (ещё %d мес.)" % [inq, left]) if inq > 0 else "—", COL_DIM, ", ".join(gives)]
-	t += "[/table]"
+		t += "%s: построено %d/%d%s — [color=%s]%s[/color]\n" % [d["name"], int(tech["bld"][id]), int(d["max"]), (", строится %d (ещё %d мес.)" % [inq, left]) if inq > 0 else "", COL_DIM, ", ".join(gives)]
 	tw_bld_rt.text = t
