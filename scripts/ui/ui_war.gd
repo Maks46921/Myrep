@@ -2,6 +2,7 @@
 # На большой карте: занятые АТЕ, линия фронта, значки соединений; на экране флота — морские пути и эскадры.
 extends "res://scripts/ui/ui_fleet.gd"
 
+const ArmySym := preload("res://scripts/classes/army_view.gd")
 const WAR_C0 := Color(0.32, 0.62, 1.0)       # своя сторона
 const WAR_C1 := Color(1.0, 0.36, 0.30)       # противник
 var war_army_rt: RichTextLabel = null
@@ -229,6 +230,10 @@ func update_war_windows() -> void:
 		t += "Резервисты прибудут через [b]%d[/b] сут. (%.0f тыс.)\n" % [int(mil["mob_t"]), float(mil["mob_k"])]
 	if mil_mob_k() > 0.0:
 		t += "Мобилизовано %.0f тыс.: рост %+.2f п.п., безработица %+.2f п.п.\n" % [mil_mob_k(), mil_mob_g(), mil_unemp()]
+	if ar_on():
+		t += "Боеприпасы: [b]%.1f[/b] мес. боёв%s · готовность %.0f%% · оснащение ×%.2f\n" % [float(ar["ammo"]), (" [color=%s](снарядный голод!)[/color]" % COL_BAD) if float(ar["ammo"]) < 0.3 else "", ar_rd(), float(ar["eq"])]
+		if mil_at_war():
+			t += "Боевой дух: [b]%.0f[/b] (у противника %.0f) · воздух ×%.2f\n" % [ar_mor(0), ar_mor(1), ar_air_mult(0)]
 	if war_msg != "":
 		t += "[color=%s]%s[/color]" % [COL_WARN, war_msg]
 	war_army_rt.text = t
@@ -273,6 +278,8 @@ func update_war_windows() -> void:
 		war_unit_rt.text = "Не выбрано. Щёлкните по соединению в списке или по его значку на карте."
 	else:
 		var u := "[b]%s[/b]: %.1f из %.1f тыс., боеспособность %.0f%%, выучка %.2f\n" % [String(fs["nm"]), float(fs["str"]), float(fs["max"]), float(fs["org"]) * 100.0, float(fs["q"])]
+		var tpi: Dictionary = ar_info(ar_tp(fs))
+		u += "Род войск: [b]%s[/b] — атака ×%.2f, оборона ×%.2f. %s\n" % [String(tpi["name"]), ar_att(fs), ar_def(fs, maxi(0, int(fs["a"]))), String(tpi["d"])]
 		u += "Где: %s" % ("в море, высадка через %d сут." % int(fs["sea"].get("days", 0)) if int(fs["a"]) < 0 else ate_name(int(fs["a"])))
 		if not (fs["path"] as Array).is_empty():
 			u += " → %s (%d АТЕ)" % [ate_name(int(fs["path"][-1])), (fs["path"] as Array).size()]
@@ -470,10 +477,17 @@ func draw_war_tokens(c: Control, s: float, off: Vector2, font: Font) -> void:
 		var bh := 16.0
 		var rr := Rect2(p - Vector2(bw, bh) * 0.5, Vector2(bw, bh))
 		c.draw_rect(rr.grow(1.5), Color(0, 0, 0, 0.85))
-		c.draw_rect(rr, col.darkened(0.25))
-		# знак пехоты: крест в рамке
-		c.draw_line(rr.position + Vector2(2, 2), rr.end - Vector2(2, 2), Color(1, 1, 1, 0.55), 1.0)
-		c.draw_line(Vector2(rr.position.x + 2, rr.end.y - 2), Vector2(rr.end.x - 2, rr.position.y + 2), Color(1, 1, 1, 0.55), 1.0)
+		# v48_1: знак рода войск (НАТО): преобладающий по численности в этой АТЕ
+		var by_tp := {}
+		for f in lst:
+			by_tp[String(f.get("tp", "inf"))] = float(by_tp.get(String(f.get("tp", "inf")), 0.0)) + float(f["str"])
+		var tp0 := "inf"
+		var tv := -1.0
+		for k in by_tp:
+			if float(by_tp[k]) > tv:
+				tv = float(by_tp[k])
+				tp0 = String(k)
+		ArmySym.draw_symbol(c, rr, tp0, col.darkened(0.25), Color(1, 1, 1, 0.55))
 		var txt := "%.0f" % tot if tot >= 1.0 else "<1"
 		if lst.size() > 1:
 			txt = "%d×%s" % [lst.size(), txt]

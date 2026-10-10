@@ -355,6 +355,10 @@ func fa_initiatives() -> void:
 			return
 
 
+func fa_eu_sanc() -> bool:
+	return fa_on() and bool(fa.get("eu_sanc", false))
+
+
 func fa_sanctioning(c: String) -> bool:
 	return fa_on() and (fa["sanc"] as Dictionary).has(c)
 

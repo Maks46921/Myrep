@@ -4,6 +4,10 @@ extends "res://scripts/logic/saves.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func build_army_windows() -> void:
+	pass
+
+
 func build_crisis_windows() -> void:
 	pass
 
@@ -93,6 +97,10 @@ func map_apply_mode() -> void:
 
 
 func show_country_menu(in_game: bool) -> void:
+	pass
+
+
+func update_army_windows() -> void:
 	pass
 
 
@@ -271,12 +279,12 @@ func show_desk(i: int) -> void:
 		politics_page = i
 	if i == 5 or i == 7 or i == 10:
 		econ_page = i
-	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14:
+	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15:
 		map_page = i
 	for id in wins:
 		var w: FloatWindow = wins[id]
 		w.visible = ((w.desk == i) or (w.desk == -1) or (w.desk == -2 and not current_event.is_empty())) and (w.desk == -2 or not w.closed)
-	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14) else 2))
+	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15) else 2))
 	if i == 2:
 		map_apply_mode()
 	for kb in desk_buttons.size():
@@ -436,6 +444,7 @@ func build_ui() -> void:
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
+	build_army_windows()
 	build_auto_window()
 	build_realm_windows()
 	build_log_and_event()
@@ -942,6 +951,8 @@ func refresh() -> void:
 		update_war_windows()
 	elif current_desk == 14:
 		update_fleet_windows()
+	elif current_desk == 15:
+		update_army_windows()
 	if current_desk == 2:
 		update_dip_windows()
 	update_regions_ui()
@@ -1276,11 +1287,11 @@ func update_subbar(i: int) -> void:
 		(sub2_buttons[0] as Button).set_pressed_no_signal(i == 5)
 		(sub2_buttons[1] as Button).set_pressed_no_signal(i == 7)
 		(sub2_buttons[2] as Button).set_pressed_no_signal(i == 10)
-	var on3: bool = i == 2 or i == 8 or i == 9 or i == 13 or i == 14
+	var on3: bool = i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15
 	if subbar3 != null:
 		subbar3.visible = on3
-		var pg3 := [2, 8, 9, 13, 14]
-		for k3 in 5:
+		var pg3 := [2, 8, 9, 13, 14, 15]
+		for k3 in 6:
 			(sub3_buttons[k3] as Button).set_pressed_no_signal(i == pg3[k3])
 	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3) else 0.0)
 	var pages := [1, 3, 4, 6, 11, 12]
@@ -1344,17 +1355,17 @@ func build_subbar() -> void:
 	add_child(subbar3)
 	subbar3.position = Vector2(8.0, 64.0)
 	sub3_buttons.clear()
-	var n3 := ["Карта", "Регионы и автономия", "Территории", "Армия и война", "Флот"]
-	var p3 := [2, 8, 9, 13, 14]
-	for k in 5:
+	var n3 := ["Карта", "Регионы и автономия", "Территории", "Армия и война", "Флот", "Вооружённые силы"]
+	var p3 := [2, 8, 9, 13, 14, 15]
+	for k in 6:
 		var b3 := Button.new()
 		b3.theme_type_variation = "TabButton"
 		b3.text = n3[k]
 		b3.toggle_mode = true
 		b3.focus_mode = Control.FOCUS_NONE
-		b3.custom_minimum_size = Vector2(170.0 if k < 3 else 150.0, 32.0)
+		b3.custom_minimum_size = Vector2(170.0 if k < 3 else (150.0 if k < 5 else 196.0), 32.0)
 		b3.pressed.connect(show_desk.bind(p3[k]))
-		btn_icon(b3, ["pin", "grid", "flag", "shield", "ship"][k])
+		btn_icon(b3, ["pin", "grid", "flag", "shield", "ship", "shield"][k])
 		subbar3.add_child(b3)
 		sub3_buttons.append(b3)
 	subbar3.visible = false

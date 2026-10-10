@@ -20,6 +20,10 @@ func apply_psat(p: int, v: float) -> void:
 	pass
 
 
+func ar_apply_mods() -> void:
+	pass
+
+
 func dip_all(delta: float, eu_only: bool) -> void:
 	pass
 
@@ -945,6 +949,7 @@ func recompute_mods() -> void:
 	radical_dyn()
 	dip_apply_mods()
 	tech_apply_mods()
+	ar_apply_mods()
 	sync_emit()
 
 

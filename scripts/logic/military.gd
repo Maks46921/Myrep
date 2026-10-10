@@ -11,6 +11,94 @@ extends "res://scripts/logic/fleet.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func ar_air_mult(side: int) -> float:
+	return 0.0
+
+
+func ar_ammo_use(f: Dictionary) -> void:
+	pass
+
+
+func ar_att(f: Dictionary) -> float:
+	return 0.0
+
+
+func ar_auto_type(cc: String, kind: String) -> String:
+	return ""
+
+
+func ar_cap_mult() -> float:
+	return 0.0
+
+
+func ar_combined(units: Array) -> float:
+	return 0.0
+
+
+func ar_def(f: Dictionary, a: int) -> float:
+	return 0.0
+
+
+func ar_deterred(cc: String) -> bool:
+	return false
+
+
+func ar_eq(cc: String) -> float:
+	return 0.0
+
+
+func ar_init() -> void:
+	pass
+
+
+func ar_mis_k() -> float:
+	return 0.0
+
+
+func ar_mob_speed() -> float:
+	return 0.0
+
+
+func ar_month() -> void:
+	pass
+
+
+func ar_org_mult(cc: String) -> float:
+	return 0.0
+
+
+func ar_pow_mult(cc: String) -> float:
+	return 0.0
+
+
+func ar_q_mult() -> float:
+	return 0.0
+
+
+func ar_rsv() -> float:
+	return 0.0
+
+
+func ar_unit_name(k: int, sz: float, kind: String, tp: String) -> String:
+	return ""
+
+
+func ar_war_g() -> float:
+	return 0.0
+
+
+func ar_war_infl() -> float:
+	return 0.0
+
+
+func ar_war_start() -> void:
+	pass
+
+
+func ar_wm(cc: String) -> float:
+	return 0.0
+
+
 func talk_apply(t: Dictionary, enemies: Array, lead: String, parts: PackedStringArray) -> void:
 	pass
 
@@ -163,6 +251,7 @@ func mil_init() -> void:
 		mil_new_unit(ccode, per, mil_q(ccode), int(spots[k % spots.size()]), "reg")
 	if flt_has_sea():
 		mil["nav"]["station"] = mil_home_node(ccode)
+	ar_init()
 
 
 func mil_on() -> bool:
@@ -176,7 +265,7 @@ func mil_n_units(total: float) -> int:
 # боевая численность, которую страна содержит при нынешних расходах на армию (тыс.)
 func mil_cap() -> float:
 	var b: Array = MIL_BASE.get(ccode, [10.0, 0.0, 1.0])
-	return float(b[0]) * MIL_COMBAT * mil_spend_ratio()
+	return maxf(0.5, float(b[0]) * MIL_COMBAT * mil_spend_ratio() * ar_cap_mult() - ar_mis_k())
 
 
 func mil_spend_ratio() -> float:
@@ -186,24 +275,31 @@ func mil_spend_ratio() -> float:
 func mil_q(cc: String) -> float:
 	var b: Array = MIL_BASE.get(cc, [10.0, 0.0, 1.0])
 	if cc == ccode:
-		return float(b[2]) * (0.8 + 0.2 * clampf(mil_spend_ratio(), 0.5, 2.0)) * float(mods["army_q"])
+		return float(b[2]) * (0.8 + 0.2 * clampf(mil_spend_ratio(), 0.5, 2.0)) * float(mods["army_q"]) * ar_q_mult()
 	return float(b[2])
 
 
-func mil_unit_name(cc: String, k: int, sz: float, kind: String) -> String:
+func mil_unit_name(cc: String, k: int, sz: float, kind: String, tp: String = "") -> String:
+	var nm := ar_unit_name(k, sz, kind, tp)
+	if nm != "":
+		return nm
 	var what := "бригада" if sz < 6.0 else "дивизия"
 	if kind == "res":
 		what = "резервная " + what
 	return "%d-я %s" % [k, what]
 
 
-func mil_new_unit(cc: String, sz: float, q: float, a: int, kind: String) -> Dictionary:
+func mil_new_unit(cc: String, sz: float, q: float, a: int, kind: String, tp: String = "") -> Dictionary:
 	var k := 1
 	for f in mil["units"]:
 		if String(f["cc"]) == cc:
 			k += 1
-	var f := {"id": int(mil["nid"]), "cc": cc, "nm": mil_unit_name(cc, k, sz, kind), "str": sz, "max": sz, "org": 1.0, "q": q, "a": a,
-		"path": [], "prog": 0.0, "mode": "hold", "kind": kind, "fight": -1, "sea": {}}
+	if tp == "":
+		tp = ar_auto_type(cc, kind)
+	if tp == "":
+		tp = "inf"
+	var f := {"id": int(mil["nid"]), "cc": cc, "nm": mil_unit_name(cc, k, sz, kind, tp), "str": sz, "max": sz, "org": 1.0, "q": q, "a": a,
+		"path": [], "prog": 0.0, "mode": "hold", "kind": kind, "fight": -1, "sea": {}, "tp": tp}
 	mil["nid"] = int(mil["nid"]) + 1
 	(mil["units"] as Array).append(f)
 	return f
@@ -323,7 +419,7 @@ func mil_pw(f: Dictionary) -> float:
 	var sd := mil_side(String(f["cc"]))
 	if mil_at_war() and sd >= 0 and int(f["a"]) >= 0 and not (mil_supply[sd] as Dictionary).is_empty() and not (mil_supply[sd] as Dictionary).has(int(f["a"])):
 		sup = 0.6
-	return float(f["str"]) * float(f["q"]) * (0.25 + 0.75 * float(f["org"])) * sup
+	return float(f["str"]) * float(f["q"]) * (0.25 + 0.75 * float(f["org"])) * sup * ar_pow_mult(String(f["cc"]))
 
 
 func mil_side_power(side: int) -> float:
@@ -352,13 +448,13 @@ func mil_regular_total() -> float:
 
 
 func mil_reserve_k(level: int) -> float:
-	var b: Array = MIL_BASE.get(ccode, [10.0, 0.0, 1.0])
+	var rs: float = ar_rsv()
 	var popk: float = total_pop() * 1000.0
 	if level <= 0:
 		return 0.0
 	if level == 1:
-		return maxf(float(b[1]) * 0.5, popk * 0.001)
-	return float(b[1]) + popk * 0.003
+		return maxf(rs * 0.5, popk * 0.001)
+	return rs + popk * 0.003
 
 
 func mil_mob_k() -> float:
@@ -375,10 +471,10 @@ func mil_country_power(cc: String) -> float:
 		var s := 0.0
 		for f in mil_units_of(ccode):
 			s += float(f["str"]) * float(f["q"])
-		return s
+		return s * ar_eq(ccode)
 	var b: Array = MIL_BASE.get(cc, [5.0, 0.0, 1.0])
 	var lim: Dictionary = (mil.get("lim", {}) as Dictionary).get(cc, {})
-	return float(b[0]) * MIL_COMBAT * float(b[2]) * float((mil.get("loss", {}) as Dictionary).get(cc, 1.0)) * float(lim.get("arm", 1.0))
+	return float(b[0]) * MIL_COMBAT * float(b[2]) * float((mil.get("loss", {}) as Dictionary).get(cc, 1.0)) * float(lim.get("arm", 1.0)) * ar_wm(cc)
 
 
 func mil_log(txt: String, col: String = "") -> void:
@@ -591,7 +687,7 @@ func mil_mobilize(level: int) -> bool:
 		var add: float = mil_reserve_k(level) - mil_reserve_k(old)
 		mil["mob"] = level
 		mil["mob_k"] = float(mil["mob_k"]) + add
-		mil["mob_t"] = 21 if level == 1 else 35
+		mil["mob_t"] = maxi(7, int(round((21.0 if level == 1 else 35.0) * ar_mob_speed())))
 		add_support("Молодёжь", -3.0 * float(level - old))
 		add_support("Рабочие", -1.5 * float(level - old))
 		add_support("Силовики", 2.0)
@@ -839,6 +935,7 @@ func mil_start_war(lead: String, foes_extra: Array, friends: Array, we_attack: b
 	if we_attack:
 		dip_all((-12.0 if not both_eu else -22.0) * (0.5 + 0.5 * war_demo(lead)), false)
 	war_intl_init(mil["war"])
+	ar_war_start()
 	mil_plan_t = 0
 	mil_supply_update()
 
@@ -849,7 +946,7 @@ func mil_spawn_army(cc: String, foes: Array) -> void:
 	var b: Array = MIL_BASE[cc]
 	var lf: float = float((mil["loss"] as Dictionary).get(cc, 1.0))
 	var lim: Dictionary = (mil.get("lim", {}) as Dictionary).get(cc, {})
-	var total: float = float(b[0]) * MIL_COMBAT * lf * float(lim.get("arm", 1.0))
+	var total: float = float(b[0]) * MIL_COMBAT * lf * float(lim.get("arm", 1.0)) * ar_wm(cc)
 	var n: int = mil_n_units(total)
 	var dmz: bool = int((mil.get("dmz", {}) as Dictionary).get(cc, 0)) > 0
 	var nb_n: int = 0 if dmz else int(ceil(float(n) * 0.6))
@@ -1022,10 +1119,10 @@ func mil_local_odds(x: int, cc: String) -> float:
 		if mil_side(String(f["cc"])) != sd or int(f["a"]) < 0:
 			continue
 		if int(f["fight"]) == x or (int(f["a"]) in nbs and int(f["fight"]) < 0 and String(f["mode"]) != "hold"):
-			pa += mil_pw(f)
+			pa += mil_pw(f) * ar_att(f)
 	var pd := 0.0
 	for f in mil_hostile_units_at(x, cc):
-		pd += mil_pw(f)
+		pd += mil_pw(f) * ar_def(f, x)
 	return pa / maxf(0.01, pd * mil_def_mult(x, 1 - sd))
 
 
@@ -1099,11 +1196,16 @@ func mil_battles() -> void:
 			continue
 		var pa := 0.0
 		for f in att:
-			pa += mil_pw(f) * (0.55 if not (f["sea"] as Dictionary).is_empty() else 1.0)
+			pa += mil_pw(f) * ar_att(f) * (0.55 if not (f["sea"] as Dictionary).is_empty() else 1.0)
+		pa *= ar_combined(att) * ar_air_mult(aside)
 		var pd := 0.0
 		for f in dfn:
-			pd += mil_pw(f)
-		pd *= mil_def_mult(int(x), 1 - aside)
+			pd += mil_pw(f) * ar_def(f, int(x))
+		pd *= mil_def_mult(int(x), 1 - aside) * ar_air_mult(1 - aside)
+		for f in att:
+			ar_ammo_use(f)
+		for f in dfn:
+			ar_ammo_use(f)
 		pa = maxf(pa, 0.01)
 		pd = maxf(pd, 0.01)
 		var r: float = pa / pd
@@ -1212,7 +1314,7 @@ func mil_recover() -> void:
 		var sup: bool = a < 0 or sd < 0 or (mil_supply[sd] as Dictionary).is_empty() or (mil_supply[sd] as Dictionary).has(a)
 		if sup:
 			var home: bool = a >= 0 and ate_cc(a) == String(f["cc"])
-			f["org"] = minf(1.0, float(f["org"]) + (0.05 if home else 0.03))
+			f["org"] = minf(1.0, float(f["org"]) + (0.05 if home else 0.03) * ar_org_mult(String(f["cc"])))
 			if float(f["str"]) < float(f["max"]):
 				var add: float = float(f["max"]) * (0.004 if String(f["cc"]) == ccode else 0.003)
 				f["str"] = minf(float(f["max"]), float(f["str"]) + add)
@@ -1607,6 +1709,7 @@ func mil_month() -> void:
 	else:
 		mil_fix_positions()
 		mil_ai_declare()
+	ar_month()
 
 
 func mil_war_month() -> void:
@@ -1675,7 +1778,7 @@ func mil_mob_g() -> float:
 func mil_g() -> float:
 	if not mil_on():
 		return 0.0
-	var g: float = mil_mob_g()
+	var g: float = mil_mob_g() + ar_war_g()
 	if mil_at_war():
 		var w: Dictionary = mil["war"]
 		g -= 0.8 + minf(8.0, float(w["occ"][0]) * 40.0)
@@ -1686,11 +1789,13 @@ func mil_g() -> float:
 
 
 func mil_infl() -> float:
-	if not mil_on() or not mil_at_war():
+	if not mil_on():
 		return 0.0
+	if not mil_at_war():
+		return ar_war_infl()
 	if int(mil["war"].get("cf", 0)) > 0:
 		return 0.6
-	return 1.2 + (0.6 if bool(mil["war"]["sanct"]) else 0.0) + war_intl_infl()
+	return 1.2 + (0.6 if bool(mil["war"]["sanct"]) else 0.0) + war_intl_infl() + ar_war_infl()
 
 
 func mil_unemp() -> float:
@@ -2063,7 +2168,7 @@ func mil_ai_declare() -> void:
 		return
 	var my_pow: float = maxf(1.0, mil_country_power(ccode))
 	for cc in mil_targets():
-		if not mil_land_neighbor(cc) or int((mil["truce"] as Dictionary).get(cc, 0)) > 0:
+		if not mil_land_neighbor(cc) or int((mil["truce"] as Dictionary).get(cc, 0)) > 0 or ar_deterred(cc):
 			continue
 		var rel := fed_rel(cc)
 		if rel >= 15.0:
