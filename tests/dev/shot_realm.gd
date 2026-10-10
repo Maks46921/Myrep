@@ -1,5 +1,5 @@
 extends SceneTree
-# Скриншоты окна «Государство»: страницы по очереди. xvfb-run -a -s "-screen 0 1700x1000x24" godot --rendering-driver opengl3 --script tests/dev/shot_realm.gd -- out=/tmp/realm months=30
+# Скриншоты окна «Государство»: страницы по очереди. xvfb-run -a -s "-screen 0 1700x1000x24" godot --rendering-driver opengl3 --script tests/dev/shot_realm.gd -- tut=1 out=/tmp/realm months=30
 func _init():
 	var outp := "/tmp/realm"
 	var months := 30

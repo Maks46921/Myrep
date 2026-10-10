@@ -508,6 +508,15 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 
 # параметры запуска для тестов: agents=0|1 k=250 ev=1.6 news=1 econ=0|1|2 volat=2 cap=1.6 hints=1 gseed=N
 func opts_from_args() -> void:
+	var tut_given := false
+	var test_run := false
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("tut="):
+			tut_given = true
+		if String(a).begins_with("country="):
+			test_run = true
+	if test_run and not tut_given:
+		game_opts["tut"] = 0   # в тестах подсказки новичка не мешают щелчкам
 	for a in OS.get_cmdline_user_args():
 		var t := String(a)
 		if not t.contains("="):
