@@ -496,34 +496,57 @@ func tech_passive_rate(id: String) -> float:
 # Один и тот же расчёт служит советнику игрока (по текущему состоянию страны) и странам-соседям (по их стартовым данным).
 
 
+func tech_state_player() -> Dictionary:
+	# показатели страны игрока, от которых зависят потребности
+	var sup := {}
+	for g in GROUPS:
+		sup[g] = float(support[g])
+	return {"growth": growth, "unemp": unemployment, "dbt": debt / maxf(1.0, gdp) * 100.0, "deficit": clampf(last_deficit_pct, -3.0, 8.0),
+		"war": 1.0 if mil_at_war() else 0.0, "infra": float(lvl["infra_lvl"]), "env": float(lvl["env_lvl"]), "edu": float(lvl["edu_lvl"]),
+		"health": float(lvl["health_lvl"]), "sec": float(lvl["security_lvl"]), "corr": float(lvl["corruption"]), "equal": float(lvl["equality"]),
+		"appr": approval(), "risk": regime_risk, "unrest": reg_avg("unrest"), "threat": tech_threat(), "sup": sup}
+
+
+func tech_state_neutral() -> Dictionary:
+	# нейтральное состояние для аудита баланса: не зависит от страны игрока
+	var sup := {}
+	for g in GROUPS:
+		sup[g] = 50.0
+	return {"growth": 1.5, "unemp": 6.0, "dbt": 70.0, "deficit": 2.0, "war": 0.0, "infra": 50.0, "env": 50.0, "edu": 50.0, "health": 50.0, "sec": 50.0,
+		"corr": 40.0, "equal": 50.0, "appr": 50.0, "risk": 0.0, "unrest": 25.0, "threat": 0.0, "sup": sup}
+
+
 func tech_needs_player() -> Dictionary:
+	return tech_needs_from(tech_state_player())
+
+
+func tech_needs_from(st: Dictionary) -> Dictionary:
 	var n := {}
-	var dbt: float = debt / maxf(1.0, gdp) * 100.0
-	var deficit: float = clampf(last_deficit_pct, -3.0, 8.0)
-	var war := 1.0 if mil_at_war() else 0.0
-	n["growth_bonus"] = 1.0 + clampf(1.6 - growth, 0.0, 1.5) * 0.5
+	var dbt: float = float(st["dbt"])
+	var deficit: float = float(st["deficit"])
+	var war: float = float(st["war"])
+	n["growth_bonus"] = 1.0 + clampf(1.6 - float(st["growth"]), 0.0, 1.5) * 0.5
 	n["eff_bonus"] = 0.5 + clampf(deficit, 0.0, 6.0) * 0.15 + clampf(dbt - 70.0, 0.0, 60.0) * 0.01
-	n["infra_eff"] = 0.35 + clampf(55.0 - float(lvl["infra_lvl"]), 0.0, 40.0) * 0.02
-	n["env_eff"] = 0.35 + clampf(55.0 - float(lvl["env_lvl"]), 0.0, 40.0) * 0.02
-	n["edu_eff"] = 0.45 + clampf(55.0 - float(lvl["edu_lvl"]), 0.0, 40.0) * 0.02
-	n["health_eff"] = 0.45 + clampf(55.0 - float(lvl["health_lvl"]), 0.0, 40.0) * 0.02
-	n["unemp_base"] = 0.4 + clampf(unemployment - 5.0, 0.0, 10.0) * 0.18
-	n["sec_bonus"] = 0.35 + war * 1.5 + clampf(regime_risk, 0.0, 100.0) * 0.01 + clampf(55.0 - float(lvl["security_lvl"]), 0.0, 40.0) * 0.02
-	n["corr_shift"] = 0.3 + clampf(float(lvl["corruption"]) - 35.0, 0.0, 40.0) * 0.03
-	n["equal_shift"] = 0.25 + clampf(55.0 - float(lvl["equality"]), 0.0, 40.0) * 0.02
+	n["infra_eff"] = 0.35 + clampf(55.0 - float(st["infra"]), 0.0, 40.0) * 0.02
+	n["env_eff"] = 0.35 + clampf(55.0 - float(st["env"]), 0.0, 40.0) * 0.02
+	n["edu_eff"] = 0.45 + clampf(55.0 - float(st["edu"]), 0.0, 40.0) * 0.02
+	n["health_eff"] = 0.45 + clampf(55.0 - float(st["health"]), 0.0, 40.0) * 0.02
+	n["unemp_base"] = 0.4 + clampf(float(st["unemp"]) - 5.0, 0.0, 10.0) * 0.18
+	n["sec_bonus"] = 0.35 + war * 1.5 + clampf(float(st["risk"]), 0.0, 100.0) * 0.01 + clampf(55.0 - float(st["sec"]), 0.0, 40.0) * 0.02
+	n["corr_shift"] = 0.3 + clampf(float(st["corr"]) - 35.0, 0.0, 40.0) * 0.03
+	n["equal_shift"] = 0.25 + clampf(55.0 - float(st["equal"]), 0.0, 40.0) * 0.02
 	n["dip_bonus"] = 0.35 + war * 0.6
 	n["capital_bonus"] = 0.7
-	n["mood_shift"] = 0.35 + clampf(50.0 - approval(), 0.0, 30.0) * 0.03
+	n["mood_shift"] = 0.35 + clampf(50.0 - float(st["appr"]), 0.0, 30.0) * 0.03
 	n["dem_shift"] = 0.0
 	n["admin_mult"] = 0.3 + clampf(deficit, 0.0, 6.0) * 0.12
 	n["extra_spend"] = 0.3 + clampf(deficit, 0.0, 6.0) * 0.12
 	n["corp_mult"] = 0.45 + clampf(deficit, 0.0, 6.0) * 0.05
 	n["zone_eff"] = 0.3
-	n["reg_unrest_shift"] = 0.3 + clampf(reg_avg("unrest") - 25.0, 0.0, 40.0) * 0.04
-	n["army_q"] = 0.3 + war * 2.2 + clampf(tech_threat(), 0.0, 1.0) * 0.8
+	n["reg_unrest_shift"] = 0.3 + clampf(float(st["unrest"]) - 25.0, 0.0, 40.0) * 0.04
+	n["army_q"] = 0.3 + war * 2.2 + clampf(float(st["threat"]), 0.0, 1.0) * 0.8
 	for g in GROUPS:
-		var sup: float = float(support[g])
-		n["gb_" + g] = 0.15 + float(GROUP_WEIGHT[g]) * 3.0 + clampf(55.0 - sup, 0.0, 30.0) * 0.03
+		n["gb_" + g] = 0.15 + 0.4 + clampf(55.0 - float((st["sup"] as Dictionary)[g]), 0.0, 30.0) * 0.03
 	n["rs"] = 1.1
 	n["cp"] = 0.9
 	return n
@@ -568,7 +591,7 @@ func tech_needs_bot(c: String) -> Dictionary:
 	n["reg_unrest_shift"] = 0.3 + clampf(60.0 - float(w["stab"]), 0.0, 40.0) * 0.02
 	n["army_q"] = 0.3 + (0.7 if c in ["PL", "LT", "LV", "EE", "FI", "RS", "BA", "XK", "GR", "BG", "RO", "NO", "DK"] else 0.0) + clampf(60.0 - float(w["stab"]), 0.0, 40.0) * 0.01
 	for g in GROUPS:
-		n["gb_" + g] = 0.15 + float(GROUP_WEIGHT[g]) * 3.0
+		n["gb_" + g] = 0.15 + 0.4
 	n["rs"] = 1.1
 	n["cp"] = 0.9
 	nb[c] = n
@@ -659,7 +682,7 @@ func tech_audit_profiles() -> Array:
 	var out: Array = []
 	for c in WORLD:
 		out.append([String(c), tech_needs_bot(String(c))])
-	var base := tech_needs_player()
+	var base := tech_needs_from(tech_state_neutral())
 	var sit := {
 		"война": {"army_q": 2.5, "sec_bonus": 1.5, "dip_bonus": 0.5},
 		"безработица": {"unemp_base": 2.0, "gb_Рабочие": 1.0},
