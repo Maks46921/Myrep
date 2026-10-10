@@ -189,7 +189,7 @@ func tech_refresh_rates() -> void:
 	var raw: float = tech_raw()
 	tech["cap"] = cap
 	tech["raw"] = raw
-	tech["speed"] = tech_soft(raw, cap)
+	tech["speed"] = tech_soft(raw, cap) * tech_adj
 
 
 func tech_apply_mods() -> void:
@@ -488,7 +488,7 @@ func tech_passive_rate(id: String) -> float:
 	var d := tech_def(id)
 	if d.is_empty():
 		return 0.0
-	return TECH_PASSIVE * float(d["cost"]) * tech_nb_share(id)
+	return TECH_PASSIVE * float(d["cost"]) * tech_nb_share(id) * tech_pas_mult
 
 
 # ---------- ИИ-выбор технологий (v43_1) ----------

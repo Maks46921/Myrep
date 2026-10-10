@@ -48,6 +48,14 @@ func dip_step() -> void:
 	pass
 
 
+func diplo_month() -> void:
+	pass
+
+
+func dx_init() -> void:
+	pass
+
+
 func ex_g() -> float:
 	return 0.0
 
@@ -524,6 +532,7 @@ func next_turn() -> void:
 	soc_month()
 	tech_month()
 	realism_month()
+	diplo_month()
 	ex_month()
 
 	# --- экономика ---
@@ -746,6 +755,7 @@ func init_state() -> void:
 	tech_init()
 	revolt_init()
 	rl_init()
+	dx_init()
 	ex_init()
 	fleet_init()
 	mil_init()

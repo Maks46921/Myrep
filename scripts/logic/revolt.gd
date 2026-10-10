@@ -23,6 +23,14 @@ const RV_REG_ACTS := [
 		"desc": "Освобождение задержанных, пересмотр жёстких мер: обида и сепаратизм заметно падают."},
 	{"id": "status", "name": "Особый статус и больше автономии", "cap": 8.0, "cd": 12, "min": 0,
 		"desc": "Регион получает больше самоуправления: автономия +12, сепаратизм −12, обида падает. Другие регионы могут потребовать того же."},
+	{"id": "fiscal", "name": "Налоговая автономия региона", "cap": 7.0, "cd": 18, "min": 0,
+		"desc": "Регион оставляет себе больше налогов (как баскская модель): сепаратизм −9, обида −5, автономия +8. Бюджет центра теряет около 0,1% ВВП в год, соседи завидуют."},
+	{"id": "lang", "name": "Признать язык и культуру региона", "cap": 4.0, "cd": 12, "min": 0,
+		"desc": "Официальный статус языка, школы и СМИ на нём: обида −9, сепаратизм −5. Часть центральных избирателей недовольна."},
+	{"id": "commission", "name": "Конституционная комиссия по будущему региона", "cap": 6.0, "cd": 30, "min": 1,
+		"desc": "Долгий диалог о новых правилах: 12 месяцев сепаратизм и обида медленно снижаются. Работает на стадиях ниже вооружённой борьбы."},
+	{"id": "agreed_ref", "name": "Согласованный референдум с условиями (как в Шотландии 2014)", "cap": 12.0, "cd": 48, "min": 0,
+		"desc": "Центр и регион заранее договариваются о правилах: вопрос, порог (например, 55%), срок, раздел долга. Если победит «против», вопрос закрывается на поколение. Если «за» — мирное отделение с общим долгом."},
 	{"id": "referendum", "name": "Разрешить референдум о независимости", "cap": 10.0, "cd": 36, "min": 0,
 		"desc": "Честный референдум сбивает накал, если сторонников независимости меньше половины. Если больше — придётся договариваться о разводе или воевать."},
 ]
@@ -159,6 +167,8 @@ func revolt_month() -> void:
 		return
 	rv_cd_tick()
 	rv_nat_step()
+	if float(rv.get("fiscal_cost", 0.0)) > 0.0:
+		debt += gdp * float(rv["fiscal_cost"]) / 100.0 / 12.0
 	var gs := 0.0
 	var us := 0.0
 	var sep_max := 0.0
@@ -269,6 +279,10 @@ func rv_region_step(i: int) -> void:
 	var u: float = float(r["unrest"])
 	rg["hate"] = rv_clamp(float(rg["hate"]) * 0.985)
 	rg["sep"] = rv_clamp(float(rg["sep"]) + (rv_sep_target(i) - float(rg["sep"])) * 0.05)
+	if int(rg.get("comm", 0)) > 0:
+		rg["comm"] = int(rg["comm"]) - 1
+		rg["sep"] = rv_clamp(float(rg["sep"]) - 0.8)
+		rg["hate"] = rv_clamp(float(rg["hate"]) - 0.6)
 	var st: int = int(rg["stage"])
 	var in_conf: bool = rv_conf_of(rv_uid(i)) >= 0
 	# повышение и понижение стадий (с гистерезисом)
@@ -377,7 +391,9 @@ func rv_reg_act_check(id: String, i: int) -> String:
 		return "нужно %.0f политкапитала" % float(a["cap"])
 	if rv_conf_of(rv_uid(i)) >= 0 and id in ["talk", "police", "invest"]:
 		return "идёт война: используйте действия конфликта"
-	if id == "referendum":
+	if id == "commission" and int(rg["stage"]) >= 3:
+		return "слишком поздно: идёт вооружённая борьба"
+	if id == "referendum" or id == "agreed_ref":
 		if rv_is_capital(i):
 			return "столичный регион"
 		if regions.size() < 3:
@@ -462,10 +478,46 @@ func rv_region_act(id: String, i: int) -> bool:
 					var rj: Dictionary = rv_reg(j)
 					rj["sep"] = rv_clamp(float(rj["sep"]) + 1.5 * float(REGIONS[j].get("reg", 0.3)))
 			rv_log("регион «%s» получил особый статус: больше самоуправления, меньше недовольства. Соседи тоже заговорили о привилегиях." % nm, COL_GOOD)
+		"fiscal":
+			r["auto"] = rv_clamp(float(r["auto"]) + 8.0)
+			rg["sep"] = rv_clamp(float(rg["sep"]) - 9.0)
+			rg["hate"] = rv_clamp(float(rg["hate"]) - 5.0)
+			rv["fiscal_cost"] = float(rv.get("fiscal_cost", 0.0)) + 0.1
+			for j in regions.size():
+				if j != i:
+					var rj2: Dictionary = rv_reg(j)
+					rj2["sep"] = rv_clamp(float(rj2["sep"]) + 1.0 * float(REGIONS[j].get("reg", 0.3)))
+			rv_log("регион «%s» получил налоговую автономию: сепаратизм падает, центр теряет часть доходов." % nm, COL_GOOD)
+		"lang":
+			rg["hate"] = rv_clamp(float(rg["hate"]) - 9.0)
+			rg["sep"] = rv_clamp(float(rg["sep"]) - 5.0)
+			r["loy"] = rv_clamp(float(r["loy"]) + 3.0)
+			add_support("Силовики", -0.5)
+			rv_log("язык и культура региона «%s» получили официальный статус." % nm, COL_GOOD)
+		"commission":
+			rg["comm"] = 12
+			rv_log("в регионе «%s» начала работу конституционная комиссия." % nm, COL_GOOD)
+		"agreed_ref":
+			rv_agreed_referendum(i)
 		"referendum":
 			rv_referendum(i, false)
 	refresh()
 	return true
+
+
+func rv_agreed_referendum(i: int) -> void:
+	# согласованный референдум: порог 55%, мирный раздел долга; «нет» закрывает вопрос на долгий срок
+	var rg: Dictionary = rv_reg(i)
+	var y: float = clampf(float(rg["sep"]) * 0.0085 + float(rg["hate"]) * 0.002 + randf_range(-0.07, 0.07), 0.05, 0.95)
+	rg["refcd"] = 60
+	if y >= 0.55:
+		rv_log("[b]согласованный референдум в регионе «%s»: «за» %.0f%%[/b] — выше порога, начинается мирный развод." % [String(REGIONS[i]["short"]), y * 100.0], COL_BAD)
+		rv_secede(i, "peace")
+	else:
+		rg["sep"] = rv_clamp(float(rg["sep"]) * 0.45)
+		rg["hate"] = rv_clamp(float(rg["hate"]) * 0.6)
+		regions[i]["unrest"] = rv_clamp(float(regions[i]["unrest"]) - 12.0)
+		rv_log("[b]согласованный референдум в регионе «%s»: «за» только %.0f%%[/b] — порог не взят, вопрос закрыт: сепаратизм и обида упали." % [String(REGIONS[i]["short"]), y * 100.0], COL_GOOD)
 
 
 # ============================================================

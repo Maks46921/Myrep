@@ -4,6 +4,16 @@
 # Действия игрока — общий список rl_acts(page) / rl_do(id): окно «Государство и мир» только показывает их.
 extends "res://scripts/logic/revolt.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func diplo_resolve(opt: Dictionary) -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 # ---------- реальные стартовые данные по 34 странам (≈2023) ----------
 const RL_EU := ["DE", "FR", "NL", "BE", "LU", "AT", "CZ", "DK", "ES", "IT", "PL", "PT", "SE", "SI", "SK", "HU", "FI", "HR", "BG", "RO", "GR", "EE", "LV", "LT", "IE"]
 const RL_EURO := ["DE", "FR", "NL", "BE", "LU", "AT", "ES", "IT", "PT", "SI", "SK", "FI", "HR", "GR", "EE", "LV", "LT", "IE"]
@@ -488,6 +498,8 @@ func realism_resolve(opt: Dictionary) -> void:
 			rl["d"]["age0"] = float(rl["d"]["age0"]) + 0.5
 		"demo_debt":
 			pass
+		_:
+			diplo_resolve(opt)
 
 
 func rl_pending_step() -> void:
