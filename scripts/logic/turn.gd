@@ -172,6 +172,14 @@ func soc_unemp() -> float:
 	return 0.0
 
 
+func tech_init() -> void:
+	pass
+
+
+func tech_month() -> void:
+	pass
+
+
 func world_init() -> void:
 	pass
 
@@ -475,6 +483,7 @@ func next_turn() -> void:
 	fleet_month()
 	mil_month()
 	soc_month()
+	tech_month()
 	ex_month()
 
 	# --- экономика ---
@@ -691,6 +700,7 @@ func init_state() -> void:
 	world_init()
 	fed_init()
 	soc_init()
+	tech_init()
 	ex_init()
 	fleet_init()
 	mil_init()

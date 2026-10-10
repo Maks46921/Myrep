@@ -60,6 +60,10 @@ func build_soc_windows() -> void:
 	pass
 
 
+func build_tech_windows() -> void:
+	pass
+
+
 func build_war_windows() -> void:
 	pass
 
@@ -117,6 +121,10 @@ func update_regions_ui() -> void:
 
 
 func update_soc_windows() -> void:
+	pass
+
+
+func update_tech_windows() -> void:
 	pass
 
 
@@ -237,14 +245,14 @@ func show_desk(i: int) -> void:
 	current_desk = i
 	if i == 1 or i == 3 or i == 4 or i == 6 or i == 11 or i == 12:
 		politics_page = i
-	if i == 5 or i == 7 or i == 10:
+	if i == 5 or i == 7 or i == 10 or i == 15:
 		econ_page = i
 	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14:
 		map_page = i
 	for id in wins:
 		var w: FloatWindow = wins[id]
 		w.visible = ((w.desk == i) or (w.desk == -1) or (w.desk == -2 and not current_event.is_empty())) and (w.desk == -2 or not w.closed)
-	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14) else 2))
+	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10 or i == 15) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14) else 2))
 	if i == 2:
 		map_apply_mode()
 	for kb in desk_buttons.size():
@@ -389,6 +397,7 @@ func build_ui() -> void:
 	build_goods_windows()
 	build_fed_windows()
 	build_soc_windows()
+	build_tech_windows()
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
@@ -891,6 +900,8 @@ func refresh() -> void:
 		update_fed_windows()
 	elif current_desk == 10 or current_desk == 11:
 		update_soc_windows()
+	elif current_desk == 15:
+		update_tech_windows()
 	elif current_desk == 12:
 		update_opp_windows()
 	elif current_desk == 13:
@@ -1071,6 +1082,7 @@ func accent_for_desk(desk: int) -> Color:
 		12: return C_PURPLE
 		13: return C_BAD
 		14: return C_TEAL
+		15: return C_GOOD
 		9: return C_GOOD
 		6: return C_WARN
 		-2: return C_WARN
@@ -1198,13 +1210,14 @@ func update_subbar(i: int) -> void:
 	if subbar == null:
 		return
 	var on: bool = i == 1 or i == 3 or i == 4 or i == 6 or i == 11 or i == 12
-	var on2: bool = i == 5 or i == 7 or i == 10
+	var on2: bool = i == 5 or i == 7 or i == 10 or i == 15
 	subbar.visible = on
 	if subbar2 != null:
 		subbar2.visible = on2
 		(sub2_buttons[0] as Button).set_pressed_no_signal(i == 5)
 		(sub2_buttons[1] as Button).set_pressed_no_signal(i == 7)
 		(sub2_buttons[2] as Button).set_pressed_no_signal(i == 10)
+		(sub2_buttons[3] as Button).set_pressed_no_signal(i == 15)
 	var on3: bool = i == 2 or i == 8 or i == 9 or i == 13 or i == 14
 	if subbar3 != null:
 		subbar3.visible = on3
@@ -1254,17 +1267,17 @@ func build_subbar() -> void:
 	add_child(subbar2)
 	subbar2.position = Vector2(8.0, 64.0)
 	sub2_buttons.clear()
-	var n2 := ["Рынки и финансы", "Товары и цены", "Влияние и зависимость"]
-	var p2 := [5, 7, 10]
-	for k in 3:
+	var n2 := ["Рынки и финансы", "Товары и цены", "Влияние и зависимость", "Технологии"]
+	var p2 := [5, 7, 10, 15]
+	for k in 4:
 		var b2 := Button.new()
 		b2.theme_type_variation = "TabButton"
 		b2.text = n2[k]
 		b2.toggle_mode = true
 		b2.focus_mode = Control.FOCUS_NONE
-		b2.custom_minimum_size = Vector2(190.0 if k < 2 else 226.0, 32.0)
+		b2.custom_minimum_size = Vector2(190.0 if (k < 2 or k == 3) else 226.0, 32.0)
 		b2.pressed.connect(show_desk.bind(p2[k]))
-		btn_icon(b2, ["trend", "box", "handshake"][k])
+		btn_icon(b2, ["trend", "box", "handshake", "flask"][k])
 		subbar2.add_child(b2)
 		sub2_buttons.append(b2)
 	subbar2.visible = false

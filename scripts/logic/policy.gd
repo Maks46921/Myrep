@@ -108,6 +108,14 @@ func sync_ministers() -> void:
 	pass
 
 
+func tech_apply_mods() -> void:
+	pass
+
+
+func tech_edu_upkeep() -> float:
+	return 0.0
+
+
 func transfer_avg() -> float:
 	return 0.0
 
@@ -481,7 +489,7 @@ func compute_budget() -> Dictionary:
 	var sp := {
 		"Пенсии": gdp * pol["pensions"] * mods["pension_mult"] / 100.0,
 		"Пособия и соцпомощь": gdp * pol["benefits"] / 100.0,
-		"Образование": gdp * pol["edu"] / 100.0,
+		"Образование": gdp * (float(pol["edu"]) + tech_edu_upkeep()) / 100.0,
 		"Здравоохранение": gdp * pol["health"] / 100.0,
 		tm("army"): gdp * pol["army"] / 100.0,
 		"Полиция и суды": gdp * pol["police"] / 100.0,
@@ -934,6 +942,7 @@ func recompute_mods() -> void:
 	mods = compute_mods(law_state, true)
 	radical_dyn()
 	dip_apply_mods()
+	tech_apply_mods()
 	sync_emit()
 
 

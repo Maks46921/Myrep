@@ -110,6 +110,12 @@ static func draw_icon(k: String, o: Vector2, u: float, w: float, c: Color, d: Ca
 			d.draw_line(P(o, u, 0.86, 0.3), P(o, u, 0.7, 0.12), c, w * 0.8)
 			d.draw_line(P(o, u, 0.3, 0.12), P(o, u, 0.7, 0.12), c, w * 0.8)
 			d.draw_line(P(o, u, 0.5, 0.3), P(o, u, 0.5, 0.52), c, w * 0.7)
+		"flask":
+			d.draw_line(P(o, u, 0.4, 0.12), P(o, u, 0.4, 0.4), c, w * 0.8)
+			d.draw_line(P(o, u, 0.6, 0.12), P(o, u, 0.6, 0.4), c, w * 0.8)
+			d.draw_line(P(o, u, 0.34, 0.12), P(o, u, 0.66, 0.12), c, w * 0.8)
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.4, 0.4), P(o, u, 0.14, 0.82), P(o, u, 0.86, 0.82), P(o, u, 0.6, 0.4)]), c, w * 0.8)
+			d.draw_line(P(o, u, 0.26, 0.62), P(o, u, 0.74, 0.62), c, w * 0.7)
 		"ship":
 			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.1, 0.55), P(o, u, 0.9, 0.55), P(o, u, 0.72, 0.8), P(o, u, 0.28, 0.8)]), c)
 			d.draw_line(P(o, u, 0.5, 0.55), P(o, u, 0.5, 0.15), c, w * 0.8)

@@ -1,5 +1,6 @@
 scripts/data/data_core.gd
 scripts/data/data_content.gd
+scripts/data/data_tech.gd
 scripts/data/data_countries.gd
 scripts/state/state_data.gd
 scripts/state/state.gd
@@ -17,6 +18,7 @@ scripts/logic/world.gd
 scripts/logic/federation.gd
 scripts/logic/admin.gd
 scripts/logic/society.gd
+scripts/logic/tech.gd
 scripts/logic/influence.gd
 scripts/logic/fleet.gd
 scripts/logic/military.gd
@@ -39,6 +41,7 @@ scripts/ui/ui_pop.gd
 scripts/ui/ui_events.gd
 scripts/ui/ui_fed.gd
 scripts/ui/ui_soc.gd
+scripts/ui/ui_tech.gd
 scripts/ui/ui_opp.gd
 scripts/ui/ui_fleet.gd
 scripts/ui/ui_war.gd
