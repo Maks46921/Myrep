@@ -857,7 +857,7 @@ func unit_color(ui: int) -> Color:
 		return cl_color(cc)
 	if cc == ccode:
 		return layer_color(int(map_unit_local[ui]))
-	return (WORLD_CCOL[cc] as Color).darkened(0.38)
+	return (WORLD_CCOL.get(cc, Color(0.55, 0.50, 0.58)) as Color).darkened(0.38)
 
 
 func draw_map() -> void:
@@ -1036,6 +1036,8 @@ func draw_map() -> void:
 		order.sort_custom(func(a, b) -> bool: return float(WORLD[a]["gdp"]) * (10.0 if a == ccode else 1.0) > float(WORLD[b]["gdp"]) * (10.0 if b == ccode else 1.0))
 		var placed: Array = []
 		for code in order:
+			if not WORLD_CAPS.has(code):
+				continue    # новые государства (отделившиеся регионы) без столицы на карте мира
 			var cp3: Vector2 = (WORLD_CAPS[code] as Vector2) * s + off
 			var is_me: bool = code == ccode
 			c.draw_circle(cp3, 4.5, Color(0.05, 0.05, 0.08))

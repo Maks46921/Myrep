@@ -1,5 +1,5 @@
 # Интерфейс: оппозиция и переговоры между партиями (экран «Политика»).
-extends "res://scripts/ui/ui_tech.gd"
+extends "res://scripts/ui/ui_crisis.gd"
 
 var opp_rt: RichTextLabel
 var opp_btns := {}

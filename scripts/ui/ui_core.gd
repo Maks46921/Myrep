@@ -4,6 +4,10 @@ extends "res://scripts/logic/log.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func build_crisis_windows() -> void:
+	pass
+
+
 func build_dip_windows() -> void:
 	pass
 
@@ -72,6 +76,10 @@ func ec_slider(parent: Control, title: String, mn: float, mx: float, step: float
 	return []
 
 
+func make_crisis_button(parent: Control) -> void:
+	pass
+
+
 func make_tech_button(parent: Control) -> void:
 	pass
 
@@ -81,6 +89,10 @@ func map_apply_mode() -> void:
 
 
 func show_country_menu(in_game: bool) -> void:
+	pass
+
+
+func update_crisis_windows() -> void:
 	pass
 
 
@@ -302,6 +314,7 @@ func build_ui() -> void:
 		desk_buttons.append(b)
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
 	make_tech_button(tabs)
+	make_crisis_button(tabs)
 	var chip_row := HBoxContainer.new()
 	chip_row.add_theme_constant_override("separation", 4)
 	chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -403,6 +416,7 @@ func build_ui() -> void:
 	build_fed_windows()
 	build_soc_windows()
 	build_tech_windows()
+	build_crisis_windows()
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
@@ -915,6 +929,7 @@ func refresh() -> void:
 		update_dip_windows()
 	update_regions_ui()
 	update_tech_windows()
+	update_crisis_windows()
 
 
 # ---------- парламент ----------

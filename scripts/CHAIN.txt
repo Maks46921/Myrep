@@ -27,6 +27,7 @@ scripts/logic/opposition.gd
 scripts/logic/aiparty.gd
 scripts/logic/council.gd
 scripts/logic/radical.gd
+scripts/logic/revolt.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd
 scripts/logic/log.gd
@@ -42,6 +43,7 @@ scripts/ui/ui_events.gd
 scripts/ui/ui_fed.gd
 scripts/ui/ui_soc.gd
 scripts/ui/ui_tech.gd
+scripts/ui/ui_crisis.gd
 scripts/ui/ui_opp.gd
 scripts/ui/ui_fleet.gd
 scripts/ui/ui_war.gd

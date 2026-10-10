@@ -52,6 +52,10 @@ func resolve_crisis(opt: Dictionary) -> void:
 	pass
 
 
+func revolt_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func set_time_btns(dis: bool) -> void:
 	pass
 
@@ -263,6 +267,8 @@ func choose(i: int) -> void:
 		fleet_resolve(i)
 	elif special == "war":
 		mil_resolve(i)
+	elif special == "revolt":
+		revolt_resolve(opt)
 	refresh()
 
 
