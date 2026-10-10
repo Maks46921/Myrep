@@ -1,6 +1,16 @@
 # Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
 extends "res://scripts/ui/ui_soc.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func set_realm_open(on: bool) -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 var tech_ov: PanelContainer = null
 var tech_btn: Button = null
 var tech_view: Control = null
@@ -44,6 +54,8 @@ func set_tech_open(on: bool) -> void:
 		on = false
 	if on != tech_ov.visible:
 		sfx("click")
+	if on:
+		set_realm_open(false)
 	tech_ov.visible = on
 	if tech_btn != null:
 		tech_btn.set_pressed_no_signal(on)

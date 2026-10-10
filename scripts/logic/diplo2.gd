@@ -441,7 +441,7 @@ func dx_army_do(id: String) -> bool:
 			dx_log("проведена реформа гражданского контроля над армией.", COL_GOOD)
 		"army_loyal":
 			ar["loy"] = minf(100.0, float(ar["loy"]) + 10.0)
-			rl["l"]["cor"] = minf(98.0, float(rl["l"]["cor"]) + 1.5)
+			rl_cor_add(1.5)
 			dx_log("в штабах — лояльные командиры.", COL_DIM)
 		"army_bonus":
 			ar["loy"] = minf(100.0, float(ar["loy"]) + 7.0)
@@ -541,6 +541,7 @@ func diplo_resolve(opt: Dictionary) -> void:
 			dx["army"]["loy"] = minf(100.0, float(dx["army"]["loy"]) + 12.0)
 			dx["army"]["amb"] = minf(100.0, float(dx["army"]["amb"]) + 8.0)
 			rl["l"]["jud"] = maxf(3.0, float(rl["l"]["jud"]) - 3.0)
+			rl["l"]["j0"] = float(rl["l"]["j0"]) - 3.0
 		"dx_brain_pay":
 			(dx["adj"] as Array).append({"m": 0.99, "left": 6})
 		"dx_brain_ret":

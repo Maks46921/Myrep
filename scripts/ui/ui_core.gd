@@ -1,5 +1,5 @@
 # Интерфейс: окна, тема, верхняя панель, экран «Бюджет», обновление.
-extends "res://scripts/logic/log.gd"
+extends "res://scripts/logic/saves.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
@@ -60,6 +60,10 @@ func build_pop_windows() -> void:
 	pass
 
 
+func build_realm_windows() -> void:
+	pass
+
+
 func build_soc_windows() -> void:
 	pass
 
@@ -77,6 +81,10 @@ func ec_slider(parent: Control, title: String, mn: float, mx: float, step: float
 
 
 func make_crisis_button(parent: Control) -> void:
+	pass
+
+
+func make_realm_button(parent: Control) -> void:
 	pass
 
 
@@ -129,6 +137,10 @@ func update_opp_windows() -> void:
 
 
 func update_parliament() -> void:
+	pass
+
+
+func update_realm_windows() -> void:
 	pass
 
 
@@ -315,6 +327,7 @@ func build_ui() -> void:
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
 	make_tech_button(tabs)
 	make_crisis_button(tabs)
+	make_realm_button(tabs)
 	var chip_row := HBoxContainer.new()
 	chip_row.add_theme_constant_override("separation", 4)
 	chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -417,6 +430,7 @@ func build_ui() -> void:
 	build_soc_windows()
 	build_tech_windows()
 	build_crisis_windows()
+	build_realm_windows()
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
@@ -930,6 +944,7 @@ func refresh() -> void:
 	update_regions_ui()
 	update_tech_windows()
 	update_crisis_windows()
+	update_realm_windows()
 
 
 # ---------- парламент ----------

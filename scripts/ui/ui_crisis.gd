@@ -46,6 +46,8 @@ func set_crisis_open(on: bool) -> void:
 		sfx("click")
 	if on and tech_ov != null and tech_ov.visible:
 		set_tech_open(false)
+	if on:
+		set_realm_open(false)
 	cr_ov.visible = on
 	if cr_btn != null:
 		cr_btn.set_pressed_no_signal(on)

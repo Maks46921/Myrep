@@ -92,6 +92,23 @@ func _init():
 	months(g, 60)
 	check(not is_nan(g.gdp) and g.gdp > 0.0, "ВВП после длинного прогона")
 	check(g.rl["h"]["age"].size() > 20, "история не копится")
+	# --- сохранения и откат ---
+	var gdp_s: float = g.gdp
+	var turn_s: int = g.turn
+	var cap_s: float = g.capital
+	check(g.sv_save(2), "сохранение не записано")
+	check(g.sv_info(2) != "", "информация о слоте пуста")
+	months(g, 8)
+	check(g.turn > turn_s, "ход не идёт после сохранения")
+	check(g.sv_load(2), "загрузка не удалась")
+	check(g.turn == turn_s and absf(g.gdp - gdp_s) < 1e-6 and absf(g.capital - cap_s) < 1e-6, "состояние после загрузки не совпало: turn %d/%d gdp %.3f/%.3f" % [g.turn, turn_s, g.gdp, gdp_s])
+	check(g.rl_on() and g.dx_on() and not g.rl["h"]["gdp"].is_empty(), "rl/dx после загрузки")
+	months(g, 14)
+	check(g.sv_hist.size() > 0, "автоснимки не делаются")
+	var tt: int = g.turn
+	check(g.sv_rollback() and g.turn < tt, "откат не удался")
+	months(g, 3)
+	check(not is_nan(g.gdp), "NaN после отката")
 	# --- выключение ---
 	var g2 = mk({"rlev": 0})
 	for i in 3: await process_frame

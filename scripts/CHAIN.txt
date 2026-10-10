@@ -33,6 +33,7 @@ scripts/logic/diplo2.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd
 scripts/logic/log.gd
+scripts/logic/saves.gd
 scripts/ui/ui_core.gd
 scripts/ui/ui_map.gd
 scripts/ui/ui_politics.gd
@@ -46,6 +47,7 @@ scripts/ui/ui_fed.gd
 scripts/ui/ui_soc.gd
 scripts/ui/ui_tech.gd
 scripts/ui/ui_crisis.gd
+scripts/ui/ui_realm.gd
 scripts/ui/ui_opp.gd
 scripts/ui/ui_fleet.gd
 scripts/ui/ui_war.gd

@@ -11,6 +11,10 @@ func diplo_resolve(opt: Dictionary) -> void:
 	pass
 
 
+func sv_auto() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -63,14 +67,17 @@ func rl_init() -> void:
 		"acc": {}, "edp": 0, "natop": 0, "defe": 0.0, "debt_prev": debt,
 		"d": {"age": age0, "age0": age0, "tfr": float(RL_TFR.get(cc, 1.5)), "tfr0": float(RL_TFR.get(cc, 1.5)), "pen": 0.0},
 		"e": {"dep": float(RL_ENDEP.get(cc, 50)), "green": float(RL_GREEN.get(cc, 50)), "price": 100.0, "clim": 20.0, "shock": 0},
-		"l": {"jud": clampf(cpi + float(RL_JUD.get(cc, 0.0)), 5.0, 98.0), "cor": clampf(100.0 - cpi, 2.0, 95.0), "scand": 0, "anti": 0},
-		"m": {"free": float(RL_PRESS.get(cc, 65)), "trust": 55.0, "state": 0, "fake": 0.0},
+		"l": {"jud": clampf(cpi + float(RL_JUD.get(cc, 0.0)), 5.0, 98.0), "cor": clampf(100.0 - cpi, 2.0, 95.0), "scand": 0, "anti": 0, "j0": 0.0, "cx": 0.0, "dem0": democracy_index()},
+		"m": {"free": float(RL_PRESS.get(cc, 65)), "tgt": float(RL_PRESS.get(cc, 65)), "trust": 55.0, "state": 0, "fake": 0.0},
 		"lv": {"fam": 0, "imm": 1, "ret": 0, "grn": 0, "gas": 0, "eq": 0},
 		"cd": {}, "g": 0.0, "inf": 0.0, "log": [], "pend": [],
-		"h": {"age": [], "tfr": [], "cor": [], "jud": [], "free": [], "price": [], "green": [], "clim": []},
+		"h": {"age": [], "tfr": [], "cor": [], "jud": [], "free": [], "price": [], "green": [], "clim": [], "gdp": [], "debt": [], "appr": [], "unemp": [], "infl": [], "growth": []},
 	}
 	nato_ovr = 1 if bool(rl["b"]["nato"]) else 0
 	noc_constr = cc in RL_CONSTR
+	var l0: Dictionary = rl["l"]
+	l0["j0"] = float(l0["jud"])
+	l0["cx"] = float(l0["cor"]) - (100.0 - (0.6 * float(l0["jud"]) + 0.4 * float(rl["m"]["free"])))
 	free_adj = 0.0
 	rl_rec_hist()
 
@@ -97,7 +104,8 @@ func rl_rec_hist() -> void:
 	var e: Dictionary = rl["e"]
 	var l: Dictionary = rl["l"]
 	var m: Dictionary = rl["m"]
-	var vals := {"age": d["age"], "tfr": d["tfr"], "cor": l["cor"], "jud": l["jud"], "free": m["free"], "price": e["price"], "green": e["green"], "clim": e["clim"]}
+	var vals := {"age": d["age"], "tfr": d["tfr"], "cor": l["cor"], "jud": l["jud"], "free": m["free"], "price": e["price"], "green": e["green"], "clim": e["clim"],
+		"gdp": gdp, "debt": debt / maxf(1.0, gdp) * 100.0, "appr": approval(), "unemp": unemployment, "infl": inflation, "growth": growth}
 	for k in vals:
 		var a: Array = h[k]
 		a.append(float(vals[k]))
@@ -137,6 +145,7 @@ func realism_month() -> void:
 	rl_pending_step()
 	rl_events()
 	rl_rec_hist()
+	sv_auto()
 
 
 # ---------- А1. Блоки и союзы ----------
@@ -307,16 +316,24 @@ func rl_energy_step() -> void:
 
 
 # ---------- А5. Правовое государство и коррупция ----------
+func rl_cor_add(v: float) -> void:
+	# постоянный сдвиг коррупции (решения игрока, скандалы): меняет и текущее значение, и равновесие
+	var l: Dictionary = rl["l"]
+	l["cx"] = float(l["cx"]) + v
+	l["cor"] = clampf(float(l["cor"]) + v, 1.0, 98.0)
+
+
 func rl_law_step() -> void:
 	var l: Dictionary = rl["l"]
 	var cor: float = float(l["cor"])
 	var jud: float = float(l["jud"])
 	var fr: float = float(rl["m"]["free"])
 	var dem: float = democracy_index()
-	var drift: float = (50.0 - jud) * 0.0016 + (50.0 - fr) * 0.001 + (0.4 - dem) * 0.02 - float(l["anti"]) * 0.03
-	l["cor"] = clampf(cor + drift, 1.0, 98.0)
-	# суды медленно подтягиваются к демократии (без вмешательства)
-	l["jud"] = clampf(jud + (dem * 90.0 - jud) * 0.0015, 3.0, 99.0)
+	# независимость судов следует за демократией (от базового уровня), коррупция — за судами и свободой прессы
+	var jt: float = float(l["j0"]) + (dem - float(l["dem0"])) * 60.0
+	l["jud"] = clampf(jud + (jt - jud) * 0.01, 3.0, 99.0)
+	var ct: float = 100.0 - (0.6 * jud + 0.4 * fr) + float(l["cx"])
+	l["cor"] = clampf(cor + (ct - cor) * 0.015, 1.0, 98.0)
 	cor = float(l["cor"])
 	rl["g"] = float(rl["g"]) - cor * 0.0035 + jud * 0.0012
 	debt += gdp * cor * 0.00002 / 12.0
@@ -330,13 +347,12 @@ func rl_media_step() -> void:
 	var m: Dictionary = rl["m"]
 	var free: float = float(m["free"])
 	var trust: float = float(m["trust"])
-	if int(m["state"]) > 0:
+	var st: int = int(m["state"])
+	if st > 0:
 		# контроль над СМИ: рейтинг выше, но свобода и доверие падают
-		free = maxf(5.0, free - 0.25 * float(m["state"]))
-		trust = maxf(5.0, trust - 0.15 * float(m["state"]))
-		add_all_support(0.05 * float(m["state"]))
-	else:
-		free = minf(98.0, free + (float(RL_PRESS.get(ccode, 65)) - free) * 0.004 + 0.02)
+		trust = maxf(5.0, trust - 0.15 * float(st))
+		add_all_support(0.05 * float(st))
+	free = clampf(free + (float(m["tgt"]) - 20.0 * float(st) - free) * 0.02, 3.0, 99.0)
 	# фейки растут при слабых СМИ и гаснут при независимых
 	var fk: float = float(m["fake"])
 	fk = clampf(fk + (55.0 - free) * 0.004 - 0.05 + (0.1 if inflation > 6.0 else 0.0), 0.0, 100.0)
@@ -496,17 +512,18 @@ func realism_resolve(opt: Dictionary) -> void:
 		"clim_min":
 			add_support("Село", -2.0)
 		"scand_fire":
-			l["cor"] = maxf(1.0, float(l["cor"]) - 1.5)
+			rl_cor_add(-1.5)
 			rl_log("скандал: министр уволен.", COL_WARN)
 		"scand_probe":
-			l["cor"] = maxf(1.0, float(l["cor"]) - 4.0)
+			rl_cor_add(-4.0)
 			l["jud"] = minf(99.0, float(l["jud"]) + 2.0)
+			l["j0"] = float(l["j0"]) + 2.0
 			add_all_support(0.8)
 			rl_log("независимое расследование укрепило доверие к институтам.", COL_GOOD)
 		"scand_hide":
 			if randf() < 0.45 + (float(m["free"]) - 50.0) * 0.004:
 				add_all_support(-3.0)
-				l["cor"] = minf(98.0, float(l["cor"]) + 2.0)
+				rl_cor_add(2.0)
 				rl_log("попытка замять скандал провалилась: утечка в СМИ ударила по рейтингу.", COL_BAD)
 			else:
 				rl_log("скандал удалось замять, но осадок остался.", COL_DIM)
@@ -516,6 +533,7 @@ func realism_resolve(opt: Dictionary) -> void:
 		"fake_ban":
 			m["fake"] = maxf(0.0, float(m["fake"]) - 8.0)
 			m["free"] = maxf(5.0, float(m["free"]) - 5.0)
+			m["tgt"] = float(m["tgt"]) - 5.0
 			rl_log("закон о блокировке «ложной информации» принят; независимые СМИ жалуются на цензуру.", COL_WARN)
 		"fake_ignore":
 			m["fake"] = minf(100.0, float(m["fake"]) + 5.0)
@@ -549,7 +567,9 @@ func rl_pending_step() -> void:
 		var sec: String = String(p["sec"])
 		var key: String = String(p["key"])
 		var d: Dictionary = rl[sec]
-		d[key] = clampf(float(d[key]) + float(p["step"]), 0.0, 100.0)
+		d[key] = clampf(float(d[key]) + float(p["step"]), -100.0 if key == "cx" else 0.0, 100.0)
+		if p.has("key2"):
+			d[String(p["key2"])] = float(d[String(p["key2"])]) + float(p["step"])
 		p["left"] = int(p["left"]) - 1
 		if int(p["left"]) <= 0:
 			pend.remove_at(i)
@@ -650,7 +670,7 @@ func rl_do(id: String) -> bool:
 		if key == "state":
 			m["state"] = int(m["state"]) + int(found["d"])
 			if int(found["d"]) > 0:
-				l["cor"] = minf(98.0, float(l["cor"]) + 2.0)
+				rl_cor_add(2.0)
 		else:
 			(rl["lv"] as Dictionary)[key] = int(rl["lv"][key]) + int(found["d"])
 			if key == "ret" and int(found["d"]) > 0:
@@ -697,19 +717,20 @@ func rl_do(id: String) -> bool:
 			debt += gdp * 0.1 / 100.0
 			rl_log("Диверсифицированы поставки энергии.", COL_GOOD)
 		"courts":
-			(rl["pend"] as Array).append({"sec": "l", "key": "jud", "step": 8.0 / 6.0, "left": 6})
+			(rl["pend"] as Array).append({"sec": "l", "key": "jud", "step": 8.0 / 6.0, "left": 6, "key2": "j0"})
 			add_support("Силовики", -1.0)
 			rl_log("Запущена реформа судов.", COL_GOOD)
 		"anti":
 			l["anti"] = 1
-			(rl["pend"] as Array).append({"sec": "l", "key": "cor", "step": -8.0 / 12.0, "left": 12})
+			(rl["pend"] as Array).append({"sec": "l", "key": "cor", "step": -8.0 / 12.0, "left": 12, "key2": "cx"})
 			add_all_support(0.5)
 			add_support("Бизнес", -1.0)
 			rl_log("Создано независимое антикоррупционное бюро.", COL_GOOD)
 		"loyal":
 			capital = minf(100.0, capital + 6.0)
 			l["jud"] = maxf(3.0, float(l["jud"]) - 8.0)
-			l["cor"] = minf(98.0, float(l["cor"]) + 3.0)
+			l["j0"] = float(l["j0"]) - 8.0
+			rl_cor_add(3.0)
 			rl_log("Судьи заменены лояльными: власть крепче, суды слабее.", COL_WARN)
 		"coal_summit":
 			for p in range(1, PARTY_NAMES.size()):
@@ -721,6 +742,7 @@ func rl_do(id: String) -> bool:
 			hold_parliament("досрочные выборы по инициативе правительства")
 		"pub":
 			m["free"] = minf(98.0, float(m["free"]) + 6.0)
+			m["tgt"] = float(m["tgt"]) + 6.0
 			m["trust"] = minf(95.0, float(m["trust"]) + 4.0)
 			rl_log("Общественное вещание получило независимость.", COL_GOOD)
 		"fact":
