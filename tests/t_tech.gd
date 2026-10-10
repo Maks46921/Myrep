@@ -210,6 +210,29 @@ func _init():
 		var pg1: float = float(g.tech["prog"].get(cand, 0.0))
 		check(float(g.tech["pas"].get(cand, 0.0)) > 0.0, "пассивные очки не начислены")
 		check(float(g.tech["pas"].get(cand, 0.0)) <= g.TECH_PASSIVE_CAP * float(g.tech_def(cand)["cost"]) + 1e-6, "пассивных очков больше предела")
+	# --- ИИ-выбор ---
+	var needs: Dictionary = g.tech_needs_player()
+	for k in needs:
+		check(not is_nan(float(needs[k])) and float(needs[k]) >= 0.0, "потребность %s вне диапазона" % k)
+	for b7 in g.TECH_NB:
+		var pk: String = g.tech_ai_pick(b7, true)
+		check(pk == "" or g.tech_avail(pk), "ИИ выбрал недоступную технологию %s" % pk)
+	# на войне военные технологии ценнее, при высокой безработице — рабочие места
+	var m_army := "m4b"
+	var sc_peace: float = g.tech_score(m_army, g.tech_needs_player())
+	var needs_war: Dictionary = g.tech_needs_player()
+	needs_war["army_q"] = float(needs_war["army_q"]) + 2.0
+	check(g.tech_score(m_army, needs_war) > sc_peace, "на войне военная технология должна цениться выше")
+	var nbn1: Dictionary = g.tech_needs_bot(nb[0])
+	for k3 in nbn1:
+		check(not is_nan(float(nbn1[k3])), "NaN в потребностях соседа %s" % k3)
+	# выбор соседей на уровнях «или» воспроизводим и опирается на оценку
+	for d6 in g.TECHS:
+		var gl: Array = g.tech["grp"][int(d6["b"])][int(d6["t"])]
+		if gl.size() > 1:
+			var p1: String = g.tech_nb_pick(nb[0], int(d6["b"]), int(d6["t"]))
+			check(p1 in gl and p1 == g.tech_nb_pick(nb[0], int(d6["b"]), int(d6["t"])), "выбор соседа нестабилен")
+			break
 	# --- военная ветка влияет на качество армии ---
 	g.tech["done"]["m1"] = 1
 	g.recompute_mods()

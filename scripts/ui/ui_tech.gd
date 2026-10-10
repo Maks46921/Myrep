@@ -13,6 +13,7 @@ var tw_bld_box: VBoxContainer
 var tw_wlbl: Array = []
 var tw_wbtn: Array = []
 var tw_auto: Button
+var tw_ai_all: Button
 var tw_filter: Array = []
 var tw_hover := ""
 var tw_sig := ""
@@ -170,9 +171,12 @@ func build_tech_windows() -> void:
 		row.add_child(bp)
 		tw_wlbl.append(wl)
 		tw_wbtn.append([bm, bp])
-	tw_auto = fed_btn("Автовыбор технологий", lv, "Если включён, свободная ветка сама берёт самую дешёвую доступную технологию. На уровнях «или» автовыбор ждёт вашего решения полгода.")
+	tw_auto = fed_btn("ИИ-советник выбирает технологии", lv, "Если включён, свободная ветка сама берёт технологию, которая сильнее всего отвечает нуждам страны (рост, безработица, безопасность, коррупция, недовольные группы…). На уровнях «или» советник ждёт вашего решения полгода.")
 	tw_auto.toggle_mode = true
 	tw_auto.toggled.connect(on_tech_auto)
+	tw_ai_all = fed_btn("Советник решает и «или» сразу", lv, "Не ждать вашего решения на уровнях «или»: советник сразу выбирает лучший вариант и пишет в журнал причину.")
+	tw_ai_all.toggle_mode = true
+	tw_ai_all.toggled.connect(on_tech_ai_all)
 	tw_spk = Spark.new()
 	lv.add_child(tw_spk)
 	add_title(lv, "Научные сооружения")
@@ -232,6 +236,13 @@ func on_tech_auto(on: bool) -> void:
 	refresh()
 
 
+func on_tech_ai_all(on: bool) -> void:
+	if tech.is_empty():
+		return
+	tech["ai_all"] = on
+	refresh()
+
+
 func on_tech_hover(id: String) -> void:
 	tw_hover = id
 	tech_info_update()
@@ -285,6 +296,25 @@ func tech_info_text(id: String) -> String:
 		for a in al:
 			an.append("«%s»" % tech_def(String(a))["name"])
 		t += "[color=%s]Выбор «или»: изучив эту технологию, вы закроете %s.[/color]\n" % [COL_WARN, ", ".join(an)]
+	if not tech_done(id):
+		var needs := tech_needs_player()
+		var sc: float = tech_score(id, needs)
+		var why := tech_score_text(id, needs)
+		t += "[color=%s]Оценка ИИ-советника: %.1f%s.[/color]" % ["#b9e0a5", sc, (" — главное: " + why) if why != "" else ""]
+		if al.size() > 0:
+			var bestid := id
+			var bsc := sc
+			for a2 in al:
+				var s2: float = tech_score(String(a2), needs)
+				if s2 > bsc:
+					bsc = s2
+					bestid = String(a2)
+			if bestid == id:
+				t += " [color=%s]Лучший вариант в группе по мнению ИИ.[/color]\n" % "#b9e0a5"
+			else:
+				t += " [color=%s]Лучше, по мнению ИИ: «%s» (%.1f).[/color]\n" % [COL_DIM, tech_def(bestid)["name"], bsc]
+		else:
+			t += "\n"
 	var nbs := tech_nb()
 	if nbs.size() > 0 and not tech_done(id):
 		var who := tech_nb_who(id)
@@ -371,6 +401,8 @@ func update_tech_windows() -> void:
 		(tw_wbtn[b3][0] as Button).disabled = game_over or int(tech["w"][b3]) <= 0
 		(tw_wbtn[b3][1] as Button).disabled = game_over or int(tech["w"][b3]) >= 4
 	tw_auto.set_pressed_no_signal(bool(tech["auto"]))
+	tw_ai_all.set_pressed_no_signal(bool(tech["ai_all"]))
+	tw_ai_all.disabled = not bool(tech["auto"])
 	var hh: Dictionary = tech["h"]
 	tw_spk.title = "Скорость (зелёная) и потолок (жёлтая)"
 	tw_spk.series = [{"v": hh["s"], "c": Color("#58c887"), "n": "скорость"}, {"v": hh["c"], "c": Color("#e8b84a"), "n": "потолок"}]

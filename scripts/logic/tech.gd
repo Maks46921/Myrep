@@ -15,6 +15,10 @@ func ex_partners() -> Array:
 	return []
 
 
+func mil_at_war() -> bool:
+	return false
+
+
 func mil_land_neighbor(cc: String) -> bool:
 	return false
 
@@ -30,7 +34,7 @@ func tech_init() -> void:
 	tech_idx.clear()
 	for k in TECHS.size():
 		tech_idx[String(TECHS[k]["id"])] = k
-	tech = {"done": {}, "prog": {}, "cur": [], "bank": [], "wait": [], "w": [], "auto": true, "bld": {}, "q": [], "pas": {}, "pasm": [], "nb": [], "pace": {}, "grp": [], "ty": [],
+	tech = {"done": {}, "prog": {}, "cur": [], "bank": [], "wait": [], "w": [], "auto": true, "ai_all": false, "bld": {}, "q": [], "nbn": {}, "nbp": {}, "pas": {}, "pasm": [], "nb": [], "pace": {}, "grp": [], "ty": [],
 		"speed": 0.0, "raw": 0.0, "cap": 0.0, "idle": false, "pts": 0.0,
 		"h": {"s": [], "c": [], "r": []}}
 	for b in TECH_NB:
@@ -314,15 +318,17 @@ func tech_month() -> void:
 		if c != "" and (tech_done(c) or not tech_avail(c)):
 			tech["cur"][b] = ""
 		if String(tech["cur"][b]) == "" and bool(tech["auto"]):
-			tech["cur"][b] = tech_auto_pick(b)
+			tech["cur"][b] = tech_ai_pick(b, false)
 			if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
-				# выбор за вами; автовыбор берёт сам лишь после полугода ожидания (или если партией управляет ИИ)
+				# выбор «или»: ИИ-советник решает сразу, если разрешено (или партией управляет ИИ), иначе ждёт вашего решения полгода
 				tech["wait"][b] = int(tech["wait"][b]) + 1
-				if int(tech["wait"][b]) >= 6 or observer:
-					tech["cur"][b] = tech_auto_pick(b, true)
+				if int(tech["wait"][b]) >= TECH_WAIT_MONTHS or observer or bool(tech["ai_all"]):
+					var pick := tech_ai_pick(b, true)
+					tech["cur"][b] = pick
 					tech["wait"][b] = 0
-					if String(tech["cur"][b]) != "":
-						log_tag("НАУКА", COL_DIM, "%s: ветка «%s» не получила вашего выбора — автоматически выбрано «%s»." % [date_text(), String(TECH_BRANCHES[b]["name"]).to_lower(), tech_def(String(tech["cur"][b]))["name"]])
+					if pick != "":
+						var why := tech_score_text(pick, tech_needs_player())
+						log_tag("НАУКА", COL_DIM, "%s: ИИ-советник выбрал «%s» (ветка «%s»)%s." % [date_text(), tech_def(pick)["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), (": " + why) if why != "" else ""])
 			else:
 				tech["wait"][b] = 0
 	tech_refresh_rates()
@@ -360,9 +366,9 @@ func tech_month() -> void:
 				tech["bank"][b] = pg
 				log_tag("НАУКА", COL_GOOD, "%s: изучена технология «%s» (%s ветка). %s" % [date_text(), d["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), tech_fx_text(d)])
 				if bool(tech["auto"]):
-					tech["cur"][b] = tech_auto_pick(b)
-					if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
-						log_tag("НАУКА", COL_WARN, "В ветке «%s» открыт выбор: изучить можно только одну из технологий. Выберите в окне ветки (иначе через полгода выберется само)." % String(TECH_BRANCHES[b]["name"]).to_lower())
+					tech["cur"][b] = tech_ai_pick(b, false)
+					if String(tech["cur"][b]) == "" and tech_choice_waiting(b) and not bool(tech["ai_all"]):
+						log_tag("НАУКА", COL_WARN, "В ветке «%s» открыт выбор «или»: можно изучить только одну технологию. Выберите в окне технологий, иначе ИИ-советник выберет сам через %d мес." % [String(TECH_BRANCHES[b]["name"]).to_lower(), TECH_WAIT_MONTHS])
 			else:
 				tech["prog"][id] = pg
 	var h: Dictionary = tech["h"]
@@ -457,7 +463,9 @@ func tech_nb_has(c: String, id: String) -> bool:
 	if t >= tech_nb_tiers(c, b):
 		return false
 	var grp: Array = (tech["grp"][b] as Dictionary)[t]
-	return String(grp[tech_hash(c, "pick%d_%d" % [b, t]) % grp.size()]) == id
+	if grp.size() == 1:
+		return String(grp[0]) == id
+	return tech_nb_pick(c, b, t) == id
 
 
 func tech_nb_who(id: String) -> Array:
@@ -481,3 +489,166 @@ func tech_passive_rate(id: String) -> float:
 	if d.is_empty():
 		return 0.0
 	return TECH_PASSIVE * float(d["cost"]) * tech_nb_share(id)
+
+
+# ---------- ИИ-выбор технологий (v43_1) ----------
+# Потребности страны — словарь «модификатор → вес». Оценка технологии = Σ вес × (эффект / масштаб) × знак (знак — по MOD_INFO["g"]).
+# Один и тот же расчёт служит советнику игрока (по текущему состоянию страны) и странам-соседям (по их стартовым данным).
+
+
+func tech_needs_player() -> Dictionary:
+	var n := {}
+	var dbt: float = debt / maxf(1.0, gdp) * 100.0
+	var deficit: float = clampf(last_deficit_pct, -3.0, 8.0)
+	var war := 1.0 if mil_at_war() else 0.0
+	n["growth_bonus"] = 1.0 + clampf(1.6 - growth, 0.0, 1.5) * 0.5
+	n["eff_bonus"] = 0.5 + clampf(deficit, 0.0, 6.0) * 0.15 + clampf(dbt - 70.0, 0.0, 60.0) * 0.01
+	n["infra_eff"] = 0.35 + clampf(55.0 - float(lvl["infra_lvl"]), 0.0, 40.0) * 0.02
+	n["env_eff"] = 0.35 + clampf(55.0 - float(lvl["env_lvl"]), 0.0, 40.0) * 0.02
+	n["edu_eff"] = 0.45 + clampf(55.0 - float(lvl["edu_lvl"]), 0.0, 40.0) * 0.02
+	n["health_eff"] = 0.45 + clampf(55.0 - float(lvl["health_lvl"]), 0.0, 40.0) * 0.02
+	n["unemp_base"] = 0.4 + clampf(unemployment - 5.0, 0.0, 10.0) * 0.18
+	n["sec_bonus"] = 0.35 + war * 1.5 + clampf(regime_risk, 0.0, 100.0) * 0.01 + clampf(55.0 - float(lvl["security_lvl"]), 0.0, 40.0) * 0.02
+	n["corr_shift"] = 0.3 + clampf(float(lvl["corruption"]) - 35.0, 0.0, 40.0) * 0.03
+	n["equal_shift"] = 0.25 + clampf(55.0 - float(lvl["equality"]), 0.0, 40.0) * 0.02
+	n["dip_bonus"] = 0.35 + war * 0.6
+	n["capital_bonus"] = 0.7
+	n["mood_shift"] = 0.35 + clampf(50.0 - approval(), 0.0, 30.0) * 0.03
+	n["dem_shift"] = 0.0
+	n["admin_mult"] = 0.3 + clampf(deficit, 0.0, 6.0) * 0.12
+	n["extra_spend"] = 0.3 + clampf(deficit, 0.0, 6.0) * 0.12
+	n["corp_mult"] = 0.45 + clampf(deficit, 0.0, 6.0) * 0.05
+	n["zone_eff"] = 0.3
+	n["reg_unrest_shift"] = 0.3 + clampf(reg_avg("unrest") - 25.0, 0.0, 40.0) * 0.04
+	n["army_q"] = 0.3 + war * 2.2 + clampf(tech_threat(), 0.0, 1.0) * 0.8
+	for g in GROUPS:
+		var sup: float = float(support[g])
+		n["gb_" + g] = 0.15 + float(GROUP_WEIGHT[g]) * 3.0 + clampf(55.0 - sup, 0.0, 30.0) * 0.03
+	n["rs"] = 1.1
+	n["cp"] = 0.9
+	return n
+
+
+func tech_threat() -> float:
+	# 0..1: насколько страна ощущает военную угрозу (враждебные соседи, недавняя война, напряжённость в мире)
+	var t := 0.0
+	for c in tech_nb():
+		if dip.has(c) and float(dip[c]["rel"]) < 30.0:
+			t += 0.25
+	return clampf(t, 0.0, 1.0)
+
+
+func tech_needs_bot(c: String) -> Dictionary:
+	# потребности страны-бота по стартовым данным мира (WORLD): слабый рост → рост, безработица → занятость, нестабильность → безопасность…
+	var nb: Dictionary = tech["nbn"]
+	if nb.has(c):
+		return nb[c]
+	var w: Dictionary = WORLD[c]
+	var dem: float = float(MIL_DEMO.get(c, 0.6))
+	var rich: float = float(w["gdp"]) / maxf(0.1, float(w["pop"]))
+	var n := {}
+	n["growth_bonus"] = 1.0 + clampf(1.6 - float(w["growth"]), 0.0, 1.5) * 0.5
+	n["eff_bonus"] = 0.5 + clampf(float(w["def"]), 0.0, 6.0) * 0.15 + clampf(float(w["debt"]) - 70.0, 0.0, 60.0) * 0.01
+	n["infra_eff"] = 0.5 - clampf(rich, 0.0, 80.0) * 0.003 + 0.2
+	n["env_eff"] = 0.35 + dem * 0.3
+	n["edu_eff"] = 0.5 + (1.0 - clampf(rich / 70.0, 0.0, 1.0)) * 0.3
+	n["health_eff"] = 0.5
+	n["unemp_base"] = 0.4 + clampf(float(w["unemp"]) - 5.0, 0.0, 10.0) * 0.18
+	n["sec_bonus"] = 0.4 + clampf(60.0 - float(w["stab"]), 0.0, 40.0) * 0.03 + (0.5 if c in ["RS", "BA", "XK", "MK", "AL", "ME", "PL", "LT", "LV", "EE", "FI"] else 0.0)
+	n["corr_shift"] = 0.3 + (1.0 - dem) * 1.2
+	n["equal_shift"] = 0.3 + (1.0 - dem) * 0.2
+	n["dip_bonus"] = 0.4
+	n["capital_bonus"] = 0.6
+	n["mood_shift"] = 0.35 + clampf(50.0 - float(w["appr"]), 0.0, 30.0) * 0.03
+	n["dem_shift"] = 0.0
+	n["admin_mult"] = 0.3 + clampf(float(w["def"]), 0.0, 6.0) * 0.1
+	n["extra_spend"] = 0.3 + clampf(float(w["def"]), 0.0, 6.0) * 0.1
+	n["corp_mult"] = 0.45
+	n["zone_eff"] = 0.3
+	n["reg_unrest_shift"] = 0.3 + clampf(60.0 - float(w["stab"]), 0.0, 40.0) * 0.02
+	n["army_q"] = 0.3 + (0.7 if c in ["PL", "LT", "LV", "EE", "FI", "RS", "BA", "XK", "GR", "BG", "RO", "NO", "DK"] else 0.0) + clampf(60.0 - float(w["stab"]), 0.0, 40.0) * 0.01
+	for g in GROUPS:
+		n["gb_" + g] = 0.15 + float(GROUP_WEIGHT[g]) * 3.0
+	n["rs"] = 1.1
+	n["cp"] = 0.9
+	nb[c] = n
+	return n
+
+
+func tech_score(id: String, needs: Dictionary) -> float:
+	var d := tech_def(id)
+	if d.is_empty():
+		return 0.0
+	var s := 0.0
+	var fx: Dictionary = d["fx"]
+	for k in fx:
+		if not TECH_AI_SCALE.has(k) or not needs.has(k):
+			continue
+		var g: int = int(MOD_INFO[k]["g"]) if MOD_INFO.has(k) else 1
+		if g == 0:
+			g = 1
+		s += float(needs[k]) * float(g) * float(fx[k]) / float(TECH_AI_SCALE[k])
+	for k2 in ["rs", "cp"]:
+		if d.has(k2):
+			s += float(needs[k2]) * float(d[k2]) / float(TECH_AI_SCALE[k2])
+	return s
+
+
+func tech_score_text(id: String, needs: Dictionary) -> String:
+	# главные причины оценки: два самых весомых слагаемых
+	var d := tech_def(id)
+	var parts: Array = []
+	var fx: Dictionary = d["fx"]
+	for k in fx:
+		if not TECH_AI_SCALE.has(k) or not needs.has(k):
+			continue
+		var g: int = int(MOD_INFO[k]["g"]) if MOD_INFO.has(k) else 1
+		if g == 0:
+			g = 1
+		parts.append([float(needs[k]) * float(g) * float(fx[k]) / float(TECH_AI_SCALE[k]), k])
+	parts.sort_custom(func(a, b): return float(a[0]) > float(b[0]))
+	var out := PackedStringArray()
+	for i in mini(2, parts.size()):
+		if float(parts[i][0]) <= 0.05:
+			break
+		out.append(String(MOD_INFO[parts[i][1]]["t"]) if MOD_INFO.has(parts[i][1]) else String(parts[i][1]))
+	return ", ".join(out)
+
+
+func tech_ai_pick(b: int, allow_choice: bool = true) -> String:
+	# лучший по оценке вариант среди доступных в ветке (оценка делится на корень цены: дешёвое окупается раньше)
+	var needs := tech_needs_player()
+	var best := ""
+	var bs := -1e18
+	for d in TECHS:
+		var id: String = d["id"]
+		if int(d["b"]) != b or not tech_avail(id):
+			continue
+		if not allow_choice and tech_is_choice(id):
+			continue
+		var left: float = float(d["cost"]) - float(tech["prog"].get(id, 0.0))
+		var sc: float = tech_score(id, needs) / sqrt(maxf(50.0, left))
+		if sc > bs:
+			bs = sc
+			best = id
+	return best
+
+
+func tech_nb_pick(c: String, b: int, t: int) -> String:
+	# выбор страны-бота на уровне «или»: самая полезная для неё технология; небольшой шум от хэша, чтобы одинаковые страны различались
+	var key := "%s|%d|%d" % [c, b, t]
+	var cache: Dictionary = tech["nbp"]
+	if cache.has(key):
+		return String(cache[key])
+	var grp: Array = (tech["grp"][b] as Dictionary)[t]
+	var needs := tech_needs_bot(c)
+	var best := String(grp[0])
+	var bs := -1e18
+	for id in grp:
+		var noise: float = 0.9 + 0.2 * float(tech_hash(c, "n" + String(id)) % 100) / 100.0
+		var sc: float = tech_score(String(id), needs) * noise
+		if sc > bs:
+			bs = sc
+			best = String(id)
+	cache[key] = best
+	return best
