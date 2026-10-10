@@ -280,8 +280,13 @@ func build_event_window() -> void:
 	ev_meta_lbl.add_theme_font_size_override("font_size", 13)
 	ev_meta_lbl.add_theme_color_override("font_color", C_DIM)
 	vb.add_child(ev_meta_lbl)
+	ev_banner.visible = false
+	ev_art = EventArt.new()
+	w.body.add_child(ev_art)
+	w.body.move_child(ev_art, 0)
 	event_label = make_rt(w.body)
 	ev_ctx = make_rt(w.body)
+	ev_adv = make_rt(w.body)
 	add_title(w.body, "Ваш ответ")
 	event_buttons.clear()
 	event_boxes.clear()

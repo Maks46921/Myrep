@@ -1,6 +1,7 @@
 scripts/data/data_core.gd
 scripts/data/data_content.gd
 scripts/data/data_tech.gd
+scripts/data/data_events.gd
 scripts/data/data_countries.gd
 scripts/state/state_data.gd
 scripts/state/state.gd

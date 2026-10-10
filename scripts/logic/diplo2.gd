@@ -780,3 +780,33 @@ func dx_summary_text() -> String:
 	t += "[b]Армия[/b]: лояльность %.0f · амбиции генералов %.0f\n" % [float(dx["army"]["loy"]), float(dx["army"]["amb"])]
 	t += "[b]Этика технологий[/b]: уровень %d из 3 · скорость науки ×%.2f" % [int(dx["eth"]), tech_adj]
 	return t
+
+
+# v46_1: показатели модулей для условий событий (cor_gt, price_gt, age_gt, wave_gt, rev_gt, coup_gt, sep_gt, tech_gt…)
+func ev_ext_val(k: String) -> float:
+	match k:
+		"cor":
+			return float(rl["l"]["cor"]) if rl_on() else float(lvl["corruption"])
+		"price":
+			return float(rl["e"]["price"]) if rl_on() else 100.0
+		"age":
+			return float(rl["d"]["age"]) if rl_on() else 20.0
+		"free":
+			return float(rl["m"]["free"]) if rl_on() else 70.0
+		"wave":
+			return float(rv["nat"]["wave"]) if rv_on() else 0.0
+		"rev":
+			return float(rv["nat"]["rev"]) if rv_on() else 0.0
+		"coup":
+			return float(rv["nat"]["coup"]) if rv_on() else 0.0
+		"sep":
+			var mx := 0.0
+			if rv_on():
+				for i in regions.size():
+					mx = maxf(mx, float(rv_reg(i)["sep"]))
+			return mx
+		"tech":
+			return float((tech["done"] as Dictionary).size()) if not tech.is_empty() else 0.0
+		"army":
+			return float(dx["army"]["loy"]) if dx_on() else 60.0
+	return 0.0

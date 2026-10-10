@@ -55,6 +55,10 @@ var mods: Dictionary = BASE_MODS.duplicate()
 var cooldown := {}
 
 var capital := 40.0
+var ev_hist := {}             # v46_1: id события -> {"t": последний месяц, "n": сколько раз было, "o": выбранный вариант}
+var ev_queue: Array = []      # v46_1: продолжения цепочек [{"id", "due", "rid"}]
+var ev_later: Array = []      # v46_1: отложенные последствия [{"due", "fx", "t", "rid"}]
+var ev_log: Array = []        # v46_1: последние решения
 var noc_constr := false       # v44_1: конструктивный вотум недоверия (нужен преемник)
 var tech_adj := 1.0           # v44_1: множитель скорости исследований (договоры, этика, утечка умов)
 var tech_pas_mult := 1.0      # v44_1: множитель пассивного изучения (совместные проекты)
@@ -305,6 +309,8 @@ var log_box: RichTextLabel
 
 var event_label: RichTextLabel
 
+var ev_art: Control = null      # v46_1: иллюстрированная шапка события
+var ev_adv: RichTextLabel = null # v46_1: совет и память о прошлых решениях
 var ev_banner: PanelContainer
 
 var ev_glyph: Label
