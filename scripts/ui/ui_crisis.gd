@@ -112,7 +112,7 @@ func build_crisis_windows() -> void:
 	cr_spk = Spark.new()
 	lv.add_child(cr_spk)
 	cr_section(lv, "Защита от переворота")
-	var f1 := HFlowContainer.new()
+	var f1 := VBoxContainer.new()
 	f1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lv.add_child(f1)
 	for a in RV_COUP_MEASURES:
@@ -144,7 +144,8 @@ func build_crisis_windows() -> void:
 	cr_reg_rt = make_rt(rv_box)
 	cr_reg_rt.meta_clicked.connect(on_cr_reg_meta)
 	cr_sel_rt = make_rt(rv_box)
-	var f3 := HFlowContainer.new()
+	var f3 := GridContainer.new()
+	f3.columns = 4
 	f3.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rv_box.add_child(f3)
 	for a2 in RV_REG_ACTS:
@@ -154,7 +155,8 @@ func build_crisis_windows() -> void:
 	cr_section(rv_box, "Войны и мятежи")
 	cr_conf_rt = make_rt(rv_box)
 	cr_conf_rt.meta_clicked.connect(on_cr_conf_meta)
-	var f4 := HFlowContainer.new()
+	var f4 := GridContainer.new()
+	f4.columns = 3
 	f4.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rv_box.add_child(f4)
 	for a3 in RV_CONF_ACTS:
@@ -308,13 +310,13 @@ func update_crisis_windows() -> void:
 		["Общая обида", float(nat["hate"]), 25.0, 50.0, "память о репрессиях и насилии"]]
 	for r in rows:
 		var col: String = cr_col_for(float(r[1]), float(r[2]), float(r[3]))
-		s += "[b]%s[/b] [color=%s]%.0f[/color]\n[color=%s]%s[/color]  [color=%s]%s[/color]\n" % [r[0], col, float(r[1]), col, cr_bar(float(r[1])), COL_DIM, r[4]]
+		s += "[b]%s[/b] [color=%s]%.0f[/color] [color=%s]— %s[/color]\n[color=%s]%s[/color]\n" % [r[0], col, float(r[1]), COL_DIM, r[4], col, cr_bar(float(r[1]), 24)]
 	s += "\nПоддержка силовиков: %.0f · безопасность: %.0f · лояльность армии: +%.0f" % [float(support["Силовики"]), float(lvl["security_lvl"]), float(nat["loyal"])]
 	s += "\nСила армии для подавления: [b]%.0f[/b] · власть указами: %s · индекс демократии: %.0f%%" % [rv_gov_power(), "да" if decree_power() else "нет", democracy_index() * 100.0]
 	s += "\nПотери рынка и безработица от кризисов: рост %+.2f п.п., безработица %+.2f п.п." % [revolt_g(), revolt_unemp()]
 	cr_sum_rt.text = s
 	var h: Dictionary = rv["h"]
-	cr_spk.title = "Волна (красная), революция (жёлтая), переворот (синяя)"
+	cr_spk.title = "Волна · революция · переворот"
 	cr_spk.series = [{"v": h["wave"], "c": Color("#f0707a"), "n": "волна"}, {"v": h["rev"], "c": Color("#e8b84a"), "n": "революция"}, {"v": h["coup"], "c": Color("#6fa8dc"), "n": "переворот"}]
 	cr_spk.ymin = 0.0
 	cr_spk.ymax = 100.0

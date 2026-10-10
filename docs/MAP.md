@@ -20,10 +20,10 @@
 
 Переменные (2): `WORLD_UNITS`, `ATE`
 
-### `scripts/data/data_tech.gd`  (311 строк)
+### `scripts/data/data_tech.gd`  (323 строк)
 Технологии (v42_1): пять веток по 14 уровней на 100 лет вперёд (124 технологии; на 6 уровнях каждой ветки выбор «одна из 2–3») и специальные сооружения.
 
-Константы (11): `TECH_NB`, `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`, `TECH_PASSIVE`, `TECH_PASSIVE_CAP`
+Константы (13): `TECH_NB`, `TECH_BRANCHES`, `TECHS`, `TECH_BUILDINGS`, `TECH_R0`, `TECH_CAP0`, `TECH_CAP_YEAR`, `TECH_FREE_BASE`, `TECH_FREE_SPAN`, `TECH_WAIT_MONTHS`, `TECH_PASSIVE`, `TECH_PASSIVE_CAP`, `TECH_AI_SCALE`
 
 ### `scripts/data/data_countries.gd`  (6 строк)
 Пакеты данных стран (генерируются tools/gen_data из Python-описаний).
@@ -86,15 +86,15 @@
 
 Константы (2): `GOV_EXCLUDE`, `CORDON_JOIN`
 
-### `scripts/logic/events.gd`  (375 строк)
+### `scripts/logic/events.gd`  (381 строк)
 События и новости.
 
-Функции (27): `auto_event_ok`, `auto_event_pick`, `auto_resolve_event`, `council_event`, `council_event_note`, `council_event_ok`, `council_split`, `fleet_resolve`, `mil_resolve`, `opp_resolve_offer`, `radical_events`, `resolve_crisis`, `set_time_btns`, `ev_de_only`, `event_ok`, `show_news`, `ev_kind_info`, `ev_style`, `ev_context_text`, `present_event`, `econ_pool`, `show_event`, `choose`, `dip_events`, `gen_dip_event`, `w_help_event`, `fire_scripted`
+Функции (28): `auto_event_ok`, `auto_event_pick`, `auto_resolve_event`, `council_event`, `council_event_note`, `council_event_ok`, `council_split`, `fleet_resolve`, `mil_resolve`, `opp_resolve_offer`, `radical_events`, `resolve_crisis`, `revolt_resolve`, `set_time_btns`, `ev_de_only`, `event_ok`, `show_news`, `ev_kind_info`, `ev_style`, `ev_context_text`, `present_event`, `econ_pool`, `show_event`, `choose`, `dip_events`, `gen_dip_event`, `w_help_event`, `fire_scripted`
 
-### `scripts/logic/turn.gd`  (718 строк)
+### `scripts/logic/turn.gd`  (744 строк)
 Ход игры: один месяц, конец игры, начальная установка состояния.
 
-Функции (72): `adm_month`, `ag_build`, `ag_step`, `ai_init`, `ai_parties_step`, `ate_reset`, `autopilot_run`, `bills_step`, `council_budget`, `dip_init`, `dip_step`, `ex_g`, `ex_infl`, `ex_init`, `ex_month`, `fed_init`, `fed_month`, `fleet_day`, `fleet_g`, `fleet_infl`, `fleet_init`, `fleet_month`, `h12_snap`, `idl_mult`, `idl_step`, `junior_power`, `junior_quit`, `log_add`, `mil_day`, `mil_g`, `mil_infl`, `mil_init`, `mil_month`, `mil_unemp`, `observer_step`, `opp_init`, `opp_step`, `radical_step`, `soc_g`, `soc_init`, `soc_month`, `soc_unemp`, `tech_init`, `tech_month`, `world_init`, `world_spill_g`, `world_spill_infl`, `wsim_step`, `set_speed`, `on_play_toggled`, `on_speed_selected`, `set_time_btns`, `blocked`, `day_tick`, `advance_day`, `advance_days`, `advance_month`, `_process`, `log_policy_changes`, `macro_step`, `cap_rate`, `debt_erode`, `debt_drag`, `rt`, `week_tick`, `take_month_snap`, `next_turn`, `log_month`, `log_year_summary`, `end_game`, `init_state`, `skip_months`
+Функции (77): `adm_month`, `ag_build`, `ag_step`, `ai_init`, `ai_parties_step`, `ate_reset`, `autopilot_run`, `bills_step`, `council_budget`, `dip_init`, `dip_step`, `ex_g`, `ex_infl`, `ex_init`, `ex_month`, `fed_init`, `fed_month`, `fleet_day`, `fleet_g`, `fleet_infl`, `fleet_init`, `fleet_month`, `h12_snap`, `idl_mult`, `idl_step`, `junior_power`, `junior_quit`, `log_add`, `mil_day`, `mil_g`, `mil_infl`, `mil_init`, `mil_month`, `mil_unemp`, `observer_step`, `opp_init`, `opp_step`, `radical_step`, `revolt_g`, `revolt_init`, `revolt_month`, `revolt_nationwide_uprising`, `revolt_unemp`, `soc_g`, `soc_init`, `soc_month`, `soc_unemp`, `tech_init`, `tech_month`, `world_init`, `world_spill_g`, `world_spill_infl`, `wsim_step`, `set_speed`, `on_play_toggled`, `on_speed_selected`, `set_time_btns`, `blocked`, `day_tick`, `advance_day`, `advance_days`, `advance_month`, `_process`, `log_policy_changes`, `macro_step`, `cap_rate`, `debt_erode`, `debt_drag`, `rt`, `week_tick`, `take_month_snap`, `next_turn`, `log_month`, `log_year_summary`, `end_game`, `init_state`, `skip_months`
 
 ### `scripts/logic/world.gd`  (683 строк)
 Дипломатия и живой мир.
@@ -128,10 +128,10 @@ v36: административно-территориальные единиц�
 
 Переменные (3): `SOC`, `soc`, `soc_rng`
 
-### `scripts/logic/tech.gd`  (484 строк)
+### `scripts/logic/tech.gd`  (681 строк)
 Технологии (v39_1): три ветки исследований, специальные сооружения, скорость исследований с мягким потолком.
 
-Функции (42): `ex_dep`, `ex_partners`, `mil_land_neighbor`, `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`, `tech_nb`, `tech_hash`, `tech_nb_pace`, `tech_nb_tiers`, `tech_nb_has`, `tech_nb_who`, `tech_nb_share`, `tech_passive_rate`
+Функции (51): `ex_dep`, `ex_partners`, `mil_at_war`, `mil_land_neighbor`, `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`, `tech_nb`, `tech_hash`, `tech_nb_pace`, `tech_nb_tiers`, `tech_nb_has`, `tech_nb_who`, `tech_nb_share`, `tech_passive_rate`, `tech_needs_player`, `tech_threat`, `tech_needs_bot`, `tech_score`, `tech_score_text`, `tech_ai_pick`, `tech_nb_pick`, `tech_audit_profiles`
 
 Переменные (2): `tech`, `tech_idx`
 
@@ -195,6 +195,15 @@ v38: политика войны.
 
 Функции (21): `arch_ps`, `RV`, `rid_of`, `regime_id`, `econ_id`, `decree_power`, `radical_bypass`, `radical_req`, `law_locked`, `auth_idx`, `radical_enact`, `open_mult`, `radical_dyn`, `radical_step`, `show_uprising`, `radical_roll`, `radical_text`, `active_rids`, `radical_events`, `radical_add_variants`, `radical_inject`
 
+### `scripts/logic/revolt.gd`  (1536 строк)
+Протесты, недовольство, сепаратизм, революция, гражданская война, война за отделение, независимость и государственные перевороты (v43_1).
+
+Функции (65): `rv_lvl`, `rv_on`, `revolt_init`, `rv_uid`, `rv_reg`, `rv_idx`, `rv_log`, `rv_cd`, `rv_cd_set`, `rv_cd_tick`, `rv_clamp`, `rv_conf_count`, `revolt_g`, `revolt_unemp`, `revolt_month`, `rv_nat_step`, `rv_identity_gap`, `rv_sep_target`, `rv_region_step`, `rv_is_capital`, `rv_stage_news`, `rv_reg_act_def`, `rv_reg_act_check`, `rv_region_act`, `rv_yes_share`, `rv_referendum`, `rv_new_state_code`, `rv_can_secede`, `rv_secede`, `rv_conf_of`, `rv_aid0`, `rv_conf_start`, `rv_gov_power`, `rv_conf_month`, `rv_conf_step`, `rv_conf_end`, `rv_take_power`, `rv_conf_act_check`, `rv_conf_act`, `rv_event`, `rv_events`, `rv_event_wave`, `rv_event_rev`, `rv_event_coup`, `rv_event_referendum_demand`, `rv_event_udi`, `rv_event_ref_yes`, `revolt_resolve`, `rv_regime_options`, `rv_install_regime`, `democracy_index_before`, `rv_selfcoup_prob`, `rv_selfcoup_check`, `rv_selfcoup`, `rv_event_regime_choice`, `rv_oppcoup_prob`, `rv_oppcoup_check`, `rv_oppcoup`, `rv_uprising_check`, `rv_uprising`, `rv_coup_measure_check`, `rv_coup_measure`, `rv_ai_choice`, `rv_ai_step`, `revolt_nationwide_uprising`
+
+Константы (7): `RV_STAGE_NAMES`, `RV_STAGE_COL`, `RV_STAGE_G`, `RV_STAGE_U`, `RV_REG_ACTS`, `RV_CONF_ACTS`, `RV_COUP_MEASURES`
+
+Переменные (1): `rv`
+
 ### `scripts/logic/agents.gd`  (264 строк)
 Население: подключение агентов к голосованию, шагу и протестам.
 
@@ -210,16 +219,16 @@ v38: политика войны.
 
 Функции (21): `log_guess_cat`, `log_match`, `log_add`, `log_chip`, `log_render`, `log_cell`, `log_render_month`, `log_render_year`, `log_rebuild`, `log_clear`, `on_log_filter`, `build_log_filters`, `log_line`, `log_sys`, `log_header`, `log_tag`, `h12_push`, `h12_ago`, `h12_months`, `h12_label`, `h12_snap`
 
-### `scripts/ui/ui_core.gd`  (1521 строк)
+### `scripts/ui/ui_core.gd`  (1536 строк)
 Интерфейс: окна, тема, верхняя панель, экран «Бюджет», обновление.
 
-Функции (95): `build_dip_windows`, `build_econ_windows`, `build_election_window`, `build_event_window`, `build_fed_windows`, `build_fleet_windows`, `build_goods_windows`, `build_gov_windows`, `build_law_windows`, `build_map_windows`, `build_opp_windows`, `build_politics_windows`, `build_pop_windows`, `build_soc_windows`, `build_tech_windows`, `build_war_windows`, `ec_slider`, `make_tech_button`, `map_apply_mode`, `show_country_menu`, `update_dip_windows`, `update_econ_windows`, `update_fed_windows`, `update_fleet_windows`, `update_goods_windows`, `update_gov_windows`, `update_law_windows`, `update_opp_windows`, `update_parliament`, `update_regions_ui`, `update_soc_windows`, `update_tech_windows`, `update_war_windows`, `new_window`, `win_vis`, `on_win_close`, `win_menu_fill`, `on_win_menu`, `layout_windows`, `fix_wraps`, `fix_wraps_later`, `on_wrap_timer`, `reset_layout`, `show_desk`, `build_ui`, `add_title`, `add_note`, `make_fold`, `make_tail`, `set_tail_text`, `on_fold_toggled`, `on_detail_toggled`, `add_wrap_label`, `make_button`, `make_rt`, `add_slider`, `set_bar`, `build_budget_windows`, `build_log_and_event`, `update_slider_label`, `update_forecast`, `update_stats`, `update_polls`, `add_bar`, `color_button`, `refresh`, `on_slider`, `slider_value_for`, `configure_slider`, `toggle_slider_mode`, `make_theme`, `accent_for_desk`, `polish_tree`, `make_chip`, `set_chip`, `update_chips`, `draw_budget_viz`, `on_log_detail`, `show_tab`, `update_subbar`, `btn_icon`, `build_subbar`, `build_auto_window`, `on_ap_toggle`, `on_ap_target`, `on_ap_style`, `update_auto_window`, `on_floor_toggle`, `audio_ok`, `audio_load`, `audio_init`, `audio_apply_volume`, `music_next`, `sfx`, `toggle_music`
+Функции (98): `build_crisis_windows`, `build_dip_windows`, `build_econ_windows`, `build_election_window`, `build_event_window`, `build_fed_windows`, `build_fleet_windows`, `build_goods_windows`, `build_gov_windows`, `build_law_windows`, `build_map_windows`, `build_opp_windows`, `build_politics_windows`, `build_pop_windows`, `build_soc_windows`, `build_tech_windows`, `build_war_windows`, `ec_slider`, `make_crisis_button`, `make_tech_button`, `map_apply_mode`, `show_country_menu`, `update_crisis_windows`, `update_dip_windows`, `update_econ_windows`, `update_fed_windows`, `update_fleet_windows`, `update_goods_windows`, `update_gov_windows`, `update_law_windows`, `update_opp_windows`, `update_parliament`, `update_regions_ui`, `update_soc_windows`, `update_tech_windows`, `update_war_windows`, `new_window`, `win_vis`, `on_win_close`, `win_menu_fill`, `on_win_menu`, `layout_windows`, `fix_wraps`, `fix_wraps_later`, `on_wrap_timer`, `reset_layout`, `show_desk`, `build_ui`, `add_title`, `add_note`, `make_fold`, `make_tail`, `set_tail_text`, `on_fold_toggled`, `on_detail_toggled`, `add_wrap_label`, `make_button`, `make_rt`, `add_slider`, `set_bar`, `build_budget_windows`, `build_log_and_event`, `update_slider_label`, `update_forecast`, `update_stats`, `update_polls`, `add_bar`, `color_button`, `refresh`, `on_slider`, `slider_value_for`, `configure_slider`, `toggle_slider_mode`, `make_theme`, `accent_for_desk`, `polish_tree`, `make_chip`, `set_chip`, `update_chips`, `draw_budget_viz`, `on_log_detail`, `show_tab`, `update_subbar`, `btn_icon`, `build_subbar`, `build_auto_window`, `on_ap_toggle`, `on_ap_target`, `on_ap_style`, `update_auto_window`, `on_floor_toggle`, `audio_ok`, `audio_load`, `audio_init`, `audio_apply_volume`, `music_next`, `sfx`, `toggle_music`
 
 Константы (1): `WIN_DEFAULT_CLOSED`
 
 Переменные (6): `music_player`, `sfx_players`, `sfx_cache`, `music_list`, `music_idx`, `sfx_last`
 
-### `scripts/ui/ui_map.gd`  (1739 строк)
+### `scripts/ui/ui_map.gd`  (1741 строк)
 Интерфейс: карта, таблица регионов, региональная экономика.
 
 Функции (66): `draw_war_overlay`, `draw_war_tokens`, `fed_btn`, `fed_opt`, `fed_pct`, `update_fregion`, `war_hover`, `war_map_click`, `on_layer_selected`, `fill_table_rows`, `fill_transfer_rows`, `rebuild_region_widgets`, `map_rebuild`, `map_prepare`, `map_tri_mesh`, `map_border_segs`, `map_view`, `map_country_rect`, `map_free_rect`, `map_fit_rect`, `map_zoom_cmd`, `map_zoom_at`, `map_clamp`, `unit_is_tiny`, `ate_at`, `unit_at`, `ctx_at`, `unit_tip`, `map_click`, `on_region_picked`, `map_apply_mode`, `on_map_input`, `build_map_windows`, `on_transfer_slider`, `on_table_row`, `set_sort`, `is_world_layer`, `layer_info`, `layer_leader`, `layer_color`, `cl_info`, `cl_color`, `unit_color`, `draw_map`, `region_tip`, `region_sort_value`, `update_regions_ui`, `update_region_table`, `update_transfer_ui`, `update_region_info`, `on_tool_selected`, `build_regecon_window`, `update_regecon`, `regecon_inject`, `ate_tip`, `fmt_people`, `ate_click`, `build_adm_window`, `adm_open`, `adm_opt_fill`, `adm_sel_regions_adjacent`, `update_adm_ui`, `on_adm_move`, `on_adm_create`, `on_adm_delete`, `on_adm_buy`
@@ -281,12 +290,19 @@ v38: политика войны.
 
 Переменные (14): `sw_rel_rt`, `sw_pol_rt`, `sw_mig_rt`, `sw_reg_rt`, `sw_btn`, `xw_list_rt`, `xw_info_rt`, `xw_btn`, `sw_chart`, `sw_regchart`, `sw_spk_t`, `sw_spk_n`, `xw_chart`, `xw_spk`
 
-### `scripts/ui/ui_tech.gd`  (425 строк)
+### `scripts/ui/ui_tech.gd`  (458 строк)
 Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
 
-Функции (18): `make_tech_button`, `on_tech_toggle`, `set_tech_open`, `tech_scroll_to_frontier`, `build_tech_windows`, `on_tech_filter`, `on_tech_weight`, `on_tech_auto`, `on_tech_hover`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `tech_info_text`, `tech_info_update`, `update_tech_windows`, `tech_clear`, `tech_build_buildings`, `tech_buildings_text`
+Функции (19): `make_tech_button`, `on_tech_toggle`, `set_tech_open`, `tech_scroll_to_frontier`, `build_tech_windows`, `on_tech_filter`, `on_tech_weight`, `on_tech_auto`, `on_tech_ai_all`, `on_tech_hover`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `tech_info_text`, `tech_info_update`, `update_tech_windows`, `tech_clear`, `tech_build_buildings`, `tech_buildings_text`
 
-Переменные (16): `tech_ov`, `tech_btn`, `tech_view`, `tech_scroll`, `tw_sum_rt`, `tw_info_rt`, `tw_spk`, `tw_bld_rt`, `tw_bld_box`, `tw_wlbl`, `tw_wbtn`, `tw_auto`, `tw_filter`, `tw_hover`, `tw_sig`, `tw_first`
+Переменные (17): `tech_ov`, `tech_btn`, `tech_view`, `tech_scroll`, `tw_sum_rt`, `tw_info_rt`, `tw_spk`, `tw_bld_rt`, `tw_bld_box`, `tw_wlbl`, `tw_wbtn`, `tw_auto`, `tw_ai_all`, `tw_filter`, `tw_hover`, `tw_sig`, `tw_first`
+
+### `scripts/ui/ui_crisis.gd`  (407 строк)
+Интерфейс: окно «Кризисы» (v43_1) — протесты, сепаратизм, войны за отделение, революция, гражданская война, перевороты.
+
+Функции (18): `make_crisis_button`, `on_crisis_toggle`, `set_crisis_open`, `cr_section`, `build_crisis_windows`, `cr_col_for`, `cr_bar`, `on_cr_reg_meta`, `on_cr_conf_meta`, `cr_sel_region_idx`, `cr_sel_conf_idx`, `on_cr_reg_act`, `on_cr_conf_act`, `on_cr_coup_measure`, `on_cr_power`, `on_cr_confirmed`, `update_crisis_windows`, `date_after_turn`
+
+Переменные (17): `cr_ov`, `cr_btn`, `cr_sum_rt`, `cr_reg_rt`, `cr_sel_rt`, `cr_conf_rt`, `cr_log_rt`, `cr_state_rt`, `cr_coup_rt`, `cr_spk`, `cr_reg_btn`, `cr_conf_btn`, `cr_coup_btn`, `cr_sel_reg`, `cr_sel_conf`, `cr_confirm`, `cr_pending`
 
 ### `scripts/ui/ui_opp.gd`  (209 строк)
 Интерфейс: оппозиция и переговоры между партиями (экран «Политика»).
@@ -311,7 +327,7 @@ v38: политика войны.
 
 Переменные (19): `war_army_rt`, `war_unit_rt`, `war_ops_rt`, `war_log_rt`, `war_list`, `war_list_key`, `war_btn`, `war_tgt`, `war_tgt_ids`, `war_note`, `war_msg`, `war_occ_ver`, `war_occ_tris`, `war_front`, `war_hover_tok`, `war_talk_rt`, `war_intl_rt`, `war_talk_chk`, `war_repar`
 
-### `main.gd`  (831 строк)
+### `main.gd`  (833 строк)
 PolitGame: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
 
 Функции (29): `country_arg`, `party_arg`, `seed_arg`, `apply_country`, `apply_markets`, `cdat`, `diff_color`, `menu_title`, `menu_rt`, `menu_bar`, `sector_shares`, `country_strengths`, `fill_country_card`, `opt_index`, `menu_update_est`, `opt_row`, `opt_choice`, `opt_slider`, `fmt_mult`, `fmt_k`, `build_settings_panel`, `opts_from_args`, `show_country_menu`, `fill_party_pick`, `update_menu_party`, `choose_country`, `_ready`, `_input`, `_unhandled_input`
