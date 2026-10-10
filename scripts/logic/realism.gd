@@ -74,7 +74,7 @@ func rl_init() -> void:
 		"h": {"age": [], "tfr": [], "cor": [], "jud": [], "free": [], "price": [], "green": [], "clim": [], "gdp": [], "debt": [], "appr": [], "unemp": [], "infl": [], "growth": []},
 	}
 	nato_ovr = 1 if bool(rl["b"]["nato"]) else 0
-	noc_constr = cc in RL_CONSTR
+	noc_constr = cc in RL_CONSTR and int(game_opts.get("rlev", 1)) > 0
 	var l0: Dictionary = rl["l"]
 	l0["j0"] = float(l0["jud"])
 	l0["cx"] = float(l0["cor"]) - (100.0 - (0.6 * float(l0["jud"]) + 0.4 * float(rl["m"]["free"])))
