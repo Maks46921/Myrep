@@ -42,7 +42,7 @@ func _init():
 			var dom := []
 			for i in opts.size():
 				for j in opts.size():
-					if i != j and dominates(vs[i], vs[j]) and float(sc[i]) - float(sc[j]) > 2.0 and not opts[j].has("risk") and not opts[i].has("risk") and not opts[j].has("later") and not opts[j].has("next"):
+					if i != j and dominates(vs[i], vs[j]) and float(sc[i]) - float(sc[j]) > 2.0 and not opts[j].has("risk") and not opts[i].has("risk") and not opts[j].has("later") and not opts[i].has("later") and not opts[j].has("next"):
 						dom.append("%d>%d" % [i + 1, j + 1])
 			if dom.size() > 0: n_dom += 1
 			if mx - mn > 22.0: n_spread += 1

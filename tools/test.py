@@ -49,6 +49,7 @@ TESTS = {
     'revolt': ('t_revolt.gd', [], 400),
     'realism': ('t_realism.gd', [], 400),
     'diplo2': ('t_diplo2.gd', [], 400),
+    'events': ('t_events.gd', [], 400),
     'menu':   ('shot_menu.gd', [], 60),     # меню выбора страны (карта + карточка), нужен xvfb-run
     'width':  ('audit_width.gd', [], 120),  # элементы шире окна при 1366x768, нужен xvfb-run
     'click':  ('shot_click.gd', [], 120),
@@ -59,7 +60,7 @@ TESTS = {
     'long':   ('t_long.gd', [], 400),
 }
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')

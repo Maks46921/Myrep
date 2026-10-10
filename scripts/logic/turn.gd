@@ -466,7 +466,7 @@ func week_tick() -> void:
 	if not blocked() and not game_over:
 		if randf() < 0.22 * float(game_opts["news"]) * dt:
 			show_news()
-		if not fire_scripted() and not ev_tick() and randf() < 0.17 * float(game_opts["ev"]) * dt:
+		if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * dt:
 			show_event()
 
 
@@ -606,7 +606,7 @@ func next_turn() -> void:
 	dip_events()
 	if randf() < 0.22 * float(game_opts["news"]) * rest:
 		show_news()
-	if not fire_scripted() and not ev_tick() and randf() < 0.17 * float(game_opts["ev"]) * rest:
+	if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * rest:
 		show_event()
 	refresh()
 

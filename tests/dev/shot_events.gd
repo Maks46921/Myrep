@@ -21,7 +21,7 @@ func _init():
 	while not g.current_event.is_empty(): g.choose(0)
 	if g.election_open: g.election_continue()
 	g.capital = 30.0
-	for id in ["x_chip_plant", "x_bank_trouble", "x_flood", "x_terror_threat"]:
+	for id in ["x_chip_plant", "x_bank_trouble", "x_flood", "x_street_wave", "x_pipeline_2"]:
 		g.current_event = g.ev_by_id(id)
 		g.event_region = 2 if g.current_event.get("rreg", false) else -1
 		g.present_event()
