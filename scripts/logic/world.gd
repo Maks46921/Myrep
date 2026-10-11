@@ -286,15 +286,34 @@ func w_stance_name(s: float) -> String:
 
 
 # вес торговли страны a со страной b (для спилловеров)
+# v49: стартовые санкции: торговля страны под санкциями с ЕС и присоединившимися к санкциям сократилась примерно вчетверо
+const W_SANCT0 := ["RU", "BY"]
+const W_SANCT_JOIN := ["GB", "NO", "CH", "AL", "ME", "MK", "XK", "UA", "MD"]
+
+
+# v49: насколько экономики связаны: санкции режут связь (на 75%), непризнанные образования торгуют через покровителя
+func w_link(a: String, b: String) -> float:
+	if w_unrec(a) or w_unrec(b):
+		return 0.15
+	var sa: bool = a in W_SANCT0
+	var sb: bool = b in W_SANCT0
+	if sa == sb:
+		return 1.0
+	var o: String = b if sa else a
+	if bool((WORLD[o] as Dictionary).get("eu", false)) or o in W_SANCT_JOIN:
+		return 0.25
+	return 1.0
+
+
 func w_share(a: String, b: String) -> float:
 	var tot := 0.0
 	for c in wsim:
 		if c == a:
 			continue
-		tot += pow(float(wsim[c]["gdp"]), 0.7)
+		tot += pow(float(wsim[c]["gdp"]), 0.7) * w_link(a, c)
 	if tot <= 0.0:
 		return 0.0
-	return float(W_OPEN.get(a, 0.4)) * open_mult(a) * pow(float(wsim[b]["gdp"]), 0.7) / tot
+	return float(W_OPEN.get(a, 0.4)) * open_mult(a) * pow(float(wsim[b]["gdp"]), 0.7) * w_link(a, b) / tot
 
 
 func w_cur_growth(c: String) -> float:
