@@ -4,7 +4,7 @@
 extends "res://scripts/logic/log.gd"
 
 const SV_DIR := "user://saves"
-const SV_SKIP := ["sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix"]
+const SV_SKIP := ["sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix", "map_pin_cache", "map_pin_key", "map_lab_pts"]
 const SV_KEEP := 4
 
 var sv_hist: Array = []   # автоснимки: [{"turn": int, "date": String, "bytes": PackedByteArray}]

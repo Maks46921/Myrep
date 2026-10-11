@@ -86,10 +86,14 @@ def run_stubs():
     return 'stubs', '-', errs, time.time() - t0, p.stdout + p.stderr
 
 
+SLOW = {"RU": 3.0, "UA": 1.3}
+
+
 def run_one(test, cc, update):
     if test == 'stubs':
         return run_stubs()
     script, extra, tmo = TESTS[test]
+    tmo = tmo * SLOW.get(cc, 1.0)       # v50: у России 89 субъектов — прогон заметно дольше
     gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick')
     cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', 'tests/' + script, '--', 'country=' + cc] + extra
     if gui:

@@ -262,7 +262,7 @@ const MIL_ONGOING := {"UA": ["RU", false, 1407], "RU": ["UA", true, 1407]}
 
 
 func mil_start_ongoing() -> void:
-	if not mil_on() or int(game_opts.get("milev", 1)) == 0 or not MIL_ONGOING.has(ccode) or mil_at_war():
+	if not mil_on() or int(game_opts.get("milev", 1)) == 0 or not bool(game_opts.get("ongoing", true)) or not MIL_ONGOING.has(ccode) or mil_at_war():
 		return
 	var o: Array = MIL_ONGOING[ccode]
 	var lead: String = String(o[0])
@@ -282,6 +282,28 @@ func mil_start_ongoing() -> void:
 	w["weary"] = 26.0 if bool(o[1]) else 34.0      # усталость четвёртого года
 	w["mor"] = clampf(float(w.get("mor", 55.0)) - 8.0, 15.0, 90.0)
 	w["offer_cd"] = 60
+	# свои войска на старте стоят на фронте, а не в глубине страны
+	var own: Array = mil_units_of(ccode)
+	var spots: Array = mil_border_spots(ccode, [lead], int(ceil(float(own.size()) * 0.75)))
+	for k in mini(spots.size(), own.size()):
+		var f: Dictionary = own[k]
+		f["a"] = int(spots[k])
+		f["path"] = []
+		f["mode"] = "def"
+	mil_dirty = true
+	# международная реакция четвёртого года: осуждение ООН, санкции ЕС и союзников, добровольцы и требования перемирия уже были
+	var it: Dictionary = war_intl(w)
+	if not it.is_empty():
+		it["cond"] = 70.0
+		it["un"] = 4
+		it["press"] = 1
+		it["vol"] = 3
+		if bool(o[1]):
+			it["eu"] = true
+			w["sanct"] = true
+		war_sanctions_update(w)
+	w["g0"] = mil_g()
+	w["i0"] = mil_infl()
 	var msg := "Идёт четвёртый год полномасштабной войны: Россия напала на Украину 24 февраля 2022 года. Фронт проходит по Донбассу, Запорожской и Херсонской областям; Крым, большая часть Донбасса, юг Запорожской и левобережье Херсонской областей заняты Россией."
 	mil_log(msg, COL_WARN)
 	log_tag("ВОЙНА", COL_BAD, msg)
@@ -1201,6 +1223,9 @@ func mil_def_mult(a: int, side: int) -> float:
 	var m := 1.25
 	if mil_side(ate_cc(a)) == side:
 		m += 0.25
+	# v50: затяжная война — линии укреплений, минные поля и дроны: обороняться заметно легче, чем наступать
+	if mil_at_war() and bool((mil["war"] as Dictionary).get("ongoing", false)):
+		m += 0.6
 	for c in ate_cap:
 		if int(ate_cap[c]) == a:
 			m += 0.35
@@ -1458,7 +1483,9 @@ func mil_plan(side: int) -> void:
 			if occ_home >= 0 and near_en >= 0 and frontier >= 0 and en_unit >= 0 and intruder >= 0 and home_line >= 0:
 				break
 		var tgt := -1
-		var offense: bool = (ratio >= 1.15 and String(f["cc"]) != ccode) or (String(f["mode"]) == "auto" and String(f["cc"]) == ccode and ratio >= 0.9)
+		# v50: в затяжной позиционной войне (идёт с начала игры) ИИ наступает только при заметном перевесе
+		var off_thr: float = 1.9 if bool(w.get("ongoing", false)) else 1.15
+		var offense: bool = (ratio >= off_thr and String(f["cc"]) != ccode) or (String(f["mode"]) == "auto" and String(f["cc"]) == ccode and ratio >= 0.9)
 		# при перевесе часть сил гонится за прорвавшимися соединениями противника, остальные освобождают землю
 		if intruder >= 0 and ratio > 1.0 and k % 2 == 0:
 			tgt = intruder
@@ -1749,7 +1776,11 @@ func mil_month() -> void:
 func mil_war_month() -> void:
 	var w: Dictionary = mil["war"]
 	var months: float = float(w["days"]) / 30.0
-	debt += gdp * 0.0025 + mil_total(ccode) * 0.004
+	if bool(w.get("ongoing", false)):
+		# v50: расходы на идущую войну уже в бюджете (ползунок обороны) — в долг идёт только сверх стартовой армии
+		debt += maxf(0.0, mil_total(ccode) - float((w["str0"] as Dictionary).get(ccode, 0.0))) * 0.004
+	else:
+		debt += gdp * 0.0025 + mil_total(ccode) * 0.004
 	var op: float = float(w["occ"][0])
 	# в демократии затяжная наступательная война бьёт по рейтингу сильнее
 	var dk: float = 1.0 + (0.6 * war_demo(ccode) * war_demo(String(w["lead"])) if bool(w["aggr"]) else 0.0)
@@ -1770,7 +1801,9 @@ func mil_war_month() -> void:
 			var ws: Dictionary = wsim[c]
 			ws["growth"] = float(ws["growth"]) - 0.5 - float(w["occ"][1]) * 6.0 - (0.4 if bool(w["blk_e"]) else 0.0)
 	# противник объявляет мобилизацию, если проигрывает
-	if int(w["mob_ai"]) == 0 and (float(w["score"]) > 15.0 or months > 2.0):
+	# (в войне, идущей с начала игры, противник уже мобилизовался — новая волна только при тяжёлых неудачах)
+	var mob_need: bool = float(w["score"]) > 25.0 if bool(w.get("ongoing", false)) else (float(w["score"]) > 15.0 or months > 2.0)
+	if int(w["mob_ai"]) == 0 and mob_need:
 		w["mob_ai"] = 1
 		var lead := String(w["lead"])
 		var b: Array = MIL_BASE[lead]
@@ -1819,7 +1852,11 @@ func mil_g() -> float:
 		if bool(w["sanct"]):
 			g -= 1.2
 	g += war_intl_g()
-	return clampf(g, -14.0, 0.0) + war_trade_g()
+	var out: float = clampf(g, -14.0, 0.0) + war_trade_g()
+	# v50: у войны, идущей на старте, стартовые потери уже учтены в экономике страны — считаются только изменения
+	if mil_at_war() and (mil["war"] as Dictionary).has("g0"):
+		out -= float(mil["war"]["g0"])
+	return out
 
 
 func mil_infl() -> float:
@@ -1827,9 +1864,10 @@ func mil_infl() -> float:
 		return 0.0
 	if not mil_at_war():
 		return ar_war_infl()
+	var base0: float = float((mil["war"] as Dictionary).get("i0", 0.0))
 	if int(mil["war"].get("cf", 0)) > 0:
-		return 0.6
-	return 1.2 + (0.6 if bool(mil["war"]["sanct"]) else 0.0) + war_intl_infl() + ar_war_infl()
+		return 0.6 - base0
+	return 1.2 + (0.6 if bool(mil["war"]["sanct"]) else 0.0) + war_intl_infl() + ar_war_infl() - base0
 
 
 func mil_unemp() -> float:

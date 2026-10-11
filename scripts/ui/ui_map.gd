@@ -292,6 +292,7 @@ const MAP_OCC_SINCE := {"RU-CR": 2014, "RU-SEV": 2014, "RU-DNR": 2014, "RU-LNR":
 func map_prepare_labels() -> void:
 	map_lab.clear()
 	map_lab_pts.clear()
+	map_pin_cache.clear()
 	map_hatch.clear()
 	map_front = PackedVector2Array()
 	map_own_rect = map_country_rect(ccode)
@@ -525,18 +526,54 @@ func map_cam_step(delta: float) -> void:
 
 
 # малые регионы своей страны (Берлин, Бремен…) на текущем масштабе: их можно выбрать по «булавке»
-# v49: место булавки малого региона; если она совпала с булавкой меньшего региона (Москва и Московская область) — сдвигаем
+# v50: раскладка булавок малых регионов без наложений (у России их десятки): от мелких к крупным,
+# каждая — в центре региона или, если место занято, на ближайшем свободном кольце вокруг него
+var map_pin_cache: Dictionary = {}
+var map_pin_key := Vector3.ZERO
+
+
+func map_pin_layout(s: float, off: Vector2) -> Dictionary:
+	var key := Vector3(snappedf(s, 0.0001), roundf(off.x), roundf(off.y))
+	if key == map_pin_key and not map_pin_cache.is_empty():
+		return map_pin_cache
+	var tiny: Array = []
+	for ui in map_unit_local:
+		if unit_is_tiny(ui, s):
+			tiny.append(ui)
+	tiny.sort_custom(func(a, b) -> bool: return (map_unit_rect[a] as Rect2).get_area() < (map_unit_rect[b] as Rect2).get_area())
+	var out := {}
+	var placed: Array = []
+	for ui in tiny:
+		var c := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
+		var best: Vector2 = c
+		var found := false
+		for rad in [0.0, 19.0, 27.0, 36.0]:
+			for k in (1 if rad == 0.0 else 8):
+				var an: float = float(k) * TAU / 8.0 + 0.4
+				var q: Vector2 = c + Vector2(cos(an), sin(an)) * rad
+				var ok := true
+				for p2 in placed:
+					if (p2 as Vector2).distance_to(q) < 17.0:
+						ok = false
+						break
+				if ok:
+					best = q
+					found = true
+					break
+			if found:
+				break
+		out[ui] = best
+		placed.append(best)
+	map_pin_cache = out
+	map_pin_key = key
+	return out
+
+
 func map_pin_pos(ui: int, s: float, off: Vector2) -> Vector2:
-	var p := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
-	var ra: float = (map_unit_rect[ui] as Rect2).get_area()
-	for u2 in map_unit_local:
-		if u2 == ui or not unit_is_tiny(u2, s) or (map_unit_rect[u2] as Rect2).get_area() >= ra:
-			continue
-		var q := Vector2(float(WORLD_UNITS[u2]["c"][0]), float(WORLD_UNITS[u2]["c"][1])) * s + off
-		if q.distance_to(p) < 18.0:
-			var d: Vector2 = (p - q).normalized() if p.distance_to(q) > 0.5 else Vector2(0.8, 0.6)
-			p = q + d * 20.0
-	return p
+	var lay: Dictionary = map_pin_layout(s, off)
+	if lay.has(ui):
+		return lay[ui]
+	return Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
 
 
 func unit_is_tiny(ui: int, s: float) -> bool:
@@ -1053,7 +1090,7 @@ func unit_color(ui: int) -> Color:
 	var cc: String = String(WORLD_UNITS[ui]["cc"])
 	if is_world_layer():
 		return cl_color(cc)
-	if cc == ccode:
+	if cc == ccode and map_unit_local.has(ui):
 		var lc: Color = layer_color(int(map_unit_local[ui]))
 		if map_own_mix > 0.001 and map_layer < 20:
 			lc = lc.lerp((WORLD_CCOL.get(cc, Color(0.55, 0.50, 0.58)) as Color).lightened(0.12), map_own_mix)

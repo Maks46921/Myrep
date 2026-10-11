@@ -631,6 +631,8 @@ func war_intl_month() -> void:
 
 
 func war_join_check(w: Dictionary, it: Dictionary) -> void:
+	if bool(w.get("ongoing", false)):
+		return      # v50: в войне, идущей с начала игры, расклад союзников уже сложился
 	var ag := war_aggressor()
 	var vi := war_victim()
 	var ag_side := mil_side(ag)

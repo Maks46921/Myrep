@@ -63,7 +63,8 @@ func fed_cfg() -> Dictionary:
 func fed_reset_world() -> void:
 	ate_reset()
 	for ui in fed_u0:
-		WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
+		if int(ui) < WORLD_UNITS.size():          # единицы, созданные реформой АТЕ, ate_reset уже убрал
+			WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
 	for cc in fed_w0:
 		WORLD[cc]["regions"] = (fed_w0[cc] as Array).duplicate(true)
 	fed_u0.clear()

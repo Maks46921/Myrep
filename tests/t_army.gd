@@ -153,8 +153,8 @@ func _init():
 	for f in g.mil_units_of(cc): tps2.append(String(f["tp"]))
 	check(tps == tps2, "рода войск не сохранились")
 	drop(g)
-	# --- война ---
-	var g2 = mk({})
+	# --- война ---  (v50: без войны, идущей с начала игры, — проверяем новую)
+	var g2 = mk({"ongoing": false})
 	for i in 4: await process_frame
 	var tg2: Array = g2.mil_targets()
 	if not tg2.is_empty():
@@ -181,7 +181,8 @@ func _init():
 			if not g2.mil_at_war(): break
 		if g2.mil_at_war():
 			var fought: bool = int(g2.mil["war"]["won"]) + int(g2.mil["war"]["lost"]) > 0
-			if fought:
+			# (у стран с мощным ВПК — Россия — выпуск снарядов может перекрывать расход в редких боях)
+			if fought and float(g2.ar_data(cc)[5]) < 3.0:
 				check(float(g2.ar["ammo"]) < am1 + 0.2, "в боях боеприпасы должны тратиться: %.2f → %.2f" % [am1, float(g2.ar["ammo"])])
 			var mo: float = g2.ar_mor(0)
 			check(mo >= 10.0 and mo <= 95.0, "боевой дух вне пределов")

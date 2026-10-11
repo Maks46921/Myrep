@@ -15,7 +15,7 @@ func run_months(g, n: int) -> void:
 
 func mk(o: Dictionary) -> Node:
 	var m = load("res://main.gd").new()
-	m.game_opts.merge({"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 0, "socev": 0, "exev": 0}, true)
+	m.game_opts.merge({"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 0, "socev": 0, "exev": 0, "milev": 0}, true)
 	m.game_opts.merge(o, true)
 	root.add_child(m)
 	return m

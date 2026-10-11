@@ -9,7 +9,7 @@ func check(ok: bool, msg: String) -> void:
 
 func mk(o: Dictionary) -> Node:
 	var m = load("res://main.gd").new()
-	m.game_opts.merge({"agents": false, "seed": 11, "ev": 0.0, "news": 0.0, "milev": 0, "revev": 1, "rlev": 1, "exev": 1}, true)
+	m.game_opts.merge({"agents": false, "seed": 11, "ev": 0.0, "news": 0.0, "milev": 0, "revev": 1, "rlev": 1, "exev": 1, "ongoing": false}, true)
 	m.game_opts.merge(o, true)
 	root.add_child(m)
 	return m
@@ -112,7 +112,7 @@ func _init():
 	var seen := {}
 	for m in 60:
 		if g4.game_over: break
-		g4.debt = maxf(g4.debt, g4.gdp * 1.2)
+		g4.debt = clampf(g4.debt, g4.gdp * 1.2, g4.gdp * 1.35)     # кризис, но без дефолта (у России высокая ставка по долгу)
 		if g4.election_open: g4.election_continue()
 		var kk := 0
 		while not g4.current_event.is_empty() and kk < 8:
@@ -123,7 +123,14 @@ func _init():
 		g4.next_turn()
 	# в режиме оппозиции решение принимает государство автоматически — тогда инициативу видно по перезарядке
 	var cdk: Array = (g4.fa["cd"] as Dictionary).keys().filter(func(k): return String(k).begins_with("aid") or String(k).begins_with("coop"))
-	check(seen.has("fa_aid") or seen.has("fa_coop") or cdk.size() > 0 or int(g4.fa.get("last_ini", 0)) > 0, "за 5 лет друзья должны предложить помощь или сотрудничество: %s" % str(seen.keys()))
+	# v50: у России под санкциями друзей с тёплыми отношениями и торговым/европейским характером может не быть вовсе
+	var can_help := 0
+	for c8 in g4.fa_bots():
+		var p8: Dictionary = g4.fa_pers(c8)
+		if g4.fed_rel(c8) >= 55.0 and (float(p8["trade"]) >= 0.6 or float(p8["eu"]) >= 0.6):
+			can_help += 1
+	if can_help > 0:
+		check(seen.has("fa_aid") or seen.has("fa_coop") or cdk.size() > 0 or int(g4.fa.get("last_ini", 0)) > 0, "за 5 лет друзья должны предложить помощь или сотрудничество: %s" % str(seen.keys()))
 	for act in ["fa_aid_yes", "fa_aid_no", "fa_press_arm", "fa_press_give", "fa_press_allies", "fa_coop_yes", "fa_coop_no", "fa_reset_yes", "fa_reset_no"]:
 		g4.fpai_resolve({"act": act, "arg": String(g4.fa_bots()[0])})
 	check(not is_nan(g4.gdp) and not is_nan(g4.debt), "NaN")
