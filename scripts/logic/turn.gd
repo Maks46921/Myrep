@@ -515,6 +515,10 @@ func next_turn() -> void:
 		var cd: Dictionary = reg_cd[i]
 		for k in cd:
 			cd[k] = maxi(0, int(cd[k]) - 1)
+	# v49: наступившее продолжение истории (цепочка событий) показывается первым — иначе его месяцами
+	# вытесняют дипломатические события, инициативы стран и вотумы
+	if _ev_chain_due():
+		ev_tick()
 
 	var old_infl := inflation
 	var old_unemp := unemployment

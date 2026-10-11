@@ -299,6 +299,13 @@ func ev_first_ok(opts: Array) -> int:
 	return 0
 
 
+func _ev_chain_due() -> bool:
+	for q in ev_queue:
+		if int((q as Dictionary)["due"]) <= turn:
+			return true
+	return false
+
+
 func ev_tick() -> bool:
 	# раз в месяц: отложенные последствия; true — показано продолжение цепочки
 	for i in range(ev_later.size() - 1, -1, -1):
