@@ -461,7 +461,7 @@ func map_fit_rect(r: Rect2, instant: bool = false) -> void:
 	var c := map_ctl
 	var fr := map_free_rect()
 	var s: float = minf(fr.size.x / maxf(1.0, r.size.x * 1.15), fr.size.y / maxf(1.0, r.size.y * 1.2))
-	map_zoom_t = clampf(s / s0, 0.7, 24.0)
+	map_zoom_t = clampf(s / s0, 0.4, 24.0)
 	s = s0 * map_zoom_t
 	# центр страны — в середину свободной части карты
 	map_center_t = r.get_center() - (fr.get_center() - c.size * 0.5) / s
@@ -484,7 +484,7 @@ func map_zoom_at(pos: Vector2, f: float) -> void:
 	var st: float = s0 * map_zoom_t
 	var off: Vector2 = map_ctl.size * 0.5 - map_center_t * st
 	var wp: Vector2 = (pos - off) / st
-	map_zoom_t = clampf(map_zoom_t * f, 0.7, 24.0)
+	map_zoom_t = clampf(map_zoom_t * f, 0.4, 24.0)
 	map_center_t = wp - (pos - map_ctl.size * 0.5) / (s0 * map_zoom_t)
 	map_clamp()
 	map_ctl.queue_redraw()
@@ -520,9 +520,35 @@ func map_cam_step(delta: float) -> void:
 
 
 # малые регионы своей страны (Берлин, Бремен…) на текущем масштабе: их можно выбрать по «булавке»
+# v49: место булавки малого региона; если она совпала с булавкой меньшего региона (Москва и Московская область) — сдвигаем
+func map_pin_pos(ui: int, s: float, off: Vector2) -> Vector2:
+	var p := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
+	var ra: float = (map_unit_rect[ui] as Rect2).get_area()
+	for u2 in map_unit_local:
+		if u2 == ui or not unit_is_tiny(u2, s) or (map_unit_rect[u2] as Rect2).get_area() >= ra:
+			continue
+		var q := Vector2(float(WORLD_UNITS[u2]["c"][0]), float(WORLD_UNITS[u2]["c"][1])) * s + off
+		if q.distance_to(p) < 18.0:
+			var d: Vector2 = (p - q).normalized() if p.distance_to(q) > 0.5 else Vector2(0.8, 0.6)
+			p = q + d * 20.0
+	return p
+
+
 func unit_is_tiny(ui: int, s: float) -> bool:
 	var r: Rect2 = map_unit_rect[ui]
-	return maxf(r.size.x, r.size.y) * s < 16.0
+	var px: float = maxf(r.size.x, r.size.y) * s
+	if px < 16.0:
+		return true
+	# v49: «кольцо» вокруг малого города (Московская область вокруг Москвы) тоже получает булавку, пока оно мелкое,
+	# иначе всю его площадь перекрывает булавка города
+	if px < 32.0 and map_unit_local.has(ui):
+		for u2 in map_unit_local:
+			if u2 == ui:
+				continue
+			var r2: Rect2 = map_unit_rect[u2]
+			if maxf(r2.size.x, r2.size.y) * s < 16.0 and r.has_point(r2.get_center()):
+				return true
+	return false
 
 
 func ate_at(local: Vector2) -> int:
@@ -546,13 +572,18 @@ func unit_at(local: Vector2) -> int:
 	var v := map_view()
 	var s: float = v[0]
 	var off: Vector2 = v[1]
-	# 1) булавки малых регионов своей страны
+	# 1) булавки малых регионов своей страны (ближайшая)
 	if not ate_mode:
+		var bpin := -1
+		var bdist := 9.0
 		for ui in map_unit_local:
 			if unit_is_tiny(ui, s):
-				var cp := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
-				if cp.distance_to(local) <= 9.0:
-					return ui
+				var dd: float = map_pin_pos(ui, s, off).distance_to(local)
+				if dd <= bdist:
+					bdist = dd
+					bpin = ui
+		if bpin >= 0:
+			return bpin
 	var a := ate_at(local)
 	if a >= 0:
 		return ate_unit[a]
@@ -1235,7 +1266,7 @@ func draw_map() -> void:
 	for ui in map_unit_local:
 		if not unit_is_tiny(ui, s) or s < 1.3:
 			continue
-		var pp := Vector2(float(WORLD_UNITS[ui]["c"][0]), float(WORLD_UNITS[ui]["c"][1])) * s + off
+		var pp := map_pin_pos(ui, s, off)
 		var is_sel: bool = map_mode == "own" and int(map_unit_local[ui]) == selected_region
 		c.draw_circle(pp + Vector2(0.8, 1.2), 10.0, Color(0, 0, 0, 0.35))
 		c.draw_circle(pp, 9.0, Color(0.05, 0.06, 0.10, 0.88))
@@ -1251,7 +1282,6 @@ func draw_map() -> void:
 	var cw: float = font.get_string_size(cap_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	Gfx.plate(c, Rect2(Vector2(8.0, c.size.y - 28.0), Vector2(minf(cw + 18.0, c.size.x - 16.0), 22.0)))
 	c.draw_string(font, Vector2(17.0, c.size.y - 12.0), cap_txt, HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 30.0, 12, Color(1, 1, 1, 0.92))
-	Gfx.compass(c, font, Vector2(c.size.x - 36.0, c.size.y - 44.0), 15.0)
 	# дипломатические линии
 	if map_layer == 20 or map_layer == 26:
 		var dep: Vector2 = (WORLD_CAPS[ccode] as Vector2) * s + off

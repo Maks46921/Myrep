@@ -43,6 +43,10 @@ func pick_point(g, ui: int, v: Array) -> Vector2:
 	var cen := Vector2(float(g.WORLD_UNITS[ui]["c"][0]), float(g.WORLD_UNITS[ui]["c"][1]))
 	if g.unit_at(cen * float(v[0]) + (v[1] as Vector2)) == ui:
 		return cen
+	# v49: булавка малого региона могла сдвинуться (совпадала с булавкой соседа)
+	var pin: Vector2 = (g.map_pin_pos(ui, float(v[0]), v[1]) - (v[1] as Vector2)) / float(v[0])
+	if g.unit_is_tiny(ui, float(v[0])) and g.unit_at(pin * float(v[0]) + (v[1] as Vector2)) == ui:
+		return pin
 	# v36: кандидаты — центры АТЕ региона
 	var cands: Array = []
 	for a in g.ate_lists[ui]:
