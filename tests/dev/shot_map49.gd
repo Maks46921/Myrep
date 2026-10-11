@@ -21,6 +21,11 @@ func _init():
 	if only == "" or only == "own":
 		g.map_zoom_cmd(3)
 		await snap("own", outp)
+	if only == "" or only == "ownfar":
+		# своя страна вдали: национальный цвет и подпись вдоль формы
+		g.map_zoom_cmd(3)
+		g.map_zoom_at(g.map_ctl.size * 0.5, 0.33)
+		await snap("ownfar", outp)
 	if only == "" or only == "far":
 		g.map_zoom_cmd(4)
 		await snap("far", outp)

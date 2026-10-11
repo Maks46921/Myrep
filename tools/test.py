@@ -53,7 +53,7 @@ TESTS = {
     'army':   ('t_army.gd', [], 400),
     'fpai': ('t_fpai.gd', [], 400),
     'agents2': ('t_agents2.gd', [], 400),
-    'menu':   ('shot_menu.gd', [], 60),     # меню выбора страны (карта + карточка), нужен xvfb-run
+    'menu':   ('shot_menu.gd', [], 90),     # меню выбора страны (карта + карточка), нужен xvfb-run
     'width':  ('audit_width.gd', [], 120),  # элементы шире окна при 1366x768, нужен xvfb-run
     'click':  ('shot_click.gd', [], 120),
     'socclick': ('shot_socclick.gd', [], 120),

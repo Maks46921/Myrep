@@ -166,16 +166,27 @@ func _shape_label(cc: String, parts: Array, r: Rect2) -> Dictionary:
 		area += absf(_area(pts))
 	if area <= 0.0:
 		return {}
-	var step: float = maxf(0.5, sqrt(area / 500.0))
+	var step: float = maxf(0.5, sqrt(area / 300.0))
 	var pp := PackedVector2Array()
 	var ww := PackedFloat32Array()
+	# только крупные участки (острова не влияют на подпись) и проверка по габаритам — сетка строится быстро
+	var big: Array = []
+	var brs: Array = []
+	for pts1 in parts:
+		if absf(_area(pts1)) < area * 0.004:
+			continue
+		var br := Rect2(pts1[0], Vector2.ZERO)
+		for q in pts1:
+			br = br.expand(q)
+		big.append(pts1)
+		brs.append(br)
 	var y: float = r.position.y + step * 0.5
 	while y < r.end.y:
 		var x: float = r.position.x + step * 0.5
 		while x < r.end.x:
 			var pt := Vector2(x, y)
-			for pts2 in parts:
-				if Geometry2D.is_point_in_polygon(pt, pts2):
+			for bi in big.size():
+				if (brs[bi] as Rect2).has_point(pt) and Geometry2D.is_point_in_polygon(pt, big[bi]):
 					pp.append(pt)
 					ww.append(1.0)
 					break

@@ -2071,12 +2071,12 @@ func map_cloud_tex() -> ImageTexture:
 	var nz := FastNoiseLite.new()
 	nz.seed = 49
 	nz.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	nz.frequency = 0.010
+	nz.frequency = 0.020
 	nz.fractal_octaves = 3
-	var img: Image = nz.get_seamless_image(256, 256)
+	var img: Image = nz.get_seamless_image(128, 128)
 	img.convert(Image.FORMAT_RGBA8)
-	for y in 256:
-		for x in 256:
+	for y in 128:
+		for x in 128:
 			var g: float = img.get_pixel(x, y).r
 			img.set_pixel(x, y, Color(1, 1, 1, smoothstep(0.50, 0.90, g)))
 	img.generate_mipmaps()
