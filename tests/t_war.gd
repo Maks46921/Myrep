@@ -247,7 +247,11 @@ func _init():
 		if isl >= 0:
 			var why2: String = m.mil_order_move(int(fz["id"]), isl)
 			check(why2 == "", "переброска на остров: " + why2)
-			play_days(m, 25)
+			# дальние рейсы (у России — Северным морским путём) идут дольше: ждём до 150 суток
+			for k2 in 15:
+				play_days(m, 10)
+				if int(fz["a"]) == isl:
+					break
 			check(int(fz["a"]) == isl, "соединение доставлено на остров %s (game_over %s, sea %s, a %d)" % [m.ate_name(isl), m.game_over, fz["sea"], int(fz["a"])])
 			print("переброска на ", m.ate_name(isl), ": ", int(fz["a"]) == isl)
 	# нападение ИИ: плохие отношения и слабая армия

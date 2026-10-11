@@ -719,7 +719,8 @@ func mil_mob_arrive() -> void:
 	mil["mob_k"] = 0.0
 	if tot <= 0.5:
 		return
-	var n: int = maxi(1, int(round(tot / MIL_DIV)))
+	# не больше 40 соединений: у огромных армий (Россия, Украина) резервные соединения просто крупнее
+	var n: int = clampi(int(round(tot / MIL_DIV)), 1, 40)
 	var spots := mil_home_spots(ccode, n + 1)
 	var q: float = mil_q(ccode) * 0.8
 	for k in n:
