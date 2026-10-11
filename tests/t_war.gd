@@ -257,9 +257,10 @@ func _init():
 	# нападение ИИ: плохие отношения и слабая армия
 	m.game_opts["milev"] = 1
 	var att := ""
+	# v49: демократии нападают редко — берём наименее демократичного соседа
 	for c in m.mil_targets():
 		if m.mil_land_neighbor(c) and int((m.mil["truce"] as Dictionary).get(c, 0)) == 0 and m.wsim.has(c):
-			if att == "" or m.mil_country_power(c) > m.mil_country_power(att):
+			if att == "" or float(m.MIL_DEMO.get(c, 0.5)) < float(m.MIL_DEMO.get(att, 0.5)):
 				att = String(c)
 	if att != "" and not m.mil_at_war():
 		if m.dip.has(att):
@@ -269,7 +270,7 @@ func _init():
 		for f in m.mil_units_of(cc):
 			f["str"] = 0.05
 		m.turn = maxi(m.turn, 13)
-		for k in 800:
+		for k in 10000:
 			if m.election_open: m.election_continue()
 			if not m.current_event.is_empty(): m.choose(0)
 			m.mil_ai_declare()

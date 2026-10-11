@@ -64,7 +64,9 @@ func _init():
 	check(not g.tech.is_empty(), "состояние технологий не создано")
 	var raw0: float = g.tech["raw"]
 	var cap0: float = g.tech["cap"]
-	check(raw0 > 0.0 and cap0 > raw0 * 0.9, "на старте скорость %.1f должна быть около потолка %.1f или ниже" % [raw0, cap0])
+	# v49: в автократиях (Россия, Беларусь) потолок ниже по замыслу — несвобода слова режет науку (×0,6 при нулевой свободе)
+	var fr0: float = minf(1.0, g.TECH_FREE_BASE + g.TECH_FREE_SPAN * g.tech_freedom())
+	check(raw0 > 0.0 and cap0 > raw0 * 0.9 * fr0, "на старте скорость %.1f должна быть около потолка %.1f или ниже (свобода %.2f)" % [raw0, cap0, g.tech_freedom()])
 	var m0: Dictionary = g.mods.duplicate()
 	check(absf(float(g.tech_edu_upkeep())) < 1e-9, "на старте нет расходов сооружений")
 	# --- потолок: время, ВВП, свобода слова ---

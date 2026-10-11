@@ -634,6 +634,9 @@ func choose(i: int) -> void:
 	if council_event_ok():
 		# v35: событие решает совет коалиции; затраты капитала делятся по влиянию
 		i = council_event(i)
+		# v49: совет коалиции тоже не выбирает вариант, на который нет капитала
+		if special == "" and ev_opt_block(opts[i]) != "":
+			i = ev_first_ok(opts)
 		fx_in = council_split(opts[i]["fx"])
 	var opt: Dictionary = opts[i]
 	var eff := apply_fx(fx_in, event_region)

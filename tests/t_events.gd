@@ -110,9 +110,15 @@ func _init():
 	var cnt := 0
 	var seen := {}
 	var seen_t := {}
+	var mc := 0
 	for m2 in 60:
 		if g3.game_over: break
 		if g3.election_open: g3.election_continue()
+		# v49: в оппозиции события решает правительство — такие месяцы не считаем
+		if g3.opp_mode or g3.observer:
+			g3.next_turn()
+			continue
+		mc += 1
 		var k := 0
 		while not g3.current_event.is_empty() and k < 8:
 			var idx: String = g3.ev_id(g3.current_event)
@@ -124,8 +130,9 @@ func _init():
 			g3.choose(randi() % (g3.current_event["o"] as Array).size())
 			k += 1
 		g3.next_turn()
-	var per_year: float = float(cnt) / 5.0
-	check(per_year >= 3.0 and per_year <= 24.0, "решений в год %.1f вне 3–24" % per_year)
+	var per_year: float = float(cnt) / maxf(1.0, float(mc)) * 12.0
+	if mc >= 12:
+		check(per_year >= 3.0 and per_year <= 24.0, "решений в год %.1f вне 3–24 (у власти %d мес.)" % [per_year, mc])
 	var rep := 0
 	for s in seen:
 		if int(seen[s]) > 2:

@@ -2166,6 +2166,10 @@ func mil_resolve(i: int) -> void:
 		mil_peace(k)
 
 
+# v49: союзники-покровители: нападение на страну — нападение и на покровителя (учитывается его сила)
+const MIL_PATRON := {"BY": "RU"}
+
+
 func mil_ai_declare() -> void:
 	if int(game_opts.get("milev", 1)) == 0 or opp_mode or turn < 12 or not current_event.is_empty() or election_open:
 		return
@@ -2176,10 +2180,17 @@ func mil_ai_declare() -> void:
 		var rel := fed_rel(cc)
 		if rel >= 15.0:
 			continue
-		var ratio: float = mil_country_power(cc) / my_pow
+		# v49: у страны-покровителя (Беларусь — Россия) нападение на союзника означает войну с ним самим
+		var guard: float = 0.0
+		var pat: String = String(MIL_PATRON.get(ccode, ""))
+		if pat != "" and pat != cc and WORLD.has(pat):
+			guard = 0.6 * mil_country_power(pat)
+		var ratio: float = mil_country_power(cc) / (my_pow + guard)
 		if ratio < 1.4:
 			continue
 		var p: float = 0.01 * (15.0 - rel) / 15.0 * minf(2.0, ratio - 1.3)
+		# v49: демократии почти не начинают захватнических войн (Польша 6%, Сербия 43%, Россия — 100% прежней вероятности)
+		p *= clampf(1.6 * pow(1.0 - clampf(float(MIL_DEMO.get(cc, 0.5)), 0.0, 1.0), 2.0), 0.03, 1.0)
 		if mil_rng.randf() >= p:
 			continue
 		var friends := mil_allies_for(ccode, cc)
