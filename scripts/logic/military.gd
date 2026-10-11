@@ -256,6 +256,37 @@ func mil_init() -> void:
 	ar_init()
 
 
+# v50: война, которая уже идёт на начало игры (январь 2026): Россия против Украины с 24 февраля 2022 года
+# [противник, мы нападающая сторона, дней войны на старте]
+const MIL_ONGOING := {"UA": ["RU", false, 1407], "RU": ["UA", true, 1407]}
+
+
+func mil_start_ongoing() -> void:
+	if not mil_on() or int(game_opts.get("milev", 1)) == 0 or not MIL_ONGOING.has(ccode) or mil_at_war():
+		return
+	var o: Array = MIL_ONGOING[ccode]
+	var lead: String = String(o[0])
+	if not WORLD.has(lead) or not MIL_BASE.has(lead):
+		return
+	# отношения на старте уже учитывают войну — не сдвигаем их второй раз
+	var dip0: Dictionary = dip.duplicate(true)
+	var rx0: Dictionary = (fst.get("rel_x", {}) as Dictionary).duplicate(true)
+	mil_start_war(lead, [], [], bool(o[1]))
+	dip = dip0
+	if fst.has("rel_x"):
+		fst["rel_x"] = rx0
+	var w: Dictionary = mil["war"]
+	w["days"] = int(o[2])
+	w["start"] = turn - int(round(float(o[2]) / 30.4))
+	w["ongoing"] = true
+	w["weary"] = 26.0 if bool(o[1]) else 34.0      # усталость четвёртого года
+	w["mor"] = clampf(float(w.get("mor", 55.0)) - 8.0, 15.0, 90.0)
+	w["offer_cd"] = 60
+	var msg := "Идёт четвёртый год полномасштабной войны: Россия напала на Украину 24 февраля 2022 года. Фронт проходит по Донбассу, Запорожской и Херсонской областям; Крым, большая часть Донбасса, юг Запорожской и левобережье Херсонской областей заняты Россией."
+	mil_log(msg, COL_WARN)
+	log_tag("ВОЙНА", COL_BAD, msg)
+
+
 func mil_on() -> bool:
 	return not mil.is_empty() and MIL_BASE.has(ccode)
 

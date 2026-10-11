@@ -281,7 +281,12 @@ func map_prepare() -> void:
 # v49: подписи стран вдоль формы, штриховка непризнанных и спорных земель, линия фронта
 func map_is_disputed(ui: int) -> bool:
 	var u: Dictionary = WORLD_UNITS[ui]
-	return w_unrec(String(u["cc"])) or String(u["id"]) == "RU-KRY"
+	return w_unrec(String(u["cc"])) or String(u["id"]) in MAP_OCCUPIED
+
+
+# v50: территории Украины под контролем России (Россия считает их своими субъектами; международно — Украина)
+const MAP_OCCUPIED := ["RU-CR", "RU-SEV", "RU-DNR", "RU-LNR", "RU-ZAP", "RU-KHE"]
+const MAP_OCC_SINCE := {"RU-CR": 2014, "RU-SEV": 2014, "RU-DNR": 2014, "RU-LNR": 2014, "RU-ZAP": 2022, "RU-KHE": 2022}
 
 
 func map_prepare_labels() -> void:
@@ -360,8 +365,8 @@ func map_prepare_labels() -> void:
 				continue
 			var ua: Dictionary = WORLD_UNITS[ate_unit[ea[e]]]
 			var ub: Dictionary = WORLD_UNITS[ate_unit[eb[e]]]
-			var fa: bool = String(ua["cc"]) == "UA" and (String(ub["cc"]) in ["DNR", "LNR"] or String(ub["id"]) == "RU-KRY")
-			var fb: bool = String(ub["cc"]) == "UA" and (String(ua["cc"]) in ["DNR", "LNR"] or String(ua["id"]) == "RU-KRY")
+			var fa: bool = String(ua["cc"]) == "UA" and String(ub["id"]) in MAP_OCCUPIED
+			var fb: bool = String(ub["cc"]) == "UA" and String(ua["id"]) in MAP_OCCUPIED
 			if not (fa or fb):
 				continue
 			for k2 in range(eo[e], eo[e + 1] - 1):
@@ -635,8 +640,8 @@ func unit_tip(ui: int) -> String:
 	if w_unrec(cc):
 		var wc: Dictionary = WORLD[cc]
 		t += "Непризнанное образование: под контролем «%s», международно признано территорией «%s».\n" % [String(WORLD.get(String(wc.get("patron", "")), {}).get("name", "—")), String(WORLD.get(String(wc.get("claim", "")), {}).get("name", "—"))]
-	elif String(u["id"]) == "RU-KRY":
-		t += "Под контролем России с 2014 г.; международно признан территорией Украины.\n"
+	elif String(u["id"]) in MAP_OCCUPIED:
+		t += "Под контролем России с %d г. (Россия считает своим субъектом); международно признано территорией Украины.\n" % int(MAP_OCC_SINCE.get(String(u["id"]), 2022))
 	if dip.has(cc):
 		t += "Отношения с вами: %.0f (%s)\n" % [float(dip[cc]["rel"]), dip_rel_name(float(dip[cc]["rel"]))]
 	return t + "Щёлкните, чтобы открыть сведения."
@@ -1188,7 +1193,7 @@ func draw_map() -> void:
 			# штриховка: непризнанные образования и спорные земли (плотность подбирается под масштаб — шаг ≈ 10 пикселей)
 			var lvl: int = 0 if s > 1.6 else (1 if s > 0.45 else 2)
 			var unrec: bool = w_unrec(String(WORLD_UNITS[ui]["cc"]))
-			c.draw_mesh((map_hatch[ui] as Array)[lvl], MapLabels.hatch_tex(), xf, Color(0.06, 0.04, 0.05, 0.38) if unrec else Color(1.0, 0.85, 0.55, 0.16))
+			c.draw_mesh((map_hatch[ui] as Array)[lvl], MapLabels.hatch_tex(), xf, Color(0.06, 0.04, 0.05, 0.38) if unrec else Color(0.95, 0.42, 0.30, 0.24))
 		if ui == map_hover_unit and not ate_mode:
 			c.draw_mesh(m, null, xf, Color(1, 1, 1, 0.14))
 	c.draw_set_transform_matrix(xf)

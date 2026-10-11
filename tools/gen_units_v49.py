@@ -57,21 +57,26 @@ UA = {"Kiev City": "KYI", "Kiev": "NOR", "Zhytomyr": "NOR", "Chernihiv": "NOR", 
       "Ivano-Frankivs'k": "ZAH", "Ternopil'": "ZAH", "Transcarpathia": "ZAH", "Chernivtsi": "ZAH", "Volyn": "VOL", "Rivne": "VOL",
       "Vinnytsya": "POD", "Khmel'nyts'kyy": "POD", "Cherkasy": "CEN", "Kirovohrad": "CEN", "Poltava": "CEN", "Kharkiv": "KHA", "Sumy": "KHA",
       "Dnipropetrovs'k": "DNI", "Zaporizhzhya": "ZAP", "Odessa": "ODE", "Mykolayiv": "MYK", "Kherson": "MYK"}
-RU = {}
-for code, isos in {
-        "SZA": "LEN KR KO ARK NEN VLG MUR NGR PSK", "SPB": "SPE", "KGD": "KGD",
-        "CEN": "BEL BRY VLA VOR IVA KLU KOS KRS LIP ORL RYA SMO TAM TVE TUL YAR",
-        "YUG": "KDA AD ROS VGG AST KL", "KAV": "DA IN KB KC SE CE STA",
-        "VOL": "NIZ KIR ME MO CU UD PER PNZ ULY SAM SAR ORE", "TAB": "TA BA",
-        "URA": "SVE CHE KGN TYU KHM YAN X01~", "SIB": "ALT AL TY KK KYA IRK KEM NVS OMS TOM",
-        "DVO": "BU ZAB SA KAM PRI KHA AMU MAG SAK YEV CHU"}.items():
-    for s in isos.split():
-        RU["RU-" + s] = code
+# v50: все 85 субъектов России (+ ДНР, ЛНР, занятые части Запорожской и Херсонской областей — 89, как считает Россия; международно — Украина)
+RU_ISO = ("AD AL ALT AMU ARK AST BA BEL BRY BU CE CHE CHU CU DA IN IRK IVA KAM KB KC KDA KEM KGD KGN KHA KHM KIR KK KL KLU KO KOS KR KRS KYA "
+          "LEN LIP MAG ME MO MUR NEN NGR NIZ NVS OMS ORE ORL PER PNZ PRI PSK ROS RYA SA SAK SAM SAR SE SMO STA SVE TA TAM TOM TUL TVE TY TYU UD "
+          "ULY VGG VLA VLG VOR YAN YAR YEV ZAB").split()
+RU = {"RU-" + s: s for s in RU_ISO}
+RU["RU-SPE"] = "SPB"
+RU["RU-X01~"] = "*NEAR"          # безымянный клочок в данных Natural Earth — к ближайшему субъекту
+# подконтрольная Украине часть Запорожской области (севернее линии фронта: Запорожье, Орехов) — приблизительно, конец 2025 г.
+ZAP_UA = Polygon([(34.0, 47.36), (34.6, 47.52), (35.05, 47.62), (35.3, 47.47), (35.7, 47.52), (36.1, 47.6), (36.5, 47.72), (37.0, 47.85),
+                  (37.0, 48.5), (34.0, 48.5)])
+# Херсонская область: правобережье (Херсон, Берислав) — у Украины, левобережье Днепра занято Россией
+KHE_UA = Polygon([(30.5, 46.47), (32.0, 46.51), (32.6, 46.61), (33.0, 46.69), (33.38, 46.76), (33.75, 47.05), (34.3, 47.45), (34.3, 48.6), (30.5, 48.6)])
+# порядок регионов России — как в пакете (tools/newc/ru_regions.py)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "newc"))
+from ru_regions import RU_ORDER
 ORDER = {"MD": ["CHI", "BAL", "NOR", "CEN", "SUD", "GAG"], "PMR": ["PMR"],
          "UA": ["KYI", "NOR", "LVI", "ZAH", "VOL", "POD", "CEN", "KHA", "DNI", "ZAP", "ODE", "MYK", "DON"],
-         "DNR": ["DNR"], "LNR": ["LNR"], "BY": ["MSK", "MIO", "BRE", "GRO", "GOM", "MOG", "VIT"],
-         "RU": ["MOW", "MOS", "SPB", "CEN", "SZA", "KGD", "YUG", "KAV", "KRY", "VOL", "TAB", "URA", "SIB", "DVO"]}
-NEWCC = list(ORDER)
+         "BY": ["MSK", "MIO", "BRE", "GRO", "GOM", "MOG", "VIT"],
+         "RU": RU_ORDER}
+NEWCC = list(ORDER) + ["DNR", "LNR"]
 MIN_AREA = {"RU": 40.0}
 CTX_DROP = ["Украина", "Молдавия", "Белоруссия", "Россия"]
 NEW_CTX = [("KAZ", "Казахстан"), ("GEO", "Грузия"), ("AZE", "Азербайджан"), ("ARM", "Армения"), ("MNG", "Монголия"), ("CHN", "Китай"),
@@ -81,7 +86,7 @@ NEW_CTX = [("KAZ", "Казахстан"), ("GEO", "Грузия"), ("AZE", "Аз
 CTX_BOX = box(-30.0, 30.0, 200.0, 84.0)
 NE_FIXED = ["FI", "EE", "LV", "LT", "RO", "HU", "SK"]        # соседи из Natural Earth: новые страны режутся по ним
 NB_FILL = {"POL": "PL", "NOR": "NO"}                           # грубые старые контуры: щели добираются их сушей
-SEA = [("RU-KGD", "RU-SPB"), ("RU-KRY", "RU-YUG")]             # Балтика до Калининграда, Крымский мост
+SEA = [("RU-KGD", "RU-SPB"), ("RU-CR", "RU-KDA")]              # Балтика до Калининграда, Крымский мост
 
 
 def classify(p, g):
@@ -99,13 +104,19 @@ def classify(p, g):
         if nm == "Donets'k":
             return ("UA", "*DON")
         if nm == "Luhans'k":
-            return ("LNR", "LNR")
+            return ("RU", "LNR")
+        if nm == "Zaporizhzhya":
+            return ("UA", "*ZAP")
+        if nm == "Kherson":
+            return ("UA", "*KHE")
         if nm in UA:
             return ("UA", UA[nm])
         raise SystemExit("Украина: не распределено " + str(nm))
     if a3 == "RUS":
-        if nm in ("Crimea", "Sevastopol"):
-            return ("RU", "KRY")
+        if nm == "Crimea":
+            return ("RU", "CR")
+        if nm == "Sevastopol":
+            return ("RU", "SEV")
         if nm == "Moskva":
             return ("RU", "MOW")
         if nm == "Moskovskaya":
@@ -126,6 +137,7 @@ def simp_parts(o, geo, tol, min_area):
 def main():
     g = json.load(open(SRC))
     groups = {}
+    near = []
     for f in g["features"]:
         p = f["properties"]
         if p.get("adm0_a3") not in ("MDA", "BLR", "UKR", "RUS"):
@@ -138,9 +150,21 @@ def main():
             ua = sh.intersection(DON_UA)
             dn = sh.difference(DON_UA)
             groups.setdefault(("UA", "DON"), []).append(ua)
-            groups.setdefault(("DNR", "DNR"), []).append(dn)
+            groups.setdefault(("RU", "DNR"), []).append(dn)
+            continue
+        if k[1] in ("*ZAP", "*KHE"):
+            cut = ZAP_UA if k[1] == "*ZAP" else KHE_UA
+            groups.setdefault(("UA", "ZAP" if k[1] == "*ZAP" else "MYK"), []).append(sh.intersection(cut))
+            groups.setdefault(("RU", k[1][1:]), []).append(sh.difference(cut))
+            continue
+        if k[1] == "*NEAR":
+            near.append(sh)
             continue
         groups.setdefault(k, []).append(sh)
+    for sh in near:
+        best = min((k for k in groups if k[0] == "RU"), key=lambda k: unary_union(groups[k]).distance(sh))
+        groups[best].append(sh)
+        print("клочок", [round(x, 1) for x in sh.centroid.coords[0]], "->", best)
     if not os.path.exists(UNITS0):
         datio.dump(UNITS0, datio.load("data/world_units.dat"))
     units = datio.load(UNITS0)

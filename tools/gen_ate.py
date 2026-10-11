@@ -76,8 +76,21 @@ CITIES = [
     (62.03, 129.73, 0.36), (61.25, 73.40, 0.38), (51.83, 107.58, 0.43), (52.03, 113.50, 0.35), (50.29, 127.53, 0.24), (53.02, 158.65, 0.16),
 ]
 # v49: размер АТЕ по регионам России (км²): огромные малонаселённые регионы делятся крупнее, иначе карта утяжелилась бы вчетверо
-KM2_UNIT = {"RU-MOW": 300.0, "RU-SPB": 300.0, "RU-MOS": 1000.0, "RU-KRY": 1000.0, "RU-KGD": 600.0, "RU-KAV": 1500.0, "RU-CEN": 2500.0,
-            "RU-YUG": 2500.0, "RU-TAB": 2500.0, "RU-VOL": 3000.0, "RU-SZA": 8000.0, "RU-URA": 10000.0, "RU-SIB": 15000.0, "RU-DVO": 25000.0}
+KM2_UNIT = {}
+# v50: у 89 субъектов России размер ячейки — по площади субъекта (≈ 18 АТЕ на субъект), из набора классов
+RU_KM2_CLASSES = [300.0, 600.0, 1000.0, 1500.0, 2500.0, 4000.0, 6000.0, 10000.0, 15000.0, 25000.0]
+
+
+def ru_unit_km2(poly):
+    import math as _m
+    lat = (2192.0 - poly.centroid.y) / 38.6135
+    km2 = poly.area * (111.32 * _m.cos(_m.radians(lat)) / 25.7085) * (111.32 / 38.6135)
+    want = km2 / 18.0
+    best = RU_KM2_CLASSES[0]
+    for c in RU_KM2_CLASSES:
+        if c <= want:
+            best = c
+    return best
 
 
 def proj_xy(lon, lat):
@@ -217,7 +230,7 @@ def main():
     closed = land.buffer(0.6, join_style=2).buffer(-0.6, join_style=2)
     print("суша", round(land.area), "регионов", n_u, file=sys.stderr)
     # v49: классы размера ячеек — обычные 600 км² и крупные для регионов России; сетка класса режется по его суше
-    ukm = [KM2_UNIT.get(u["id"], KM2) for u in units]
+    ukm = [KM2_UNIT.get(u["id"], ru_unit_km2(clean[i]) if u["cc"] == "RU" else KM2) for i, u in enumerate(units)]
     classes = sorted(set(ukm))
     big = unary_union([clean[i] for i in range(n_u) if ukm[i] != KM2]) if len(classes) > 1 else None
     land0 = unary_union([clean[i] for i in range(n_u) if ukm[i] == KM2])

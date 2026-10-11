@@ -445,8 +445,8 @@ func _draw() -> void:
 			for p in pts:
 				q2.append(p * s + off)
 			draw_colored_polygon(q2, col, Gfx.uvs(pts, Gfx.LAND_UV * 1.4), ltex)
-			if String(u.get("id", "")) == "RU-KRY":
-				# v49: Крым — спорная территория (под контролем России, признан украинским): светлая штриховка
+			if String(u.get("id", "")) in ["RU-CR", "RU-SEV", "RU-DNR", "RU-LNR", "RU-ZAP", "RU-KHE"]:
+				# v50: занятые Россией территории Украины (Крым, ДНР, ЛНР, юг Запорожской и Херсонской областей): светлая штриховка
 				draw_colored_polygon(q2, Color(1.0, 0.85, 0.55, 0.22), Gfx.uvs(pts, 40.0), MapLabels.hatch_tex())
 			var edge := Color(0.03, 0.04, 0.07, 0.45)
 			var wdt := 0.8

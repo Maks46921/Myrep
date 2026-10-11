@@ -156,6 +156,10 @@ func mil_month() -> void:
 	pass
 
 
+func mil_start_ongoing() -> void:
+	pass
+
+
 func mil_unemp() -> float:
 	return 0.0
 
@@ -783,6 +787,7 @@ func init_state() -> void:
 	ex_init()
 	fleet_init()
 	mil_init()
+	mil_start_ongoing()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}
