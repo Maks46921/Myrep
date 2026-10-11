@@ -20,6 +20,18 @@ func build_dip_windows() -> void:
 	make_tail(dip_mod_rt, "О саммитах ЕС")
 
 	w = new_window("dinfo", "Страна: сведения", 2, Rect2(0.0, 0.19, 0.25, 0.81))
+	# v49: флаг и название выбранной страны над сведениями
+	var fh := HBoxContainer.new()
+	fh.add_theme_constant_override("separation", 8)
+	w.body.add_child(fh)
+	dip_flag = Flags.make("DE", 24.0)
+	dip_flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	fh.add_child(dip_flag)
+	dip_flag_lbl = Label.new()
+	dip_flag_lbl.add_theme_font_size_override("font_size", 19)
+	dip_flag_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dip_flag_lbl.clip_text = true
+	fh.add_child(dip_flag_lbl)
 	dip_info_rt = make_rt(w.body)
 
 	w = new_window("dact", "Взаимодействие со страной", 2, Rect2(0.45, 0.0, 0.255, 1.0))
@@ -60,9 +72,30 @@ func build_dip_windows() -> void:
 	add_note(w.body, "Каждое соглашение даёт эффект, пока отношения достаточно тёплые. Уровни выше обычных усиливают экономику и безопасность; в кризисе отношений соглашения рушатся.")
 
 
+var dip_flag: TextureRect = null
+var dip_flag_lbl: Label = null
+
+
+# v49: название страны уже в шапке с флагом — убираем его первую строку из сведений
+func dip_nohead(t: String) -> String:
+	if dip_flag != null and t.begins_with("[b][font_size=18]"):
+		var k: int = t.find("\n")
+		if k >= 0:
+			return t.substr(k + 1)
+	return t
+
+
 func update_dip_windows() -> void:
 	if dip_info_rt == null or dip.is_empty():
 		return
+	if dip_flag != null and WORLD.has(dip_sel):
+		if String(dip_flag.get_meta("cc", "")) != dip_sel:
+			dip_flag.set_meta("cc", dip_sel)
+			dip_flag.texture = Flags.tex(dip_sel) if Flags.has(dip_sel) else null
+			dip_flag.visible = Flags.has(dip_sel)
+			dip_flag.modulate.a = 0.0
+			dip_flag.create_tween().tween_property(dip_flag, "modulate:a", 1.0, 0.25)
+		dip_flag_lbl.text = String(WORLD[dip_sel]["name"])
 	var far: bool = not (DIP_C.has(dip_sel) and dip.has(dip_sel))
 	if wins.has("dact"):
 		for ch in (wins["dact"] as FloatWindow).body.get_children():
@@ -71,7 +104,7 @@ func update_dip_windows() -> void:
 		dip_far_box.visible = far
 	if far:
 		if WORLD.has(dip_sel):
-			dip_info_rt.text = world_info(dip_sel) + foreign_region_text() + "\nОтношения с вами: [b]%.0f[/b] (%s)\n" % [fed_rel(dip_sel), dip_rel_name(fed_rel(dip_sel))]
+			dip_info_rt.text = dip_nohead(world_info(dip_sel)) + foreign_region_text() + "\nОтношения с вами: [b]%.0f[/b] (%s)\n" % [fed_rel(dip_sel), dip_rel_name(fed_rel(dip_sel))]
 			dip_far_lbl.text = "С этой страной нет двусторонних соглашений: она не входит в круг ближайших соседей. Доступны торговля, влияние, помощь и пошлины."
 		return
 	var d: Dictionary = DIP_C[dip_sel]
@@ -94,7 +127,7 @@ func update_dip_windows() -> void:
 			shown = true
 	if shown:
 		t += "\n\n[b]Ваши законы влияют на отношения:[/b]\n" + reasons.strip_edges()
-	dip_info_rt.text = t
+	dip_info_rt.text = dip_nohead(t)
 	# действия
 	var cd: Dictionary = st["cd"]
 	for a in DIP_ACTIONS:

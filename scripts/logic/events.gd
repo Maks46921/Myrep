@@ -72,6 +72,10 @@ func set_time_btns(dis: bool) -> void:
 	pass
 
 
+func win_fade_in(w: Control, dur: float = 0.22) -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -436,8 +440,11 @@ func present_event() -> void:
 		text = text.replace("{r}", REGIONS[event_region]["name"])
 	text = coal_text(text)
 	var w: FloatWindow = wins["event"]
+	var was_vis: bool = w.visible
 	w.visible = true
 	w.move_to_front()
+	if not was_vis:
+		win_fade_in(w, 0.25)
 	var ki := ev_kind_info()
 	var kc: Color = ki[2]
 	ev_banner.add_theme_stylebox_override("panel", ev_style(kc))
@@ -468,6 +475,15 @@ func present_event() -> void:
 	if not hh.is_empty():
 		badges.append(["УЖЕ БЫЛО", C_DIM])
 	if ev_art != null:
+		# v49: событие связано с другой страной — в шапке её флаг
+		var fcc: String = String(current_event.get("cc", ""))
+		if fcc == "":
+			for o0 in (current_event.get("o", []) as Array):
+				var ar0: Variant = (o0 as Dictionary).get("arg", null)
+				if typeof(ar0) == TYPE_STRING and WORLD.has(String(ar0)):
+					fcc = String(ar0)
+					break
+		ev_art.set("flag", fcc)
 		ev_art.setup(kc, String(ki[3]), String(ki[0]), ev_title(current_event, text), loc("  ·  ".join(meta)), badges, hash(hid))
 	event_text = "[font_size=19]%s[/font_size]" % text
 	var opts0: Array = current_event["o"]

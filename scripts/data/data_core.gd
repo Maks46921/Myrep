@@ -16,6 +16,7 @@ const FaithChart := preload("res://scripts/classes/faith_chart.gd")
 const DepChart := preload("res://scripts/classes/dep_chart.gd")
 const Spark := preload("res://scripts/classes/spark.gd")
 const TechView := preload("res://scripts/classes/tech_view.gd")
+const Flags := preload("res://scripts/classes/flags.gd")
 
 # Крупные данные (страны, мир, карта) лежат в data/*.dat (формат var_to_str) — не в скриптах,
 # иначе редактор Godot виснет на строках по 40 000 символов. Править через tools/extdump.gd / pretty-файлы.

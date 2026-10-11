@@ -127,11 +127,22 @@ func diff_color(d: int) -> Color:
 
 
 func menu_title(parent: Control, text: String) -> void:
+	# v49: значок раздела перед заголовком
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 6)
+	parent.add_child(hb)
+	var ik: String = String({"Паспорт": "scroll", "Политическая ситуация": "hall", "Ваше положение": "person", "Экономика": "chart",
+		"Сильные стороны и риски": "warn", "Соседи и мир": "globe", "Регионы": "map", "Население (модель агентов)": "people",
+		"Ход игры": "calendar", "Воспроизводимость и интерфейс": "gauge"}.get(text, ""))
+	if ik != "":
+		var ic: Control = Ico.make(ik, C_ACCENT.lightened(0.2), 13.0)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hb.add_child(ic)
 	var l := Label.new()
 	l.text = text.to_upper()
 	l.add_theme_font_size_override("font_size", 12)
 	l.add_theme_color_override("font_color", C_ACCENT.lightened(0.2))
-	parent.add_child(l)
+	hb.add_child(l)
 	var line := ColorRect.new()
 	line.color = C_BORDER
 	line.custom_minimum_size = Vector2(0.0, 1.0)
@@ -270,19 +281,36 @@ func fill_country_card(code: String, box: VBoxContainer, head: Label, sub: Label
 	var head_txt: String = {"direct": "президент избирается всенародно", "indirect": "президент избирается собранием выборщиков", "council": "коллегиальный глава (совет)", "monarch": "монарх (не избирается)"}.get(headk, "—")
 	var regs: Array = cdat(code, "REGIONS")
 	var cur: String = "евро" if bool(mc.get("euro", true)) else "собственная валюта"
-	var pt := "[table=2]"
+	# v49: паспорт — строки со значками
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 3)
+	box.add_child(grid)
 	for row in [
-		["Население", "%.1f млн чел." % float(info["pop"])],
-		["ВВП", "%s млрд € (%.1f тыс. на человека)" % [fmt_n(float(info["gdp"])), float(info["gdp"]) / maxf(0.01, float(info["pop"]))]],
-		["Госдолг", "%.0f%% ВВП" % float(info["debt_pct"])],
-		["Деление", "%d %s" % [regs.size(), String(terms.get("regs", "регионов"))]],
-		["Валюта", cur + (", в ЕС" if bool(mc.get("eu", true)) else ", вне ЕС")],
-		["Глава государства", head_txt],
-		["Парламент", "%d мест, большинство — %d" % [seats_n, seats_n / 2 + 1]],
-		["Верхняя палата", String(up.get("name", "")) if String(up.get("name", "")) != "" else "нет"],
+		["people", "Население", "%.1f млн чел." % float(info["pop"])],
+		["chart", "ВВП", "%s млрд € (%.1f тыс. на человека)" % [fmt_n(float(info["gdp"])), float(info["gdp"]) / maxf(0.01, float(info["pop"]))]],
+		["bank", "Госдолг", "%.0f%% ВВП" % float(info["debt_pct"])],
+		["map", "Деление", "%d %s" % [regs.size(), String(terms.get("regs", "регионов"))]],
+		["coin", "Валюта", cur + (", в ЕС" if bool(mc.get("eu", true)) else ", вне ЕС")],
+		["crown" if headk == "monarch" else "person", "Глава государства", head_txt],
+		["hall", "Парламент", "%d мест, большинство — %d" % [seats_n, seats_n / 2 + 1]],
+		["ballot", "Верхняя палата", String(up.get("name", "")) if String(up.get("name", "")) != "" else "нет"],
 	]:
-		pt += "[cell][color=#98a1b8]%s  [/color][/cell][cell]%s[/cell]" % [row[0], row[1]]
-	menu_rt(box, pt + "[/table]")
+		var ic: Control = Ico.make(String(row[0]), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b).lightened(0.25), 16.0)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		grid.add_child(ic)
+		var k := Label.new()
+		k.text = String(row[1])
+		k.add_theme_color_override("font_color", C_DIM)
+		k.add_theme_font_size_override("font_size", 14)
+		grid.add_child(k)
+		var vl := Label.new()
+		vl.text = String(row[2])
+		vl.add_theme_font_size_override("font_size", 14)
+		vl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(vl)
 	# --- ситуация ---
 	menu_title(box, "Политическая ситуация")
 	menu_rt(box, String(info["blurb"]))
@@ -595,7 +623,13 @@ func show_country_menu(in_game: bool) -> void:
 		cmap.cols[code] = diff_color(int(inf["difficulty"]))
 		cmap.names[code] = String(WORLD[code]["name"])
 		cmap.tips[code] = "%s — %s\nСложность %s · %.1f млн чел." % [WORLD[code]["name"], WORLD[code]["cap"], "★".repeat(int(inf["difficulty"])), float(inf["pop"])]
-	cmap.setup(WORLD_UNITS, WORLD_CTX, codes)
+	# v49: непризнанные образования (ПМР, ДНР, ЛНР) видны на карте, но не выбираются
+	var mtips := {}
+	for mc in WORLD.keys():
+		if w_unrec(String(mc)):
+			var mw: Dictionary = WORLD[mc]
+			mtips[mc] = "%s — непризнанное образование\nПод контролем: %s. Международно признано территорией: %s.\nИграть за него нельзя." % [mw["name"], WORLD[mw["patron"]]["name"] if WORLD.has(mw["patron"]) else "?", WORLD[mw["claim"]]["name"] if WORLD.has(mw["claim"]) else "?"]
+	cmap.setup(WORLD_UNITS, WORLD_CTX, codes, mtips)
 	left.add_child(cmap)
 	var leg := HBoxContainer.new()
 	leg.add_theme_constant_override("separation", 8)
@@ -625,9 +659,16 @@ func show_country_menu(in_game: bool) -> void:
 	var cv := VBoxContainer.new()
 	cv.add_theme_constant_override("separation", 6)
 	card.add_child(cv)
+	# v49: флаг страны рядом с названием
+	var nmh := HBoxContainer.new()
+	nmh.add_theme_constant_override("separation", 10)
+	cv.add_child(nmh)
+	var mflag: TextureRect = Flags.make("DE", 30.0)
+	mflag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	nmh.add_child(mflag)
 	var nm := Label.new()
 	nm.add_theme_font_size_override("font_size", 26)
-	cv.add_child(nm)
+	nmh.add_child(nm)
 	var st := Label.new()
 	st.add_theme_font_size_override("font_size", 14)
 	cv.add_child(st)
@@ -655,6 +696,9 @@ func show_country_menu(in_game: bool) -> void:
 	cv.add_child(pl)
 	var pick := OptionButton.new()
 	pick.custom_minimum_size = Vector2(0.0, 32.0)
+	# v49: длинное название партии не раздвигает карточку (обрезается с «…», полное — в списке)
+	pick.clip_text = true
+	pick.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	cv.add_child(pick)
 	var play := Button.new()
 	play.theme_type_variation = "AccentButton"
@@ -666,6 +710,9 @@ func show_country_menu(in_game: bool) -> void:
 		menu_est_code = code
 		menu_update_est()
 		fill_country_card(code, body, nm, st)
+		mflag.texture = Flags.tex(code)
+		mflag.modulate.a = 0.0
+		mflag.create_tween().tween_property(mflag, "modulate:a", 1.0, 0.25)
 		fill_party_pick(code, pick)
 		update_menu_party(pick.get_selected_id())
 		play.text = "Играть: %s" % String(WORLD[code]["name"])
@@ -705,7 +752,7 @@ func fill_party_pick(code: String, ob: OptionButton) -> void:
 			stt = "оппозиция, %d мест" % sv
 		else:
 			stt = "вне парламента"
-		ob.add_item("«%s» — %s" % [String(pnames[p]).replace(" (вы)", ""), stt], p)
+		ob.add_item("%s — %s" % [qn(String(pnames[p]).replace(" (вы)", "")), stt], p)
 	ob.add_item("Никем — наблюдать за игрой (всеми партиями управляет ИИ)", OBSERVER_ID)
 	ob.select(0)
 
@@ -804,7 +851,7 @@ func _ready() -> void:
 			"действуют бюджетные правила ЕС" if bool(MACRO.get("eu", true)) else "действуют свои бюджетные правила"])
 	if ccode == "DE": log_sys("[b][color=%s]Вы — федеральный канцлер Германии, январь 2026.[/color][/b] Время идёт по дням: скорость задают кнопки справа вверху, а экономика и политика считаются на границе месяцев. Налоги и расходы настраиваются на экране «Бюджет»; законы, коалиции и выборы — на экране «Политика»; земли — на экране «Карта земель»; соседи — на экране «Дипломатия»." % COL_HEAD)
 	if ccode == "DE": log_sys("Окна можно двигать за заголовок и менять им размер за край или угол. Выборы в Бундестаг пройдут через 3 года (%s %d). Валюта — евро, ставку задаёт ЕЦБ, действует долговой тормоз." % [MONTHS[0], START_YEAR + 3])
-	log_sys("Ваша партия — «%s». Для принятия законов нужна коалиция, у которой не меньше %d мест из %d." % [PARTY_NAMES[0], MAJORITY, SEATS])
+	log_sys("Ваша партия — %s. Для принятия законов нужна коалиция, у которой не меньше %d мест из %d." % [qn(PARTY_NAMES[0]), MAJORITY, SEATS])
 	# v38: для стран без евро (Польша, Сербия, Румыния…) не писать про ЕЦБ
 	log_sys("Совет: кнопка рядом с названием каждого ползунка переключает его между долей ВВП и суммой в млрд. %s" % ("Эмиссии нет: деньги печатает ЕЦБ." if bool(MACRO.get("euro", true)) else "Своя валюта: эмиссия на экране «Бюджет» даёт деньги, но разгоняет инфляцию."))
 	log_sys("[b]Правительство:[/b] у министров есть имена, навыки и бонусы, которые зависят от партии. Откройте «Политика» → «Правительство».")

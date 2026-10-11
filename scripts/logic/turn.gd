@@ -132,6 +132,10 @@ func log_add(e: Dictionary) -> void:
 	pass
 
 
+func map_cam_step(delta: float) -> void:
+	pass
+
+
 func mil_day() -> void:
 	pass
 
@@ -232,6 +236,10 @@ func tech_month() -> void:
 	pass
 
 
+func ui_anim_step(delta: float) -> void:
+	pass
+
+
 func world_init() -> void:
 	pass
 
@@ -328,6 +336,8 @@ func advance_month() -> void:
 
 
 func _process(delta: float) -> void:
+	map_cam_step(delta)
+	ui_anim_step(delta)
 	if play_idx <= 0 or blocked():
 		return
 	day_acc += delta * float(PLAY_SPEEDS[play_idx])

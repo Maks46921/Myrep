@@ -2,6 +2,8 @@
 extends Control
 
 const Gfx := preload("res://scripts/classes/gfx.gd")
+const MapLabels := preload("res://scripts/classes/map_labels.gd")
+const Flags := preload("res://scripts/classes/flags.gd")
 
 signal picked(code: String)
 
@@ -21,8 +23,18 @@ var drag := false
 var outlines: Dictionary = {}   # код -> внешний контур страны (v35)
 var drag_moved := false
 var drag_start := Vector2.ZERO
+var minor: Dictionary = {}      # v49: код -> подсказка (непризнанные образования: видны, но не выбираются)
+var munits: Array = []          # их участки {cc, parts, rect}
+var labs: Dictionary = {}       # v49: код -> подпись вдоль формы страны (MapLabels.compute)
+var lab_pts: Dictionary = {}    # v49: код -> точки сетки внутри страны (для подписи видимой части)
+var home := Rect2()             # v49: обзор «Европа» (карта стала шире — до Чукотки)
+var home_pending := true
+# v49: плавная камера — целевые масштаб и центр, к которым вид подтягивается каждый кадр
+var zoom_t := 1.0
+var center_t := Vector2.ZERO
+var hov_a: Dictionary = {}       # v49: плавная подсветка при наведении: код -> 0..1
 const ZMIN := 0.8
-const ZMAX := 14.0
+const ZMAX := 40.0
 
 func _init() -> void:
 	clip_contents = true
@@ -37,7 +49,7 @@ func _init() -> void:
 	bx.add_theme_constant_override("separation", 4)
 	bx.position = Vector2(8.0, 8.0)
 	add_child(bx)
-	for b in [["＋", "Приблизить (или колёсико мыши)", 1], ["−", "Отдалить", 2], ["⌂", "Вся карта — сбросить масштаб и положение", 3]]:
+	for b in [["＋", "Приблизить (или колёсико мыши)", 1], ["−", "Отдалить", 2], ["⌂", "Европа — вернуть обычный обзор", 3], ["◯", "Вся карта — от Португалии до Чукотки", 4]]:
 		var btn := Button.new()
 		btn.text = b[0]
 		btn.tooltip_text = b[1]
@@ -64,10 +76,25 @@ func _to_pts(part: Array) -> PackedVector2Array:
 		pts.append(Vector2(float(part[k]), float(part[k + 1])))
 	return pts
 
-func setup(world_units: Array, world_ctx: Array, codes: Array) -> void:
+func setup(world_units: Array, world_ctx: Array, codes: Array, minor_tips: Dictionary = {}) -> void:
+	minor = minor_tips
 	var lo := Vector2(1e9, 1e9)
 	var hi := Vector2(-1e9, -1e9)
 	var acc := {}
+	for u0 in world_units:
+		var mc: String = String(u0["cc"])
+		if not minor.has(mc):
+			continue
+		var mraw: Array = []
+		var mlo := Vector2(1e9, 1e9)
+		var mhi := Vector2(-1e9, -1e9)
+		for part0 in u0["parts"]:
+			var mp := _to_pts(part0)
+			mraw.append(mp)
+			for p0 in mp:
+				mlo = Vector2(minf(mlo.x, p0.x), minf(mlo.y, p0.y))
+				mhi = Vector2(maxf(mhi.x, p0.x), maxf(mhi.y, p0.y))
+		munits.append({"cc": mc, "parts": _fix(mraw), "rect": Rect2(mlo, mhi - mlo)})
 	for u in world_units:
 		var cc: String = String(u["cc"])
 		if not (cc in codes):
@@ -81,7 +108,7 @@ func setup(world_units: Array, world_ctx: Array, codes: Array) -> void:
 			for p in pts:
 				rlo = Vector2(minf(rlo.x, p.x), minf(rlo.y, p.y))
 				rhi = Vector2(maxf(rhi.x, p.x), maxf(rhi.y, p.y))
-		units.append({"cc": cc, "parts": _fix(raw), "rect": Rect2(rlo, rhi - rlo)})
+		units.append({"cc": cc, "id": String(u.get("id", "")), "parts": _fix(raw), "rect": Rect2(rlo, rhi - rlo)})
 		lo = Vector2(minf(lo.x, rlo.x), minf(lo.y, rlo.y))
 		hi = Vector2(maxf(hi.x, rhi.x), maxf(hi.y, rhi.y))
 		if not acc.has(cc):
@@ -98,16 +125,66 @@ func setup(world_units: Array, world_ctx: Array, codes: Array) -> void:
 			a["sa"] += ar
 	bounds = Rect2(lo, hi - lo).grow(2.0)
 	center = bounds.get_center()
+	var hr := Rect2()
 	for cc in acc:
 		var a2: Dictionary = acc[cc]
 		labels[cc] = a2["sx"] / maxf(a2["sa"], 0.0001)
 		crect[cc] = Rect2(a2["lo"], a2["hi"] - a2["lo"])
+		if cc != "RU":
+			hr = crect[cc] if hr.size == Vector2.ZERO else hr.merge(crect[cc])
+	# «Европа»: все страны, кроме России, плюс европейская часть России (до Урала, ≈ 52° в. д.)
+	if hr.size != Vector2.ZERO:
+		if acc.has("RU"):
+			hr = hr.expand(Vector2(minf(25.7085 * 52.0 + 154.29, bounds.end.x), hr.get_center().y))
+		home = hr.grow(hr.size.x * 0.02)
+	else:
+		home = bounds
+	for cc5 in acc:
+		labs[cc5] = _shape_label(cc5, _parts_of(units, cc5), crect[cc5])
+	for mu in munits:
+		labs[String(mu["cc"])] = _shape_label(String(mu["cc"]), mu["parts"], mu["rect"])
+	zoom_t = zoom
+	center_t = center
 	for cx in world_ctx:
 		var raw2: Array = []
 		for part2 in cx["parts"]:
 			raw2.append(_to_pts(part2))
 		ctx.append(_fix(raw2))
 	queue_redraw()
+
+func _parts_of(arr: Array, cc: String) -> Array:
+	var out: Array = []
+	for u in arr:
+		if String(u["cc"]) == cc:
+			out.append_array(u["parts"] as Array)
+	return out
+
+# v49: подпись вдоль формы: точки равномерной сетки внутри страны -> ось, длина, изгиб (как у большой карты)
+func _shape_label(cc: String, parts: Array, r: Rect2) -> Dictionary:
+	var area := 0.0
+	for pts in parts:
+		area += absf(_area(pts))
+	if area <= 0.0:
+		return {}
+	var step: float = maxf(0.5, sqrt(area / 500.0))
+	var pp := PackedVector2Array()
+	var ww := PackedFloat32Array()
+	var y: float = r.position.y + step * 0.5
+	while y < r.end.y:
+		var x: float = r.position.x + step * 0.5
+		while x < r.end.x:
+			var pt := Vector2(x, y)
+			for pts2 in parts:
+				if Geometry2D.is_point_in_polygon(pt, pts2):
+					pp.append(pt)
+					ww.append(1.0)
+					break
+			x += step
+		y += step
+	if pp.size() < 3:
+		return {}
+	lab_pts[cc] = pp
+	return MapLabels.compute(pp, ww)
 
 func _area(pts: PackedVector2Array) -> float:
 	var s := 0.0
@@ -119,6 +196,56 @@ func _area(pts: PackedVector2Array) -> float:
 func base_scale() -> float:
 	return minf(size.x / maxf(1.0, bounds.size.x), size.y / maxf(1.0, bounds.size.y)) * 0.96
 
+func _fit_zoom(r: Rect2) -> float:
+	var s2: float = minf(size.x / maxf(1.0, r.size.x), size.y / maxf(1.0, r.size.y)) * 0.96
+	return s2 / maxf(0.0001, base_scale())
+
+# v49: обзор «Европа» при открытии меню (размер карты известен только после раскладки)
+func go_home(instant: bool = false) -> void:
+	if size.x < 2.0 or home.size == Vector2.ZERO:
+		return
+	zoom_t = clampf(_fit_zoom(home), ZMIN, ZMAX)
+	center_t = home.get_center()
+	if instant:
+		zoom = zoom_t
+		center = center_t
+	queue_redraw()
+
+func _process(delta: float) -> void:
+	# подсветка под курсором нарастает и гаснет плавно
+	var hk: float = 1.0 - exp(-delta * 14.0)
+	var redraw := false
+	if hover != "" and not hov_a.has(hover):
+		hov_a[hover] = 0.0
+	for hc in hov_a.keys():
+		var tgt: float = 1.0 if hc == hover else 0.0
+		var cur: float = float(hov_a[hc])
+		var nv: float = lerpf(cur, tgt, hk)
+		if absf(nv - tgt) < 0.01:
+			nv = tgt
+		if nv != cur:
+			redraw = true
+		if nv <= 0.0 and hc != hover:
+			hov_a.erase(hc)
+		else:
+			hov_a[hc] = nv
+	if redraw:
+		queue_redraw()
+	# плавная камера: экспоненциальное приближение к цели (не зависит от частоты кадров)
+	var k: float = 1.0 - exp(-delta * 12.0)
+	var dz: float = zoom_t - zoom
+	var dc: Vector2 = center_t - center
+	if absf(dz) < zoom * 0.001 and dc.length() * base_scale() * zoom < 0.3:
+		if dz != 0.0 or dc != Vector2.ZERO:
+			zoom = zoom_t
+			center = center_t
+			queue_redraw()
+		return
+	# масштаб интерполируем в логарифме — приближение выглядит равномерным
+	zoom = exp(lerpf(log(zoom), log(zoom_t), k))
+	center = center.lerp(center_t, k)
+	queue_redraw()
+
 func _view() -> Array:
 	var s: float = base_scale() * zoom
 	var off: Vector2 = size * 0.5 - center * s
@@ -126,14 +253,16 @@ func _view() -> Array:
 
 func clamp_center() -> void:
 	var r := bounds.grow(maxf(bounds.size.x, bounds.size.y) * 0.1)
-	center = Vector2(clampf(center.x, r.position.x, r.end.x), clampf(center.y, r.position.y, r.end.y))
+	center_t = Vector2(clampf(center_t.x, r.position.x, r.end.x), clampf(center_t.y, r.position.y, r.end.y))
 
 func zoom_at(pos: Vector2, f: float) -> void:
-	var v := _view()
-	var wp: Vector2 = (pos - (v[1] as Vector2)) / float(v[0])
-	zoom = clampf(zoom * f, ZMIN, ZMAX)
-	var s2: float = base_scale() * zoom
-	center = wp - (pos - size * 0.5) / s2
+	# точка под курсором остаётся на месте (считаем от целевого вида, чтобы быстрые прокрутки складывались)
+	var s0: float = base_scale() * zoom_t
+	var off0: Vector2 = size * 0.5 - center_t * s0
+	var wp: Vector2 = (pos - off0) / s0
+	zoom_t = clampf(zoom_t * f, ZMIN, ZMAX)
+	var s2: float = base_scale() * zoom_t
+	center_t = wp - (pos - size * 0.5) / s2
 	clamp_center()
 	queue_redraw()
 
@@ -141,9 +270,10 @@ func zoom_cmd(k: int) -> void:
 	match k:
 		1: zoom_at(size * 0.5, 1.4)
 		2: zoom_at(size * 0.5, 1.0 / 1.4)
-		3:
-			zoom = 1.0
-			center = bounds.get_center()
+		3: go_home()
+		4:
+			zoom_t = 1.0
+			center_t = bounds.get_center()
 			queue_redraw()
 
 # приблизиться к стране (используется при выборе из списка/карточки)
@@ -152,14 +282,27 @@ func focus_country(code: String) -> void:
 		return
 	var r: Rect2 = crect[code]
 	var z: float = minf(size.x / maxf(1.0, r.size.x), size.y / maxf(1.0, r.size.y)) * 0.55 / maxf(0.0001, base_scale())
-	zoom = clampf(z, 1.0, 6.0)
-	center = r.get_center()
+	zoom_t = clampf(z, 1.0, 24.0)
+	center_t = r.get_center()
 	clamp_center()
 	queue_redraw()
+
+# v49: непризнанное образование под курсором (для подсказки)
+func _minor_at(pt: Vector2) -> String:
+	for u in munits:
+		if not (u["rect"] as Rect2).has_point(pt):
+			continue
+		for part in (u["parts"] as Array):
+			if Geometry2D.is_point_in_polygon(pt, part):
+				return String(u["cc"])
+	return ""
+
 
 func _cc_at(local: Vector2) -> String:
 	var v := _view()
 	var pt: Vector2 = (local - (v[1] as Vector2)) / float(v[0])
+	if _minor_at(pt) != "":
+		return ""
 	for u in units:
 		if not (u["rect"] as Rect2).has_point(pt):
 			continue
@@ -175,8 +318,9 @@ func _gui_input(e: InputEvent) -> void:
 			if (mm.position - drag_start).length() > 6.0:
 				drag_moved = true
 			if drag_moved:
-				center -= mm.relative / (base_scale() * zoom)
+				center_t -= mm.relative / (base_scale() * zoom)
 				clamp_center()
+				center = center_t
 				mouse_default_cursor_shape = Control.CURSOR_DRAG
 				queue_redraw()
 			return
@@ -186,6 +330,10 @@ func _gui_input(e: InputEvent) -> void:
 			hover = c
 			tooltip_text = String(tips.get(c, names.get(c, ""))) if c != "" else ""
 			queue_redraw()
+		if c == "":
+			var v2 := _view()
+			var mc: String = _minor_at((mm.position - (v2[1] as Vector2)) / float(v2[0]))
+			tooltip_text = String(minor.get(mc, ""))
 	elif e is InputEventMouseButton:
 		var mb := e as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -211,6 +359,9 @@ func select(code: String) -> void:
 	picked.emit(code)
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and home_pending and size.x > 2.0 and home.size != Vector2.ZERO:
+		home_pending = false
+		go_home(true)
 	if what == NOTIFICATION_MOUSE_EXIT:
 		drag = false
 		if hover != "":
@@ -276,13 +427,16 @@ func _draw() -> void:
 		var col: Color = base.darkened(0.25)
 		if cc3 == selected:
 			col = base.lightened(0.25)
-		elif cc3 == hover:
-			col = base.lightened(0.1)
+		elif hov_a.has(cc3):
+			col = base.darkened(0.25).lerp(base.lightened(0.1), float(hov_a[cc3]))
 		for pts in (u["parts"] as Array):
 			var q2 := PackedVector2Array()
 			for p in pts:
 				q2.append(p * s + off)
 			draw_colored_polygon(q2, col, Gfx.uvs(pts, Gfx.LAND_UV * 1.4), ltex)
+			if String(u.get("id", "")) == "RU-KRY":
+				# v49: Крым — спорная территория (под контролем России, признан украинским): светлая штриховка
+				draw_colored_polygon(q2, Color(1.0, 0.85, 0.55, 0.22), Gfx.uvs(pts, 40.0), MapLabels.hatch_tex())
 			var edge := Color(0.03, 0.04, 0.07, 0.45)
 			var wdt := 0.8
 			if cc3 == selected:
@@ -294,6 +448,18 @@ func _draw() -> void:
 			var closed := q2.duplicate()
 			closed.append(q2[0])
 			draw_polyline(closed, edge, wdt)
+	# v49: непризнанные образования — серые со штриховкой, выбрать нельзя
+	var htex: Texture2D = MapLabels.hatch_tex()
+	for mu in munits:
+		for pts3 in (mu["parts"] as Array):
+			var q3 := PackedVector2Array()
+			for p3 in pts3:
+				q3.append(p3 * s + off)
+			draw_colored_polygon(q3, Color(0.30, 0.27, 0.29), Gfx.uvs(pts3, Gfx.LAND_UV * 1.4), ltex)
+			draw_colored_polygon(q3, Color(0.06, 0.04, 0.05, 0.45), Gfx.uvs(pts3, 40.0), htex)
+			var c3 := q3.duplicate()
+			c3.append(q3[0])
+			draw_polyline(c3, Color(0.85, 0.35, 0.30, 0.55), 1.0)
 	if selected != "":
 		for ring in outline(selected):
 			var pr := PackedVector2Array()
@@ -303,14 +469,29 @@ func _draw() -> void:
 			draw_polyline(pr, Color(0.6, 0.85, 1.0, 0.18), 9.0, true)
 			draw_polyline(pr, Color(1, 1, 1, 0.95), 2.0, true)
 	var font := get_theme_default_font()
+	# v49: подписи вдоль формы страны; если не помещается — короткий код в центре
 	for cc4 in labels:
+		var hi4: bool = cc4 == selected or cc4 == hover
+		var lc := Color(1, 1, 1, 0.97 if hi4 else 0.86)
+		var nm4: String = String(names.get(cc4, cc4)).to_upper()
+		if MapLabels.draw_fit(self, font, "c:" + String(cc4), labs.get(cc4, {}), lab_pts.get(cc4, PackedVector2Array()), PackedFloat32Array(), nm4, s, off, Rect2(Vector2.ZERO, size), lc, 34.0, 11.0):
+			continue
 		var rc: Rect2 = crect[cc4]
 		var px: float = rc.size.x * s
+		if px <= 74.0 and Flags.has(String(cc4)):
+			# v49: маленькая страна — флажок вместо кода (название — в подсказке)
+			var fw: float = 18.0 if not hi4 else 24.0
+			var fp: Vector2 = (labels[cc4] as Vector2) * s + off - Vector2(fw * 0.5, fw / 3.0)
+			Flags.draw(self, String(cc4), Rect2(fp, Vector2(fw, fw / 1.5)))
+			continue
 		var txt: String = String(names.get(cc4, cc4)) if px > 74.0 else cc4
 		var fs := 13 if px > 74.0 else 11
 		var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var pos: Vector2 = (labels[cc4] as Vector2) * s + off + Vector2(-tw * 0.5, 4.0)
-		Gfx.label(self, font, pos, txt, fs, Color(1, 1, 1, 0.97 if cc4 == selected or cc4 == hover else 0.86), -1.0, HORIZONTAL_ALIGNMENT_LEFT, 3)
+		Gfx.label(self, font, pos, txt, fs, lc, -1.0, HORIZONTAL_ALIGNMENT_LEFT, 3)
+	for mc4 in minor:
+		var mt: String = String(minor[mc4]).get_slice(" —", 0).to_upper()
+		MapLabels.draw(self, font, labs.get(mc4, {}), mt, s, off, Color(1.0, 0.86, 0.86, 0.8), 18.0, 9.0)
 	Gfx.vignette(self, size, 0.40, minf(130.0, size.x * 0.12))
 	var hint := "Колёсико — масштаб · перетащите карту · щелчок — выбрать страну   (×%.1f)" % zoom
 	draw_string(font, Vector2(10.0, size.y - 8.0), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.45))

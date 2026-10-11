@@ -2,7 +2,7 @@ extends SceneTree
 # v49: снимки карты: out=префикс country=XX. Своя страна, вся карта, слой «Мир», сильное приближение, меню выбора страны.
 func snap(name: String, outp: String) -> void:
 	for i in 6: await process_frame
-	await create_timer(0.4).timeout
+	await create_timer(0.9).timeout
 	root.get_viewport().get_texture().get_image().save_png("%s_%s.png" % [outp, name])
 	print("saved ", name)
 

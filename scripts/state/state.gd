@@ -543,6 +543,13 @@ var map_zoom := 1.0
 
 var map_center := Vector2(300.0, 250.0)
 
+# v49: плавная камера карты — цель, к которой масштаб и центр подтягиваются каждый кадр
+var map_zoom_t := 1.0
+
+var top_flag: TextureRect = null      # v49: флаг своей страны на кнопке смены страны
+
+var map_center_t := Vector2(300.0, 250.0)
+
 var map_inited := false
 
 var map_drag := false

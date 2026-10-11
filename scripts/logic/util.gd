@@ -94,6 +94,11 @@ func jag_edge(a: Vector2, b: Vector2, depth: int) -> Array:
 # ============================================================
 
 
+# v49: название в кавычках «…», если в нём своих кавычек ещё нет (иначе получилось бы ««Слуга народа»»)
+func qn(s: String) -> String:
+	return s if s.contains("«") else "«%s»" % s
+
+
 func sg(v: float, digits: int = 1) -> String:
 	if absf(v) < 0.5 * pow(10.0, -digits):
 		v = 0.0

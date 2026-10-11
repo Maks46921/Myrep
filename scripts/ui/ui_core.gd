@@ -188,7 +188,20 @@ func win_vis(id: String, on: bool) -> void:
 	if not wins.has(id):
 		return
 	var w: FloatWindow = wins[id]
+	var was: bool = w.visible
 	w.visible = on and not w.closed
+	if w.visible and not was:
+		win_fade_in(w)
+
+
+# v49: окно появляется плавно (прозрачность 0 → 1); на ввод не влияет — по окну можно щёлкать сразу
+func win_fade_in(w: Control, dur: float = 0.22) -> void:
+	if w == null or not w.is_inside_tree():
+		return
+	w.modulate.a = 0.0
+	var tw: Tween = w.create_tween()
+	tw.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(w, "modulate:a", 1.0, dur)
 
 
 func on_win_close(w: FloatWindow) -> void:
@@ -281,9 +294,15 @@ func show_desk(i: int) -> void:
 		econ_page = i
 	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15:
 		map_page = i
+	var k_fade := 0
 	for id in wins:
 		var w: FloatWindow = wins[id]
+		var was: bool = w.visible
 		w.visible = ((w.desk == i) or (w.desk == -1) or (w.desk == -2 and not current_event.is_empty())) and (w.desk == -2 or not w.closed)
+		if w.visible and not was:
+			# v49: окна нового раздела проявляются с небольшой задержкой друг за другом
+			win_fade_in(w, 0.18 + 0.04 * float(mini(k_fade, 5)))
+			k_fade += 1
 	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15) else 2))
 	if i == 2:
 		map_apply_mode()
@@ -354,9 +373,17 @@ func build_ui() -> void:
 	make_chip(chip_row, "elec", "ВЫБОРЫ", "Время до следующих парламентских выборов.")
 	var cbtn := Button.new()
 	cbtn.theme_type_variation = "SmallButton"
-	cbtn.text = "🌍"
+	cbtn.text = ""
 	cbtn.custom_minimum_size = Vector2(34.0, 34.0)
 	cbtn.tooltip_text = "Сменить страну (начнётся новая игра)"
+	# v49: на кнопке — флаг вашей страны (раньше значок 🌍 мог не отрисоваться шрифтом)
+	top_flag = Flags.make(ccode, 14.0)
+	top_flag.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	top_flag.offset_left = 5.0
+	top_flag.offset_right = -5.0
+	top_flag.offset_top = 7.0
+	top_flag.offset_bottom = -7.0
+	cbtn.add_child(top_flag)
 	cbtn.focus_mode = Control.FOCUS_NONE
 	cbtn.pressed.connect(show_country_menu.bind(true))
 	hb.add_child(cbtn)
@@ -364,7 +391,7 @@ func build_ui() -> void:
 	music_btn.theme_type_variation = "SmallButton"
 	music_btn.text = "♪" if float(game_opts.get("music", 0.45)) > 0.001 else "🔇"
 	music_btn.custom_minimum_size = Vector2(34.0, 34.0)
-	music_btn.tooltip_text = "Музыка: включить или выключить. Громкость музыки и звуков — в настройках новой игры (кнопка 🌍 → «Настройки игры»)."
+	music_btn.tooltip_text = "Музыка: включить или выключить. Громкость музыки и звуков — в настройках новой игры (кнопка с флагом → «Настройки игры»)."
 	music_btn.focus_mode = Control.FOCUS_NONE
 	music_btn.pressed.connect(toggle_music)
 	hb.add_child(music_btn)
@@ -1163,6 +1190,15 @@ func polish_tree(n: Node) -> void:
 	for ch in n.get_children():
 		if ch is Button or ch is HSlider:
 			(ch as Control).mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		if ch is BaseButton and not (ch as Node).has_meta("hov"):
+			# v49: мягкая подсветка кнопки при наведении (плавно, без рывка)
+			var bb := ch as BaseButton
+			bb.set_meta("hov", true)
+			bb.mouse_entered.connect(func() -> void:
+				if not bb.disabled:
+					bb.create_tween().tween_property(bb, "self_modulate", Color(1.16, 1.18, 1.25), 0.12))
+			bb.mouse_exited.connect(func() -> void:
+				bb.create_tween().tween_property(bb, "self_modulate", Color.WHITE, 0.25))
 		if ch is Label and (ch as Label).clip_text:
 			(ch as Label).text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		elif ch is Button and (ch as Button).clip_text:
@@ -1194,7 +1230,16 @@ func make_chip(parent: Control, key: String, caption: String, tip: String) -> vo
 	d.add_theme_font_size_override("font_size", 10)
 	d.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(d)
-	chips[key] = {"value": v, "delta": d}
+	chips[key] = {"value": v, "delta": d, "pc": pc}
+	# v49: значок в правом верхнем углу плашки (только если есть место рядом с подписью — ширина панели не меняется)
+	var ik: String = String({"date": "calendar", "appr": "person", "gdp": "chart", "infl": "percent", "unemp": "work", "debt": "bank", "cap": "star", "coal": "hall", "elec": "ballot"}.get(key, ""))
+	if ik != "":
+		pc.draw.connect(func() -> void:
+			var cw: float = cap.get_theme_default_font().get_string_size(cap.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+			var free: float = pc.size.x - 10.0 - cw
+			if free >= 15.0:
+				var u: float = 11.0
+				Ico.draw_icon(ik, Vector2(pc.size.x - u - 5.0, 4.0), u, 1.3, Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.75), pc))
 
 
 func set_chip(key: String, text: String, col: Color, delta_text: String = "", dcol: Color = Color(0.6, 0.63, 0.72)) -> void:
@@ -1208,9 +1253,34 @@ func set_chip(key: String, text: String, col: Color, delta_text: String = "", dc
 	dl.add_theme_color_override("font_color", dcol)
 
 
+# v49: число на плашке плавно «докручивается» до нового значения, а плашка коротко вспыхивает
+func set_chip_num(key: String, val: float, fmt: Callable, col: Color, delta_text: String = "", dcol: Color = Color(0.6, 0.63, 0.72)) -> void:
+	var d: Dictionary = chips[key]
+	var v: Label = d["value"]
+	var old: Variant = d.get("num", null)
+	d["num"] = val
+	set_chip(key, fmt.call(val), col, delta_text, dcol)
+	if old == null or not v.is_visible_in_tree() or fmt.call(float(old)) == fmt.call(val):
+		return
+	var tw0: Variant = d.get("tw", null)
+	if tw0 != null and (tw0 as Tween).is_valid():
+		(tw0 as Tween).kill()
+	var tw: Tween = v.create_tween()
+	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(x: float) -> void: v.text = fmt.call(x), float(old), val, 0.45)
+	d["tw"] = tw
+	# вспышка — только при заметном изменении (ежедневные мелочи не мигают)
+	if absf(float(old) - val) >= 0.02 * maxf(absf(val), 1.0):
+		var pc: Control = d["pc"]
+		pc.modulate = Color(1.35, 1.35, 1.25)
+		pc.create_tween().tween_property(pc, "modulate", Color.WHITE, 0.6)
+
+
 func update_chips() -> void:
 	if chips.is_empty():
 		return
+	if top_flag != null and Flags.has(ccode):
+		top_flag.texture = Flags.tex(ccode)
 	var parl_in := parl_term() - (turn - last_parl)
 	var pv: Dictionary = top_prev
 	var ap := approval()
@@ -1221,13 +1291,13 @@ func update_chips() -> void:
 	var ddebt: float = dr - float(pv.get("debt", dr))
 	var gs := gov_seats()
 	set_chip("date", date_chip(), C_TEXT)
-	set_chip("appr", "%.0f%%" % ap, scale_color(ap / 100.0), arrow_text(dap, 1), delta_col(dap, true))
-	set_chip("gdp", fmt_n(gdp), C_TEXT, "%s%.1f%%" % ["+" if growth >= 0.0 else "", growth], C_GOOD if growth >= 2.0 else (C_WARN if growth >= 0.0 else C_BAD))
-	set_chip("infl", "%.1f%%" % inflation, scale_color(1.0 - inflation / 12.0), arrow_text(dinfl, 2), delta_col(dinfl, false))
-	set_chip("unemp", "%.1f%%" % unemployment, scale_color(1.0 - unemployment / 14.0), arrow_text(dun, 2), delta_col(dun, false))
-	set_chip("debt", "%.0f%%" % dr, scale_color(1.0 - dr / 110.0), arrow_text(ddebt, 1), delta_col(ddebt, false))
+	set_chip_num("appr", ap, func(x: float) -> String: return "%.0f%%" % x, scale_color(ap / 100.0), arrow_text(dap, 1), delta_col(dap, true))
+	set_chip_num("gdp", gdp, func(x: float) -> String: return fmt_n(x), C_TEXT, "%s%.1f%%" % ["+" if growth >= 0.0 else "", growth], C_GOOD if growth >= 2.0 else (C_WARN if growth >= 0.0 else C_BAD))
+	set_chip_num("infl", inflation, func(x: float) -> String: return "%.1f%%" % x, scale_color(1.0 - inflation / 12.0), arrow_text(dinfl, 2), delta_col(dinfl, false))
+	set_chip_num("unemp", unemployment, func(x: float) -> String: return "%.1f%%" % x, scale_color(1.0 - unemployment / 14.0), arrow_text(dun, 2), delta_col(dun, false))
+	set_chip_num("debt", dr, func(x: float) -> String: return "%.0f%%" % x, scale_color(1.0 - dr / 110.0), arrow_text(ddebt, 1), delta_col(ddebt, false))
 	var cr: float = cap_rate()
-	set_chip("cap", "%.1f" % capital, C_WARN if capital < 15.0 else C_TEXT, "%s%.1f/мес" % ["+" if cr >= 0.0 else "", cr], C_GOOD if cr >= 0.7 else C_DIM)
+	set_chip_num("cap", capital, func(x: float) -> String: return "%.1f" % x, C_WARN if capital < 15.0 else C_TEXT, "%s%.1f/мес" % ["+" if cr >= 0.0 else "", cr], C_GOOD if cr >= 0.7 else C_DIM)
 	set_chip("coal", "%d/%d" % [gs, SEATS], C_GOOD if gov_ok() else C_BAD, "кризис" if not gov_ok() else "", C_BAD)
 	var el_d: int = days_until_months(parl_in)
 	set_chip("elec", ("%d дн." % el_d) if el_d < 90 else months_short(parl_in), C_TEXT)
@@ -1327,7 +1397,7 @@ func build_subbar() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.custom_minimum_size = Vector2(168.0 if k < 4 else 210.0, 32.0)
 		b.pressed.connect(show_desk.bind(pages[k]))
-		btn_icon(b, ["hall", "scroll", "bank", "people", "faith", "hall"][k])
+		btn_icon(b, ["hall", "scroll", "bank", "people", "faith", "person"][k])
 		subbar.add_child(b)
 		sub_buttons.append(b)
 	subbar.visible = false
@@ -1365,7 +1435,7 @@ func build_subbar() -> void:
 		b3.focus_mode = Control.FOCUS_NONE
 		b3.custom_minimum_size = Vector2(170.0 if k < 3 else (150.0 if k < 5 else 196.0), 32.0)
 		b3.pressed.connect(show_desk.bind(p3[k]))
-		btn_icon(b3, ["pin", "grid", "flag", "shield", "ship", "shield"][k])
+		btn_icon(b3, ["map", "grid", "flag", "shield", "ship", "star"][k])
 		subbar3.add_child(b3)
 		sub3_buttons.append(b3)
 	subbar3.visible = false

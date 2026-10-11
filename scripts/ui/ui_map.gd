@@ -39,6 +39,18 @@ func war_map_click(pos: Vector2, shift: bool) -> void:
 # --- конец заглушек ---
 
 
+const MapLabels := preload("res://scripts/classes/map_labels.gd")
+var map_lab: Dictionary = {}        # v49: код страны -> подпись вдоль формы страны (MapLabels.compute)
+var map_lab_pts: Dictionary = {}    # v49: код -> [центры АТЕ, площади] для подписи видимой части
+var map_fx: Control = null          # v49: слой анимации поверх карты (тени облаков, мерцание линии фронта, пульс столицы)
+var map_fx_t := 0.0
+var map_fx_acc := 0.0
+var map_cloud: ImageTexture = null
+var map_hatch: Dictionary = {}      # v49: единица карты -> [меши штриховки трёх плотностей] (непризнанные и спорные земли)
+var map_front := PackedVector2Array()   # v49: линия соприкосновения Украины с ДНР, ЛНР и Крымом
+var map_own_rect := Rect2()
+var map_own_mix := 0.0              # v49: 1 — своя страна видна целиком своим цветом и с подписью, 0 — административный вид
+
 var reg_grid: GridContainer
 var transfer_parent: Control
 # v36: карта из АТЕ
@@ -207,6 +219,7 @@ func map_prepare() -> void:
 		if String(u["cc"]) == ccode and local.has(String(u["id"])):
 			map_unit_local[ui] = int(local[String(u["id"])])
 	map_bounds = Rect2(lo, hi - lo)
+	map_prepare_labels()
 	# линии: каждое общее ребро АТЕ относится к одному из трёх уровней
 	var ea: PackedInt32Array = ATE["ea"]
 	var eb: PackedInt32Array = ATE["eb"]
@@ -263,6 +276,97 @@ func map_prepare() -> void:
 	if map_fit_cc != ccode:
 		map_fit_cc = ccode
 		map_inited = false
+
+
+# v49: подписи стран вдоль формы, штриховка непризнанных и спорных земель, линия фронта
+func map_is_disputed(ui: int) -> bool:
+	var u: Dictionary = WORLD_UNITS[ui]
+	return w_unrec(String(u["cc"])) or String(u["id"]) == "RU-KRY"
+
+
+func map_prepare_labels() -> void:
+	map_lab.clear()
+	map_lab_pts.clear()
+	map_hatch.clear()
+	map_front = PackedVector2Array()
+	map_own_rect = map_country_rect(ccode)
+	var no: PackedInt32Array = ATE["no"]
+	var nb: PackedInt32Array = ATE["nb"]
+	var by_cc := {}
+	for a in ate_n:
+		var cc: String = String(WORLD_UNITS[ate_unit[a]]["cc"])
+		if not by_cc.has(cc):
+			by_cc[cc] = []
+		(by_cc[cc] as Array).append(a)
+	for cc in by_cc:
+		# самая крупная связная часть страны (без островов и заморских земель)
+		var lst: Array = by_cc[cc]
+		var inside := {}
+		for a in lst:
+			inside[int(a)] = true
+		var seen := {}
+		var best: Array = []
+		var best_km := -1.0
+		for a0 in lst:
+			if seen.has(int(a0)):
+				continue
+			var comp: Array = [int(a0)]
+			seen[int(a0)] = true
+			var k := 0
+			var km := 0.0
+			while k < comp.size():
+				var a1: int = comp[k]
+				k += 1
+				km += ate_km[a1]
+				for j in range(no[a1], no[a1 + 1]):
+					var b: int = nb[j]
+					if inside.has(b) and not seen.has(b):
+						seen[b] = true
+						comp.append(b)
+			if km > best_km:
+				best_km = km
+				best = comp
+		var pts := PackedVector2Array()
+		var w := PackedFloat32Array()
+		for a2 in best:
+			pts.append(ate_c[int(a2)])
+			w.append(maxf(1.0, ate_km[int(a2)]))
+		map_lab[cc] = MapLabels.compute(pts, w)
+		map_lab_pts[cc] = [pts, w]
+	for ui in WORLD_UNITS.size():
+		if not map_is_disputed(ui) or ui >= ate_lists.size():
+			continue
+		var tri := PackedVector2Array()
+		for a3 in (ate_lists[ui] as PackedInt32Array):
+			tri.append_array(map_ate_tris[a3])
+		var ms: Array = []
+		for uvk in [12.0, 40.0, 150.0]:
+			var arr: Array = []
+			arr.resize(Mesh.ARRAY_MAX)
+			arr[Mesh.ARRAY_VERTEX] = tri
+			arr[Mesh.ARRAY_TEX_UV] = Gfx.uvs(tri, uvk)
+			var mm := ArrayMesh.new()
+			mm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+			ms.append(mm)
+		map_hatch[ui] = ms
+	# линия соприкосновения: общие границы АТЕ Украины с ДНР, ЛНР и Крымом
+	if WORLD.has("UA"):
+		var ea: PackedInt32Array = ATE["ea"]
+		var eb: PackedInt32Array = ATE["eb"]
+		var eo: PackedInt32Array = ATE["eo"]
+		var ep: PackedFloat32Array = ATE["ep"]
+		for e in ea.size():
+			if eb[e] < 0:
+				continue
+			var ua: Dictionary = WORLD_UNITS[ate_unit[ea[e]]]
+			var ub: Dictionary = WORLD_UNITS[ate_unit[eb[e]]]
+			var fa: bool = String(ua["cc"]) == "UA" and (String(ub["cc"]) in ["DNR", "LNR"] or String(ub["id"]) == "RU-KRY")
+			var fb: bool = String(ub["cc"]) == "UA" and (String(ua["cc"]) in ["DNR", "LNR"] or String(ua["id"]) == "RU-KRY")
+			if not (fa or fb):
+				continue
+			for k2 in range(eo[e], eo[e + 1] - 1):
+				map_front.append(Vector2(ep[2 * k2], ep[2 * k2 + 1]))
+				map_front.append(Vector2(ep[2 * k2 + 2], ep[2 * k2 + 3]))
 
 
 func map_tri_mesh(pts: PackedVector2Array) -> ArrayMesh:
@@ -350,16 +454,19 @@ func map_free_rect() -> Rect2:
 	return Rect2(Vector2(lo, 0.0), Vector2(hi - lo, c.size.y))
 
 
-func map_fit_rect(r: Rect2) -> void:
+# instant — без анимации (первый показ карты, тесты)
+func map_fit_rect(r: Rect2, instant: bool = false) -> void:
 	var v := map_view()
 	var s0: float = v[2]
 	var c := map_ctl
 	var fr := map_free_rect()
 	var s: float = minf(fr.size.x / maxf(1.0, r.size.x * 1.15), fr.size.y / maxf(1.0, r.size.y * 1.2))
-	map_zoom = clampf(s / s0, 0.7, 16.0)
-	s = s0 * map_zoom
+	map_zoom_t = clampf(s / s0, 0.7, 24.0)
+	s = s0 * map_zoom_t
 	# центр страны — в середину свободной части карты
-	map_center = r.get_center() - (fr.get_center() - c.size * 0.5) / s
+	map_center_t = r.get_center() - (fr.get_center() - c.size * 0.5) / s
+	if instant:
+		map_cam_snap()
 	map_ctl.queue_redraw()
 
 
@@ -368,27 +475,48 @@ func map_zoom_cmd(k: int) -> void:
 		1: map_zoom_at(map_ctl.size * 0.5, 1.35)
 		2: map_zoom_at(map_ctl.size * 0.5, 1.0 / 1.35)
 		3: map_fit_rect(map_country_rect(ccode))
-		4:
-			map_zoom = 1.0
-			map_center = map_bounds.get_center()
-			map_ctl.queue_redraw()
+		4: map_fit_rect(map_bounds.grow(-maxf(1.0, map_bounds.size.x * 0.04)))     # v49: вся карта — в свободную от окон часть
 
 
 func map_zoom_at(pos: Vector2, f: float) -> void:
-	var v := map_view()
-	var s: float = v[0]
-	var off: Vector2 = v[1]
-	var wp: Vector2 = (pos - off) / s
-	map_zoom = clampf(map_zoom * f, 0.7, 16.0)
-	var s2: float = float(map_view()[0])
-	map_center = wp - (pos - map_ctl.size * 0.5) / s2
+	# точка под курсором остаётся на месте; считаем от целевого вида, чтобы быстрые прокрутки колёсика складывались
+	var s0: float = float(map_view()[2])
+	var st: float = s0 * map_zoom_t
+	var off: Vector2 = map_ctl.size * 0.5 - map_center_t * st
+	var wp: Vector2 = (pos - off) / st
+	map_zoom_t = clampf(map_zoom_t * f, 0.7, 24.0)
+	map_center_t = wp - (pos - map_ctl.size * 0.5) / (s0 * map_zoom_t)
 	map_clamp()
 	map_ctl.queue_redraw()
 
 
 func map_clamp() -> void:
 	var r := map_bounds.grow(maxf(map_bounds.size.x, map_bounds.size.y) * 0.15)
-	map_center = Vector2(clampf(map_center.x, r.position.x, r.end.x), clampf(map_center.y, r.position.y, r.end.y))
+	map_center_t = Vector2(clampf(map_center_t.x, r.position.x, r.end.x), clampf(map_center_t.y, r.position.y, r.end.y))
+
+
+func map_cam_snap() -> void:
+	map_zoom = map_zoom_t
+	map_center = map_center_t
+
+
+# v49: плавная камера: экспоненциальное приближение к цели (масштаб — в логарифме, чтобы приближение шло равномерно)
+func map_cam_step(delta: float) -> void:
+	if map_ctl == null or not map_ctl.is_visible_in_tree():
+		map_cam_snap()
+		return
+	var dz: float = map_zoom_t - map_zoom
+	var dc: Vector2 = map_center_t - map_center
+	if dz == 0.0 and dc == Vector2.ZERO:
+		return
+	var s0: float = float(map_view()[2])
+	if absf(dz) < map_zoom * 0.002 and dc.length() * s0 * map_zoom < 0.4:
+		map_cam_snap()
+	else:
+		var k: float = 1.0 - exp(-delta * 11.0)
+		map_zoom = exp(lerpf(log(map_zoom), log(map_zoom_t), k))
+		map_center = map_center.lerp(map_center_t, k)
+	map_ctl.queue_redraw()
 
 
 # малые регионы своей страны (Берлин, Бремен…) на текущем масштабе: их можно выбрать по «булавке»
@@ -473,6 +601,11 @@ func unit_tip(ui: int) -> String:
 			rn = String(r["name"])
 	var w: Dictionary = wsim[cc]
 	var t := "%s — %s\nРост %.1f%%, инфляция %.1f%%, безработица %.1f%%, долг %.0f%% ВВП\n" % [WORLD[cc]["name"], rn, float(w["growth"]), float(w["infl"]), float(w["unemp"]), float(w["debt"])]
+	if w_unrec(cc):
+		var wc: Dictionary = WORLD[cc]
+		t += "Непризнанное образование: под контролем «%s», международно признано территорией «%s».\n" % [String(WORLD.get(String(wc.get("patron", "")), {}).get("name", "—")), String(WORLD.get(String(wc.get("claim", "")), {}).get("name", "—"))]
+	elif String(u["id"]) == "RU-KRY":
+		t += "Под контролем России с 2014 г.; международно признан территорией Украины.\n"
 	if dip.has(cc):
 		t += "Отношения с вами: %.0f (%s)\n" % [float(dip[cc]["rel"]), dip_rel_name(float(dip[cc]["rel"]))]
 	return t + "Щёлкните, чтобы открыть сведения."
@@ -532,8 +665,11 @@ func on_map_input(ev: InputEvent) -> void:
 			if (mm.position - map_drag_start).length() > 10.0:
 				map_drag_moved = true
 			if map_drag_moved:
-				map_center -= mm.relative / float(map_view()[0])
+				# перетаскивание — без запаздывания: карта идёт за мышью
+				map_cam_snap()
+				map_center_t -= mm.relative / float(map_view()[0])
 				map_clamp()
+				map_center = map_center_t
 				map_ctl.queue_redraw()
 			return
 		if current_desk == 13 or current_desk == 14:
@@ -628,6 +764,14 @@ func build_map_windows() -> void:
 		map_hover_unit = -1
 		map_hover_ate = -1
 		map_ctl.queue_redraw())
+	map_fx = Control.new()
+	map_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_fx.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	map_fx.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	map_base.add_child(map_fx)
+	map_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	map_fx.clip_contents = true
+	map_fx.draw.connect(draw_map_fx)
 	map_prepare()
 	var zrow := HBoxContainer.new()
 	zrow.add_theme_constant_override("separation", 3)
@@ -874,7 +1018,10 @@ func unit_color(ui: int) -> Color:
 	if is_world_layer():
 		return cl_color(cc)
 	if cc == ccode:
-		return layer_color(int(map_unit_local[ui]))
+		var lc: Color = layer_color(int(map_unit_local[ui]))
+		if map_own_mix > 0.001 and map_layer < 20:
+			lc = lc.lerp((WORLD_CCOL.get(cc, Color(0.55, 0.50, 0.58)) as Color).lightened(0.12), map_own_mix)
+		return lc
 	return (WORLD_CCOL.get(cc, Color(0.55, 0.50, 0.58)) as Color).darkened(0.38)
 
 
@@ -952,11 +1099,14 @@ func draw_map() -> void:
 	var c := map_ctl
 	if not map_inited and c.size.x > 50.0:
 		map_inited = true
-		map_fit_rect(map_country_rect(ccode))
+		map_fit_rect(map_country_rect(ccode), true)
 	var v := map_view()
 	var s: float = v[0]
 	var off: Vector2 = v[1]
 	var font := c.get_theme_default_font()
+	# v49: вдали своя страна видна целиком своим цветом и с подписью, при приближении — административное деление
+	var own_ratio: float = map_own_rect.size.x * s / maxf(1.0, map_free_rect().size.x)
+	map_own_mix = 0.0 if (is_world_layer() or map_layer >= 20) else 1.0 - smoothstep(0.30, 0.55, own_ratio)
 	map_draw_sea(c, s, off)
 	# контекст: неигровые земли — приглушённый рельеф
 	var ctx_tex: Texture2D = Gfx.ctx_tex()
@@ -1003,6 +1153,11 @@ func draw_map() -> void:
 		if String(WORLD_UNITS[ui]["cc"]) != ccode and not is_world_layer() and map_layer < 20:
 			ucol = ucol.lerp(Color(0.32, 0.34, 0.38), 0.18)
 		c.draw_mesh(m, land_tex, xf, ucol)
+		if map_hatch.has(ui):
+			# штриховка: непризнанные образования и спорные земли (плотность подбирается под масштаб — шаг ≈ 10 пикселей)
+			var lvl: int = 0 if s > 1.6 else (1 if s > 0.45 else 2)
+			var unrec: bool = w_unrec(String(WORLD_UNITS[ui]["cc"]))
+			c.draw_mesh((map_hatch[ui] as Array)[lvl], MapLabels.hatch_tex(), xf, Color(0.06, 0.04, 0.05, 0.38) if unrec else Color(1.0, 0.85, 0.55, 0.16))
 		if ui == map_hover_unit and not ate_mode:
 			c.draw_mesh(m, null, xf, Color(1, 1, 1, 0.14))
 	c.draw_set_transform_matrix(xf)
@@ -1030,6 +1185,10 @@ func draw_map() -> void:
 	if not map_ln_cty.is_empty():
 		c.draw_multiline(map_ln_cty, Color(0.01, 0.01, 0.03, 0.75), 3.4 / s)
 		c.draw_multiline(map_ln_cty, Color(0.93, 0.90, 0.80, 0.55), 1.0 / s)
+	# v49: линия соприкосновения (Украина — ДНР, ЛНР, Крым)
+	if not map_front.is_empty() and not is_world_layer():
+		c.draw_multiline(map_front, Color(1.0, 0.25, 0.15, 0.18), 8.0 / s)
+		c.draw_multiline(map_front, Color(1.0, 0.42, 0.25, 0.9), 2.0 / s)
 	# своя страна: мягкое свечение границы
 	var own := map_border_segs("c" + ccode)
 	if not own.is_empty() and not is_world_layer():
@@ -1112,6 +1271,8 @@ func draw_map() -> void:
 		var wpx: float = rr2.size.x * s
 		if is_world_layer() or (cc3 != ccode and s < 2.4) or s < 1.3:
 			continue
+		if cc3 == ccode and map_own_mix > 0.5:
+			continue
 		var ctr: Vector2 = Vector2(float(u["c"][0]), float(u["c"][1])) * s + off
 		var nm := ""
 		var val := ""
@@ -1141,6 +1302,35 @@ func draw_map() -> void:
 			var pos := ctr + Vector2(-35.0, y2)
 			Gfx.label(c, font, pos, ln, fs2, tc, 70.0, HORIZONTAL_ALIGNMENT_CENTER, 4)
 			y2 += float(fs2) + 1.0
+	# v49: названия стран вдоль их формы (обычные слои); гаснут, когда страна шире экрана; своя — пока видна целиком
+	var lab_ok := {}
+	if not is_world_layer():
+		for code0 in map_lab:
+			if not WORLD.has(code0):
+				continue
+			var lab: Dictionary = map_lab[code0]
+			if lab.is_empty():
+				continue
+			var la: float = 0.0
+			if code0 == ccode:
+				la = map_own_mix
+			else:
+				la = 1.0 - smoothstep(2.0, 2.6, s)
+			if la < 0.02:
+				lab_ok[code0] = true
+				continue
+			var tcol := Color(1.0, 0.93, 0.68, 0.92 * la) if code0 == ccode else Color(0.96, 0.95, 0.90, 0.72 * la)
+			if w_unrec(String(code0)):
+				tcol = Color(1.0, 0.80, 0.72, 0.85 * la)
+			var lname: String = String(WORLD[code0]["name"]).to_upper()
+			if code0 == ccode:
+				if MapLabels.draw(c, font, lab, lname, s, off, tcol, 78.0):
+					lab_ok[code0] = true
+			else:
+				# страна шире обзора (Россия) — подпись её видимой части
+				var lp: Array = map_lab_pts.get(code0, [PackedVector2Array(), PackedFloat32Array()])
+				if MapLabels.draw_fit(c, font, "m:" + String(code0), lab, lp[0], lp[1], lname, s, off, map_free_rect(), tcol, 64.0):
+					lab_ok[code0] = true
 	# названия и показатели стран (без наложений: сначала крупные экономики)
 	if is_world_layer() or s < 2.4:
 		var order: Array = wsim.keys()
@@ -1156,6 +1346,8 @@ func draw_map() -> void:
 			else:
 				Gfx.capital(c, cp3, Color(1, 0.94, 0.72), false)
 			var cn: String = String(WORLD[code]["name"])
+			if lab_ok.has(code) and not is_world_layer():
+				continue      # v49: подпись уже растянута по стране
 			var cv := ""
 			if is_world_layer():
 				cv = String(cl_info(code)[1])
@@ -1179,6 +1371,10 @@ func draw_map() -> void:
 				var pos2 := lp + Vector2(-70.0, 0.0)
 				var txt2: String = ln if ln == cv else Gfx.spaced(String(ln).to_upper())
 				Gfx.label(c, font, pos2, txt2, 12 if ln != cv else 12, tc2, 140.0, HORIZONTAL_ALIGNMENT_CENTER, 4)
+				if ln == cn and is_world_layer() and Flags.has(String(code)):
+					# v49: флажок слева от названия
+					var tw2: float = minf(140.0, font.get_string_size(txt2, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x)
+					Flags.draw(c, String(code), Rect2(lp + Vector2(-tw2 * 0.5 - 23.0, -11.0), Vector2(18.0, 12.0)))
 				lp.y += 13.0
 	var ramp := layer_ramp()
 	var kind: String = ramp[0]
@@ -1851,3 +2047,112 @@ func on_adm_buy() -> void:
 	var r := ate_buy(ate_sel.duplicate(), mult, -1 if bd == 1000 else bd)
 	if not bool(r["done"]):
 		refresh()
+
+
+# ============================================================
+#  v49: АНИМАЦИЯ КАРТЫ (отдельный лёгкий слой — сама карта не перерисовывается каждый кадр)
+# ============================================================
+
+
+func ui_anim_step(delta: float) -> void:
+	if map_fx == null or not map_fx.is_visible_in_tree():
+		return
+	map_fx_t += delta
+	map_fx_acc += delta
+	if map_fx_acc >= 1.0 / 30.0:
+		map_fx_acc = 0.0
+		map_fx.queue_redraw()
+
+
+# бесшовная текстура облаков: белые клочья с мягкими краями
+func map_cloud_tex() -> ImageTexture:
+	if map_cloud != null:
+		return map_cloud
+	var nz := FastNoiseLite.new()
+	nz.seed = 49
+	nz.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	nz.frequency = 0.010
+	nz.fractal_octaves = 3
+	var img: Image = nz.get_seamless_image(256, 256)
+	img.convert(Image.FORMAT_RGBA8)
+	for y in 256:
+		for x in 256:
+			var g: float = img.get_pixel(x, y).r
+			img.set_pixel(x, y, Color(1, 1, 1, smoothstep(0.50, 0.90, g)))
+	img.generate_mipmaps()
+	map_cloud = ImageTexture.create_from_image(img)
+	return map_cloud
+
+
+func draw_map_fx() -> void:
+	var c := map_fx
+	if map_ctl == null or map_unit_parts.is_empty():
+		return
+	var v := map_view()
+	var s: float = v[0]
+	var off: Vector2 = v[1]
+	var t: float = map_fx_t
+	# тени облаков и сами облака — только на дальнем масштабе, плывут с запада на восток
+	var ca: float = 0.07 * (1.0 - smoothstep(0.55, 1.25, s))
+	if ca > 0.004:
+		var tex := map_cloud_tex()
+		var drift := Vector2(t * 7.0, t * 1.2)
+		var scr := PackedVector2Array([Vector2.ZERO, Vector2(c.size.x, 0.0), c.size, Vector2(0.0, c.size.y)])
+		var sh := PackedVector2Array()
+		var wh := PackedVector2Array()
+		for p in scr:
+			var wp: Vector2 = (p - off) / s - drift
+			sh.append(wp / 2400.0)
+			wh.append((wp + Vector2(14.0, 10.0) / s) / 2400.0)
+		c.draw_colored_polygon(scr, Color(0.0, 0.02, 0.06, ca * 1.4), sh, tex)
+		c.draw_colored_polygon(scr, Color(1.0, 1.0, 1.0, ca), wh, tex)
+	# линия фронта: мерцающее зарево и бегущие вспышки
+	if not map_front.is_empty() and not is_world_layer():
+		c.draw_set_transform(off, 0.0, Vector2(s, s))
+		var n: int = map_front.size() / 2
+		for i in n:
+			var a: Vector2 = map_front[2 * i]
+			var b: Vector2 = map_front[2 * i + 1]
+			var ph: float = 0.5 + 0.5 * sin(t * 3.3 + float(i) * 0.41)
+			c.draw_line(a, b, Color(1.0, 0.45, 0.15, 0.06 + 0.16 * ph), (5.0 + 7.0 * ph) / s)
+			if i % 3 == 0:
+				var q: Vector2 = a.lerp(b, fposmod(t * 0.7 + float(i) * 0.137, 1.0))
+				c.draw_circle(q, 2.0 / s, Color(1.0, 0.85, 0.45, 0.35 + 0.5 * ph))
+		c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# роза ветров и масштабная линейка в правом нижнем углу свободной части карты
+	var fr := map_free_rect()
+	var font := c.get_theme_default_font()
+	var cr: Vector2 = Vector2(fr.end.x - 46.0, fr.end.y - 62.0)
+	c.draw_circle(cr, 25.0, Color(0.02, 0.03, 0.06, 0.35))
+	c.draw_arc(cr, 25.0, 0.0, TAU, 40, Color(0.85, 0.80, 0.62, 0.55), 1.2, true)
+	c.draw_arc(cr, 19.0, 0.0, TAU, 40, Color(0.85, 0.80, 0.62, 0.25), 1.0, true)
+	for k2 in 4:
+		var an: float = -PI / 2.0 + float(k2) * PI / 2.0
+		var tip: Vector2 = cr + Vector2(cos(an), sin(an)) * (22.0 if k2 == 0 else 16.0)
+		var sd: Vector2 = Vector2(-sin(an), cos(an)) * 4.5
+		c.draw_colored_polygon(PackedVector2Array([tip, cr + sd, cr - sd]), Color(1.0, 0.86, 0.45, 0.9) if k2 == 0 else Color(0.85, 0.85, 0.80, 0.55))
+	c.draw_string_outline(font, cr + Vector2(-4.0, -27.0), "С", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.6))
+	c.draw_string(font, cr + Vector2(-4.0, -27.0), "С", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.9, 0.6))
+	# 1 единица карты ≈ 2,88 км (по меридиану)
+	var km_px: float = s / 2.883
+	var bar_km := 50.0
+	for nk in [50.0, 100.0, 200.0, 250.0, 500.0, 1000.0, 2000.0]:
+		if nk * km_px <= 130.0:
+			bar_km = nk
+	var bl: float = bar_km * km_px
+	var b0 := Vector2(fr.end.x - 46.0 - bl - 40.0, fr.end.y - 26.0)
+	c.draw_rect(Rect2(b0 - Vector2(4.0, 14.0), Vector2(bl + 8.0, 22.0)), Color(0.02, 0.03, 0.06, 0.35))
+	for seg in 4:
+		var x0: float = b0.x + bl * float(seg) / 4.0
+		c.draw_rect(Rect2(x0, b0.y, bl / 4.0, 4.0), Color(0.92, 0.90, 0.82, 0.85) if seg % 2 == 0 else Color(0.15, 0.16, 0.20, 0.85))
+	c.draw_rect(Rect2(b0, Vector2(bl, 4.0)), Color(0.92, 0.90, 0.82, 0.6), false, 1.0)
+	var bt: String = "%d км" % int(bar_km)
+	c.draw_string_outline(font, b0 + Vector2(0.0, -3.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.6))
+	c.draw_string(font, b0 + Vector2(0.0, -3.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.90, 0.82))
+	# пульс своей столицы
+	if WORLD_CAPS.has(ccode):
+		var cp: Vector2 = (WORLD_CAPS[ccode] as Vector2) * s + off
+		if Rect2(Vector2.ZERO, c.size).has_point(cp):
+			for k in 2:
+				var ph2: float = fposmod(t * 0.45 + 0.5 * float(k), 1.0)
+				c.draw_arc(cp, 9.0 + 28.0 * ph2, 0.0, TAU, 40, Color(1.0, 0.86, 0.40, 0.55 * (1.0 - ph2)), 2.0, true)

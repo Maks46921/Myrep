@@ -3,6 +3,7 @@
 extends Control
 
 const Ico := preload("res://scripts/classes/ico.gd")
+const Flags := preload("res://scripts/classes/flags.gd")
 
 var col := Color(0.65, 0.54, 0.94)
 var ico := "hall"
@@ -11,6 +12,7 @@ var title := ""
 var meta := ""
 var badges: Array = []     # [[текст, цвет]]
 var seed_v := 0
+var flag := ""             # v49: код страны, если событие связано с другой страной — её флаг вместо значка
 
 
 func _init() -> void:
@@ -68,7 +70,13 @@ func _draw() -> void:
 	draw_circle(c0, 46.0, Color(col.r, col.g, col.b, 0.12))
 	draw_circle(c0, 34.0, Color(col.r, col.g, col.b, 0.20))
 	draw_arc(c0, 46.0, 0.0, TAU, 48, Color(col.r, col.g, col.b, 0.45), 1.5, true)
-	Ico.draw_icon(ico, c0 - Vector2(24.0, 24.0), 48.0, 3.4, col.lightened(0.35), self)
+	if flag != "" and Flags.has(flag):
+		# флаг на древке
+		draw_line(c0 + Vector2(-34.0, -26.0), c0 + Vector2(-34.0, 40.0), Color(0.85, 0.80, 0.70, 0.9), 2.5, true)
+		draw_circle(c0 + Vector2(-34.0, -27.0), 3.0, Color(0.95, 0.85, 0.55))
+		Flags.draw(self, flag, Rect2(c0 + Vector2(-33.0, -24.0), Vector2(63.0, 42.0)))
+	else:
+		Ico.draw_icon(ico, c0 - Vector2(24.0, 24.0), 48.0, 3.4, col.lightened(0.35), self)
 	# тексты
 	draw_string(f, Vector2(18.0, 26.0), cat, HORIZONTAL_ALIGNMENT_LEFT, w - 160.0, 13, col.lightened(0.35))
 	var tw: float = w - 170.0
