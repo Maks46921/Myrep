@@ -2174,6 +2174,8 @@ func mil_ai_declare() -> void:
 	if int(game_opts.get("milev", 1)) == 0 or opp_mode or turn < 12 or not current_event.is_empty() or election_open:
 		return
 	var my_pow: float = maxf(1.0, mil_country_power(ccode))
+	# v49: статья 5 — нападение на члена НАТО означает войну со всем союзом: агрессор учитывает его силу
+	var nato_pow := -1.0
 	for cc in mil_targets():
 		if not mil_land_neighbor(cc) or int((mil["truce"] as Dictionary).get(cc, 0)) > 0 or ar_deterred(cc):
 			continue
@@ -2185,6 +2187,13 @@ func mil_ai_declare() -> void:
 		var pat: String = String(MIL_PATRON.get(ccode, ""))
 		if pat != "" and pat != cc and WORLD.has(pat):
 			guard = 0.6 * mil_country_power(pat)
+		if mil_is_nato(ccode) and not mil_is_nato(cc) and not (ccode in mil.get("neutral", [])):
+			if nato_pow < 0.0:
+				nato_pow = 0.0
+				for n in wsim:
+					if n != ccode and mil_is_nato(String(n)) and MIL_BASE.has(n):
+						nato_pow += mil_country_power(String(n))
+			guard += 0.35 * nato_pow
 		var ratio: float = mil_country_power(cc) / (my_pow + guard)
 		if ratio < 1.4:
 			continue

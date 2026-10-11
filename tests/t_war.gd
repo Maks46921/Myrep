@@ -257,8 +257,15 @@ func _init():
 	# нападение ИИ: плохие отношения и слабая армия
 	m.game_opts["milev"] = 1
 	var att := ""
-	# v49: демократии нападают редко — берём наименее демократичного соседа
+	# v49: демократии нападают редко — берём наименее демократичного соседа; на члена НАТО чужой не нападёт (статья 5),
+	# на Беларусь — только её покровитель
+	var nato_v: bool = m.mil_is_nato(cc)
+	var pat_v: String = String(m.MIL_PATRON.get(cc, ""))
 	for c in m.mil_targets():
+		if nato_v and not m.mil_is_nato(String(c)):
+			continue
+		if pat_v != "" and String(c) != pat_v:
+			continue
 		if m.mil_land_neighbor(c) and int((m.mil["truce"] as Dictionary).get(c, 0)) == 0 and m.wsim.has(c):
 			if att == "" or float(m.MIL_DEMO.get(c, 0.5)) < float(m.MIL_DEMO.get(att, 0.5)):
 				att = String(c)
