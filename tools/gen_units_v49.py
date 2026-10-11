@@ -24,15 +24,18 @@ SRC = "/tmp/claude-0/geo/ne_admin1.geojson"
 SRC0 = "/tmp/claude-0/geo/ne_admin0_50m.geojson"
 
 
-def lonfix(x, y, z=None):
-    xs = [(xx + 360.0 if xx < -100.0 else xx) for xx in (x if hasattr(x, "__len__") else [x])]
-    if not hasattr(x, "__len__"):
-        xs = xs[0]
-    return (xs, y) if z is None else (xs, y, z)
-
-
 def proj(g):
-    g = make_valid(transform(lonfix, g))
+    """равнопромежуточная проекция карты; полигоны целиком западнее −100° (Чукотка, Аляска) переносятся на +360°"""
+    g = make_valid(g)
+    ps = []
+    for q in getattr(g, "geoms", [g]):
+        for p in getattr(q, "geoms", [q]):
+            if not isinstance(p, Polygon):
+                continue
+            if p.bounds[2] < -100.0:
+                p = shapely.affinity.translate(p, 360.0, 0.0)
+            ps.append(p)
+    g = unary_union(ps) if ps else Polygon()
     return shapely.affinity.affine_transform(g, [25.7085, 0, 0, -38.6135, 154.29, 2192.0])
 
 
