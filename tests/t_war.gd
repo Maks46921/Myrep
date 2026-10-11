@@ -266,7 +266,8 @@ func _init():
 			continue
 		if pat_v != "" and String(c) != pat_v:
 			continue
-		if m.ar_deterred(String(c)):
+		# сильнее нас хотя бы в 1,4 раза (своя сила в расчёте ИИ не меньше 1)
+		if m.ar_deterred(String(c)) or m.mil_country_power(String(c)) < 2.0:
 			continue
 		if m.mil_land_neighbor(c) and int((m.mil["truce"] as Dictionary).get(c, 0)) == 0 and m.wsim.has(c):
 			if att == "" or float(m.MIL_DEMO.get(c, 0.5)) < float(m.MIL_DEMO.get(att, 0.5)):
