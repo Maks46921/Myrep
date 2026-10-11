@@ -12,7 +12,7 @@ import argparse, os, re, subprocess, sys, time, concurrent.futures as cf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOGS = os.path.join(ROOT, '.testlogs')
-ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT'.split()
+ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT MD BY UA RU'.split()
 
 # имя: (скрипт, доп.аргументы, таймаут, нужен ли seed-эталон)
 TESTS = {

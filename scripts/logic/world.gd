@@ -243,6 +243,16 @@ func w_codes() -> Array:
 	return out
 
 
+# v49: непризнанные образования (ПМР, ДНР, ЛНР) и новые государства из отделившихся регионов (SEP…): есть на карте и в мировой
+# симуляции, но не играбельны, без пакета данных, торговых соглашений, разведки и внешнеполитического ИИ
+func w_unrec(c: String) -> bool:
+	return WORLD.has(c) and bool((WORLD[c] as Dictionary).get("unrec", false))
+
+
+func w_minor(c: String) -> bool:
+	return c.begins_with("SEP") or w_unrec(c)
+
+
 func world_init() -> void:
 	wsim.clear()
 	for c in WORLD:

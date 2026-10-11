@@ -8661,7 +8661,11 @@
 		"RO",
 		"GR",
 		"EE",
-		"LV"
+		"LV",
+		"MD",
+		"BY",
+		"UA",
+		"RU"
 	],
 	"DIP_C": {
 		"DE": {
@@ -9257,6 +9261,78 @@
 			"desc": "Средняя из трёх прибалтийских стран — член ЕС, НАТО и еврозоны на границе с Россией и Беларусью: транзитные порты Риги, Вентспилса и Лиепаи, лес и деревообработка, IT-услуги и банки Риги. После 2022 года Латвия тратит на оборону почти 5 % ВВП, строит Балтийскую линию обороны и ждёт Rail Baltica. Для соседей — надёжный союзник по ЕС и НАТО, сторонник жёстких санкций против России, но с большой русскоязычной общиной, медленным ростом и тающим населением.",
 			"likes": "жёсткие санкции против России, войска союзников в Прибалтике, деньги ЕС на оборону и Rail Baltica, энергетическая независимость, поддержка Украины",
 			"dislikes": "торговля с Россией и «особые отношения» с Москвой, вето Венгрии, медленные поставки оружия, разговоры о «зонах влияния», миграционное давление с Беларуси"
+		},
+		"MD": {
+			"name": "Молдова",
+			"cap": "Кишинёв",
+			"pop": 2.43,
+			"gdp": 18.0,
+			"trade": 0.9,
+			"rel0": 50.0,
+			"w": 0.015,
+			"lv0": {
+				"trade": 2,
+				"sec": 0,
+				"energy": 1
+			},
+			"leader": "Президент",
+			"desc": "Заготовка",
+			"likes": "заготовка",
+			"dislikes": "заготовка"
+		},
+		"BY": {
+			"name": "Беларусь",
+			"cap": "Минск",
+			"pop": 9.2,
+			"gdp": 72.0,
+			"trade": 1.9,
+			"rel0": 50.0,
+			"w": 0.032,
+			"lv0": {
+				"trade": 2,
+				"sec": 0,
+				"energy": 1
+			},
+			"leader": "Президент",
+			"desc": "Заготовка",
+			"likes": "заготовка",
+			"dislikes": "заготовка"
+		},
+		"UA": {
+			"name": "Украина",
+			"cap": "Киев",
+			"pop": 31.2,
+			"gdp": 180.0,
+			"trade": 3.0,
+			"rel0": 50.0,
+			"w": 0.051,
+			"lv0": {
+				"trade": 2,
+				"sec": 0,
+				"energy": 1
+			},
+			"leader": "Президент",
+			"desc": "Заготовка",
+			"likes": "заготовка",
+			"dislikes": "заготовка"
+		},
+		"RU": {
+			"name": "Россия",
+			"cap": "Москва",
+			"pop": 146.0,
+			"gdp": 2000.0,
+			"trade": 9.9,
+			"rel0": 50.0,
+			"w": 0.168,
+			"lv0": {
+				"trade": 2,
+				"sec": 0,
+				"energy": 1
+			},
+			"leader": "Президент",
+			"desc": "Заготовка",
+			"likes": "заготовка",
+			"dislikes": "заготовка"
 		}
 	},
 	"DIP_LIKES": {
@@ -13021,6 +13097,330 @@
 			},
 			"cyber_security": {
 				1: 1.5
+			}
+		},
+		"MD": {
+			"fiscal_rule": {
+				1: 1.0,
+				2: -1.0
+			},
+			"citizenship_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"schengen": {
+				1: -2.0,
+				2: 1.0
+			},
+			"defence_fund": {
+				1: 2.0,
+				2: 1.0,
+				3: -2.0
+			},
+			"conscription": {
+				1: 1.0
+			},
+			"belarus_border": {
+				1: -2.0,
+				2: 1.0
+			},
+			"suwalki_corridor": {
+				1: 1.0
+			},
+			"kaliningrad_transit": {
+				1: -2.0,
+				2: -2.0
+			},
+			"minority_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"emigration_return": {
+				1: 1.0
+			},
+			"labor_migration": {
+				1: 1.0,
+				2: -2.0
+			},
+			"asylum_rules": {
+				1: 2.0,
+				2: -2.0
+			},
+			"china_taiwan": {
+				1: 2.5,
+				2: -2.5
+			},
+			"ukraine_aid": {
+				1: 1.0,
+				2: -2.0
+			},
+			"klaipeda_port": {
+				2: 2.5
+			},
+			"rail_baltica": {
+				1: 1.0
+			},
+			"orlen_refinery": {
+				1: 2.5
+			},
+			"civil_defence": {
+				1: 1.0
+			},
+			"drone_defence": {
+				1: 1.0,
+				2: -1.0
+			},
+			"fintech_it": {
+				1: 2.5
+			},
+			"russian_speakers": {
+				2: -1.0
+			},
+			"cyber_security": {
+				1: 1.0
+			}
+		},
+		"BY": {
+			"fiscal_rule": {
+				1: 1.0,
+				2: -1.0
+			},
+			"citizenship_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"schengen": {
+				1: -2.0,
+				2: 1.0
+			},
+			"defence_fund": {
+				1: 2.0,
+				2: 1.0,
+				3: -2.0
+			},
+			"conscription": {
+				1: 1.0
+			},
+			"belarus_border": {
+				1: -2.0,
+				2: 1.0
+			},
+			"suwalki_corridor": {
+				1: 1.0
+			},
+			"kaliningrad_transit": {
+				1: -2.0,
+				2: -2.0
+			},
+			"minority_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"emigration_return": {
+				1: 1.0
+			},
+			"labor_migration": {
+				1: 1.0,
+				2: -2.0
+			},
+			"asylum_rules": {
+				1: 2.0,
+				2: -2.0
+			},
+			"china_taiwan": {
+				1: 2.5,
+				2: -2.5
+			},
+			"ukraine_aid": {
+				1: 1.0,
+				2: -2.0
+			},
+			"klaipeda_port": {
+				2: 2.5
+			},
+			"rail_baltica": {
+				1: 1.0
+			},
+			"orlen_refinery": {
+				1: 2.5
+			},
+			"civil_defence": {
+				1: 1.0
+			},
+			"drone_defence": {
+				1: 1.0,
+				2: -1.0
+			},
+			"fintech_it": {
+				1: 2.5
+			},
+			"russian_speakers": {
+				2: -1.0
+			},
+			"cyber_security": {
+				1: 1.0
+			}
+		},
+		"UA": {
+			"fiscal_rule": {
+				1: 1.0,
+				2: -1.0
+			},
+			"citizenship_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"schengen": {
+				1: -2.0,
+				2: 1.0
+			},
+			"defence_fund": {
+				1: 2.0,
+				2: 1.0,
+				3: -2.0
+			},
+			"conscription": {
+				1: 1.0
+			},
+			"belarus_border": {
+				1: -2.0,
+				2: 1.0
+			},
+			"suwalki_corridor": {
+				1: 1.0
+			},
+			"kaliningrad_transit": {
+				1: -2.0,
+				2: -2.0
+			},
+			"minority_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"emigration_return": {
+				1: 1.0
+			},
+			"labor_migration": {
+				1: 1.0,
+				2: -2.0
+			},
+			"asylum_rules": {
+				1: 2.0,
+				2: -2.0
+			},
+			"china_taiwan": {
+				1: 2.5,
+				2: -2.5
+			},
+			"ukraine_aid": {
+				1: 1.0,
+				2: -2.0
+			},
+			"klaipeda_port": {
+				2: 2.5
+			},
+			"rail_baltica": {
+				1: 1.0
+			},
+			"orlen_refinery": {
+				1: 2.5
+			},
+			"civil_defence": {
+				1: 1.0
+			},
+			"drone_defence": {
+				1: 1.0,
+				2: -1.0
+			},
+			"fintech_it": {
+				1: 2.5
+			},
+			"russian_speakers": {
+				2: -1.0
+			},
+			"cyber_security": {
+				1: 1.0
+			}
+		},
+		"RU": {
+			"fiscal_rule": {
+				1: 1.0,
+				2: -1.0
+			},
+			"citizenship_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"schengen": {
+				1: -2.0,
+				2: 1.0
+			},
+			"defence_fund": {
+				1: 2.0,
+				2: 1.0,
+				3: -2.0
+			},
+			"conscription": {
+				1: 1.0
+			},
+			"belarus_border": {
+				1: -2.0,
+				2: 1.0
+			},
+			"suwalki_corridor": {
+				1: 1.0
+			},
+			"kaliningrad_transit": {
+				1: -2.0,
+				2: -2.0
+			},
+			"minority_law": {
+				1: 1.0,
+				2: -1.0
+			},
+			"emigration_return": {
+				1: 1.0
+			},
+			"labor_migration": {
+				1: 1.0,
+				2: -2.0
+			},
+			"asylum_rules": {
+				1: 2.0,
+				2: -2.0
+			},
+			"china_taiwan": {
+				1: 2.5,
+				2: -2.5
+			},
+			"ukraine_aid": {
+				1: 1.0,
+				2: -2.0
+			},
+			"klaipeda_port": {
+				2: 2.5
+			},
+			"rail_baltica": {
+				1: 1.0
+			},
+			"orlen_refinery": {
+				1: 2.5
+			},
+			"civil_defence": {
+				1: 1.0
+			},
+			"drone_defence": {
+				1: 1.0,
+				2: -1.0
+			},
+			"fintech_it": {
+				1: 2.5
+			},
+			"russian_speakers": {
+				2: -1.0
+			},
+			"cyber_security": {
+				1: 1.0
 			}
 		}
 	}

@@ -589,7 +589,7 @@ func show_country_menu(in_game: bool) -> void:
 	left.size_flags_stretch_ratio = 1.55
 	hs.add_child(left)
 	var cmap := CountryMap.new()
-	var codes: Array = WORLD.keys()
+	var codes: Array = WORLD.keys().filter(func(c) -> bool: return CDATA.has(c))
 	for code in codes:
 		var inf: Dictionary = CDATA[code]["INFO"] if CDATA[code].has("INFO") else INFO
 		cmap.cols[code] = diff_color(int(inf["difficulty"]))

@@ -59,7 +59,7 @@ func dx_cd_get(k: String) -> int:
 func dx_countries() -> Array:
 	var out: Array = []
 	for c in wsim:
-		if c != ccode and not String(c).begins_with("SEP"):
+		if c != ccode and not w_minor(String(c)):
 			out.append(String(c))
 	out.sort()
 	return out
@@ -172,7 +172,7 @@ func dx_spy_step() -> void:
 
 
 func dx_target_ok(c: String) -> bool:
-	return c != ccode and wsim.has(c) and not String(c).begins_with("SEP")
+	return c != ccode and wsim.has(c) and not w_minor(String(c))
 
 
 # ---------- Г1. Вмешательство в конфликты ----------
