@@ -9,9 +9,9 @@
 
 Функции (2): `ext_load`, `ext_load_countries`
 
-Константы (147): `StatBar`, `PieChart`, `ElectionView`, `HeadView`, `FloatWindow`, `MarketBar`, `EconChart`, `AgentPop`, `AgentMapView`, `AgentHistView`, `Ico`, `FaithChart`, `DepChart`, `Spark`, `TechView`, `Flags`, `COUNTRY_CODES`, `GoodsView`, `CountryMap`, `Gfx`, `EventArt`, `START_YEAR`, `PLAY_SPEEDS`, `PLAY_NAMES`, `MONTHS_GEN`, `MONTHS`, `COALITION_JOIN`, `COALITION_JOIN_PAID`, `COALITION_LEAVE`, `CONCESSION_COST`, `COL_GOOD`, `COL_BAD`, `COL_NEUTRAL`, `COL_HEAD`, `COL_WARN`, `COL_ELECT`, `COL_PURPLE`, `COL_TEAL`, `COL_DIM`, `COL_FAINT_HEX`, `C_BG`, `C_PANEL`, `C_PANEL2`, `C_BORDER`, `C_TEXT`, `C_DIM`, `C_FAINT`, `C_ACCENT`, `C_GOOD`, `C_WARN`, `C_BAD`, `C_PURPLE`, `C_TEAL`, `REV_COLORS`, `EXP_COLORS`, `GROUPS`, `GROUP_FX`, `EXPECT_DRIFT`, `LEVELS`, `LEVEL_RATE`, `STATE_NAMES`, `LEVEL_EFFECTS`, `MIN_FX_SCALE`, `SAT_OFFSET`, `SAT_FATIGUE`, `SAT_FATIGUE_CAP`, `COAL_EVENTS`, `SAT_LEAVE`, `REG_KEYS`, `REG_TITLES`, `SECTOR_NAMES`, `GOV_KINDS`, `GOV_DESC`, `MAP_LAYERS`, `MAP_LAYER_ORDER`, `MAP_LEGENDS`, `MARKET_COLORS`, `GOOD_PROF`, `AG_GK`, `STRUCT_CATS`, `FOCUS_NAMES`, `FOCUS_IDS`, `RATE_NEUTRAL_REAL`, `PROJECTS`, `ECON_FX_INFO`, `ECON_EVENTS`, `ECON_MEASURES`, `REGION_ACTIONS`, `LAW_CATS`, `LAW_CAT_COLORS`, `PRES_RULE_NAMES`, `MOD_INFO`, `MEASURES_BASE`, `ACTIONS`, `NEWS`, `AG_STRIDE`, `AG_POLL_N`, `AG_ZK`, `HIST_KEYS`, `EC_CHART_NAMES`, `EC_CHART_COLORS`, `FUND_IDS`, `DEM_LAW`, `LAW_PARAMS_V11`, `PARAM_DEMANDS`, `DEM_BASE`, `MIL_DEMO`, `LOG_FILTERS`, `LOG_FILTER_CATS`, `LOG_CAT_COL`, `LOG_CAT_NAME`, `LOG_TAG_CAT`, `LOG_POL_WORDS`, `LOG_ECO_WORDS`, `AP_STYLES`, `AP_STYLE_TIPS`, `PRESETS`, `AP_BUILD_MAP`, `DIP_TRACKS`, `DIP_ACTIONS`, `DIP_LAYERS`, `DIP_REL_NAMES`, `DIP_EVENTS`, `DIP_SUMMITS`, `W_OPEN`, `W_KINDS`, `EMIT_MAX`, `RAD_MONARCHIES`, `RAD_AUTH`, `RAD_CUR`, `RAD_AUTH_TOPICS`, `RAD_MARKET_TOPICS`, `RSEC`, `SEC_COLORS`, `REG_TOOLS`, `REG_EVENTS_GEN`, `REG_EVENTS_CC`, `ELEC_DATA`, `WORLD_PCOL`, `WORLD_CCOL`, `WORLD_OPEN`, `WORLD_STANCE0`, `WORLD_TRADE`, `WORLD_REL`, `WORLD_LV0`, `WORLD_CTX`, `WORLD_CAPS`
+Константы (142): `StatBar`, `PieChart`, `ElectionView`, `HeadView`, `FloatWindow`, `MarketBar`, `EconChart`, `AgentPop`, `AgentMapView`, `AgentHistView`, `Ico`, `FaithChart`, `DepChart`, `Spark`, `TechView`, `Flags`, `COUNTRY_CODES`, `GoodsView`, `CountryMap`, `Gfx`, `EventArt`, `START_YEAR`, `PLAY_SPEEDS`, `PLAY_NAMES`, `MONTHS_GEN`, `MONTHS`, `COALITION_JOIN`, `COALITION_JOIN_PAID`, `COALITION_LEAVE`, `CONCESSION_COST`, `COL_GOOD`, `COL_BAD`, `COL_NEUTRAL`, `COL_HEAD`, `COL_WARN`, `COL_ELECT`, `COL_PURPLE`, `COL_TEAL`, `COL_DIM`, `COL_FAINT_HEX`, `C_TEXT`, `C_DIM`, `C_FAINT`, `C_GOOD`, `C_WARN`, `C_BAD`, `C_PURPLE`, `C_TEAL`, `REV_COLORS`, `EXP_COLORS`, `GROUPS`, `GROUP_FX`, `EXPECT_DRIFT`, `LEVELS`, `LEVEL_RATE`, `STATE_NAMES`, `LEVEL_EFFECTS`, `MIN_FX_SCALE`, `SAT_OFFSET`, `SAT_FATIGUE`, `SAT_FATIGUE_CAP`, `COAL_EVENTS`, `SAT_LEAVE`, `REG_KEYS`, `REG_TITLES`, `SECTOR_NAMES`, `GOV_KINDS`, `GOV_DESC`, `MAP_LAYERS`, `MAP_LAYER_ORDER`, `MAP_LEGENDS`, `MARKET_COLORS`, `GOOD_PROF`, `AG_GK`, `STRUCT_CATS`, `FOCUS_NAMES`, `FOCUS_IDS`, `RATE_NEUTRAL_REAL`, `PROJECTS`, `ECON_FX_INFO`, `ECON_EVENTS`, `ECON_MEASURES`, `REGION_ACTIONS`, `LAW_CATS`, `LAW_CAT_COLORS`, `PRES_RULE_NAMES`, `MOD_INFO`, `MEASURES_BASE`, `ACTIONS`, `NEWS`, `AG_STRIDE`, `AG_POLL_N`, `AG_ZK`, `HIST_KEYS`, `EC_CHART_NAMES`, `EC_CHART_COLORS`, `FUND_IDS`, `DEM_LAW`, `LAW_PARAMS_V11`, `PARAM_DEMANDS`, `DEM_BASE`, `MIL_DEMO`, `LOG_FILTERS`, `LOG_FILTER_CATS`, `LOG_CAT_COL`, `LOG_CAT_NAME`, `LOG_TAG_CAT`, `LOG_POL_WORDS`, `LOG_ECO_WORDS`, `AP_STYLES`, `AP_STYLE_TIPS`, `PRESETS`, `AP_BUILD_MAP`, `DIP_TRACKS`, `DIP_ACTIONS`, `DIP_LAYERS`, `DIP_REL_NAMES`, `DIP_EVENTS`, `DIP_SUMMITS`, `W_OPEN`, `W_KINDS`, `EMIT_MAX`, `RAD_MONARCHIES`, `RAD_AUTH`, `RAD_CUR`, `RAD_AUTH_TOPICS`, `RAD_MARKET_TOPICS`, `RSEC`, `SEC_COLORS`, `REG_TOOLS`, `REG_EVENTS_GEN`, `REG_EVENTS_CC`, `ELEC_DATA`, `WORLD_PCOL`, `WORLD_CCOL`, `WORLD_OPEN`, `WORLD_STANCE0`, `WORLD_TRADE`, `WORLD_REL`, `WORLD_LV0`, `WORLD_CTX`, `WORLD_CAPS`
 
-Переменные (1): `WORLD`
+Переменные (6): `C_BG`, `C_PANEL`, `C_PANEL2`, `C_BORDER`, `C_ACCENT`, `WORLD`
 
 ### `scripts/data/data_content.gd`  (688 строк)
 Крупные таблицы контента: события, законы, радикальные законы, карта мира.
@@ -40,27 +40,29 @@
 
 Переменные (66): `SEATS`, `MAJORITY`, `POLICY`, `GROUP_WEIGHT`, `GROUP_BASE`, `PARTY_NAMES`, `PARTY_DESC`, `PARTY_COLORS`, `LEAN`, `HEMI_ORDER`, `PARTY_LEADERS`, `PARTY_DEMANDS`, `MINISTRIES`, `PARTY_MINISTRIES`, `MIN_SPECIAL`, `PARTY_TRAITS`, `PARTY_LAW_DEMAND`, `MINISTER_NAMES`, `GOV_NAMES`, `REGIONS`, `REG_BIAS`, `MARKETS`, `BASE_MODS`, `LAW_TOPICS`, `MEASURES`, `TERMS`, `INFO`, `UPPER`, `MACRO`, `REGIONAL_P`, `MARKETS_OVR`, `GOODS`, `GOODS_OVR`, `COALITION0`, `LAW_TAGS`, `PARCH`, `EVENTS_C`, `NEWS_C`, `EVENTS_SPECIAL`, `ARCHS`, `ELEC`, `AG`, `LOC_RULES`, `TOLERATE_W`, `SUPER`, `GDP0`, `G_POT`, `G_NEU`, `I_NEU`, `I_TGT`, `U_NEU`, `OTHER0`, `RATE0`, `DE_START_SEATS`, `DE_START_MIN`, `DE_PARAM`, `DE_NEW_PARAMS`, `DE_REMOVE`, `DE_FUND_ADD`, `DE_TOPICS` …
 
-### `scripts/state/state.gd`  (802 строк)
+### `scripts/state/state.gd`  (804 строк)
 Текущее состояние партии: показатели, законы, парламент, узлы интерфейса.
 
-Переменные (448): `pending_code`, `pending_party`, `game_opts`, `ccode`, `map_reg_pick`, `emit_note`, `risk_prem`, `minority_ok`, `turn`, `year`, `month`, `gdp`, `debt`, `growth`, `inflation`, `unemployment`, `shock`, `other_rev`, `pol`, `pol_def`, `prev_pol`, `policy_by_key`, `lvl`, `support`, `bias`, `mods`, `cooldown`, `capital`, `ev_hist`, `ev_queue`, `ev_later`, `ev_log`, `noc_constr`, `tech_adj`, `tech_pas_mult`, `nato_ovr`, `free_adj`, `seats`, `in_coalition`, `warned`, `crisis_months`, `prev_head`, `h12`, `observer`, `deadlock`, `minority_gov`, `pm_lead`, `techno_until`, `extra_mins`, `neg_offer_mins`, `crisis_offered`, `impeach_warned`, `last_parl`, `last_pres`, `pres_due`, `pres_camp`, `pres_camp_done`, `pres_party`, `hemi_rad`, `el_head` …
+Переменные (450): `pending_code`, `pending_party`, `game_opts`, `ccode`, `map_reg_pick`, `emit_note`, `risk_prem`, `minority_ok`, `turn`, `year`, `month`, `gdp`, `debt`, `growth`, `inflation`, `unemployment`, `shock`, `other_rev`, `pol`, `pol_def`, `prev_pol`, `policy_by_key`, `lvl`, `support`, `bias`, `mods`, `cooldown`, `capital`, `ev_hist`, `ev_queue`, `ev_later`, `ev_log`, `noc_constr`, `tech_adj`, `tech_pas_mult`, `nato_ovr`, `free_adj`, `seats`, `in_coalition`, `warned`, `crisis_months`, `prev_head`, `h12`, `observer`, `deadlock`, `minority_gov`, `pm_lead`, `techno_until`, `extra_mins`, `neg_offer_mins`, `crisis_offered`, `impeach_warned`, `last_parl`, `last_pres`, `pres_due`, `pres_camp`, `pres_camp_done`, `pres_party`, `hemi_rad`, `el_head` …
 
-### `scripts/logic/util.gd`  (350 строк)
+### `scripts/logic/util.gd`  (382 строк)
 Мелкие помощники: перевод, форматирование, цвета, даты.
 
-Функции (45): `rt`, `tm`, `cap1`, `low1`, `build_loc`, `loc`, `loc_tree`, `jag_edge`, `qn`, `sg`, `col_delta`, `find_by_id`, `policy_title`, `sat`, `mrate`, `years_passed`, `days_in_month`, `date_full`, `date_chip`, `days_until_months`, `days_text`, `date_text`, `turn_date`, `months_text`, `date_after`, `stat_color`, `total_pop`, `pop_ratio`, `amt`, `std_index`, `fx_col`, `sbox`, `make_dot_tex`, `scale_color`, `fmt_n`, `months_short`, `arrow_text`, `delta_col`, `col_signed`, `bit_text`, `good_col`, `hint_line`, `fmt_sg`, `date_short`, `polygon_area`
+Функции (50): `log_line`, `rt`, `tm`, `cap1`, `low1`, `build_loc`, `loc`, `loc_tree`, `jag_edge`, `pl_gov`, `pl_parl`, `pl_why`, `pl_deny`, `qn`, `sg`, `col_delta`, `find_by_id`, `policy_title`, `sat`, `mrate`, `years_passed`, `days_in_month`, `date_full`, `date_chip`, `days_until_months`, `days_text`, `date_text`, `turn_date`, `months_text`, `date_after`, `stat_color`, `total_pop`, `pop_ratio`, `amt`, `std_index`, `fx_col`, `sbox`, `make_dot_tex`, `scale_color`, `fmt_n`, `months_short`, `arrow_text`, `delta_col`, `col_signed`, `bit_text`, `good_col`, `hint_line`, `fmt_sg`, `date_short`, `polygon_area`
 
-### `scripts/logic/policy.gd`  (1019 строк)
+### `scripts/logic/policy.gd`  (1210 строк)
 Бюджетная политика: ползунки, блокировки, уровни, эффекты, моды законов.
 
-Функции (99): `add_commitment`, `adm_admin_mult`, `apply_econ`, `apply_psat`, `ar_apply_mods`, `dip_all`, `dip_apply_mods`, `dip_fx_apply`, `dip_fx_text`, `ec_budget_lines`, `fed_tax_leak`, `fulfill_coalition_demands`, `good_name`, `goods_support_term`, `ministry_fx`, `mk_def`, `new_minister`, `radical_dyn`, `radical_roll`, `reg_avg`, `reg_zones_end`, `rel`, `sec_idx`, `slider_value_for`, `soc_fx`, `soc_tax`, `sync_ministers`, `tech_apply_mods`, `tech_edu_upkeep`, `transfer_avg`, `update_slider_label`, `variant_of`, `war_prem`, `world_help`, `approval`, `add_support`, `add_all_support`, `set_policy`, `apply_reg_delta`, `describe_reg`, `region_support`, `split_subsidies`, `expected`, `factor`, `fatigue`, `target_support`, `target_gov_support`, `budget_changes`, `describe_fx`, `apply_fx`, `compute_budget`, `update_levels`, `pp0`, `expected_pp`, `is_abs`, `abs_range`, `sync_abs_policies`, `lock_active`, `add_lock`, `lock_allowed`, `lock_allowed_share`, `lock_until_text`, `lock_note`, `expire_locks`, `emit_cap`, `sync_emit`, `emit_safe_pct`, `emit_excess`, `lvl_sum`, `issue_multiplier`, `regional_potential`, `per_capita`, `avg_per_capita`, `tier_name`, `dev_gain_mult`, `tax_ratio`, `project_cost_pct`, `roi_estimate`, `roi_text`, `effective_reg`, `demand_cur`, `is_hybrid`, `pw_of`, `scale_dict`, `funding_mode`, `party_funded`, `funding_mult`, `init_laws`, `parl_term`, `pres_term`, `impeach_seats`, `crisis_limit`, `compute_mods`, `recompute_mods`, `scale_fx`, `mod_good_dir`, `boost_good`, `describe_econ`, `debt_rate`
+Функции (118): `add_commitment`, `adm_admin_mult`, `apply_econ`, `apply_psat`, `ar_apply_mods`, `coal_members`, `coal_share`, `council_on`, `demand_score`, `dip_all`, `dip_apply_mods`, `dip_fx_apply`, `dip_fx_text`, `ec_budget_lines`, `fed_tax_leak`, `fulfill_coalition_demands`, `good_name`, `goods_support_term`, `ideo_stance`, `log_tag`, `ministry_fx`, `mk_def`, `new_minister`, `radical_dyn`, `radical_roll`, `reg_avg`, `reg_zones_end`, `rel`, `sec_idx`, `slider_value_for`, `soc_fx`, `soc_tax`, `sync_ministers`, `tech_apply_mods`, `tech_edu_upkeep`, `transfer_avg`, `update_slider_label`, `variant_of`, `war_prem`, `world_help`, `approval`, `add_support`, `add_all_support`, `set_policy`, `apply_reg_delta`, `describe_reg`, `region_support`, `split_subsidies`, `expected`, `factor`, `fatigue`, `target_support`, `target_gov_support`, `budget_changes`, `describe_fx`, `apply_fx`, `compute_budget`, `update_levels`, `pp0`, `expected_pp`, `is_abs`, `abs_range`, `sync_abs_policies`, `lock_active`, `add_lock`, `lock_allowed`, `lock_allowed_share`, `lock_until_text`, `lock_note`, `expire_locks`, `emit_cap`, `sync_emit`, `emit_safe_pct`, `emit_excess`, `lvl_sum`, `issue_multiplier`, `regional_potential`, `per_capita`, `avg_per_capita`, `tier_name`, `dev_gain_mult`, `tax_ratio`, `project_cost_pct`, `roi_estimate`, `roi_text`, `effective_reg`, `demand_cur`, `is_hybrid`, `pw_of`, `scale_dict`, `funding_mode`, `party_funded`, `funding_mult`, `init_laws`, `parl_term`, `pres_term`, `impeach_seats`, `crisis_limit`, `compute_mods`, `recompute_mods`, `scale_fx`, `mod_good_dir`, `boost_good`, `describe_econ`, `debt_rate`, `bud_mark`, `bud_pending`, `bud_changes`, `bud_hold_begin`, `bud_hold_end`, `bud_partner_view`, `bud_hold_end_quiet`, `bud_council`, `bud_needs_council`, `bud_apply`, `bud_cancel`, `bud_drop_disputed`, `bud_persuade`
 
 Константы (2): `AGRI_FX`, `HYBRID_IDS`
 
-### `scripts/logic/laws.gd`  (1075 строк)
+Переменные (2): `bud_base`, `bud_persuaded`
+
+### `scripts/logic/laws.gd`  (1070 строк)
 Законы: варианты, голосование, числовые законы, меры и действия.
 
-Функции (65): `hold_parliament`, `junior_info`, `law_locked`, `log_line`, `log_tag`, `national_shares`, `pact_has`, `party_stance`, `propose_variant`, `radical_bypass`, `radical_enact`, `radical_req`, `refresh`, `rid_of`, `sfx`, `do_measure`, `do_action`, `level_effects_text`, `fx_items`, `reg_item`, `fx_pros_cons`, `layer_ramp`, `level_effect_list`, `law_tweak`, `variant_of`, `variant_part`, `cur_idx`, `law_cost`, `dict_diff`, `support_delta`, `variant_stance`, `variant_votes`, `upper_check`, `upper_text`, `negotiate_variant`, `adopt_variant`, `mod_item`, `variant_effect_items`, `items_pros_cons`, `pres_needs_runoff`, `law_reform_count`, `law_demand_of`, `law_demand_met`, `law_demand_text`, `fmt_param`, `param_grid`, `make_param_topic`, `build_law_topics`, `sq_effects`, `variant_own_items`, `is_fund`, `law_need`, `demand_idx`, `demand_dict_met`, `param_scale_text`, `variant_swing`, `de_law_params`, `de_fix_ps`, `de_adapt_topics`, `brake_allowed`, `brake_active`, `brake_step`, `brake_text`, `snap_info`, `snap_votes`
+Функции (63): `hold_parliament`, `junior_info`, `law_locked`, `national_shares`, `pact_has`, `party_stance`, `propose_variant`, `radical_bypass`, `radical_enact`, `radical_req`, `refresh`, `rid_of`, `sfx`, `do_measure`, `do_action`, `level_effects_text`, `fx_items`, `reg_item`, `fx_pros_cons`, `layer_ramp`, `level_effect_list`, `law_tweak`, `variant_of`, `variant_part`, `cur_idx`, `law_cost`, `dict_diff`, `support_delta`, `variant_stance`, `variant_votes`, `upper_check`, `upper_text`, `negotiate_variant`, `adopt_variant`, `mod_item`, `variant_effect_items`, `items_pros_cons`, `pres_needs_runoff`, `law_reform_count`, `law_demand_of`, `law_demand_met`, `law_demand_text`, `fmt_param`, `param_grid`, `make_param_topic`, `build_law_topics`, `sq_effects`, `variant_own_items`, `is_fund`, `law_need`, `demand_idx`, `demand_dict_met`, `param_scale_text`, `variant_swing`, `de_law_params`, `de_fix_ps`, `de_adapt_topics`, `brake_allowed`, `brake_active`, `brake_step`, `brake_text`, `snap_info`, `snap_votes`
 
 Константы (3): `POW_MODERATION`, `SQ_K`, `SNAP_RULES`
 
@@ -69,46 +71,50 @@
 
 Функции (14): `good_def`, `good_name`, `apply_goods`, `goods_init`, `prof_mult`, `goods_demand`, `goods_prices`, `goods_shock`, `good_yoy`, `cpi_goods`, `group_cpi`, `group_gap`, `goods_support_term`, `group_top_goods`
 
-### `scripts/logic/economy.gd`  (549 строк)
+### `scripts/logic/economy.gd`  (554 строк)
 Экономика: рынки, сооружения, центробанк, торговля, шаг экономики.
 
 Функции (32): `world_ea_update`, `mk_def`, `init_economy`, `tariff_rev_share`, `import_share`, `roy_rev_share`, `ec_budget_lines`, `struct_count`, `struct_total`, `struct_cond_factor`, `struct_step`, `complete_struct`, `repair_cost_pct`, `repair_all`, `struct_total_count`, `world_step`, `cb_target`, `cb_name`, `cb_step`, `set_rate`, `income_parts`, `households_step`, `bconf_reasons`, `business_step`, `gov_idx`, `markets_step`, `trade_step`, `economy_step`, `hist_push`, `apply_econ`, `region_struct_text`, `struct_effect_text`
 
-### `scripts/logic/regions.gd`  (649 строк)
+### `scripts/logic/regions.gd`  (713 строк)
 Регионы: лояльность, недовольство, проекты, региональная экономика.
 
-Функции (42): `adm_dev_term`, `ag_unrest_term`, `fed_auto_term`, `fed_dev_term`, `fed_loy_term`, `fed_unr_term`, `soc_loy_term`, `soc_unr_term`, `update_forecast`, `update_transfer_ui`, `select_region`, `reg_avg`, `recalc_weights`, `new_governor`, `transfer_avg`, `update_regions`, `complete_project`, `start_project`, `cancel_project`, `appoint_governor`, `set_transfer`, `equalize_transfers`, `do_region_action`, `region_ok`, `de_start_parliament`, `calibrate_regions`, `calibrate_region`, `build_geometry`, `sec_idx`, `sec_cur`, `dominant_sector`, `reg_growth`, `rdebt_target`, `reg_zones_end`, `reg_econ_step`, `reg_year_report`, `reg_events_all`, `tool_req`, `tool_effect_text`, `reg_tool_factor`, `tool_cost_pct`, `reg_tool_buy`
+Функции (46): `adm_dev_term`, `ag_unrest_term`, `ate_name`, `fed_auto_term`, `fed_dev_term`, `fed_loy_term`, `fed_unr_term`, `soc_loy_term`, `soc_unr_term`, `update_forecast`, `update_transfer_ui`, `select_region`, `reg_avg`, `recalc_weights`, `new_governor`, `transfer_avg`, `update_regions`, `complete_project`, `proj_group_text`, `project_start_at`, `region_main_ate`, `start_project`, `cancel_project`, `appoint_governor`, `set_transfer`, `equalize_transfers`, `do_region_action`, `region_ok`, `de_start_parliament`, `calibrate_regions`, `calibrate_region`, `build_geometry`, `sec_idx`, `sec_cur`, `dominant_sector`, `reg_growth`, `rdebt_target`, `reg_zones_end`, `reg_econ_step`, `reg_year_report`, `reg_events_all`, `tool_req`, `tool_effect_text`, `reg_tool_factor`, `tool_cost_pct`, `reg_tool_buy`
 
-### `scripts/logic/elections.gd`  (846 строк)
+Константы (1): `PROJ_GROUP_FX`
+
+### `scripts/logic/elections.gd`  (881 строк)
 Выборы: голоса, места, президентские и парламентские выборы, конкуренция партий.
 
-Функции (50): `ag_exit_report`, `ag_region_table`, `ai_form_gov`, `coalition_names`, `decree_power`, `form_government`, `gov_seats`, `log_header`, `opp_after_election`, `opp_campaign`, `opp_enter`, `opp_gov_seats`, `opp_gov_text`, `opp_to_gov`, `pact_mult`, `present_event`, `radical_text`, `show_election`, `show_head_election`, `upper_renew`, `vote_weights`, `region_shares`, `region_shares_legacy`, `parl_shares`, `allocate_seats`, `sorted_parties`, `head_cand_ok`, `head_cand_name`, `head_row`, `head_term_months`, `hold_head`, `hold_head_core`, `head_outcome`, `head_present`, `hold_head_direct`, `hold_head_indirect`, `hold_head_council`, `head_campaign_check`, `hold_parliament`, `hold_parliament_core`, `election_title`, `campaign_check`, `party_attitude`, `electorate_text`, `national_shares`, `democracy_index`, `democracy_name`, `apply_competition`, `democracy_text`, `sham_shares`
+Функции (52): `ag_exit_report`, `ag_region_table`, `ai_form_gov`, `coalition_names`, `decree_power`, `form_government`, `gov_seats`, `log_header`, `opp_after_election`, `opp_campaign`, `opp_enter`, `opp_gov_seats`, `opp_gov_text`, `opp_to_gov`, `pact_mult`, `present_event`, `radical_text`, `show_election`, `show_head_election`, `upper_renew`, `gov_roles`, `gov_pm_party`, `vote_weights`, `region_shares`, `region_shares_legacy`, `parl_shares`, `allocate_seats`, `sorted_parties`, `head_cand_ok`, `head_cand_name`, `head_row`, `head_term_months`, `hold_head`, `hold_head_core`, `head_outcome`, `head_present`, `hold_head_direct`, `hold_head_indirect`, `hold_head_council`, `head_campaign_check`, `hold_parliament`, `hold_parliament_core`, `election_title`, `campaign_check`, `party_attitude`, `electorate_text`, `national_shares`, `democracy_index`, `democracy_name`, `apply_competition`, `democracy_text`, `sham_shares`
 
-### `scripts/logic/coalition.gd`  (885 строк)
+### `scripts/logic/coalition.gd`  (891 строк)
 Коалиция и правительство: партии, министры, требования, вотум недоверия.
 
-Функции (69): `coal_members`, `coal_share`, `council_invite_vote`, `council_min_vote`, `council_on`, `end_game`, `invite_offer_w`, `party_lean`, `show_crisis_exit`, `war_sat_term`, `can_govern`, `is_cordon`, `tolerates`, `against_seats`, `gov_ok`, `gov_margin`, `seat_pad`, `gov_seats`, `coalition_names`, `opp_bloc`, `check_impeachment`, `party_stance`, `floor_share`, `auto_floor`, `demand_value`, `demand_met`, `demand_score`, `demand_lines`, `port_score`, `sat_target`, `sat_reason`, `grant_ministries`, `release_ministries`, `assign_ministries`, `add_member`, `remove_member`, `cycle_ministry`, `select_party`, `do_concession`, `fulfill_demands`, `fulfill_party_demands`, `fulfill_coalition_demands`, `form_government`, `check_government`, `show_no_confidence`, `resolve_no_confidence`, `toggle_coalition`, `ministries_of`, `ministry_fx`, `ministry_is_special`, `ministry_role_text`, `ministry_items`, `new_minister`, `sync_ministers`, `cabinet_items`, `assign_ministry`, `replace_minister`, `reshuffle_cabinet`, `quota_for`, `sat_breakdown`, `willingness`, `add_commitment`, `check_commitments`, `invite_party`, `coal_text`, `pick_weighted_partner`, `coal_pick`, `show_coal_event`, `apply_psat`
+Функции (67): `council_expel_vote`, `council_invite_vote`, `council_min_vote`, `end_game`, `invite_offer_w`, `party_lean`, `show_crisis_exit`, `war_sat_term`, `can_govern`, `is_cordon`, `tolerates`, `against_seats`, `gov_ok`, `gov_margin`, `seat_pad`, `gov_seats`, `coalition_names`, `opp_bloc`, `check_impeachment`, `party_stance`, `floor_share`, `auto_floor`, `demand_value`, `demand_met`, `demand_score`, `demand_lines`, `port_score`, `sat_target`, `sat_reason`, `grant_ministries`, `release_ministries`, `assign_ministries`, `add_member`, `remove_member`, `cycle_ministry`, `select_party`, `do_concession`, `fulfill_demands`, `fulfill_party_demands`, `fulfill_coalition_demands`, `form_government`, `check_government`, `show_no_confidence`, `resolve_no_confidence`, `toggle_coalition`, `ministries_of`, `ministry_fx`, `ministry_is_special`, `ministry_role_text`, `ministry_items`, `new_minister`, `sync_ministers`, `cabinet_items`, `assign_ministry`, `replace_minister`, `reshuffle_cabinet`, `quota_for`, `sat_breakdown`, `willingness`, `add_commitment`, `check_commitments`, `invite_party`, `coal_text`, `pick_weighted_partner`, `coal_pick`, `show_coal_event`, `apply_psat`
 
 Константы (2): `GOV_EXCLUDE`, `CORDON_JOIN`
 
-### `scripts/logic/events.gd`  (783 строк)
+### `scripts/logic/events.gd`  (812 строк)
 События и новости.
 
-Функции (47): `auto_event_ok`, `auto_event_pick`, `auto_resolve_event`, `council_event`, `council_event_note`, `council_event_ok`, `council_split`, `ev_ext_val`, `fleet_resolve`, `flt_has_sea`, `mil_resolve`, `opp_resolve_offer`, `radical_events`, `realism_resolve`, `resolve_crisis`, `revolt_resolve`, `set_time_btns`, `win_fade_in`, `ev_de_only`, `event_ok`, `ev_id`, `ev_cond_ok`, `ev_weight`, `ev_pick`, `ev_by_id`, `ev_text`, `ev_rand_region`, `ev_opt_score`, `ev_fx_score`, `ev_title`, `ev_opt_block`, `ev_first_ok`, `ev_tick`, `ev_after_choice`, `show_news`, `ev_kind_info`, `ev_kind_info0`, `ev_style`, `ev_context_text`, `present_event`, `econ_pool`, `show_event`, `choose`, `dip_events`, `gen_dip_event`, `w_help_event`, `fire_scripted`
+Функции (51): `auto_event_ok`, `auto_event_pick`, `auto_resolve_event`, `cap_swap`, `cap_unswap`, `council_event`, `council_event_note`, `council_event_ok`, `council_split`, `ev_ext_val`, `fleet_resolve`, `flt_has_sea`, `mil_resolve`, `opp_resolve_offer`, `radical_events`, `realism_resolve`, `resolve_crisis`, `revolt_resolve`, `set_time_btns`, `win_fade_in`, `ev_de_only`, `event_ok`, `ev_id`, `ev_cond_ok`, `ev_weight`, `ev_pick`, `ev_by_id`, `ev_text`, `ev_rand_region`, `ev_opt_score`, `ev_fx_score`, `ev_title`, `ev_opt_block`, `ev_first_ok`, `_ev_chain_due`, `ev_tick`, `ev_after_choice`, `show_news`, `ev_kind_info`, `ev_kind_info0`, `ev_style`, `ev_context_text`, `ev_for_player`, `present_event`, `econ_pool`, `show_event`, `choose`, `dip_events`, `gen_dip_event`, `w_help_event`, `fire_scripted`
 
 Константы (2): `EV_COOLDOWN`, `EV_LATER_MAX`
 
-### `scripts/logic/turn.gd`  (793 строк)
+### `scripts/logic/turn.gd`  (809 строк)
 Ход игры: один месяц, конец игры, начальная установка состояния.
 
-Функции (87): `adm_month`, `ag_build`, `ag_step`, `ai_init`, `ai_parties_step`, `ate_reset`, `autopilot_run`, `bills_step`, `council_budget`, `dip_init`, `dip_step`, `diplo_month`, `dx_init`, `ex_g`, `ex_infl`, `ex_init`, `ex_month`, `fa_init`, `fa_month`, `fed_init`, `fed_month`, `fleet_day`, `fleet_g`, `fleet_infl`, `fleet_init`, `fleet_month`, `h12_snap`, `idl_mult`, `idl_step`, `junior_power`, `junior_quit`, `log_add`, `map_cam_step`, `mil_day`, `mil_g`, `mil_infl`, `mil_init`, `mil_month`, `mil_unemp`, `observer_step`, `opp_init`, `opp_step`, `radical_step`, `realism_month`, `revolt_g`, `revolt_init`, `revolt_month`, `revolt_nationwide_uprising`, `revolt_unemp`, `rl_g`, `rl_infl`, `rl_init`, `soc_g`, `soc_init`, `soc_month`, `soc_unemp`, `tech_init`, `tech_month`, `ui_anim_step`, `world_init`, `world_spill_g`, `world_spill_infl`, `wsim_step`, `set_speed`, `on_play_toggled`, `on_speed_selected`, `set_time_btns`, `blocked`, `day_tick`, `advance_day`, `advance_days`, `advance_month`, `_process`, `log_policy_changes`, `macro_step`, `cap_rate`, `debt_erode`, `debt_drag`, `rt`, `week_tick`, `take_month_snap`, `next_turn`, `log_month`, `log_year_summary`, `end_game`, `init_state`, `skip_months`
+Функции (89): `adm_month`, `ag_build`, `ag_step`, `ai_init`, `ai_parties_step`, `ate_reset`, `autopilot_run`, `bills_step`, `council_budget`, `dip_init`, `dip_step`, `diplo_month`, `dx_init`, `ex_g`, `ex_infl`, `ex_init`, `ex_month`, `fa_init`, `fa_month`, `fed_init`, `fed_month`, `fleet_day`, `fleet_g`, `fleet_infl`, `fleet_init`, `fleet_month`, `h12_snap`, `idl_mult`, `idl_step`, `junior_power`, `junior_quit`, `log_add`, `map_cam_step`, `mil_day`, `mil_g`, `mil_infl`, `mil_init`, `mil_month`, `mil_start_ongoing`, `mil_unemp`, `observer_step`, `opp_init`, `opp_step`, `radical_step`, `realism_month`, `revolt_g`, `revolt_init`, `revolt_month`, `revolt_nationwide_uprising`, `revolt_unemp`, `rl_g`, `rl_infl`, `rl_init`, `soc_g`, `soc_init`, `soc_month`, `soc_unemp`, `tech_init`, `tech_month`, `ui_anim_step`, `world_init`, `world_spill_g`, `world_spill_infl`, `wsim_step`, `set_speed`, `on_play_toggled`, `on_speed_selected`, `set_time_btns`, `blocked`, `day_tick`, `advance_day`, `advance_days`, `advance_month`, `_process`, `log_policy_changes`, `macro_step`, `cap_rate`, `debt_erode`, `debt_drag`, `rt`, `week_tick`, `take_month_snap`, `next_turn`, `next_turn_core`, `log_month`, `log_year_summary`, `end_game`, `init_state`, `skip_months`
 
-### `scripts/logic/world.gd`  (703 строк)
+### `scripts/logic/world.gd`  (813 строк)
 Дипломатия и живой мир.
 
-Функции (49): `ex_bot_g`, `fa_explain`, `fa_rel_term`, `mil_dip_term`, `open_mult`, `foreign_region_text`, `dip_init`, `dip_rel_name`, `dip_target`, `dip_rel_factor`, `dip_growth`, `dip_sec`, `dip_infra_bonus`, `dip_avg_rel`, `dip_apply_mods`, `dip_change`, `dip_step`, `track_name`, `dip_fx_apply`, `dip_fx_text`, `dip_do_action`, `dip_track_cost`, `dip_upgrade`, `dip_downgrade`, `w_codes`, `w_unrec`, `w_minor`, `world_init`, `w_stance_name`, `w_share`, `w_cur_growth`, `w_pot`, `world_spill_g`, `w_shock_g`, `world_spill_infl`, `world_ea_update`, `w_start_crisis`, `world_help`, `w_election`, `w_player_stance`, `w_shock_step`, `w_party_name`, `w_party_for`, `wsim_step`, `world_infl_bias`, `world_news`, `world_info`, `remap_base_ps`, `dip_all`
+Функции (55): `ex_bot_g`, `fa_explain`, `fa_hit`, `fa_rel_term`, `mil_dip_term`, `open_mult`, `foreign_region_text`, `dip_init`, `dip_rel_name`, `dip_target`, `dip_rel_factor`, `dip_growth`, `dip_sec`, `dip_infra_bonus`, `dip_avg_rel`, `dip_apply_mods`, `dip_change`, `dip_step`, `track_name`, `dip_fx_apply`, `dip_fx_text`, `dip_do_action`, `dip_track_cost`, `dip_upgrade`, `dip_downgrade`, `w_codes`, `w_unrec`, `w_minor`, `world_init`, `w_stance_name`, `w_link`, `w_share`, `w_cur_growth`, `w_pot`, `world_spill_g`, `w_shock_g`, `world_spill_infl`, `world_ea_update`, `w_start_crisis`, `world_help`, `w_election`, `w_player_stance`, `w_shock_step`, `w_party_name`, `w_party_for`, `w_fund_parties`, `w_fund_check`, `w_fund`, `w_fund_step`, `wsim_step`, `world_infl_bias`, `world_news`, `world_info`, `remap_base_ps`, `dip_all`
 
-### `scripts/logic/federation.gd`  (1254 строк)
+Константы (5): `W_SANCT0`, `W_SANCT_JOIN`, `W_ARCH_STANCE`, `W_FUND_CAP`, `W_FUND_MONTHS`
+
+### `scripts/logic/federation.gd`  (1255 строк)
 Федерация, автономия субъектов и передача территорий (покупка региона, добровольное объединение стран).
 
 Функции (74): `ate_unit_has_capital`, `map_rebuild`, `soc_init_region`, `fed_cfg`, `fed_reset_world`, `fed_init`, `fed_region_init`, `fed_new_sub`, `fed_d`, `fed_shock`, `fed_loy_term`, `fed_unr_term`, `fed_dev_term`, `fed_auto_term`, `fed_tax_leak`, `fed_max_level`, `fed_coal_share`, `fed_dom`, `fed_upper`, `fed_ref_p`, `fed_roll`, `fed_cd_get`, `fed_cap_ok`, `fed_comp_cost`, `fed_comp_check`, `fed_comp_step`, `fed_comp_all`, `fed_status_check`, `fed_status_step`, `fed_set_eq`, `fed_reform_check`, `fed_reform`, `fed_party_for_bloc`, `fed_make_upper`, `fed_admit_check`, `fed_admit`, `fed_month`, `fed_idx_of_uid`, `fed_demand_of`, `fed_demand_text`, `fed_demand_decide`, `fed_world_cc`, `fed_wreg`, `fed_wreg_gdp`, `fed_unit_is_capital`, `fed_unit_cc`, `fed_set_unit_cc`, `fed_backup_world`, `fed_adjacent_units`, `fed_rel`, `fed_court`, `fed_pc_ratio`, `fed_avg_dict`, `fed_take_unit`, `fed_rebuild_world_side`, `fed_rebuild`, `fed_calibrate_new`, `fed_news_world`, `terr_price`, `terr_buy_quote`, `terr_buy`, `terr_sell_buyers`, `fed_ui_of_region`, `terr_sell_quote`, `terr_sell`, `terr_transfer`, `fed_drop_region`, `union_candidates`, `union_quote`, `union_do`, `union_absorb`, `fed_comp_text`, `fed_region_line`, `fed_stats`
@@ -135,14 +141,16 @@ v36: административно-территориальные единиц�
 
 Переменные (3): `SOC`, `soc`, `soc_rng`
 
-### `scripts/logic/tech.gd`  (704 строк)
+### `scripts/logic/tech.gd`  (813 строк)
 Технологии (v39_1): три ветки исследований, специальные сооружения, скорость исследований с мягким потолком.
 
-Функции (54): `ex_dep`, `ex_partners`, `mil_at_war`, `mil_land_neighbor`, `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`, `tech_nb`, `tech_hash`, `tech_nb_pace`, `tech_nb_tiers`, `tech_nb_has`, `tech_nb_who`, `tech_nb_share`, `tech_passive_rate`, `tech_state_player`, `tech_state_neutral`, `tech_needs_player`, `tech_needs_from`, `tech_threat`, `tech_needs_bot`, `tech_score`, `tech_score_text`, `tech_ai_pick`, `tech_nb_pick`, `tech_audit_profiles`
+Функции (59): `ex_dep`, `ex_partners`, `mil_at_war`, `mil_land_neighbor`, `tech_init`, `tech_def`, `tech_bdef`, `tech_done`, `tech_alts`, `tech_lane`, `tech_lanes_build`, `tech_lane_name`, `tech_swap_check`, `tech_swap`, `tech_is_choice`, `tech_tier_done`, `tech_missing`, `tech_avail`, `tech_freedom`, `tech_sum`, `tech_bsum`, `tech_power`, `tech_edu_term`, `tech_cap`, `tech_raw`, `tech_soft`, `tech_refresh_rates`, `tech_apply_mods`, `tech_edu_upkeep`, `tech_build_missing`, `tech_build`, `tech_select`, `tech_set_weight`, `tech_auto_pick`, `tech_choice_waiting`, `tech_progress`, `tech_total`, `tech_count`, `tech_month`, `tech_fx_text`, `tech_nb`, `tech_hash`, `tech_nb_pace`, `tech_nb_tiers`, `tech_nb_has`, `tech_nb_who`, `tech_nb_share`, `tech_passive_rate`, `tech_state_player`, `tech_state_neutral`, `tech_needs_player`, `tech_needs_from`, `tech_threat`, `tech_needs_bot`, `tech_score`, `tech_score_text`, `tech_ai_pick`, `tech_nb_pick`, `tech_audit_profiles`
 
-Переменные (2): `tech`, `tech_idx`
+Константы (1): `TECH_SUBS`
 
-### `scripts/logic/influence.gd`  (359 строк)
+Переменные (3): `tech`, `tech_idx`, `tech_lane_cache`
+
+### `scripts/logic/influence.gd`  (364 строк)
 Экономическое влияние и зависимость: ваша страна ⇄ остальные страны мира (боты).
 
 Функции (22): `fa_notify`, `fa_sanctioning`, `ex_init`, `ex_partners`, `ex_rel_change`, `ex_cd_get`, `ex_dep`, `ex_leverage`, `ex_leverage_on_us`, `ex_g`, `ex_infl`, `ex_bot_g`, `ex_month`, `ex_events`, `ex_fx`, `ex_cap`, `ex_deal_set`, `ex_tariff_set`, `ex_aid_give`, `ex_dbuy_amt`, `ex_dbuy_set`, `ex_favor`
@@ -160,49 +168,51 @@ v36: административно-территориальные единиц�
 
 Переменные (5): `FLEET`, `flt`, `flt_rng`, `flt_nodes`, `flt_path_cache`
 
-### `scripts/logic/military.gd`  (2205 строк)
+### `scripts/logic/military.gd`  (2294 строк)
 v37: армии, войны и захват территорий.
 
-Функции (145): `ar_air_mult`, `ar_ammo_use`, `ar_att`, `ar_auto_type`, `ar_cap_mult`, `ar_combined`, `ar_def`, `ar_deterred`, `ar_eq`, `ar_init`, `ar_mis_k`, `ar_mob_speed`, `ar_month`, `ar_org_mult`, `ar_pow_mult`, `ar_q_mult`, `ar_rsv`, `ar_unit_name`, `ar_war_g`, `ar_war_infl`, `ar_war_start`, `ar_wm`, `talk_apply`, `talk_avail`, `talk_border_ates`, `talk_budget`, `talk_ceasefire`, `talk_cost`, `talk_mediator`, `talk_pkg_text`, `talk_terms`, `war_demo`, `war_dip_extra`, `war_intl`, `war_intl_g`, `war_intl_infl`, `war_intl_init`, `war_intl_month`, `war_on_declare`, `war_sanctions_update`, `war_timers_month`, `war_trade_g`, `war_vote`, `war_vote_text`, `mil_is_nato`, `mil_init`, `mil_on`, `mil_n_units`, `mil_cap`, `mil_spend_ratio`, `mil_q`, `mil_unit_name`, `mil_new_unit`, `mil_unit`, `mil_units_of`, `mil_cc_ates`, `mil_home_spots`, `mil_border_spots`, `mil_owner`, `mil_ctl`, `mil_at_war`, `mil_side`, `mil_at_war_with`, `mil_hostile`, `mil_side_ccs`, `mil_pw`, `mil_side_power`, `mil_total`, `mil_regular_total`, `mil_reserve_k`, `mil_mob_k`, `mil_country_power`, `mil_log`, `mil_idx`, `mil_un_build`, `mil_passable`, `mil_bfs`, `mil_reached`, `mil_path_to`, `mil_coast_build`, `mil_home_node`, `mil_port_nodes`, `mil_recruit_check`, `mil_min_unit`, `mil_recruit`, `mil_mob_check`, `mil_mobilize`, `mil_mob_arrive`, `mil_order_move`, `mil_order_mode`, `mil_targets`, `mil_land_neighbor`, `mil_allies_for`, `mil_declare_check`, `mil_declare`, `mil_start_war`, `mil_spawn_army`, `mil_day`, `mil_hostile_units_at`, `mil_units_at`, `mil_set_ctl`, `mil_take`, `mil_move_all`, `mil_local_odds`, `mil_battle_at`, `mil_join_battles`, `mil_def_mult`, `mil_battles`, `mil_battle_end`, `mil_retreat`, `mil_cleanup`, `mil_recover`, `mil_supply_update`, `mil_plan`, `mil_amp_cap`, `mil_land_check`, `mil_land_order`, `mil_sea_day`, `mil_land`, `mil_evacuate`, `mil_nav_station_set`, `mil_navy_day`, `mil_naval_battle`, `mil_occ`, `mil_cap_held`, `mil_score_update`, `mil_month`, `mil_war_month`, `mil_fix_positions`, `mil_mob_g`, `mil_g`, `mil_infl`, `mil_unemp`, `mil_dip_term`, `mil_occupied_by_us`, `mil_peace_quote`, `mil_peace_propose`, `mil_peace`, `mil_annex`, `mil_cede`, `mil_ai_peace`, `mil_event`, `mil_resolve`, `mil_ai_declare`, `mil_status_text`
+Функции (146): `ar_air_mult`, `ar_ammo_use`, `ar_att`, `ar_auto_type`, `ar_cap_mult`, `ar_combined`, `ar_def`, `ar_deterred`, `ar_eq`, `ar_init`, `ar_mis_k`, `ar_mob_speed`, `ar_month`, `ar_org_mult`, `ar_pow_mult`, `ar_q_mult`, `ar_rsv`, `ar_unit_name`, `ar_war_g`, `ar_war_infl`, `ar_war_start`, `ar_wm`, `talk_apply`, `talk_avail`, `talk_border_ates`, `talk_budget`, `talk_ceasefire`, `talk_cost`, `talk_mediator`, `talk_pkg_text`, `talk_terms`, `war_demo`, `war_dip_extra`, `war_intl`, `war_intl_g`, `war_intl_infl`, `war_intl_init`, `war_intl_month`, `war_on_declare`, `war_sanctions_update`, `war_timers_month`, `war_trade_g`, `war_vote`, `war_vote_text`, `mil_is_nato`, `mil_init`, `mil_start_ongoing`, `mil_on`, `mil_n_units`, `mil_cap`, `mil_spend_ratio`, `mil_q`, `mil_unit_name`, `mil_new_unit`, `mil_unit`, `mil_units_of`, `mil_cc_ates`, `mil_home_spots`, `mil_border_spots`, `mil_owner`, `mil_ctl`, `mil_at_war`, `mil_side`, `mil_at_war_with`, `mil_hostile`, `mil_side_ccs`, `mil_pw`, `mil_side_power`, `mil_total`, `mil_regular_total`, `mil_reserve_k`, `mil_mob_k`, `mil_country_power`, `mil_log`, `mil_idx`, `mil_un_build`, `mil_passable`, `mil_bfs`, `mil_reached`, `mil_path_to`, `mil_coast_build`, `mil_home_node`, `mil_port_nodes`, `mil_recruit_check`, `mil_min_unit`, `mil_recruit`, `mil_mob_check`, `mil_mobilize`, `mil_mob_arrive`, `mil_order_move`, `mil_order_mode`, `mil_targets`, `mil_land_neighbor`, `mil_allies_for`, `mil_declare_check`, `mil_declare`, `mil_start_war`, `mil_spawn_army`, `mil_day`, `mil_hostile_units_at`, `mil_units_at`, `mil_set_ctl`, `mil_take`, `mil_move_all`, `mil_local_odds`, `mil_battle_at`, `mil_join_battles`, `mil_def_mult`, `mil_battles`, `mil_battle_end`, `mil_retreat`, `mil_cleanup`, `mil_recover`, `mil_supply_update`, `mil_plan`, `mil_amp_cap`, `mil_land_check`, `mil_land_order`, `mil_sea_day`, `mil_land`, `mil_evacuate`, `mil_nav_station_set`, `mil_navy_day`, `mil_naval_battle`, `mil_occ`, `mil_cap_held`, `mil_score_update`, `mil_month`, `mil_war_month`, `mil_fix_positions`, `mil_mob_g`, `mil_g`, `mil_infl`, `mil_unemp`, `mil_dip_term`, `mil_occupied_by_us`, `mil_peace_quote`, `mil_peace_propose`, `mil_peace`, `mil_annex`, `mil_cede`, `mil_ai_peace`, `mil_event`, `mil_resolve`, `mil_ai_declare`, `mil_status_text`
 
-Константы (6): `MIL_BASE`, `MIL_NATO`, `MIL_COMBAT`, `MIL_DIV`, `MIL_TRUCE`, `MIL_PEACE_KINDS`
+Константы (8): `MIL_BASE`, `MIL_NATO`, `MIL_COMBAT`, `MIL_DIV`, `MIL_TRUCE`, `MIL_PEACE_KINDS`, `MIL_ONGOING`, `MIL_PATRON`
 
 Переменные (14): `mil`, `mil_rng`, `mil_coast`, `mil_coast_ok`, `mil_supply`, `mil_plan_t`, `mil_os`, `mil_cs`, `mil_un`, `mil_seen`, `mil_par`, `mil_stamp`, `mil_iver`, `mil_dirty`
 
-### `scripts/logic/army.gd`  (1144 строк)
+### `scripts/logic/army.gd`  (1140 строк)
 v48_1: вооружённые силы.
 
-Функции (81): `dx_has_treaty`, `dx_on`, `fa_bots`, `fa_eu_sanc`, `fa_hit`, `fa_on`, `fa_pers`, `ar_init`, `ar_on`, `ar_tp`, `ar_info`, `ar_data`, `ar_auto_type`, `ar_unit_name`, `ar_bs`, `ar_cap_mult`, `ar_mis_k`, `ar_rd`, `ar_q_mult`, `ar_mob_speed`, `ar_rsv`, `ar_ammo`, `ar_ammo_mult`, `ar_eq`, `ar_pow_mult`, `ar_mor`, `ar_mor_mult`, `ar_drone_mult`, `ar_att`, `ar_def`, `ar_combined`, `ar_air`, `ar_ad`, `ar_side_air`, `ar_air_mult`, `ar_strike_g`, `ar_wm`, `ar_deterred`, `ar_world_month`, `ar_log`, `ar_cd`, `ar_month`, `ar_ind`, `ar_apply_mods`, `ar_war_start`, `ar_war_month`, `ar_ammo_use`, `ar_war_g`, `ar_war_infl`, `ar_org_mult`, `ar_shift_bs`, `ar_svc_check`, `ar_set_svc`, `ar_td_check`, `ar_td_form`, `ar_ammo_price`, `ar_buy_check`, `ar_buy_ammo`, `ar_wecon_check`, `ar_wecon_toggle`, `ar_prog_info`, `ar_prog_cost`, `ar_prog_running`, `ar_prog_check`, `ar_prog_start`, `ar_inf_units`, `ar_prog_month`, `ar_ex_check`, `ar_defense_partners`, `ar_exercise`, `ar_mis_info`, `ar_mis_check`, `ar_mis_toggle`, `ar_mis_month`, `ar_exp_check`, `ar_set_exp`, `ar_exp_rev`, `ar_exp_month`, `ar_nato_pct`, `ar_comp`, `ar_rival_rows`
+Функции (80): `dx_has_treaty`, `dx_on`, `fa_bots`, `fa_eu_sanc`, `fa_on`, `fa_pers`, `ar_init`, `ar_on`, `ar_tp`, `ar_info`, `ar_data`, `ar_auto_type`, `ar_unit_name`, `ar_bs`, `ar_cap_mult`, `ar_mis_k`, `ar_rd`, `ar_q_mult`, `ar_mob_speed`, `ar_rsv`, `ar_ammo`, `ar_ammo_mult`, `ar_eq`, `ar_pow_mult`, `ar_mor`, `ar_mor_mult`, `ar_drone_mult`, `ar_att`, `ar_def`, `ar_combined`, `ar_air`, `ar_ad`, `ar_side_air`, `ar_air_mult`, `ar_strike_g`, `ar_wm`, `ar_deterred`, `ar_world_month`, `ar_log`, `ar_cd`, `ar_month`, `ar_ind`, `ar_apply_mods`, `ar_war_start`, `ar_war_month`, `ar_ammo_use`, `ar_war_g`, `ar_war_infl`, `ar_org_mult`, `ar_shift_bs`, `ar_svc_check`, `ar_set_svc`, `ar_td_check`, `ar_td_form`, `ar_ammo_price`, `ar_buy_check`, `ar_buy_ammo`, `ar_wecon_check`, `ar_wecon_toggle`, `ar_prog_info`, `ar_prog_cost`, `ar_prog_running`, `ar_prog_check`, `ar_prog_start`, `ar_inf_units`, `ar_prog_month`, `ar_ex_check`, `ar_defense_partners`, `ar_exercise`, `ar_mis_info`, `ar_mis_check`, `ar_mis_toggle`, `ar_mis_month`, `ar_exp_check`, `ar_set_exp`, `ar_exp_rev`, `ar_exp_month`, `ar_nato_pct`, `ar_comp`, `ar_rival_rows`
 
 Константы (10): `AR_TYPES`, `AR_INFO`, `AR_DATA`, `AR_SVC`, `AR_BS0`, `AR_BS_KEYS`, `AR_BS_NAMES`, `AR_BS_TIPS`, `AR_PROG`, `AR_MIS`
 
 Переменные (1): `ar`
 
-### `scripts/logic/warpol.gd`  (800 строк)
+### `scripts/logic/warpol.gd`  (809 строк)
 v38: политика войны.
 
 Функции (48): `war_demo`, `war_hawk`, `war_rel`, `war_both_eu`, `war_vote`, `war_vote_text`, `war_anger_add`, `war_anger`, `war_sat_term`, `war_prel_term`, `war_on_declare`, `war_anger_month`, `talk_sel`, `talk_border_ates`, `talk_avail`, `talk_cost`, `talk_package`, `talk_budget`, `talk_quote`, `talk_pkg_text`, `talk_terms`, `talk_propose`, `talk_ceasefire_check`, `talk_ceasefire`, `talk_ceasefire_break`, `talk_mediator_name`, `talk_mediator`, `talk_apply`, `war_intl`, `war_aggressor`, `war_victim`, `war_cond0`, `war_eu0`, `war_intl_init`, `war_sanc_list`, `war_sanctions_update`, `war_preview_text`, `war_intl_month`, `war_join_check`, `war_join`, `war_intl_g`, `war_intl_infl`, `war_nonrec_any`, `war_prem`, `war_dip_extra`, `war_timers_month`, `war_trade_g`, `war_intl_text`
 
 Константы (4): `WAR_HAWK`, `TALK_IDS`, `TALK_INFO`, `TALK_REPAR`
 
-### `scripts/logic/opposition.gd`  (750 строк)
+Переменные (1): `peace_name`
+
+### `scripts/logic/opposition.gd`  (758 строк)
 Выбор партии, оппозиция и соглашения между партиями.
 
 Функции (38): `idl_react`, `prm_init`, `rel_add`, `party_lean`, `party_sim`, `prel_base`, `prel_init`, `pact_left`, `pact_has`, `pact_mult`, `cd_left`, `player_swap_ok`, `swap_idx`, `apply_player_party`, `ai_coalition`, `ai_form_gov`, `opp_set_gov`, `opp_gov_text`, `opp_gov_seats`, `opp_init`, `opp_ap_force`, `opp_enter`, `junior_quit`, `opp_to_gov`, `gov_pop`, `opp_step`, `opp_act`, `pact_need`, `pact_can`, `pact_do`, `pacts_tick`, `pacts_after_election`, `opp_after_election`, `opp_show_offer`, `_gov_names`, `opp_resolve_offer`, `opp_status_text`, `opp_campaign`
 
 Константы (5): `NO_PLAY_SLOTS`, `NO_GOV_SLOTS`, `OPP_ACTS`, `PACT_KINDS`, `PM_LEAD_START`
 
-### `scripts/logic/aiparty.gd`  (981 строк)
+### `scripts/logic/aiparty.gd`  (1122 строк)
 Партийный ИИ: идеологии, политический капитал партий, правление без вас, законопроекты и поправки.
 
-Функции (51): `autobalance_step`, `autopilot_step`, `ideo_keys`, `ideo_valid`, `lean_share`, `ideo_d`, `ideo_stat`, `party_arch`, `ideo_stance`, `ideo_target`, `gov_stance`, `gov_target`, `ai_def_lim`, `ai_policy_step`, `ideo_label`, `idl_planks`, `plank_dev`, `idl_mult`, `idl_step`, `idl_react`, `ideology_text`, `junior_info`, `junior_power`, `rel`, `rel_add`, `prm_base`, `prm_init`, `ai_init`, `ai_note`, `cap_swap`, `cap_unswap`, `autopilot_run`, `ai_parties_step`, `ai_party_act`, `ai_bloc_plan`, `ai_gov_rule`, `ai_recruit`, `ai_reshuffle`, `ai_pick_law`, `bill_of`, `bill_index`, `bill_forced`, `bill_preview`, `propose_variant`, `bill_request_new`, `bill_request`, `bill_pow_block`, `bill_amend`, `bills_step`, `bill_vote`, `ai_bill_vote`
+Функции (58): `autobalance_step`, `autopilot_step`, `gov_style_step`, `ideo_keys`, `ideo_valid`, `lean_share`, `ideo_d`, `ideo_stat`, `party_arch`, `ideo_stance`, `ideo_target`, `gov_stance`, `gov_target`, `ai_def_lim`, `ai_policy_step`, `ideo_label`, `idl_planks`, `plank_dev`, `idl_mult`, `idl_step`, `idl_react`, `ideology_text`, `junior_info`, `junior_power`, `rel`, `rel_add`, `prm_base`, `prm_init`, `ai_init`, `ai_note`, `cap_swap`, `cap_unswap`, `autopilot_run`, `ai_parties_step`, `ai_party_act`, `ai_bloc_plan`, `ai_gov_rule`, `ai_recruit`, `ai_reshuffle`, `ai_pick_law`, `bill_of`, `bill_index`, `bill_forced`, `bill_preview`, `propose_variant`, `bill_request_new`, `bill_request`, `bill_pow_block`, `bill_amend`, `bill_rider_list`, `bill_rider_check`, `bill_rider_add`, `_lean_sum`, `bill_riders_apply`, `conc_all_groups_cost`, `bills_step`, `bill_vote`, `ai_bill_vote`
 
-Константы (1): `ARCH`
+Константы (3): `ARCH`, `RIDER_CHARS`, `RIDER_MAX`
 
-### `scripts/logic/council.gd`  (467 строк)
+### `scripts/logic/council.gd`  (497 строк)
 Совет коалиции (v35): партнёры голосуют по событиям, кабинету, бюджету и приёму новых партий;
 
-Функции (26): `coal_members`, `coal_share`, `council_on`, `fx_utility`, `council_backers`, `council_fav`, `council_event_ok`, `council_event`, `council_split`, `council_event_note`, `council_min_yes`, `council_min_vote`, `council_budget`, `invite_offer_w`, `council_invite_vote`, `crisis_tol_pick`, `crisis_grand_pick`, `show_crisis_exit`, `resolve_crisis`, `party_abbr`, `upper_on`, `upper_gov`, `upper_renew`, `upper_summary`, `observer_start`, `observer_step`
+Функции (27): `coal_members`, `coal_share`, `council_on`, `fx_utility`, `council_backers`, `council_fav`, `council_event_ok`, `council_event`, `council_split`, `council_event_note`, `council_min_yes`, `council_min_vote`, `council_budget`, `invite_offer_w`, `council_invite_vote`, `council_expel_vote`, `crisis_tol_pick`, `crisis_grand_pick`, `show_crisis_exit`, `resolve_crisis`, `party_abbr`, `upper_on`, `upper_gov`, `upper_renew`, `upper_summary`, `observer_start`, `observer_step`
 
 Константы (2): `COUNCIL_TOL`, `UPPER_RENEW`
 
@@ -211,7 +221,7 @@ v38: политика войны.
 
 Функции (21): `arch_ps`, `RV`, `rid_of`, `regime_id`, `econ_id`, `decree_power`, `radical_bypass`, `radical_req`, `law_locked`, `auth_idx`, `radical_enact`, `open_mult`, `radical_dyn`, `radical_step`, `show_uprising`, `radical_roll`, `radical_text`, `active_rids`, `radical_events`, `radical_add_variants`, `radical_inject`
 
-### `scripts/logic/revolt.gd`  (1591 строк)
+### `scripts/logic/revolt.gd`  (1599 строк)
 Протесты, недовольство, сепаратизм, революция, гражданская война, война за отделение, независимость и государственные перевороты (v43_1).
 
 Функции (66): `rv_lvl`, `rv_on`, `revolt_init`, `rv_uid`, `rv_reg`, `rv_idx`, `rv_log`, `rv_cd`, `rv_cd_set`, `rv_cd_tick`, `rv_clamp`, `rv_conf_count`, `revolt_g`, `revolt_unemp`, `revolt_month`, `rv_nat_step`, `rv_identity_gap`, `rv_sep_target`, `rv_region_step`, `rv_is_capital`, `rv_stage_news`, `rv_reg_act_def`, `rv_reg_act_check`, `rv_region_act`, `rv_agreed_referendum`, `rv_yes_share`, `rv_referendum`, `rv_new_state_code`, `rv_can_secede`, `rv_secede`, `rv_conf_of`, `rv_aid0`, `rv_conf_start`, `rv_gov_power`, `rv_conf_month`, `rv_conf_step`, `rv_conf_end`, `rv_take_power`, `rv_conf_act_check`, `rv_conf_act`, `rv_event`, `rv_events`, `rv_event_wave`, `rv_event_rev`, `rv_event_coup`, `rv_event_referendum_demand`, `rv_event_udi`, `rv_event_ref_yes`, `revolt_resolve`, `rv_regime_options`, `rv_install_regime`, `democracy_index_before`, `rv_selfcoup_prob`, `rv_selfcoup_check`, `rv_selfcoup`, `rv_event_regime_choice`, `rv_oppcoup_prob`, `rv_oppcoup_check`, `rv_oppcoup`, `rv_uprising_check`, `rv_uprising`, `rv_coup_measure_check`, `rv_coup_measure`, `rv_ai_choice`, `rv_ai_step`, `revolt_nationwide_uprising`
@@ -220,7 +230,7 @@ v38: политика войны.
 
 Переменные (1): `rv`
 
-### `scripts/logic/realism.gd`  (783 строк)
+### `scripts/logic/realism.gd`  (845 строк)
 Реализм (v44_1): блоки и союзы (ЕС, евро, НАТО, Шенген), демография и пенсии, энергия и климат,
 
 Функции (33): `diplo_resolve`, `sv_auto`, `rl_on`, `rl_init`, `rl_log`, `rl_cd_get`, `rl_cd_set`, `rl_rec_hist`, `rl_g`, `rl_infl`, `realism_month`, `rl_pc`, `rl_deficit_ema`, `rl_blocs_step`, `rl_avg_rel`, `rl_bloc_name`, `rl_accept`, `rl_demo_step`, `rl_energy_step`, `rl_cor_add`, `rl_law_step`, `rl_media_step`, `rl_region_step`, `rl_cohab`, `rl_parl_step`, `rl_event`, `rl_events`, `realism_resolve`, `rl_pending_step`, `rl_acts`, `rl_do`, `rl_summary_text`, `rl_yn`
@@ -229,12 +239,12 @@ v38: политика войны.
 
 Переменные (1): `rl`
 
-### `scripts/logic/diplo2.gd`  (829 строк)
+### `scripts/logic/diplo2.gd`  (957 строк)
 Дипломатия, разведка, вмешательство в конфликты, признание новых государств, армия как политический игрок,
 
-Функции (35): `fpai_resolve`, `dx_on`, `dx_init`, `dx_log`, `dx_cd_get`, `dx_countries`, `dx_name`, `diplo_month`, `dx_treaty_step`, `dx_has_treaty`, `dx_spy_step`, `dx_target_ok`, `dx_conf_month`, `dx_conf_by_id`, `dx_conf_acts`, `dx_conf_do`, `dx_pick_neighbor`, `dx_rec_step`, `dx_rec_text`, `dx_rec_acts`, `dx_rec_do`, `dx_army_step`, `dx_army_acts`, `dx_army_do`, `dx_science_step`, `dx_discovery_event`, `diplo_resolve`, `dx_treaty_acts`, `dx_treaty_do`, `dx_spy_acts`, `dx_spy_do`, `dx_eth_acts`, `dx_eth_do`, `dx_summary_text`, `ev_ext_val`
+Функции (39): `fpai_resolve`, `dx_on`, `dx_init`, `dx_log`, `dx_cd_get`, `dx_countries`, `dx_name`, `diplo_month`, `dx_treaty_step`, `dx_has_treaty`, `dx_spy_step`, `dx_target_ok`, `dx_conf_month`, `dx_conf_by_id`, `dx_conf_acts`, `dx_conf_do`, `dx_pick_neighbor`, `dx_rec_step`, `dx_rec_text`, `dx_rec_acts`, `dx_rec_do`, `dx_army_step`, `dx_army_acts`, `dx_army_do`, `dx_science_step`, `dx_discovery_event`, `diplo_resolve`, `dx_treaty_acts`, `dx_treaty_do`, `dx_clause`, `dx_draft_eval`, `dx_draft_propose`, `dx_named_break`, `dx_spy_acts`, `dx_spy_do`, `dx_eth_acts`, `dx_eth_do`, `dx_summary_text`, `ev_ext_val`
 
-Константы (3): `DX_TREATIES`, `DX_SPY`, `DX_CI_COST`
+Константы (4): `DX_TREATIES`, `DX_SPY`, `DX_CI_COST`, `DX_CLAUSES`
 
 Переменные (1): `dx`
 
@@ -247,15 +257,21 @@ v38: политика войны.
 
 Переменные (1): `fa`
 
-### `scripts/logic/agents.gd`  (274 строк)
+### `scripts/logic/agents.gd`  (368 строк)
 Население: подключение агентов к голосованию, шагу и протестам.
 
-Функции (15): `update_pop_windows`, `ag_k`, `ag_make_pos`, `ag_support_arr`, `ag_build`, `ag_calibrate`, `ag_zs`, `ag_zg`, `ag_step`, `ag_unrest_term`, `ag_region_table`, `ag_exit_report`, `ag_pick`, `ag_random_agent`, `ag_reset_ui`
+Функции (19): `show_desk`, `update_pop_windows`, `ag_k`, `ag_make_pos`, `ag_support_arr`, `ag_build`, `ag_calibrate`, `ag_zs`, `ag_zg`, `ag_step`, `ag_unrest_term`, `ag_region_table`, `group_party_shares`, `ag_exit_report`, `ag_party_shift_check`, `ag_party_shift`, `ag_pick`, `ag_random_agent`, `ag_reset_ui`
 
-### `scripts/logic/autopilot.gd`  (252 строк)
+Переменные (3): `gp_cache`, `ag_shift_cd`, `ag_shift`
+
+### `scripts/logic/autopilot.gd`  (330 строк)
 Помощник и автопилот.
 
-Функции (13): `ap_can_adj`, `ap_note_change`, `ap_flush_log`, `autobalance_step`, `balance_now`, `apply_preset`, `fx_score`, `auto_event_pick`, `auto_event_ok`, `auto_resolve_event`, `autobuild_step`, `autopilot_step`, `advisor_lines`
+Функции (16): `ap_can_adj`, `ap_note_change`, `ap_flush_log`, `autobalance_step`, `balance_now`, `apply_preset`, `fx_score`, `auto_event_pick`, `auto_event_ok`, `auto_resolve_event`, `autobuild_step`, `autopilot_step`, `party_style`, `party_style_text`, `gov_style_step`, `advisor_lines`
+
+Константы (1): `GOV_STYLES`
+
+Переменные (1): `gs_drift`
 
 ### `scripts/logic/log.gd`  (204 строк)
 Структурированный журнал.
@@ -271,33 +287,35 @@ v38: политика войны.
 
 Переменные (1): `sv_hist`
 
-### `scripts/ui/ui_core.gd`  (1658 строк)
+### `scripts/ui/ui_core.gd`  (1921 строк)
 Интерфейс: окна, тема, верхняя панель, экран «Бюджет», обновление.
 
-Функции (105): `build_army_windows`, `build_crisis_windows`, `build_dip_windows`, `build_econ_windows`, `build_election_window`, `build_event_window`, `build_fed_windows`, `build_fleet_windows`, `build_goods_windows`, `build_gov_windows`, `build_law_windows`, `build_map_windows`, `build_opp_windows`, `build_politics_windows`, `build_pop_windows`, `build_realm_windows`, `build_soc_windows`, `build_tech_windows`, `build_war_windows`, `ec_slider`, `make_crisis_button`, `make_tech_button`, `map_apply_mode`, `show_country_menu`, `update_army_windows`, `update_crisis_windows`, `update_dip_windows`, `update_econ_windows`, `update_fed_windows`, `update_fleet_windows`, `update_goods_windows`, `update_gov_windows`, `update_law_windows`, `update_opp_windows`, `update_parliament`, `update_realm_windows`, `update_regions_ui`, `update_soc_windows`, `update_tech_windows`, `update_war_windows`, `new_window`, `win_vis`, `win_fade_in`, `on_win_close`, `win_menu_fill`, `on_win_menu`, `layout_windows`, `fix_wraps`, `fix_wraps_later`, `on_wrap_timer`, `reset_layout`, `show_desk`, `build_ui`, `add_title`, `add_note`, `make_fold`, `make_tail`, `set_tail_text`, `on_fold_toggled`, `on_detail_toggled`, `add_wrap_label`, `make_button`, `make_rt`, `add_slider`, `set_bar`, `build_budget_windows`, `build_log_and_event`, `update_slider_label`, `update_forecast`, `update_stats`, `update_polls`, `add_bar`, `color_button`, `refresh`, `on_slider`, `slider_value_for`, `configure_slider`, `toggle_slider_mode`, `make_theme`, `sdepth`, `accent_for_desk`, `polish_tree`, `make_chip`, `set_chip`, `set_chip_num`, `update_chips`, `draw_budget_viz`, `on_log_detail`, `show_tab`, `update_subbar`, `btn_icon`, `build_subbar`, `build_auto_window`, `on_ap_toggle`, `on_ap_target`, `on_ap_style`, `update_auto_window`, `on_floor_toggle`, `audio_ok`, `audio_load`, `audio_init`, `audio_apply_volume`, `music_next`, `sfx`, `toggle_music`
+Функции (122): `bud_draft_on`, `build_army_windows`, `build_build_window`, `build_crisis_windows`, `build_dip_windows`, `build_econ_windows`, `build_election_window`, `build_event_window`, `build_fed_windows`, `build_fleet_windows`, `build_goods_windows`, `build_gov_windows`, `build_law_windows`, `build_map_windows`, `build_opp_windows`, `build_politics_windows`, `build_pop_windows`, `build_realm_windows`, `build_settings_button`, `build_soc_windows`, `build_tech_windows`, `build_war_windows`, `click_name`, `crisis_is_open`, `make_crisis_button`, `make_tech_button`, `map_apply_mode`, `music_dirs`, `on_bud_accept`, `set_crisis_open`, `set_tech_open`, `show_country_menu`, `tech_is_open`, `update_army_windows`, `update_bud_head`, `update_build_window`, `update_crisis_windows`, `update_dip_windows`, `update_econ_windows`, `update_fed_windows`, `update_fleet_windows`, `update_goods_windows`, `update_gov_windows`, `update_law_windows`, `update_opp_windows`, `update_parliament`, `update_realm_windows`, `update_regions_ui`, `update_soc_windows`, `update_tech_windows`, `update_war_windows`, `new_window`, `win_vis`, `win_fade_in`, `on_win_close`, `win_menu_fill`, `on_win_menu`, `layout_windows`, `fix_wraps`, `fix_wraps_later`, `on_wrap_timer`, `reset_layout`, `show_desk`, `build_ui`, `add_title`, `add_note`, `make_fold`, `make_tail`, `set_tail_text`, `on_fold_toggled`, `on_detail_toggled`, `add_wrap_label`, `make_button`, `tone_button`, `make_rt`, `fmt_sections`, `fmt_pass`, `add_slider`, `set_bar`, `build_budget_windows`, `build_log_and_event`, `update_slider_label`, `update_forecast`, `update_stats`, `update_polls`, `add_bar`, `color_button`, `refresh`, `update_win_locks`, `on_slider`, `slider_value_for`, `configure_slider`, `toggle_slider_mode`, `make_theme`, `sdepth`, `accent_for_desk`, `polish_tree`, `make_chip`, `set_chip`, `set_chip_num`, `update_chips`, `draw_budget_viz`, `on_log_detail`, `overlay_tabs_sync`, `show_tab`, `update_subbar`, `btn_icon`, `build_subbar`, `build_auto_window`, `on_ap_toggle`, `on_ap_target`, `on_ap_style`, `update_auto_window`, `update_group_parties`, `on_floor_toggle`, `audio_ok`, `audio_load`, `audio_init`, `audio_apply_volume`, `music_next`, `sfx`, `toggle_music`
 
-Константы (1): `WIN_DEFAULT_CLOSED`
+Константы (5): `WIN_DEFAULT_CLOSED`, `TONE_UP`, `TONE_DN`, `WIN_GOV_ONLY`, `WIN_PARL_ONLY`
 
-Переменные (6): `music_player`, `sfx_players`, `sfx_cache`, `music_list`, `music_idx`, `sfx_last`
+Переменные (17): `fmt_rts`, `viz_rev0_t`, `bud_head`, `bud_head_rt`, `bud_accept_btn`, `bud_cancel_btn`, `floor_btns`, `viz_exp0_t`, `gp_rt`, `selfcoup_btn`, `selfcoup_note`, `music_player`, `sfx_players`, `sfx_cache`, `music_list`, `music_idx`, `sfx_last`
 
-### `scripts/ui/ui_map.gd`  (2159 строк)
+### `scripts/ui/ui_map.gd`  (2291 строк)
 Интерфейс: карта, таблица регионов, региональная экономика.
 
-Функции (76): `draw_war_overlay`, `draw_war_tokens`, `fed_btn`, `fed_opt`, `fed_pct`, `update_fregion`, `war_hover`, `war_map_click`, `on_layer_selected`, `fill_table_rows`, `fill_transfer_rows`, `rebuild_region_widgets`, `map_rebuild`, `map_prepare`, `map_is_disputed`, `map_prepare_labels`, `map_tri_mesh`, `map_border_segs`, `map_view`, `map_country_rect`, `map_free_rect`, `map_fit_rect`, `map_zoom_cmd`, `map_zoom_at`, `map_clamp`, `map_cam_snap`, `map_cam_step`, `unit_is_tiny`, `ate_at`, `unit_at`, `ctx_at`, `unit_tip`, `map_click`, `on_region_picked`, `map_apply_mode`, `on_map_input`, `build_map_windows`, `on_transfer_slider`, `on_table_row`, `set_sort`, `is_world_layer`, `layer_info`, `layer_leader`, `layer_color`, `cl_info`, `cl_color`, `unit_color`, `map_draw_sea`, `map_sea_points`, `map_draw_seas`, `draw_map`, `region_tip`, `region_sort_value`, `update_regions_ui`, `update_region_table`, `update_transfer_ui`, `update_region_info`, `on_tool_selected`, `build_regecon_window`, `update_regecon`, `regecon_inject`, `ate_tip`, `fmt_people`, `ate_click`, `build_adm_window`, `adm_open`, `adm_opt_fill`, `adm_sel_regions_adjacent`, `update_adm_ui`, `on_adm_move`, `on_adm_create`, `on_adm_delete`, `on_adm_buy`, `ui_anim_step`, `map_cloud_tex`, `draw_map_fx`
+Функции (80): `build_click`, `draw_struct_icons`, `draw_war_overlay`, `draw_war_tokens`, `fed_btn`, `fed_opt`, `fed_pct`, `update_fregion`, `war_hover`, `war_map_click`, `on_layer_selected`, `fill_table_rows`, `fill_transfer_rows`, `rebuild_region_widgets`, `map_rebuild`, `map_prepare`, `map_is_disputed`, `map_prepare_labels`, `map_tri_mesh`, `map_border_segs`, `map_view`, `map_country_rect`, `map_free_rect`, `map_fit_rect`, `map_zoom_cmd`, `map_zoom_at`, `map_clamp`, `map_cam_snap`, `map_cam_step`, `map_pin_layout`, `map_pin_pos`, `unit_is_tiny`, `ate_at`, `unit_at`, `ctx_at`, `unit_tip`, `map_click`, `on_region_picked`, `map_apply_mode`, `on_map_input`, `build_map_windows`, `on_transfer_slider`, `on_table_row`, `set_sort`, `is_world_layer`, `layer_info`, `layer_leader`, `layer_color`, `cl_info`, `cl_color`, `unit_color`, `map_draw_sea`, `map_sea_points`, `map_draw_seas`, `draw_map`, `region_tip`, `region_sort_value`, `update_regions_ui`, `update_region_table`, `update_transfer_ui`, `update_region_info`, `on_tool_selected`, `build_regecon_window`, `update_regecon`, `regecon_inject`, `ate_tip`, `fmt_people`, `ate_click`, `build_adm_window`, `adm_open`, `adm_opt_fill`, `adm_sel_regions_adjacent`, `update_adm_ui`, `on_adm_move`, `on_adm_create`, `on_adm_delete`, `on_adm_buy`, `ui_anim_step`, `map_cloud_tex`, `draw_map_fx`
 
-Константы (2): `MapLabels`, `MAP_HCELL`
+Константы (4): `MapLabels`, `MAP_HCELL`, `MAP_OCCUPIED`, `MAP_OCC_SINCE`
 
-Переменные (25): `map_lab`, `map_lab_pts`, `map_fx`, `map_fx_t`, `map_fx_acc`, `map_cloud`, `map_hatch`, `map_front`, `map_own_rect`, `map_own_mix`, `reg_grid`, `transfer_parent`, `map_ate_tris`, `map_all_mesh`, `map_unit_mesh`, `map_ln_ate`, `map_ln_reg`, `map_ln_cty`, `map_sea_cache`, `map_ln_coast`, `map_hash`, `map_seg_cache`, `map_hover_ate`, `map_fit_cc`, `adm_ui`
+Переменные (27): `map_lab`, `map_lab_pts`, `map_fx`, `map_fx_t`, `map_fx_acc`, `map_cloud`, `map_hatch`, `map_front`, `map_own_rect`, `map_own_mix`, `reg_grid`, `transfer_parent`, `map_ate_tris`, `map_all_mesh`, `map_unit_mesh`, `map_ln_ate`, `map_ln_reg`, `map_ln_cty`, `map_sea_cache`, `map_ln_coast`, `map_hash`, `map_seg_cache`, `map_hover_ate`, `map_fit_cc`, `adm_ui`, `map_pin_cache`, `map_pin_key`
 
-### `scripts/ui/ui_politics.gd`  (334 строк)
+### `scripts/ui/ui_politics.gd`  (366 строк)
 Интерфейс: парламент, полукруг, таблица партий.
 
-Функции (10): `select_neg_party`, `build_hemicycle`, `build_politics_windows`, `on_party_button`, `update_parliament`, `draw_hemi`, `on_hemi_input`, `update_party_table`, `update_party_detail`, `ministry_effect_text`
+Функции (12): `on_cr_power`, `select_neg_party`, `build_hemicycle`, `build_politics_windows`, `on_party_button`, `head_state_text`, `update_parliament`, `draw_hemi`, `on_hemi_input`, `update_party_table`, `update_party_detail`, `ministry_effect_text`
 
-### `scripts/ui/ui_laws.gd`  (637 строк)
+### `scripts/ui/ui_laws.gd`  (673 строк)
 Интерфейс: окно законов.
 
-Функции (21): `update_bill_window`, `build_law_windows`, `on_law_search`, `on_law_filter`, `law_demand_map`, `on_law_cat`, `on_topic_pressed`, `first_other_variant`, `on_card_input`, `on_adopt`, `on_negotiate`, `update_law_windows`, `update_law_effects`, `refit_law_cards`, `update_law_votes`, `build_law_slider`, `on_law_pow`, `on_law_slider`, `build_law_list`, `update_law_headers`, `update_law_detail`
+Функции (22): `update_bill_window`, `build_law_windows`, `on_law_search`, `on_law_filter`, `law_demand_map`, `on_law_cat`, `on_topic_pressed`, `first_other_variant`, `on_card_input`, `on_adopt`, `on_negotiate`, `update_law_windows`, `update_law_effects`, `refit_law_cards`, `update_law_votes`, `build_law_slider`, `on_law_pow`, `on_law_slider`, `build_law_list`, `law_icon`, `update_law_headers`, `update_law_detail`
+
+Константы (1): `LAW_ICON_KEYS`
 
 ### `scripts/ui/ui_gov.gd`  (425 строк)
 Интерфейс: правительство и коалиционные переговоры.
@@ -309,19 +327,21 @@ v38: политика войны.
 
 Функции (14): `ec_slider`, `build_econ_windows`, `on_cb_auto`, `on_rate_slider`, `on_tariff_slider`, `on_roy_slider`, `on_focus_selected`, `on_chart_selected`, `update_chart`, `update_econ_windows`, `build_goods_windows`, `goods_market_color`, `update_goods_windows`, `_hot_txt`
 
-### `scripts/ui/ui_world.gd`  (180 строк)
+### `scripts/ui/ui_world.gd`  (252 строк)
 Интерфейс: дипломатия.
 
-Функции (5): `select_dip`, `on_dip_far_ex`, `build_dip_windows`, `dip_nohead`, `update_dip_windows`
+Функции (7): `treaty_sheet_open`, `select_dip`, `on_dip_far_ex`, `build_dip_windows`, `update_dip_fund`, `dip_nohead`, `update_dip_windows`
 
-Переменные (2): `dip_flag`, `dip_flag_lbl`
+Переменные (6): `dip_fund_opt`, `dip_fund_btn`, `dip_fund_rt`, `dip_fund_cc`, `dip_flag`, `dip_flag_lbl`
 
-### `scripts/ui/ui_pop.gd`  (344 строк)
+### `scripts/ui/ui_pop.gd`  (479 строк)
 Интерфейс: вкладка «Население».
 
-Функции (4): `build_pop_windows`, `ag_tip`, `ag_agent_text`, `update_pop_windows`
+Функции (8): `build_pop_windows`, `demo_cohorts`, `demo_rates`, `draw_pyramid`, `update_demo_window`, `ag_tip`, `ag_agent_text`, `update_pop_windows`
 
 Константы (1): `AG_GROUP_COLS`
+
+Переменные (2): `demo_rt`, `demo_ctl`
 
 ### `scripts/ui/ui_events.gd`  (334 строк)
 Интерфейс: окна событий и выборов.
@@ -337,42 +357,42 @@ v38: политика войны.
 
 Переменные (37): `fw_state_rt`, `fw_upper_rt`, `fw_btn_up`, `fw_btn_down`, `fw_eq_btns`, `fw_list_rt`, `fw_reg_rt`, `fw_comp_rows`, `fw_st_dn`, `fw_st_up`, `fw_admit_btn`, `fw_bulk_rows`, `fw_dem_box`, `tw_buy_pick`, `tw_buy_mult`, `tw_buy_how`, `tw_buy_rt`, `tw_buy_btn`, `tw_buy_units`, `tw_un_pick`, `tw_un_terms`, `tw_un_rt`, `tw_un_btn`, `tw_court_btn`, `tw_un_cc`, `tw_sell_lbl`, `tw_sell_pick`, `tw_sell_mult`, `tw_sell_rt`, `tw_sell_btn`, `tw_sell_cc`, `tw_sell_for`, `tw_terr_box`, `tw_stat_rt`, `fr_rt`, `fr_buy_btn`, `fr_back_btn`
 
-### `scripts/ui/ui_soc.gd`  (297 строк)
+### `scripts/ui/ui_soc.gd`  (309 строк)
 Интерфейс: «Религия и миграция» (desk 11) и «Влияние и зависимость» (desk 10).
 
-Функции (21): `soc_btn`, `build_soc_windows`, `on_soc_sec`, `on_soc_fund`, `on_soc_dialog`, `on_soc_mig`, `on_soc_prog`, `on_soc_sel`, `on_ex_meta`, `on_ex_deal`, `on_ex_tar`, `on_ex_aid`, `on_ex_dbuy`, `on_ex_favor`, `soc_eff_line`, `update_soc_windows`, `update_soc_desk`, `regions_rel0_vec`, `regions_rel0_nat`, `_soc_btn_state`, `update_ex_desk`
+Функции (22): `rm_dirty_all`, `soc_btn`, `build_soc_windows`, `on_soc_sec`, `on_soc_fund`, `on_soc_dialog`, `on_soc_mig`, `on_soc_prog`, `on_soc_sel`, `on_ex_meta`, `on_ex_deal`, `on_ex_tar`, `on_ex_aid`, `on_ex_dbuy`, `on_ex_favor`, `soc_eff_line`, `update_soc_windows`, `update_soc_desk`, `regions_rel0_vec`, `regions_rel0_nat`, `_soc_btn_state`, `update_ex_desk`
 
 Переменные (15): `sw_rel_rt`, `sw_pol_rt`, `sw_mig_rt`, `sw_reg_rt`, `sw_btn`, `xw_list_rt`, `xw_info_rt`, `xw_fa_rt`, `xw_btn`, `sw_chart`, `sw_regchart`, `sw_spk_t`, `sw_spk_n`, `xw_chart`, `xw_spk`
 
-### `scripts/ui/ui_tech.gd`  (460 строк)
+### `scripts/ui/ui_tech.gd`  (507 строк)
 Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
 
-Функции (19): `make_tech_button`, `on_tech_toggle`, `set_tech_open`, `tech_scroll_to_frontier`, `build_tech_windows`, `on_tech_filter`, `on_tech_weight`, `on_tech_auto`, `on_tech_ai_all`, `on_tech_hover`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `tech_info_text`, `tech_info_update`, `update_tech_windows`, `tech_clear`, `tech_build_buildings`, `tech_buildings_text`
+Функции (23): `make_tech_button`, `tech_is_open`, `on_tech_toggle`, `set_tech_open`, `tech_scroll_to_frontier`, `build_tech_windows`, `on_tech_filter`, `on_tech_weight`, `on_tech_auto`, `on_tech_ai_all`, `on_tech_hover`, `on_tech_pick`, `on_tech_build`, `tech_bar`, `tech_info_text`, `tech_swap_note`, `tech_info_update`, `tech_idle_branches`, `tech_tab_mark`, `update_tech_windows`, `tech_clear`, `tech_build_buildings`, `tech_buildings_text`
 
 Переменные (18): `tech_ov`, `tech_btn`, `tech_view`, `tech_scroll`, `tw_left_box`, `tw_sum_rt`, `tw_info_rt`, `tw_spk`, `tw_bld_rt`, `tw_bld_box`, `tw_wlbl`, `tw_wbtn`, `tw_auto`, `tw_ai_all`, `tw_filter`, `tw_hover`, `tw_sig`, `tw_first`
 
-### `scripts/ui/ui_crisis.gd`  (410 строк)
+### `scripts/ui/ui_crisis.gd`  (418 строк)
 Интерфейс: окно «Кризисы» (v43_1) — протесты, сепаратизм, войны за отделение, революция, гражданская война, перевороты.
 
-Функции (18): `make_crisis_button`, `on_crisis_toggle`, `set_crisis_open`, `cr_section`, `build_crisis_windows`, `cr_col_for`, `cr_bar`, `on_cr_reg_meta`, `on_cr_conf_meta`, `cr_sel_region_idx`, `cr_sel_conf_idx`, `on_cr_reg_act`, `on_cr_conf_act`, `on_cr_coup_measure`, `on_cr_power`, `on_cr_confirmed`, `update_crisis_windows`, `date_after_turn`
+Функции (19): `make_crisis_button`, `on_crisis_toggle`, `crisis_is_open`, `set_crisis_open`, `cr_section`, `build_crisis_windows`, `cr_col_for`, `cr_bar`, `on_cr_reg_meta`, `on_cr_conf_meta`, `cr_sel_region_idx`, `cr_sel_conf_idx`, `on_cr_reg_act`, `on_cr_conf_act`, `on_cr_coup_measure`, `on_cr_power`, `on_cr_confirmed`, `update_crisis_windows`, `date_after_turn`
 
 Переменные (18): `cr_ov`, `cr_btn`, `cr_sum_rt`, `cr_reg_rt`, `cr_sel_rt`, `cr_conf_rt`, `cr_log_rt`, `cr_state_rt`, `cr_coup_rt`, `cr_spk`, `cr_reg_btn`, `cr_conf_btn`, `cr_coup_btn`, `cr_sel_reg`, `cr_sel_conf`, `cr_confirm`, `cr_pending`, `cr_right_box`
 
-### `scripts/ui/ui_realm.gd`  (386 строк)
+### `scripts/ui/ui_realm.gd`  (493 строк)
 Интерфейс v44_1: «Государство и мир» без отдельного окна — секции встроены в существующие разделы:
 
-Функции (29): `rm_reg`, `rm_win`, `rm_attach`, `build_realm_windows`, `rm_dirty_all`, `update_realm_windows`, `rm_act_btn`, `rm_acts_box`, `rm_text`, `rm_do_rl`, `rm_b_blocs`, `rm_dip_target`, `rm_b_treaty`, `rm_b_spy`, `rm_b_energy`, `rm_b_demo`, `rm_b_law`, `rm_b_parl`, `rm_b_eq`, `rm_b_army`, `rm_b_hist`, `rm_slot_row`, `rm_b_game`, `rm_b_conf`, `rm_b_science`, `build_tutorial`, `on_tut_next`, `on_tut_skip`, `update_tutorial`
+Функции (31): `rm_reg`, `rm_win`, `rm_attach`, `build_realm_windows`, `rm_dirty_all`, `update_realm_windows`, `rm_act_btn`, `rm_acts_box`, `rm_text`, `rm_do_rl`, `rm_flags_row`, `rm_b_blocs`, `rm_b_nato`, `rm_dip_target`, `rm_b_treaty`, `rm_b_spy`, `rm_b_energy`, `rm_b_demo`, `rm_b_law`, `rm_b_parl`, `rm_b_eq`, `rm_b_army`, `rm_b_hist`, `rm_slot_row`, `rm_b_game`, `rm_b_conf`, `rm_b_science`, `build_tutorial`, `on_tut_next`, `on_tut_skip`, `update_tutorial`
 
 Константы (1): `TUT_STEPS`
 
-Переменные (5): `rm_boxes`, `rm_ver`, `tut_panel`, `tut_label`, `tut_idx`
+Переменные (6): `rm_boxes`, `rm_ver`, `tut_panel`, `tut_label`, `tut_idx`, `rm_partner`
 
-### `scripts/ui/ui_opp.gd`  (209 строк)
+### `scripts/ui/ui_opp.gd`  (277 строк)
 Интерфейс: оппозиция и переговоры между партиями (экран «Политика»).
 
-Функции (9): `build_opp_windows`, `on_bill_pick`, `on_bill_req`, `on_bill_amend`, `update_bill_window`, `on_opp_act`, `on_pact_party`, `on_pact_do`, `update_opp_windows`
+Функции (12): `build_opp_windows`, `on_bill_pick`, `on_bill_req`, `on_bill_amend`, `rider_fill`, `on_rider_add`, `update_bill_window`, `on_opp_act`, `on_pact_party`, `on_pact_do`, `powers_text`, `update_opp_windows`
 
-Переменные (11): `opp_rt`, `opp_btns`, `pact_rt`, `pact_opt`, `pact_btns`, `pact_sel`, `bill_opt`, `bill_rt`, `bill_acc`, `bill_rej`, `bill_am`
+Переменные (15): `opp_rt`, `opp_btns`, `pact_rt`, `pact_opt`, `pact_btns`, `pact_sel`, `bill_opt`, `bill_rt`, `bill_acc`, `bill_rej`, `bill_am`, `rider_kind`, `rider_arg`, `rider_btn`, `rider_args`
 
 ### `scripts/ui/ui_fleet.gd`  (193 строк)
 Экран «Флот» (desk 14): морская торговля, порты, военный флот, война на море.
@@ -381,7 +401,7 @@ v38: политика войны.
 
 Переменные (11): `fw_info_rt`, `fw_navy_rt`, `fw_inc_rt`, `fw_sea_rt`, `fw_pbox`, `fw_pkey`, `fw_btn`, `fw_btn_ports`, `fw_spk`, `fw_station`, `fw_station_ids`
 
-### `scripts/ui/ui_war.gd`  (648 строк)
+### `scripts/ui/ui_war.gd`  (698 строк)
 Экран «Армия и война» (desk 13): армия, мобилизация, объявление войны, ход войны, мир.
 
 Функции (19): `build_war_windows`, `on_war_declare`, `update_war_talk`, `on_war_peace`, `war_select`, `update_war_windows`, `mil_side_total`, `war_map_on`, `war_occ_build`, `draw_war_overlay`, `war_token_pos`, `draw_war_tokens`, `draw_sea_lanes`, `war_ship`, `war_token_at`, `war_node_at`, `war_map_click`, `war_tip`, `war_hover`
@@ -399,14 +419,48 @@ v48_1: экран «Вооружённые силы» (desk 15): обзор, о�
 
 Переменные (2): `arw`, `ar_msg`
 
-### `main.gd`  (902 строк)
+### `scripts/ui/ui_settings.gd`  (430 строк)
+v50_1: настройки (кнопка ⚙ в правом верхнем углу): графика (тема интерфейса, море на карте, анимации, масштаб),
+
+Функции (17): `settings_load`, `settings_save`, `settings_apply_static`, `music_dirs`, `click_name`, `build_settings_button`, `settings_open`, `build_settings_window`, `st_page`, `st_row`, `st_option`, `st_check`, `st_slider`, `settings_fill_saves`, `music_reload`, `show_start_window`, `start_text`
+
+Константы (7): `UI_THEMES`, `SEA_NAMES`, `MUSIC_SETS`, `CLICK_SETS`, `UI_SCALES`, `SETTINGS_PATH`, `SETTINGS_KEYS`
+
+Переменные (5): `st_ov`, `st_tabs`, `st_save_box`, `st_btn`, `start_ov`
+
+### `scripts/ui/ui_budget.gd`  (191 строк)
+v50_1: черновик бюджета и коалиционные переговоры о нём.
+
+Функции (7): `bud_draft_on`, `update_bud_head`, `on_bud_accept`, `bud_neg_open`, `bud_neg_close`, `bud_neg_fill`, `_all_agree`
+
+Переменные (3): `bn_ov`, `bn_rt`, `bn_box`
+
+### `scripts/ui/ui_build.gd`  (166 строк)
+v50_1: окно «Строительство». Выберите сооружение — справа видно, сколько стоит, что даст, как отнесутся группы
+
+Функции (5): `build_build_window`, `update_build_window`, `bld_demand_text`, `build_click`, `draw_struct_icons`
+
+Константы (2): `PROJ_CATS`, `PROJ_CAT_ICO`
+
+Переменные (4): `bld_btns`, `bld_info_rt`, `bld_list_rt`, `bld_hint`
+
+### `scripts/ui/ui_treaty.gd`  (204 строк)
+v50_1: конструктор договоров — «чистый лист». Игрок выбирает партнёра, отмечает пункты, даёт договору название
+
+Функции (5): `paper_style`, `ink_label`, `treaty_sheet_open`, `treaty_sheet_build`, `treaty_sheet_update`
+
+Константы (3): `PAPER`, `INK`, `INK_DIM`
+
+Переменные (7): `ts_ov`, `ts_title`, `ts_partner`, `ts_partners`, `ts_checks`, `ts_eval`, `ts_go`
+
+### `main.gd`  (930 строк)
 PolitGame: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
 
-Функции (29): `country_arg`, `party_arg`, `seed_arg`, `apply_country`, `apply_markets`, `cdat`, `diff_color`, `menu_title`, `menu_rt`, `menu_bar`, `sector_shares`, `country_strengths`, `fill_country_card`, `opt_index`, `menu_update_est`, `opt_row`, `opt_choice`, `opt_slider`, `fmt_mult`, `fmt_k`, `build_settings_panel`, `opts_from_args`, `show_country_menu`, `fill_party_pick`, `update_menu_party`, `choose_country`, `_ready`, `_input`, `_unhandled_input`
+Функции (30): `country_arg`, `party_arg`, `seed_arg`, `apply_country`, `apply_markets`, `de_base_snap`, `cdat`, `diff_color`, `menu_title`, `menu_rt`, `menu_bar`, `sector_shares`, `country_strengths`, `fill_country_card`, `opt_index`, `menu_update_est`, `opt_row`, `opt_choice`, `opt_slider`, `fmt_mult`, `fmt_k`, `build_settings_panel`, `opts_from_args`, `show_country_menu`, `fill_party_pick`, `update_menu_party`, `choose_country`, `_ready`, `_input`, `_unhandled_input`
 
-Константы (1): `OBSERVER_ID`
+Константы (2): `DE_BASE_KEYS`, `OBSERVER_ID`
 
-Переменные (5): `menu_est_code`, `menu_sit_rt`, `menu_sit_code`, `menu_est_lbl`, `menu_ag_k`
+Переменные (6): `de_base`, `menu_est_code`, `menu_sit_rt`, `menu_sit_code`, `menu_est_lbl`, `menu_ag_k`
 
 ## Классы (`scripts/classes/`)
 
@@ -414,15 +468,15 @@ PolitGame: корневой скрипт (вершина цепочки насл
 - `agent_map_view.gd` — extends Control, 228 строк
 - `agent_pop.gd` — extends RefCounted, 761 строк
 - `army_view.gd` — extends Control, 164 строк
-- `country_map.gd` — extends Control, 538 строк
+- `country_map.gd` — extends Control, 556 строк
 - `dep_chart.gd` — extends Control, 54 строк
 - `econ_chart.gd` — extends Control, 86 строк
 - `election_view.gd` — extends Control, 187 строк
 - `event_art.gd` — extends Control, 102 строк
 - `faith_chart.gd` — extends Control, 53 строк
 - `flags.gd` — extends RefCounted, 252 строк
-- `float_window.gd` — extends Control, 264 строк
-- `gfx.gd` — extends RefCounted, 183 строк
+- `float_window.gd` — extends Control, 325 строк
+- `gfx.gd` — extends RefCounted, 194 строк
 - `goods_view.gd` — extends Control, 61 строк
 - `head_view.gd` — extends Control, 89 строк
 - `ico.gd` — extends Control, 206 строк
@@ -431,4 +485,4 @@ PolitGame: корневой скрипт (вершина цепочки насл
 - `pie_chart.gd` — extends Control, 45 строк
 - `spark.gd` — extends Control, 71 строк
 - `stat_bar.gd` — extends Control, 47 строк
-- `tech_view.gd` — extends Control, 305 строк
+- `tech_view.gd` — extends Control, 317 строк
