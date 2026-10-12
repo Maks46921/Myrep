@@ -1,6 +1,28 @@
 # Радикальные законы: форма правления, строй, выход из ЕС и т.д.
 extends "res://scripts/logic/council.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func au_dyn() -> void:
+	pass
+
+
+func au_fat_months() -> int:
+	return 0
+
+
+func au_risk_add() -> float:
+	return 0.0
+
+
+func au_step() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 func arch_ps(tbl: Dictionary) -> Dictionary:
 	var out := {}
 	for p in PARTY_NAMES.size():
@@ -188,6 +210,7 @@ func radical_dyn() -> void:
 		mods["growth_bonus"] = float(mods["growth_bonus"]) - 0.12 * (1.0 - float(turn - eu_left_t) / 60.0)
 	if decree_power() and regime_risk > 40.0:
 		mods["mood_shift"] = float(mods["mood_shift"]) - (regime_risk - 40.0) * 0.004
+	au_dyn()
 
 
 func radical_step() -> void:
@@ -211,7 +234,7 @@ func radical_step() -> void:
 	if decree_power():
 		crisis_months = 0
 		var force: float = float(support["Силовики"])
-		var tgt: float = 22.0 + minf(12.0, float(regime_t) * 0.1) + maxf(0.0, 48.0 - approval()) * 1.6 + maxf(0.0, reg_avg("unrest") - 20.0) * 1.2 + shortage * 0.3 - maxf(0.0, force - 45.0) * 0.4
+		var tgt: float = 22.0 + minf(12.0, float(au_fat_months()) * 0.1) + au_risk_add() + maxf(0.0, 48.0 - approval()) * 1.6 + maxf(0.0, reg_avg("unrest") - 20.0) * 1.2 + shortage * 0.3 - maxf(0.0, force - 45.0) * 0.4
 		regime_risk += (clampf(tgt, 0.0, 100.0) - regime_risk) * 0.15
 		if turn % 6 == 0:
 			dip_all(-1.5, true)
@@ -221,6 +244,7 @@ func radical_step() -> void:
 			show_uprising()
 	else:
 		regime_risk *= 0.9
+	au_step()
 
 
 func show_uprising() -> void:

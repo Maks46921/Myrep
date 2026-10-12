@@ -24,6 +24,10 @@ func ar_apply_mods() -> void:
 	pass
 
 
+func au_fx(d: Dictionary) -> void:
+	pass
+
+
 func coal_members() -> Array:
 	return []
 
@@ -475,6 +479,8 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 		fulfill_coalition_demands()
 	if fx.has("dip_all"):
 		dip_all(float(fx["dip_all"]), bool(fx.get("dip_eu_only", false)))
+	if fx.has("au"):
+		au_fx(fx["au"])
 	if fx.has("risk_mul"):
 		regime_risk = maxf(0.0, regime_risk * float(fx["risk_mul"]))
 	if fx.has("rev_roll"):

@@ -10,7 +10,8 @@ static var _cache: Dictionary = {}
 
 static func has(code: String) -> bool:
 	return code in ["DE", "FR", "NL", "BE", "LU", "AT", "CH", "CZ", "DK", "ES", "IT", "NO", "PL", "PT", "SE", "GB", "IE", "SI", "SK",
-		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR"]
+		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR",
+		"US", "CN", "JP", "KR", "TR", "IN", "CA", "AE", "SA", "IL", "TW"]
 
 
 static func tex(code: String) -> Texture2D:
@@ -230,6 +231,51 @@ static func px(code: String, u: float, v: float) -> Color:
 			return Color(0.0, 0.47, 0.25) if absf(v - 0.5) < 0.10 else Color(0.75, 0.05, 0.10)
 		"DNR": return h3(v, BLACK, Color(0.0, 0.31, 0.65), Color(0.80, 0.08, 0.10))
 		"LNR": return h3(v, Color(0.36, 0.67, 0.92), Color(0.05, 0.20, 0.55), Color(0.80, 0.08, 0.10))
+		# v51: страны происхождения иностранных компаний
+		"US":
+			if u < 0.42 and v < 0.54:
+				return WHITE if fposmod(u * 18.0, 1.0) < 0.25 and fposmod(v * 13.0, 1.0) < 0.3 else Color(0.20, 0.23, 0.45)
+			return Color(0.70, 0.13, 0.20) if int(v * 13.0) % 2 == 0 else WHITE
+		"CN":
+			if circle(u, v, 0.17, 0.27, 0.09):
+				return GOLD
+			for k3 in 4:
+				var sa2: float = -0.9 + float(k3) * 0.6
+				if circle(u, v, 0.17 + cos(sa2) * 0.17, 0.27 + sin(sa2) * 0.25, 0.03):
+					return GOLD
+			return Color(0.87, 0.16, 0.06)
+		"JP": return Color(0.74, 0.0, 0.18) if circle(u, v, 0.5, 0.5, 0.2) else WHITE
+		"KR":
+			if circle(u, v, 0.5, 0.5, 0.17):
+				return Color(0.80, 0.05, 0.20) if v < 0.5 else Color(0.0, 0.20, 0.55)
+			return WHITE
+		"TR":
+			if circle(u, v, 0.38, 0.5, 0.17) and not circle(u, v, 0.42, 0.5, 0.135):
+				return WHITE
+			if circle(u, v, 0.60, 0.5, 0.05):
+				return WHITE
+			return Color(0.89, 0.04, 0.09)
+		"IN":
+			if circle(u, v, 0.5, 0.5, 0.07) and not circle(u, v, 0.5, 0.5, 0.05):
+				return Color(0.0, 0.0, 0.53)
+			return h3(v, Color(1.0, 0.60, 0.20), WHITE, Color(0.07, 0.53, 0.03))
+		"CA":
+			if u < 0.25 or u > 0.75:
+				return Color(0.85, 0.0, 0.0)
+			return Color(0.85, 0.0, 0.0) if circle(u, v, 0.5, 0.5, 0.13) else WHITE
+		"AE":
+			if u < 0.25:
+				return Color(1.0, 0.0, 0.0)
+			return h3(v, Color(0.0, 0.45, 0.18), WHITE, BLACK)
+		"SA": return WHITE if absf(v - 0.5) < 0.05 and u > 0.25 and u < 0.75 else Color(0.0, 0.42, 0.21)
+		"IL":
+			if absf(v - 0.15) < 0.06 or absf(v - 0.85) < 0.06:
+				return Color(0.0, 0.22, 0.72)
+			return Color(0.0, 0.22, 0.72) if circle(u, v, 0.5, 0.5, 0.15) and not circle(u, v, 0.5, 0.5, 0.12) else WHITE
+		"TW":
+			if u < 0.5 and v < 0.5:
+				return WHITE if circle(u, v, 0.25, 0.25, 0.10) else Color(0.0, 0.0, 0.58)
+			return Color(1.0, 0.0, 0.0)
 	return Color(0.45, 0.48, 0.55)
 
 

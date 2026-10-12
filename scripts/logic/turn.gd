@@ -28,6 +28,10 @@ func ate_reset() -> void:
 	pass
 
 
+func au_init() -> void:
+	pass
+
+
 func autopilot_run() -> void:
 	pass
 
@@ -788,6 +792,7 @@ func init_state() -> void:
 	soc_init()
 	tech_init()
 	revolt_init()
+	au_init()
 	rl_init()
 	dx_init()
 	fa_init()

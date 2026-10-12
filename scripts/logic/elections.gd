@@ -16,6 +16,19 @@ func ai_form_gov(allow0: bool) -> Dictionary:
 	return {}
 
 
+func au_after_election() -> void:
+	pass
+
+
+func au_fraud_shares(sh: Array[float]) -> Array[float]:
+	var r: Array[float] = []
+	return r
+
+
+func au_on() -> bool:
+	return false
+
+
 func coalition_names() -> String:
 	return ""
 
@@ -362,7 +375,7 @@ func hold_head_direct(reason: String) -> void:
 		for p in n:
 			s1.append(base[p] / tot if p in cands else 0.0)
 	else:
-		s1 = national_shares(true, cands)
+		s1 = au_fraud_shares(national_shares(true, cands))
 	var order: Array = cands.duplicate()
 	order.sort_custom(func(a, b): return s1[a] > s1[b])
 	var runoff: bool = float(s1[order[0]]) <= 0.5
@@ -635,6 +648,8 @@ func hold_parliament_core(reason: String) -> void:
 	if sham:
 		shares = sham_shares(shares)
 		reason = "выборы без выбора"
+	elif au_on():
+		shares = au_fraud_shares(shares)
 	var prev: Array = prev_vote
 	if prev.size() != PARTY_NAMES.size():
 		prev = []
@@ -646,6 +661,8 @@ func hold_parliament_core(reason: String) -> void:
 	seats = allocate_seats(shares)
 	log_header("ПАРЛАМЕНТСКИЕ ВЫБОРЫ — %s (%s)" % [date_text(), reason], COL_ELECT)
 	log_line("Система: %s%s, %d мест." % [low1(String(ELEC.get("sys", "пропорциональная"))), (", барьер %.0f%%" % (thr * 100.0)) if thr >= 0.005 else "", SEATS])
+	if not sham:
+		au_after_election()
 	var parts: PackedStringArray = []
 	for p in sorted_parties(shares):
 		if seats[p] > 0:

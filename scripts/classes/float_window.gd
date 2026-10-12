@@ -25,6 +25,9 @@ var _drag_off := Vector2.ZERO
 var _rmode := 0
 var _rs_size := Vector2.ZERO
 var _rs_mouse := Vector2.ZERO
+var _sb: StyleBoxFlat = null
+var _tsb: StyleBoxFlat = null
+var _bg: Panel = null
 
 func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.937)) -> void:
 	accent = acc
@@ -40,6 +43,8 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	sb.shadow_size = 10
 	sb.shadow_offset = Vector2(0.0, 3.0)
 	bg.add_theme_stylebox_override("panel", sb)
+	_sb = sb
+	_bg = bg
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# v45_1: мягкий отблеск сверху окна
 	bg.draw.connect(func() -> void:
@@ -63,6 +68,7 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	tsb.content_margin_top = 3.0
 	tsb.content_margin_bottom = 3.0
 	_title_bar.add_theme_stylebox_override("panel", tsb)
+	_tsb = tsb
 	_title_bar.mouse_filter = Control.MOUSE_FILTER_STOP
 	_title_bar.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	_title_bar.gui_input.connect(_title_input)
@@ -162,6 +168,21 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 			gr.add_child(mark)
 		gr.gui_input.connect(_grip_input.bind(mode))
 		_grips.append(gr)
+
+# v51: перекраска окна (смена режима): акцент заголовка, фон и рамка
+func set_skin(acc: Color, bg: Color, border: Color) -> void:
+	accent = acc
+	if _tsb != null:
+		_tsb.bg_color = bg.lightened(0.06).lerp(acc, 0.20)
+		_tsb.border_color = acc
+	if _sb != null:
+		_sb.bg_color = Color(bg.r, bg.g, bg.b, 0.95)
+		_sb.border_color = border
+	if _title_bar != null:
+		_title_bar.queue_redraw()
+	if _bg != null:
+		_bg.queue_redraw()
+
 
 # v50: недоступное окно затемняется, сверху — причина; содержимое можно читать и прокручивать, но не нажимать
 func set_locked(why: String) -> void:

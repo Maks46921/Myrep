@@ -76,6 +76,10 @@ func build_realm_windows() -> void:
 	pass
 
 
+func build_regime_windows() -> void:
+	pass
+
+
 func build_settings_button(hb: Control) -> void:
 	pass
 
@@ -117,6 +121,10 @@ func music_dirs() -> Array:
 
 
 func on_bud_accept() -> void:
+	pass
+
+
+func reg_ui_sync() -> void:
 	pass
 
 
@@ -192,6 +200,10 @@ func update_realm_windows() -> void:
 	pass
 
 
+func update_regime_windows() -> void:
+	pass
+
+
 func update_regions_ui() -> void:
 	pass
 
@@ -206,6 +218,10 @@ func update_tech_windows() -> void:
 
 func update_war_windows() -> void:
 	pass
+
+
+func win_mode_ok(id: String) -> bool:
+	return false
 
 
 # --- конец заглушек ---
@@ -233,7 +249,7 @@ func win_vis(id: String, on: bool) -> void:
 		return
 	var w: FloatWindow = wins[id]
 	var was: bool = w.visible
-	w.visible = on and not w.closed
+	w.visible = on and not w.closed and win_mode_ok(id)
 	if w.visible and not was:
 		win_fade_in(w)
 
@@ -262,7 +278,7 @@ func win_menu_fill() -> void:
 	var ids: Array = []
 	for id in wins:
 		var w: FloatWindow = wins[id]
-		if w.desk == -2 or not (w.desk == current_desk or w.desk == -1):
+		if w.desk == -2 or not (w.desk == current_desk or w.desk == -1) or not win_mode_ok(String(id)):
 			continue
 		ids.append(id)
 	for k in ids.size():
@@ -347,7 +363,7 @@ func show_desk(i: int) -> void:
 		var was: bool = w.visible
 		# v50: окно выборов — только пока открыты итоги выборов, окно события — только при событии (раньше пустое окно выборов всплывало вместе с событием)
 		var modal_on: bool = election_open if id == "election" else not current_event.is_empty()
-		w.visible = ((w.desk == i) or (w.desk == -1) or (w.desk == -2 and modal_on)) and (w.desk == -2 or not w.closed)
+		w.visible = ((w.desk == i) or (w.desk == -1) or (w.desk == -2 and modal_on)) and (w.desk == -2 or not w.closed) and win_mode_ok(String(id))
 		if w.visible and not was:
 			# v49: окна нового раздела проявляются с небольшой задержкой друг за другом
 			win_fade_in(w, 0.18 + 0.04 * float(mini(k_fade, 5)))
@@ -368,6 +384,7 @@ func build_ui() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ui_bg = bg
 
 	var top := PanelContainer.new()
 	top.custom_minimum_size = Vector2(0.0, 58.0)
@@ -383,6 +400,7 @@ func build_ui() -> void:
 		Gfx.hgrad(top, Rect2(0.0, top.size.y - 1.0, top.size.x * 0.5, 1.0), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.0), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.55))
 		Gfx.hgrad(top, Rect2(top.size.x * 0.5, top.size.y - 1.0, top.size.x * 0.5, 1.0), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.55), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.0)))
 	add_child(top)
+	ui_top = top
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE, Control.PRESET_MODE_MINSIZE, 0)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 6)
@@ -507,6 +525,7 @@ func build_ui() -> void:
 
 	build_budget_windows()
 	build_politics_windows()
+	build_regime_windows()
 	build_law_windows()
 	build_gov_windows()
 	build_pop_windows()
@@ -1126,6 +1145,7 @@ func refresh() -> void:
 		return
 	recompute_mods()
 	update_chips()
+	reg_ui_sync()
 	if current_desk == 0:
 		for k in sliders:
 			update_slider_label(k)
@@ -1158,6 +1178,7 @@ func refresh() -> void:
 			b.disabled = cd > 0 or game_over or capital < float(a["cost"]) or (a["id"] == "snap" and (turn - last_parl < 12 or not bool(snap_info()["ok"]) or opp_mode))
 		update_parliament()
 		update_polls()
+		update_regime_windows()
 		if selfcoup_btn != null and not rv.is_empty():
 			var why := rv_selfcoup_check()
 			selfcoup_btn.disabled = why != ""
@@ -1179,6 +1200,7 @@ func refresh() -> void:
 		update_soc_windows()
 	elif current_desk == 12:
 		update_opp_windows()
+		update_regime_windows()
 	elif current_desk == 13:
 		update_war_windows()
 	elif current_desk == 14:
@@ -1199,7 +1221,7 @@ func refresh() -> void:
 # v50: окна, которыми распоряжается только правительство (и те, где нужны места в парламенте), затемняются с объяснением
 const WIN_GOV_ONLY := ["tax", "measures", "ec_st", "ec_cb", "ec_gf", "cabinet", "neg", "commit", "actions", "xw_info", "war_ops", "war_talk",
 	"regact", "ar_budget", "ar_svc", "ar_proc", "ar_act", "dact", "fw_reg", "fw_bulk", "fw_dem", "tw_buy", "tw_union", "tw_sell",
-	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs", "rm_nato"]
+	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs", "rm_nato", "reg_tools", "reg_repr"]
 const WIN_PARL_ONLY := ["bills"]
 
 
@@ -1782,6 +1804,8 @@ func update_auto_window() -> void:
 # v50: группы относятся к партиям по-разному; оценка власти (бюджет, события) достаётся только правящим партиям
 var gp_rt: RichTextLabel = null
 var selfcoup_btn: Button = null
+var ui_bg: ColorRect = null
+var ui_top: PanelContainer = null
 var selfcoup_note: Label = null
 
 

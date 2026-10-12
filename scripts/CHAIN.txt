@@ -30,6 +30,7 @@ scripts/logic/aiparty.gd
 scripts/logic/council.gd
 scripts/logic/radical.gd
 scripts/logic/revolt.gd
+scripts/logic/regime.gd
 scripts/logic/realism.gd
 scripts/logic/diplo2.gd
 scripts/logic/fpai.gd
@@ -60,4 +61,5 @@ scripts/ui/ui_budget.gd
 scripts/ui/ui_build.gd
 scripts/ui/ui_treaty.gd
 scripts/ui/ui_vote.gd
+scripts/ui/ui_regime.gd
 main.gd
