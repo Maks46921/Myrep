@@ -537,7 +537,7 @@ v52_1: рамка «Организации». Вкладки — междуна�
 Переменные (10): `io_tabs`, `io_head_ctl`, `io_mem_ctl`, `io_ext_rt`, `io_info_rt`, `io_act_box`, `io_ses_rt`, `io_vote_btns`, `io_hist_rt`, `io_built_for`
 
 ### `main.gd`  (930 строк)
-PolitGame: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
+Symphony: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
 
 Функции (30): `country_arg`, `party_arg`, `seed_arg`, `apply_country`, `apply_markets`, `de_base_snap`, `cdat`, `diff_color`, `menu_title`, `menu_rt`, `menu_bar`, `sector_shares`, `country_strengths`, `fill_country_card`, `opt_index`, `menu_update_est`, `opt_row`, `opt_choice`, `opt_slider`, `fmt_mult`, `fmt_k`, `build_settings_panel`, `opts_from_args`, `show_country_menu`, `fill_party_pick`, `update_menu_party`, `choose_country`, `_ready`, `_input`, `_unhandled_input`
 

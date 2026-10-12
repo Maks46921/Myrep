@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Единый запуск тестов PolitGame.
+"""Единый запуск тестов Symphony.
 
   tools/test.py quick                 быстрая проверка (~1 мин)
   tools/test.py full                  все тесты по всем странам (34)

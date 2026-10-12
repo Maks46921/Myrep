@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Процедурная музыка и звуки PolitGame (v35): спокойный эмбиент и мягкие UI-звуки.
+"""Процедурная музыка и звуки Symphony (v35): спокойный эмбиент и мягкие UI-звуки.
 
   python3 tools/gen_audio.py      -> audio/music/*.ogg, audio/sfx/*.ogg  (нужны numpy и ffmpeg с libvorbis)
 

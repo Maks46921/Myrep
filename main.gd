@@ -1,4 +1,4 @@
-# PolitGame: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
+# Symphony: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
 # Политико-экономическая игра, версия 8 (новая система коалиций).
 # Время идёт по дням: скорость задают кнопки справа вверху, а экономика и политика считаются на границе месяцев. Три экрана: «Бюджет», «Политика», «Карта регионов».
 # Все окна плавающие: двигайте за заголовок, меняйте размер за правый/нижний край и угол,
@@ -89,7 +89,7 @@ func apply_country(code: String) -> void:
 	build_loc()
 	apply_player_party(party_arg())
 	if not get_window() == null:
-		get_window().title = "PolitGame: %s" % String(WORLD[code]["name"])
+		get_window().title = "Symphony: %s" % String(WORLD[code]["name"])
 
 
 func apply_markets() -> void:
@@ -609,7 +609,7 @@ func show_country_menu(in_game: bool) -> void:
 	root_v.add_theme_constant_override("separation", 8)
 	mg.add_child(root_v)
 	var title := Label.new()
-	title.text = "PolitGame — выберите страну на карте"
+	title.text = "Symphony — выберите страну на карте"
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0))
 	title.add_theme_constant_override("outline_size", 6)
