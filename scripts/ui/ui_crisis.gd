@@ -230,6 +230,8 @@ func cr_sel_conf_idx() -> int:
 
 
 func on_cr_reg_act(id: String) -> void:
+	if pl_deny():
+		return
 	var i := cr_sel_region_idx()
 	if i < 0:
 		return
@@ -242,6 +244,8 @@ func on_cr_reg_act(id: String) -> void:
 
 
 func on_cr_conf_act(id: String) -> void:
+	if pl_deny():
+		return
 	var k := cr_sel_conf_idx()
 	if k < 0:
 		return
@@ -254,6 +258,8 @@ func on_cr_conf_act(id: String) -> void:
 
 
 func on_cr_coup_measure(id: String) -> void:
+	if pl_deny():
+		return
 	rv_coup_measure(id)
 
 
@@ -415,3 +421,31 @@ func update_crisis_windows() -> void:
 func date_after_turn(t: int) -> String:
 	var months_total: int = (START_YEAR * 12 + 0) + t
 	return "%d г." % (months_total / 12)
+
+
+# v52: окна технологий и кризисов — только для правительства; вне власти сверху плашка с объяснением,
+# содержимое можно читать, но кнопки не действуют (решения принимает правительство, технологии ведёт его советник)
+func ov_lock_banner(ov: Control, why: String) -> void:
+	if ov == null or ov.get_child_count() == 0:
+		return
+	var root: Node = ov.get_child(0)
+	var ban: PanelContainer = root.get_node_or_null("LockBanner")
+	if ban == null:
+		ban = PanelContainer.new()
+		ban.name = "LockBanner"
+		ban.add_theme_stylebox_override("panel", sbox(Color(0.30, 0.10, 0.10, 0.92), C_BAD, 1, 8, 10.0, 6.0))
+		var l := Label.new()
+		l.name = "L"
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.add_theme_font_size_override("font_size", 14)
+		l.add_theme_color_override("font_color", Color(1.0, 0.88, 0.85))
+		ban.add_child(l)
+		root.add_child(ban)
+		root.move_child(ban, mini(1, root.get_child_count() - 1))
+	ban.visible = why != ""
+	(ban.get_node("L") as Label).text = "Недоступно. " + why + " Окно открыто для чтения; решения принимает правительство (технологии выбирает его советник)."
+
+
+func overlays_lock() -> void:
+	ov_lock_banner(tech_ov, pl_why())
+	ov_lock_banner(cr_ov, pl_why())

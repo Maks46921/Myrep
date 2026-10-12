@@ -17,6 +17,9 @@ var sw_mig_rt: RichTextLabel
 var sw_reg_rt: RichTextLabel
 var sw_btn: Dictionary = {}
 var xw_list_rt: RichTextLabel
+const XW_SORTS := ["Общая зависимость", "Мы зависим", "Они зависят", "Влияние", "Отношения", "Название"]
+var xw_sort := 0
+var xw_sort_desc := true
 var xw_info_rt: RichTextLabel
 var xw_fa_rt: RichTextLabel   # v47_1: «как к вам относятся» — под кнопками, чтобы они не уезжали
 var xw_btn: Dictionary = {}
@@ -81,6 +84,33 @@ func build_soc_windows() -> void:
 
 	# ---- desk 10: влияние и зависимость ----
 	w = new_window("xw_list", "Партнёры и зависимость", 10, Rect2(0.0, 0.0, 0.40, 0.66))
+	# v52: сортировка списка партнёров
+	var sh := HFlowContainer.new()
+	sh.add_theme_constant_override("h_separation", 4)
+	sh.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(sh)
+	var sl := Label.new()
+	sl.text = "Сортировать:"
+	sl.add_theme_font_size_override("font_size", 12)
+	sl.add_theme_color_override("font_color", C_DIM)
+	sh.add_child(sl)
+	var sg := ButtonGroup.new()
+	for k in XW_SORTS.size():
+		var sb := Button.new()
+		sb.theme_type_variation = "SmallButton"
+		sb.text = String(XW_SORTS[k])
+		sb.toggle_mode = true
+		sb.button_group = sg
+		sb.focus_mode = Control.FOCUS_NONE
+		sb.set_pressed_no_signal(k == 0)
+		sb.pressed.connect(func() -> void:
+			if xw_sort == k:
+				xw_sort_desc = not xw_sort_desc
+			else:
+				xw_sort = k
+				xw_sort_desc = k != 5
+			refresh())
+		sh.add_child(sb)
 	xw_chart = DepChart.new()
 	xw_chart.picked.connect(on_ex_meta)
 	w.body.add_child(xw_chart)
@@ -256,8 +286,21 @@ func update_ex_desk() -> void:
 	var t := "[table=6][cell][color=%s]Страна[/color][/cell][cell][color=%s] Мы зависим[/color][/cell][cell][color=%s] Они зависят[/color][/cell][cell][color=%s] Влияние[/color][/cell][cell][color=%s] Отнош.[/color][/cell][cell][color=%s] Пошлины/ответ[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM]
 	var rows: Array = []
 	for c in ps:
-		rows.append([c, float(ex_dep(c)["out"]) + float(ex_dep(c)["in"])])
-	rows.sort_custom(func(a, b): return float(a[1]) > float(b[1]))
+		var dd: Dictionary = ex_dep(c)
+		var key: Variant = 0.0
+		match xw_sort:
+			0: key = float(dd["out"]) + float(dd["in"])
+			1: key = float(dd["out"])
+			2: key = float(dd["in"])
+			3: key = ex_leverage(c)
+			4: key = fed_rel(c)
+			5: key = String(WORLD[c]["name"])
+		rows.append([c, key])
+	var desc: bool = xw_sort_desc
+	rows.sort_custom(func(a, b):
+		if a[1] is String:
+			return (String(a[1]) < String(b[1])) != desc
+		return (float(a[1]) > float(b[1])) if desc else (float(a[1]) < float(b[1])))
 	for rw in rows:
 		var c: String = rw[0]
 		var d: Dictionary = ex_dep(c)

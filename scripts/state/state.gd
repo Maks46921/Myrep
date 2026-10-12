@@ -366,6 +366,10 @@ var reg_action_rows := {}
 var reg_table := {}
 
 var hemi_ctl: Control
+var upper_ctl: Control = null
+var upper_pos: Array = []
+var upper_rad := 0.04
+var upper_lay_n := -1
 
 var hemi_legend: RichTextLabel
 

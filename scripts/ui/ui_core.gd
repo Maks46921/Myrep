@@ -132,6 +132,10 @@ func on_bud_accept() -> void:
 	pass
 
 
+func overlays_lock() -> void:
+	pass
+
+
 func reg_ui_sync() -> void:
 	pass
 
@@ -1235,6 +1239,7 @@ func refresh() -> void:
 	update_regions_ui()
 	update_tech_windows()
 	update_crisis_windows()
+	overlays_lock()
 	update_realm_windows()
 	update_win_locks()
 	fmt_pass()

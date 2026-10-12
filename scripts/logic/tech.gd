@@ -351,7 +351,7 @@ func tech_build(id: String) -> bool:
 
 
 func tech_select(b: int, id: String) -> bool:
-	if tech.is_empty() or b < 0 or b > 2:
+	if tech.is_empty() or b < 0 or b >= TECH_NB:
 		return false
 	if id != "":
 		if int(tech_def(id).get("b", -1)) != b or not tech_avail(id):
@@ -426,12 +426,12 @@ func tech_month() -> void:
 		var c: String = tech["cur"][b]
 		if c != "" and (tech_done(c) or not tech_avail(c)):
 			tech["cur"][b] = ""
-		if String(tech["cur"][b]) == "" and bool(tech["auto"]):
+		if String(tech["cur"][b]) == "" and (bool(tech["auto"]) or opp_mode):
 			tech["cur"][b] = tech_ai_pick(b, false)
 			if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
 				# выбор «или»: ИИ-советник решает сразу, если разрешено (или партией управляет ИИ), иначе ждёт вашего решения полгода
 				tech["wait"][b] = int(tech["wait"][b]) + 1
-				if int(tech["wait"][b]) >= TECH_WAIT_MONTHS or observer or bool(tech["ai_all"]):
+				if int(tech["wait"][b]) >= TECH_WAIT_MONTHS or observer or opp_mode or bool(tech["ai_all"]):
 					var pick := tech_ai_pick(b, true)
 					tech["cur"][b] = pick
 					tech["wait"][b] = 0
@@ -474,9 +474,9 @@ func tech_month() -> void:
 				tech["cur"][b] = ""
 				tech["bank"][b] = pg
 				log_tag("НАУКА", COL_GOOD, "%s: изучена технология «%s» (%s ветка). %s" % [date_text(), d["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), tech_fx_text(d)])
-				if bool(tech["auto"]):
+				if bool(tech["auto"]) or opp_mode:
 					tech["cur"][b] = tech_ai_pick(b, false)
-					if String(tech["cur"][b]) == "" and tech_choice_waiting(b) and not bool(tech["ai_all"]):
+					if String(tech["cur"][b]) == "" and tech_choice_waiting(b) and not bool(tech["ai_all"]) and not opp_mode:
 						log_tag("НАУКА", COL_WARN, "В ветке «%s» открыт выбор «или»: можно изучить только одну технологию. Выберите в окне технологий, иначе ИИ-советник выберет сам через %d мес." % [String(TECH_BRANCHES[b]["name"]).to_lower(), TECH_WAIT_MONTHS])
 			else:
 				tech["prog"][id] = pg

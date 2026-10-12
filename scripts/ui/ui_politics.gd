@@ -29,9 +29,15 @@ func build_hemicycle() -> void:
 func build_politics_windows() -> void:
 	var w: FloatWindow = new_window("parliament", "Парламент и глава государства", 1, Rect2(0.0, 0.0, 0.28, 0.50), false)
 	pol_header = add_wrap_label(w.body, "")
+	# v52: две палаты рядом — нижняя (слева) и верхняя (справа, меньше)
+	var hrow := HBoxContainer.new()
+	hrow.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hrow.add_theme_constant_override("separation", 6)
+	w.body.add_child(hrow)
 	hemi_ctl = Control.new()
 	hemi_ctl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	hemi_ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hemi_ctl.size_flags_stretch_ratio = 1.6
 	hemi_ctl.custom_minimum_size = Vector2(120.0, 90.0)
 	hemi_ctl.clip_contents = true
 	hemi_ctl.draw.connect(draw_hemi)
@@ -39,7 +45,14 @@ func build_politics_windows() -> void:
 	hemi_ctl.mouse_exited.connect(func() -> void:
 		hemi_hover = -1
 		hemi_ctl.queue_redraw())
-	w.body.add_child(hemi_ctl)
+	hrow.add_child(hemi_ctl)
+	upper_ctl = Control.new()
+	upper_ctl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	upper_ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	upper_ctl.custom_minimum_size = Vector2(90.0, 80.0)
+	upper_ctl.clip_contents = true
+	upper_ctl.draw.connect(draw_upper)
+	hrow.add_child(upper_ctl)
 	upper_rt = make_rt(w.body)
 
 	w = new_window("parties", "Партии (нажмите на название)", 1, Rect2(0.0, 0.50, 0.28, 0.50))
@@ -164,6 +177,10 @@ func update_parliament() -> void:
 	pol_header.text = loc("Коалиция: %d из %d (%s). Оппозиция: %d.%s" % [gs, SEATS, status, SEATS - gs, imp])
 	pol_header.tooltip_text = "Яркие кружки с белым ободком — партии коалиции. Наведите на кружок или щёлкните, чтобы выбрать партию."
 	hemi_ctl.queue_redraw()
+	if upper_ctl != null:
+		upper_ctl.visible = upper_on()
+		upper_ctl.tooltip_text = upper_tip()
+		upper_ctl.queue_redraw()
 	if upper_rt != null:
 		# v50: в окне «Парламент» — обе палаты и глава государства
 		var lower := "[b]Нижняя палата[/b] — %d мест: у правительства %d, нужно для закона %d, для конституционного — %d." % [SEATS, gs, MAJORITY, SUPER]
@@ -363,3 +380,85 @@ func ministry_effect_text(m: int) -> String:
 
 
 # ---------- карта и регионы ----------
+
+
+# v52: верхняя палата полукругом, как нижняя: места по блокам, места коалиции — яркие с белым ободком,
+# смешанные блоки (несколько партий) — полосатые
+func draw_upper() -> void:
+	var c := upper_ctl
+	if c == null or not upper_on():
+		return
+	var w: float = c.size.x
+	var h: float = c.size.y
+	if w < 30.0 or h < 30.0:
+		return
+	var total: int = int(UPPER["total"])
+	if upper_lay_n != total:
+		upper_lay_n = total
+		var lay: Dictionary = ElectionView.hemi_layout(total)
+		upper_pos = lay["pts"]
+		upper_rad = float(lay["rad"])
+	var R: float = minf(w * 0.48, (h - 30.0) * 0.94)
+	var center := Vector2(w / 2.0, h - 30.0)
+	var dot: float = clampf(R * upper_rad, 1.4, 10.0)
+	var back := PackedVector2Array()
+	back.append(center)
+	for k in 49:
+		var ang: float = PI + PI * float(k) / 48.0
+		back.append(center + Vector2(cos(ang), sin(ang)) * R * 1.07)
+	c.draw_colored_polygon(back, Color(1, 1, 1, 0.035))
+	c.draw_arc(center, R * 1.07, PI, TAU, 64, Color(1, 1, 1, 0.10), 1.5)
+	# раскладка блоков по порядку партий в полукруге
+	var all_mode: bool = String(UPPER.get("mode", "")) == "all"
+	var blocs: Array = []
+	for bl in UPPER["blocs"]:
+		var ps: Array = bl[1]
+		var n_ok := 0
+		for p in ps:
+			if int(p) == 0 or in_coalition[int(p)]:
+				n_ok += 1
+		var gov: bool = (n_ok == ps.size()) if all_mode else (n_ok * 2 >= ps.size())
+		var ordk: int = HEMI_ORDER.find(int(ps[0])) if ps.size() > 0 else 99
+		blocs.append([ordk if ordk >= 0 else 98, int(bl[0]), ps, gov])
+	blocs.sort_custom(func(a, b): return int(a[0]) < int(b[0]))
+	var seq: Array = []
+	for b in blocs:
+		for k in int(b[1]):
+			seq.append([b[2], b[3], k])
+	var yes := 0
+	for i in upper_pos.size():
+		if i >= seq.size():
+			break
+		var a: float = upper_pos[i][0]
+		var rr: float = upper_pos[i][1]
+		var pos := center + Vector2(cos(a), -sin(a)) * (R * rr)
+		var ps2: Array = seq[i][0]
+		var gov2: bool = seq[i][1]
+		var pc: Color = PARTY_COLORS[int(ps2[0])] if ps2.size() > 0 else Color.GRAY
+		if ps2.size() > 1:
+			pc = PARTY_COLORS[int(ps2[int(seq[i][2]) % ps2.size()])]
+		c.draw_circle(pos, dot, pc if gov2 else pc.darkened(0.45))
+		if gov2:
+			c.draw_arc(pos, dot, 0.0, TAU, 10, Color(1, 1, 1, 0.75), 1.0, true)
+			yes += 1
+	var f: Font = c.get_theme_default_font()
+	var need: int = total / 2 + 1
+	var col: Color = Color(0.45, 0.85, 0.55) if yes >= need else Color(0.95, 0.55, 0.45)
+	c.draw_string(f, Vector2(0.0, center.y - 4.0), "%d / %d" % [yes, total], HORIZONTAL_ALIGNMENT_CENTER, w, 14, col)
+	var nm: String = String(UPPER.get("name", "Верхняя палата"))
+	c.draw_string(f, Vector2(0.0, h - 14.0), nm, HORIZONTAL_ALIGNMENT_CENTER, w, 11, Color(0.80, 0.83, 0.90))
+	c.draw_string(f, Vector2(0.0, h - 2.0), "нужно %d" % need, HORIZONTAL_ALIGNMENT_CENTER, w, 10, Color(0.62, 0.66, 0.75))
+
+
+func upper_tip() -> String:
+	if not upper_on():
+		return ""
+	var per := {}
+	for bl in UPPER["blocs"]:
+		var ps: Array = bl[1]
+		var key: String = party_abbr(int(ps[0])) if ps.size() == 1 else "смешанные блоки"
+		per[key] = int(per.get(key, 0)) + int(bl[0])
+	var parts: PackedStringArray = []
+	for k in per:
+		parts.append("%s — %d" % [k, int(per[k])])
+	return "%s: %s. Яркие места с белым ободком — у вашей коалиции." % [String(UPPER["name"]), ", ".join(parts)]

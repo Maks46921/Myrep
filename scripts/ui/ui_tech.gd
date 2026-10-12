@@ -238,18 +238,22 @@ func on_tech_filter(k: int) -> void:
 
 
 func on_tech_weight(b: int, d: int) -> void:
+	if pl_deny():
+		return
 	tech_set_weight(b, d)
 
 
 func on_tech_auto(on: bool) -> void:
-	if tech.is_empty():
+	if tech.is_empty() or pl_deny():
+		refresh()
 		return
 	tech["auto"] = on
 	refresh()
 
 
 func on_tech_ai_all(on: bool) -> void:
-	if tech.is_empty():
+	if tech.is_empty() or pl_deny():
+		refresh()
 		return
 	tech["ai_all"] = on
 	refresh()
@@ -262,7 +266,7 @@ func on_tech_hover(id: String) -> void:
 
 func on_tech_pick(id: String) -> void:
 	var d := tech_def(id)
-	if d.is_empty() or game_over:
+	if d.is_empty() or game_over or pl_deny():
 		return
 	var b: int = int(d["b"])
 	if String(tech["cur"][b]) == id:
@@ -280,6 +284,8 @@ func on_tech_pick(id: String) -> void:
 
 
 func on_tech_build(id: String) -> void:
+	if pl_deny():
+		return
 	tech_build(id)
 
 

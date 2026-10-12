@@ -2,12 +2,13 @@
 extends Control
 
 const Ico := preload("res://scripts/classes/ico.gd")
+const Flags := preload("res://scripts/classes/flags.gd")
 
 signal picked(cc: String)
 var rows: Array = []    # [cc, имя, out, in, leverage, relations, tariff, ret, selected]
 var vmax := 10.0
 const RH := 24.0
-const NW := 118.0
+const NW := 176.0
 
 func _init() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -32,7 +33,12 @@ func _draw() -> void:
 	for r in rows:
 		if bool(r[8]):
 			draw_rect(Rect2(0.0, y, size.x, RH - 2.0), Color(0.36, 0.55, 0.94, 0.22))
-		draw_string(f, Vector2(4.0, y + 16.0), String(r[1]), HORIZONTAL_ALIGNMENT_LEFT, NW - 8.0, 12, Color(0.88, 0.9, 0.96))
+		# v52: флаг страны сразу после названия
+		var nm: String = String(r[1])
+		var tw: float = minf(f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x, NW - 42.0)
+		draw_string(f, Vector2(4.0, y + 16.0), nm, HORIZONTAL_ALIGNMENT_LEFT, NW - 42.0, 12, Color(0.88, 0.9, 0.96))
+		if Flags.has(String(r[0])):
+			Flags.draw(self, String(r[0]), Rect2(8.0 + tw, y + 5.0, 18.0, 12.0))
 		var wo: float = half * clampf(float(r[2]) / vmax, 0.0, 1.0)
 		var wi: float = half * clampf(float(r[3]) / vmax, 0.0, 1.0)
 		draw_rect(Rect2(mid - wo, y + 4.0, wo, RH - 10.0), Color(0.92, 0.42, 0.38))
