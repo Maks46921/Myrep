@@ -4,12 +4,8 @@ extends "res://scripts/logic/elections.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
-func coal_members() -> Array:
-	return []
-
-
-func coal_share(p: int) -> float:
-	return 0.0
+func council_expel_vote(p: int) -> Dictionary:
+	return {}
 
 
 func council_invite_vote(p: int) -> Dictionary:
@@ -18,10 +14,6 @@ func council_invite_vote(p: int) -> Dictionary:
 
 func council_min_vote(m: int, p: int, old: int) -> Dictionary:
 	return {}
-
-
-func council_on() -> bool:
-	return false
 
 
 func end_game(msg: String) -> void:
@@ -161,6 +153,8 @@ func auto_floor() -> int:
 	for d in POLICY:
 		var key: String = d["key"]
 		if String(d["kind"]) != "spend":
+			continue
+		if not auto_floor_on and not floor_keys.has(key):
 			continue
 		var share: float = minf(float(d["max"]), floor_share(key) + 0.005)
 		share = lock_allowed_share(key, share)
@@ -349,6 +343,7 @@ func select_party(p: int) -> void:
 
 
 func do_concession(p: int) -> void:
+	if pl_deny(): return
 	if game_over or not in_coalition[p] or capital < 12.0:
 		return
 	capital -= 12.0
@@ -389,6 +384,7 @@ func fulfill_demands(p: int) -> String:
 
 
 func fulfill_party_demands(p: int) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var txt := fulfill_demands(p)
@@ -433,7 +429,7 @@ func form_government(verbose: bool) -> bool:
 
 func check_government() -> void:
 	check_commitments()
-	if auto_floor_on:
+	if auto_floor_on or not floor_keys.is_empty():
 		auto_floor()
 	var members := 0
 	var sum_sat := 0.0
@@ -520,9 +516,15 @@ func resolve_no_confidence() -> void:
 
 
 func toggle_coalition(p: int) -> void:
+	if pl_deny(): return
 	if game_over or opp_mode or p == 0 or seats[p] == 0:
 		return
 	if in_coalition[p]:
+		var ev := council_expel_vote(p)
+		if not bool(ev["ok"]):
+			log_line("[color=%s]Совет коалиции против исключения «%s» (за — %.0f%% влияния; против: %s).[/color]" % [COL_BAD, PARTY_NAMES[p], float(ev["yes"]) * 100.0, ", ".join(ev["no"])])
+			refresh()
+			return
 		remove_member(p)
 		log_tag("КОАЛИЦИЯ", COL_WARN, "вы исключили «%s» из коалиции. Теперь у правительства %d мест. Её министерства вернулись вашей партии." % [PARTY_NAMES[p], gov_seats()])
 		recompute_mods()
@@ -614,6 +616,7 @@ func cabinet_items() -> Array:
 
 
 func assign_ministry(m: int, p: int) -> void:
+	if pl_deny(): return
 	if game_over or ministries[m] == p:
 		return
 	if p != 0 and not in_coalition[p]:
@@ -637,6 +640,7 @@ func assign_ministry(m: int, p: int) -> void:
 
 
 func replace_minister(m: int) -> void:
+	if pl_deny(): return
 	if game_over or capital < 5.0:
 		return
 	var p: int = ministries[m]
@@ -663,6 +667,7 @@ func replace_minister(m: int) -> void:
 
 
 func reshuffle_cabinet() -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	assign_ministries()
@@ -680,7 +685,7 @@ func sat_breakdown(p: int) -> Array:
 	var out: Array = []
 	out.append(["Настроение избирателей партии", float(tr["att_w"]) * party_attitude(p)])
 	out.append(["Бюджетные требования", float(tr["dem_w"]) * 30.0 * demand_score(p)])
-	out.append(["Министерства", float(tr["port_w"]) * 0.25 * port_score(p)])
+	out.append(["Министерства", float(tr["port_w"]) * 0.33 * port_score(p)])
 	if not law_demand_of(p).is_empty():
 		out.append(["Закон-условие", float(tr["law_met"]) if law_demand_met(p) else float(tr["law_unmet"])])
 	out.append(["Обещания, уступки и ваши законы", float(conc.get(p, 0.0))])
@@ -854,7 +859,8 @@ func coal_pick(kind: String, members: Array) -> Dictionary:
 
 
 func show_coal_event() -> bool:
-	if not current_event.is_empty():
+	# v50: требования партнёров по коалиции адресованы главе правительства, а не партии вне власти
+	if not current_event.is_empty() or opp_mode:
 		return false
 	var members: Array = []
 	for p in range(1, PARTY_NAMES.size()):

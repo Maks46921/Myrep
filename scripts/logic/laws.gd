@@ -16,14 +16,6 @@ func law_locked(tid: String) -> String:
 	return ""
 
 
-func log_line(s: String) -> void:
-	pass
-
-
-func log_tag(tag: String, col: String, text: String) -> void:
-	pass
-
-
 func national_shares(pres: bool, only: Array = []) -> Array[float]:
 	var r: Array[float] = []
 	return r
@@ -69,6 +61,7 @@ func sfx(name: String) -> void:
 
 
 func do_measure(id: String) -> void:
+	if pl_deny(): return
 	if game_over or int(cooldown.get(id, 0)) > 0:
 		return
 	var m := find_by_id(MEASURES, id)
@@ -79,6 +72,7 @@ func do_measure(id: String) -> void:
 
 
 func do_action(id: String) -> void:
+	if pl_deny(): return
 	if game_over or int(cooldown.get(id, 0)) > 0:
 		return
 	var a := find_by_id(ACTIONS, id)
@@ -451,6 +445,7 @@ func upper_text(up: Dictionary) -> String:
 
 
 func negotiate_variant(tid: String, idx: int) -> void:
+	if pl_deny("parl"): return
 	if game_over or idx == cur_idx(tid):
 		return
 	var sw := variant_swing(tid, idx)

@@ -658,6 +658,7 @@ var log_filter_btns: Array = []
 #  ПОМОЩНИК И АВТОПИЛОТ
 # ============================================================
 var auto_floor_on := false
+var floor_keys := {}            # v50: авто-подъём отдельных статей расходов
 var floor_check: CheckButton
 var ap := {"bal": false, "target": 0.5, "events": false, "style": 0, "repair": false, "build": false}
 

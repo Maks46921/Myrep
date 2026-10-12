@@ -4,7 +4,7 @@
 # Все окна плавающие: двигайте за заголовок, меняйте размер за правый/нижний край и угол,
 # двойной щелчок по заголовку (или кнопка «–») сворачивает окно.
 # Весь интерфейс создаётся кодом. Повесьте скрипт на корневой узел Control (Godot 4.x).
-extends "res://scripts/ui/ui_army.gd"
+extends "res://scripts/ui/ui_budget.gd"
 
 # ============================================================
 #  СТРАНЫ: применение пакета данных
@@ -117,9 +117,26 @@ func apply_markets() -> void:
 	apply_goods()
 
 
+# v50: исходные данные Германии (они живут в переменных скрипта и меняются в игре — при обмене партий, при загрузке другой страны);
+# меню берёт их отсюда, а не из текущей партии (раньше после игры за Volt в меню путались правящая партия и партия игрока)
+var de_base := {}
+const DE_BASE_KEYS := ["PARTY_NAMES", "PARTY_COLORS", "PARTY_LEADERS", "PARTY_DESC", "PARTY_TRAITS", "DE_START_SEATS", "DE_START_MIN",
+	"COALITION0", "REGIONS", "SEATS", "MARKETS_OVR"]
+
+
+func de_base_snap() -> void:
+	if not de_base.is_empty():
+		return
+	for k in DE_BASE_KEYS:
+		var v = get(k)
+		de_base[k] = v.duplicate(true) if (v is Array or v is Dictionary) else v
+
+
 func cdat(code: String, key: String):
 	var d: Dictionary = CDATA.get(code, {})
-	return d[key] if d.has(key) else get(key)
+	if d.has(key):
+		return d[key]
+	return de_base[key] if de_base.has(key) else get(key)
 
 
 func diff_color(d: int) -> Color:
@@ -807,6 +824,7 @@ func choose_country(code: String, party: int = 0) -> void:
 
 
 func _ready() -> void:
+	de_base_snap()
 	opts_from_args()
 	var sd := seed_arg()
 	if sd < 0 and int(game_opts["seed"]) > 0:
@@ -816,6 +834,8 @@ func _ready() -> void:
 	else:
 		randomize()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings_load()
+	settings_apply_static()
 	theme = make_theme()
 	audio_init()
 	var win := get_window()
@@ -862,6 +882,9 @@ func _ready() -> void:
 	show_desk(2)
 	refresh()
 	call_deferred("layout_windows")
+	# v50: стартовое окно перед игрой
+	if not bool(game_opts.get("observer", false)):
+		call_deferred("show_start_window")
 
 
 # v35: пробел — пауза / пуск времени (если фокус не в поле ввода и не открыто меню стран)
@@ -870,6 +893,8 @@ func _input(e: InputEvent) -> void:
 		return
 	var ke := e as InputEventKey
 	if not ke.pressed or ke.echo or ke.keycode != KEY_SPACE or election_open or has_node("CountryMenu"):
+		return
+	if start_ov != null or (st_ov != null and st_ov.visible):
 		return
 	if play_btn == null or game_over:
 		return

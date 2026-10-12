@@ -9,6 +9,17 @@ const SEA_UV := 260.0
 static var _land: ImageTexture = null
 static var _sea: ImageTexture = null
 static var _ctx: ImageTexture = null
+# v50: стиль моря на карте (настройки): 0 — ночное, 1 — атлас, 2 — графит
+static var sea_style := 0
+const SEA_STYLES := [[Color(0.030, 0.058, 0.105), Color(0.058, 0.110, 0.180)], [Color(0.060, 0.150, 0.235), Color(0.110, 0.255, 0.345)],
+	[Color(0.070, 0.078, 0.086), Color(0.120, 0.132, 0.142)]]
+
+
+static func set_sea_style(k: int) -> void:
+	k = clampi(k, 0, SEA_STYLES.size() - 1)
+	if k != sea_style:
+		sea_style = k
+		_sea = null
 
 
 static func _noise_img(seed: int, freq: float, oct: int) -> Image:
@@ -58,8 +69,8 @@ static func sea_tex() -> ImageTexture:
 	var d := _lum(_noise_img(31, 0.012, 4))
 	var r := _lum(_noise_img(77, 0.06, 3))
 	var img := Image.create(TEX_N, TEX_N, false, Image.FORMAT_RGBA8)
-	var deep := Color(0.030, 0.058, 0.105)
-	var shal := Color(0.058, 0.110, 0.180)
+	var deep: Color = SEA_STYLES[sea_style][0]
+	var shal: Color = SEA_STYLES[sea_style][1]
 	for y in TEX_N:
 		for x in TEX_N:
 			var t: float = clampf(d[y * TEX_N + x] * 1.1 - 0.05, 0.0, 1.0)

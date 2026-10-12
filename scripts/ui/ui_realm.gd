@@ -15,7 +15,7 @@ const TUT_STEPS := [
 	"«Кризисы»: протесты, мятежи и перевороты. Раннее вмешательство дешевле: диалог, инвестиции, автономия. Там же — мирные конференции и признание новых государств.",
 	"Новое в окнах разделов: «Экономика → Влияние и зависимость» — союзы (ЕС, НАТО), договоры, разведка; «Товары и цены» — энергия и история показателей; «Политика → Религия и миграция» — старение и пенсии; «Законы» — коррупция и СМИ; «Карта → Армия и война» — армия как политический игрок.",
 	"Политический капитал — валюта решений. Он копится со временем и тратится на законы, реформы и переговоры. Не тратьте весь запас: он нужен на кризисы.",
-	"Игру можно сохранить в «Бюджет → Советник и автопилот». Раз в год делается автоснимок, поэтому ошибку можно откатить на год назад. Удачи!",
+	"Игру можно сохранить в настройках (кнопка ⚙ в правом верхнем углу). Раз в год делается автоснимок, поэтому ошибку можно откатить на год назад. Удачи!",
 ]
 
 var rm_boxes: Dictionary = {}   # ключ -> {"box": Control, "fn": Callable, "stamp": String}
@@ -65,8 +65,7 @@ func build_realm_windows() -> void:
 		rm_attach("parl", (wins["actions"] as FloatWindow).body, "Парламент и президент", rm_b_parl)
 	if wins.has("fw_bulk"):
 		rm_attach("eq", (wins["fw_bulk"] as FloatWindow).body, "Выравнивание регионов", rm_b_eq)
-	if wins.has("autopilot"):
-		rm_attach("game", (wins["autopilot"] as FloatWindow).body, "Сохранения, откат и справка", rm_b_game)
+	# v50: сохранения, откат и справка перенесены в настройки (⚙)
 	build_tutorial()
 
 
@@ -134,10 +133,15 @@ func rm_b_blocs(box: Control) -> void:
 	rm_acts_box(box, rl_acts("blocs"), rm_do_rl)
 
 
+var rm_partner := ""   # v50: партнёр, выбранный прямо в окне договоров
+
+
 func rm_dip_target() -> String:
 	var cs: Array = dx_countries()
 	if ex_sel != "" and ex_sel in cs:
 		return ex_sel
+	if rm_partner != "" and rm_partner in cs:
+		return rm_partner
 	return String(tech_nb()[0]) if tech_nb().size() > 0 else String(cs[0])
 
 
@@ -152,7 +156,26 @@ func rm_b_treaty(box: Control) -> void:
 	var pj := []
 	for p in dx["proj"]:
 		pj.append("%s (ещё %d мес.)" % [dx_name(String(p["cc"])), int(p["left"])])
-	rm_text(box, "Партнёр: [b]%s[/b] (выбирается в окне «Партнёры и зависимость»)\nОтношения [b]%.0f[/b] · договоры: %s\nПроекты: %s" % [dx_name(c), fed_rel(c), ", ".join(names) if names.size() > 0 else "нет", ", ".join(pj) if pj.size() > 0 else "нет"])
+	# v50: список стран прямо в окне (раньше партнёр не переключался, если страна из окна «Партнёры» не участвует в договорах)
+	var cs: Array = dx_countries()
+	var ob := OptionButton.new()
+	ob.focus_mode = Control.FOCUS_NONE
+	ob.fit_to_longest_item = false
+	ob.clip_text = true
+	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for i in cs.size():
+		ob.add_item(dx_name(String(cs[i])))
+		if String(cs[i]) == c:
+			ob.select(i)
+	ob.item_selected.connect(func(i: int) -> void:
+		rm_partner = String(cs[i])
+		ex_sel = rm_partner
+		rm_dirty_all()
+		refresh())
+	box.add_child(ob)
+	if ex_sel != "" and not (ex_sel in cs):
+		rm_text(box, "[color=%s]С %s договоры и научные проекты не заключаются — выберите страну из списка.[/color]" % [COL_WARN, dx_name(ex_sel)])
+	rm_text(box, "Партнёр: [b]%s[/b]\nОтношения [b]%.0f[/b] · договоры: %s\nПроекты: %s" % [dx_name(c), fed_rel(c), ", ".join(names) if names.size() > 0 else "нет", ", ".join(pj) if pj.size() > 0 else "нет"])
 	rm_acts_box(box, dx_treaty_acts(c), func(id: String, arg: String) -> void: dx_treaty_do(id, arg if arg != "" else c))
 
 

@@ -16,6 +16,14 @@ func auto_resolve_event() -> void:
 	pass
 
 
+func cap_swap(p: int) -> float:
+	return 0.0
+
+
+func cap_unswap(p: int, old: float) -> void:
+	pass
+
+
 func council_event(pick: int) -> int:
 	return 0
 
@@ -434,7 +442,22 @@ func ev_context_text() -> String:
 	return "[font_size=13]%s[/font_size]" % cs
 
 
+# v50: какие события касаются самой партии игрока, даже когда она вне власти (предложение войти в правительство, предвыборная кампания)
+func ev_for_player(ev: Dictionary) -> bool:
+	return String(ev.get("special", "")) == "offer" or String(ev.get("kind", "")) == "campaign"
+
+
 func present_event() -> void:
+	# v50: вне власти решения по государственным событиям принимает правительство (своим капиталом)
+	if opp_mode and not observer and not ev_for_player(current_event):
+		var gi := 0 if String(current_event.get("special", "")) == "crisis" else auto_event_pick(current_event)
+		var gov_pm: int = int(opp_gov["pm"]) if not opp_gov.is_empty() else -1
+		var old_cap := cap_swap(gov_pm) if gov_pm >= 0 else 0.0
+		log_tag("ПРАВИТЕЛЬСТВО", COL_TEAL, "%s — решение правительства: «%s»." % [coal_text(String(current_event["t"])).replace("{r}", String(REGIONS[event_region]["name"]) if event_region >= 0 else "").left(160), coal_text(String(current_event["o"][gi]["l"]))])
+		choose(gi)
+		if gov_pm >= 0:
+			cap_unswap(gov_pm, old_cap)
+		return
 	if observer:
 		# v35: в режиме наблюдателя решения принимает ИИ
 		var ai_i := 0 if String(current_event.get("special", "")) == "crisis" else auto_event_pick(current_event)
@@ -505,9 +528,9 @@ func present_event() -> void:
 		if sc0 > bsc and (spec != "" or ev_opt_block(opts0[k0]) == ""):
 			bsc = sc0
 			best = k0
+	# v50: рекомендации советника по выбору варианта убраны (по просьбе игрока): решать нужно самому, по последствиям
 	var adv := ""
-	if best >= 0 and opts0.size() > 1 and spec != "nocon":
-		adv = "[color=%s]Советник рекомендует:[/color] вариант [b]%d[/b] — лучший баланс плюсов и минусов для страны." % [COL_TEAL, best + 1]
+	best = -1
 	if not hh.is_empty():
 		var po: int = int(hh.get("o", 0))
 		if po < opts0.size():
@@ -544,10 +567,6 @@ func present_event() -> void:
 			if blk != "":
 				extra += "\n[color=%s]✖ Недоступно: %s[/color]" % [COL_BAD, blk]
 			var stars := ""
-			if opts.size() > 1 and i < scores.size() and spec != "nocon":
-				var span: float = maxf(0.001, bsc - smin)
-				var n_st: int = clampi(1 + int(round(4.0 * (float(scores[i]) - smin) / span)), 1, 5) if bsc > smin else 3
-				stars = "[color=%s]%s[/color][color=%s]%s[/color]%s   " % [Color(1.0, 0.82, 0.35).to_html(false), "★".repeat(n_st), COL_DIM, "☆".repeat(5 - n_st), ("  [color=%s][b]РЕКОМЕНДУЕМ[/b][/color]" % COL_TEAL) if i == best else ""]
 			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", fx_pros_cons(o["fx"], event_region), extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
 			var card: PanelContainer = event_boxes[i]
 			var bcol: Color = C_TEAL if i == best else kc.darkened(0.45)

@@ -184,6 +184,7 @@ func dip_fx_text(dd: Dictionary) -> String:
 
 
 func dip_do_action(id: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var a: Dictionary = find_by_id(DIP_ACTIONS, id)
@@ -206,6 +207,7 @@ func dip_track_cost(c: String, tid: String) -> Array:
 
 
 func dip_upgrade(tid: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var L: int = int(dip[dip_sel]["lv"][tid])
@@ -225,6 +227,7 @@ func dip_upgrade(tid: String) -> void:
 
 
 func dip_downgrade(tid: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var L: int = int(dip[dip_sel]["lv"][tid])

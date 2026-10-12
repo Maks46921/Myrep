@@ -1325,6 +1325,14 @@ func rv_selfcoup() -> bool:
 	var nat: Dictionary = rv["nat"]
 	if randf() < p:
 		rv_log("[b]Самопереворот удался[/b] (шанс был %.0f%%): парламент распущен, армия на вашей стороне." % (p * 100.0), COL_BAD)
+		# v50: младший партнёр по коалиции, захватив власть, отстраняет главу правительства и его партию
+		var jn: Dictionary = junior_info()
+		if bool(jn["junior"]):
+			var old_pm: int = int(jn["pm"])
+			for q in range(1, PARTY_NAMES.size()):
+				if in_coalition[q]:
+					remove_member(q)
+			rv_log("Партия «%s» отстранена: вы единолично возглавили правительство." % PARTY_NAMES[old_pm], COL_BAD)
 		rv_event_regime_choice()
 	else:
 		nat["rev"] = rv_clamp(float(nat["rev"]) + 25.0)

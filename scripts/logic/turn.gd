@@ -500,6 +500,13 @@ func take_month_snap() -> void:
 func next_turn() -> void:
 	if game_over or not current_event.is_empty() or election_open:
 		return
+	# v50: неутверждённый черновик бюджета в месячный расчёт не входит
+	var bud_h := bud_hold_begin()
+	next_turn_core()
+	bud_hold_end(bud_h)
+
+
+func next_turn_core() -> void:
 	recompute_mods()
 	top_prev = {"appr": approval(), "infl": inflation, "unemp": unemployment, "debt": debt / gdp * 100.0}
 	council_budget()

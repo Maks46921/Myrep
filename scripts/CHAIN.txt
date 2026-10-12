@@ -55,4 +55,6 @@ scripts/ui/ui_opp.gd
 scripts/ui/ui_fleet.gd
 scripts/ui/ui_war.gd
 scripts/ui/ui_army.gd
+scripts/ui/ui_settings.gd
+scripts/ui/ui_budget.gd
 main.gd

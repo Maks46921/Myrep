@@ -150,11 +150,26 @@ func on_pact_do(kind: String) -> void:
 	refresh()
 
 
+# v50: что партия может и чего не может вне власти
+func powers_text() -> String:
+	var parl := pl_parl()
+	var yes: PackedStringArray = ["критиковать правительство и проводить кампании", "договариваться с партиями: встречи, похвала, помощь, предвыборный блок",
+		"финансировать союзные партии за рубежом (окно «Влияние и зависимость»)"]
+	var no: PackedStringArray = ["бюджет, налоги и разовые меры", "министры и кабинет", "дипломатия, договоры, санкции и армия", "автопилот, стройка и ремонт"]
+	if parl:
+		yes.append("вносить законопроекты и поправки, голосовать в парламенте")
+		yes.append("соглашения о терпимости и о голосах")
+		yes.append("вотум недоверия и сбор альтернативного большинства")
+	else:
+		no.append("законопроекты и поправки (нет мест в парламенте)")
+	return "[b]Ваши полномочия[/b]\n[color=%s]✔ %s[/color]\n[color=%s]✖ %s[/color]" % [COL_GOOD, "\n✔ ".join(yes), COL_DIM, "\n✖ ".join(no)]
+
+
 func update_opp_windows() -> void:
 	if opp_rt == null or prel.is_empty():
 		return
 	if opp_mode:
-		opp_rt.text = loc(opp_status_text() + "\n\n" + ideology_text())
+		opp_rt.text = loc(opp_status_text() + "\n\n" + powers_text() + "\n\n" + ideology_text())
 	else:
 		opp_rt.text = loc("[b]Вы в правительстве.[/b] Если вы проиграете выборы или не сможете собрать большинство, игра продолжится в оппозиции.\n\n" + ideology_text())
 	for a in OPP_ACTS:

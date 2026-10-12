@@ -17,6 +17,10 @@ var _btn: Button
 var _grips: Array = []
 var _content: Control
 var _drag := false
+var lock_why := ""                        # v50: почему окно недоступно ("" — доступно)
+var _lock_bar: PanelContainer = null
+var _lock_lbl: Label = null
+var _lock_cover: Control = null
 var _drag_off := Vector2.ZERO
 var _rmode := 0
 var _rs_size := Vector2.ZERO
@@ -158,6 +162,63 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 			gr.add_child(mark)
 		gr.gui_input.connect(_grip_input.bind(mode))
 		_grips.append(gr)
+
+# v50: недоступное окно затемняется, сверху — причина; содержимое можно читать и прокручивать, но не нажимать
+func set_locked(why: String) -> void:
+	if why == lock_why:
+		return
+	lock_why = why
+	if _lock_bar == null:
+		_lock_bar = PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.20, 0.13, 0.10, 0.96)
+		sb.border_color = Color(0.93, 0.62, 0.33, 0.85)
+		sb.border_width_left = 3
+		sb.set_corner_radius_all(5)
+		sb.content_margin_left = 8.0
+		sb.content_margin_right = 6.0
+		sb.content_margin_top = 3.0
+		sb.content_margin_bottom = 3.0
+		_lock_bar.add_theme_stylebox_override("panel", sb)
+		_lock_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_lock_lbl = Label.new()
+		_lock_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_lock_lbl.add_theme_font_size_override("font_size", 12)
+		_lock_lbl.add_theme_color_override("font_color", Color(1.0, 0.82, 0.62))
+		_lock_bar.add_child(_lock_lbl)
+		_vb.add_child(_lock_bar)
+		_vb.move_child(_lock_bar, 1)
+		_lock_cover = Control.new()
+		_lock_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+		_lock_cover.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
+		_lock_cover.gui_input.connect(_cover_input)
+		add_child(_lock_cover)
+		_content.resized.connect(_place_cover)
+		_content.item_rect_changed.connect(_place_cover)
+	_lock_lbl.text = "✖  " + why
+	_lock_bar.visible = why != ""
+	_lock_cover.visible = why != ""
+	_lock_cover.tooltip_text = why
+	_content.modulate = Color(0.62, 0.62, 0.66, 0.78) if why != "" else Color(1, 1, 1, 1)
+	_place_cover()
+
+
+func _place_cover() -> void:
+	if _lock_cover == null or not _lock_cover.visible:
+		return
+	_lock_cover.position = _content.position + _vb.position
+	_lock_cover.size = _content.size if not collapsed else Vector2.ZERO
+
+
+func _cover_input(ev: InputEvent) -> void:
+	var mb := ev as InputEventMouseButton
+	if mb == null or not mb.pressed:
+		return
+	move_to_front()
+	var sc := _content as ScrollContainer
+	if sc != null and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		sc.scroll_vertical += 48 * (1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1)
+
 
 func set_closable(on: bool) -> void:
 	closable = on

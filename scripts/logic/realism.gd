@@ -650,6 +650,7 @@ func rl_acts(page: String) -> Array:
 
 
 func rl_do(id: String) -> bool:
+	if pl_deny(): return false
 	if not rl_on() or observer or not current_event.is_empty():
 		return false
 	var found: Dictionary = {}

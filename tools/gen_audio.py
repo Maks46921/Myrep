@@ -131,6 +131,60 @@ def click():
     return np.stack([x, x], 1)
 
 
+def arp_track(chords, bar=6.0, cycles=3, step=0.5, amp=0.045):
+    """v50: «Минимализм» — арпеджио колокольчиками поверх тихой подложки."""
+    total = bar * len(chords) * cycles
+    n = int((total + 4.0) * SR)
+    L = np.zeros(n)
+    R = np.zeros(n)
+    for c in range(cycles):
+        for i, ch in enumerate(chords):
+            t0 = (c * len(chords) + i) * bar
+            s = int(t0 * SR)
+            p = pad_note(midi(ch[0] - 12), bar + 1.5, 0.05)
+            e = min(n, s + len(p))
+            L[s:e] += p[:e - s] * 0.5
+            R[s:e] += p[:e - s] * 0.5
+            k = 0
+            t = 0.0
+            while t < bar - 0.1:
+                note = ch[(k * 2 + c) % len(ch)] + (12 if k % 5 == 3 else 0)
+                b = bell(midi(note), 2.2, amp * (0.8 + 0.2 * rng.uniform()))
+                s2 = int((t0 + t) * SR)
+                e2 = min(n, s2 + len(b))
+                pan = 0.3 + 0.4 * ((k % 4) / 3.0)
+                L[s2:e2] += b[:e2 - s2] * (1 - pan)
+                R[s2:e2] += b[:e2 - s2] * pan
+                k += 1
+                t += step
+    L = reverb(lowpass(L, 4200), 2.2, 0.28)
+    R = reverb(lowpass(R, 4200), 2.2, 0.28)
+    st = np.stack([L, R], 1)
+    st *= env_adsr(n, 2.0, 4.0)[:, None]
+    st /= max(1e-6, np.max(np.abs(st))) / 0.55
+    return st
+
+
+def click_soft():
+    """v50: мягкий «деревянный» щелчок."""
+    n = int(0.07 * SR)
+    t = np.arange(n) / SR
+    x = np.sin(2 * np.pi * 620 * t) * np.exp(-t / 0.012) + 0.5 * np.sin(2 * np.pi * 1240 * t) * np.exp(-t / 0.006)
+    x = lowpass(x, 2600)
+    x /= np.max(np.abs(x)) / 0.22
+    return np.stack([x, x], 1)
+
+
+def click_key():
+    """v50: короткий «клавишный» щелчок."""
+    n = int(0.05 * SR)
+    t = np.arange(n) / SR
+    x = rng.standard_normal(n) * np.exp(-t / 0.0045) + 0.4 * np.sin(2 * np.pi * 3100 * t) * np.exp(-t / 0.004)
+    x = lowpass(x, 7000)
+    x /= np.max(np.abs(x)) / 0.2
+    return np.stack([x, x], 1)
+
+
 def write_ogg(st, path, q=3):
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
         tmp = tf.name
@@ -166,5 +220,22 @@ def main():
     write_ogg(sfx_tone([midi(81)], 0.35, 0.18, 0.0), os.path.join(sd, "tick.ogg"), 4)
 
 
+def main_v50():
+    """v50: второй набор музыки («Минимализм», audio/music_b) и варианты щелчка кнопок."""
+    mb = os.path.join(ROOT, "audio/music_b")
+    sd = os.path.join(ROOT, "audio/sfx")
+    os.makedirs(mb, exist_ok=True)
+    print("Музыка (минимализм):")
+    write_ogg(arp_track([[57, 60, 64, 67], [53, 57, 60, 64], [48, 52, 55, 59], [55, 59, 62, 65]], 6.0, 3, 0.5), os.path.join(mb, "01_utro.ogg"))
+    write_ogg(arp_track([[50, 53, 57, 60], [46, 50, 53, 57], [43, 47, 50, 55], [45, 49, 52, 57]], 7.0, 3, 0.58), os.path.join(mb, "02_doklad.ogg"))
+    print("Звуки кнопок:")
+    write_ogg(click_soft(), os.path.join(sd, "click_soft.ogg"), 4)
+    write_ogg(click_key(), os.path.join(sd, "click_key.ogg"), 4)
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--v50" in sys.argv:
+        main_v50()
+    else:
+        main()

@@ -4,6 +4,10 @@ extends "res://scripts/ui/ui_map.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func on_cr_power(kind: String) -> void:
+	pass
+
+
 func select_neg_party(p: int) -> void:
 	pass
 
@@ -95,6 +99,12 @@ func build_politics_windows() -> void:
 			add_note(w.body, "%s%s Рискованно, но при высоком рейтинге можно усилить большинство." % [String(si["desc"]), (" Голосование: %s." % String(si["vote"])) if String(si["vote"]) != "" else ""])
 		else:
 			add_note(w.body, a["desc"])
+	# v50: захват власти, находясь у власти (самопереворот) — теперь и здесь, а не только в «Кризисах»
+	add_title(w.body, "Захват всей власти")
+	selfcoup_btn = make_button("Самопереворот: распустить парламент (12)", w.body)
+	selfcoup_btn.tooltip_text = "Режим указов: парламент распущен, армия на вашей стороне. Младший партнёр при успехе ещё и отстраняет главу правительства. Шанс зависит от силовиков, безопасности, демократии и протестов."
+	selfcoup_btn.pressed.connect(on_cr_power.bind("self"))
+	selfcoup_note = add_note(w.body, "", true)
 
 	w = new_window("party", "Партия: сведения", 1, Rect2(0.28, 0.0, 0.22, 1.0))
 	party_detail_rt = make_rt(w.body)
@@ -272,6 +282,7 @@ func update_party_detail() -> void:
 		t += "Это ваша партия. Она всегда голосует за ваши законы.\n"
 	else:
 		t += electorate_text(p) + "\n"
+		t += party_style_text(p) + "\n"
 		if can_govern(p):
 			if String(PARTY_TRAITS[p]["trait"]) != "":
 				t += "[b]Характер лидера: %s.[/b] %s\n" % [PARTY_TRAITS[p]["trait"], PARTY_TRAITS[p]["desc"]]

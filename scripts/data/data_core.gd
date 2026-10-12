@@ -77,14 +77,14 @@ const COL_DIM := "#98a1b8"
 
 const COL_FAINT_HEX := "#66708a"
 
-# Палитра интерфейса
-const C_BG := Color(0.051, 0.063, 0.090)
+# Палитра интерфейса (v50: фон, панели, рамки и акцент — переменные: их меняет тема в настройках)
+static var C_BG := Color(0.051, 0.063, 0.090)
 
-const C_PANEL := Color(0.090, 0.106, 0.149)
+static var C_PANEL := Color(0.090, 0.106, 0.149)
 
-const C_PANEL2 := Color(0.122, 0.141, 0.200)
+static var C_PANEL2 := Color(0.122, 0.141, 0.200)
 
-const C_BORDER := Color(0.169, 0.196, 0.282)
+static var C_BORDER := Color(0.169, 0.196, 0.282)
 
 const C_TEXT := Color(0.910, 0.922, 0.957)
 
@@ -92,7 +92,7 @@ const C_DIM := Color(0.596, 0.631, 0.722)
 
 const C_FAINT := Color(0.400, 0.439, 0.541)
 
-const C_ACCENT := Color(0.357, 0.553, 0.937)
+static var C_ACCENT := Color(0.357, 0.553, 0.937)
 
 const C_GOOD := Color(0.345, 0.784, 0.529)
 

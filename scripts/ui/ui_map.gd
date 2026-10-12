@@ -508,7 +508,7 @@ func map_cam_snap() -> void:
 
 # v49: плавная камера: экспоненциальное приближение к цели (масштаб — в логарифме, чтобы приближение шло равномерно)
 func map_cam_step(delta: float) -> void:
-	if map_ctl == null or not map_ctl.is_visible_in_tree():
+	if map_ctl == null or not map_ctl.is_visible_in_tree() or not bool(game_opts.get("anim", true)):
 		map_cam_snap()
 		return
 	var dz: float = map_zoom_t - map_zoom
@@ -794,7 +794,7 @@ func on_map_input(ev: InputEvent) -> void:
 
 
 func build_map_windows() -> void:
-	var w: FloatWindow = new_window("map", "Карта: слои и масштаб", 2, Rect2(0.0, 0.0, 0.25, 0.19))
+	var w: FloatWindow = new_window("map", "Карта: слои и масштаб", 2, Rect2(0.0, 0.0, 0.25, 0.23))
 	var hb := HBoxContainer.new()
 	w.body.add_child(hb)
 	var l := Label.new()
@@ -824,6 +824,27 @@ func build_map_windows() -> void:
 		map_reg_pick.add_item(String(r["name"]))
 	map_reg_pick.item_selected.connect(on_region_picked)
 	hb2.add_child(map_reg_pick)
+	# v50: быстрые кнопки окон, закрытых по умолчанию (окно АТЕ раньше было трудно найти)
+	var hb3 := HFlowContainer.new()
+	hb3.add_theme_constant_override("h_separation", 4)
+	w.body.add_child(hb3)
+	for it in [["adm", "АТЕ и границы", "Окно административной реформы: режим выделения АТЕ на карте, передача АТЕ между регионами, новые регионы."],
+			["regtable", "Сводка регионов", "Таблица всех регионов с сортировкой."], ["regact", "Трансферты", "Действия и трансферты для выбранного региона."]]:
+		var ob3 := Button.new()
+		ob3.theme_type_variation = "SmallButton"
+		ob3.text = String(it[1])
+		ob3.tooltip_text = String(it[2])
+		ob3.focus_mode = Control.FOCUS_NONE
+		var wid: String = String(it[0])
+		ob3.pressed.connect(func() -> void:
+			if not wins.has(wid):
+				return
+			var fw: FloatWindow = wins[wid]
+			fw.closed = not fw.closed
+			show_desk(current_desk)
+			if not fw.closed:
+				fw.move_to_front())
+		hb3.add_child(ob3)
 	map_ctl = Control.new()
 	map_ctl.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	map_ctl.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
@@ -887,7 +908,7 @@ func build_map_windows() -> void:
 	reg_grid = grid
 	fill_table_rows()
 
-	w = new_window("region", "Регион: сведения", 2, Rect2(0.0, 0.19, 0.25, 0.81))
+	w = new_window("region", "Регион: сведения", 2, Rect2(0.0, 0.23, 0.25, 0.77))
 	reg_info_rt = make_rt(w.body)
 	add_bar(w.body, "rb_loy", "Лояльность", false)
 	add_bar(w.body, "rb_unrest", "Недовольство", true)
@@ -2084,6 +2105,7 @@ func update_adm_ui() -> void:
 
 
 func on_adm_move() -> void:
+	if pl_deny(): return
 	var o: OptionButton = adm_ui["dst"]
 	if o.selected < 0:
 		return
@@ -2094,6 +2116,7 @@ func on_adm_move() -> void:
 
 
 func on_adm_create() -> void:
+	if pl_deny(): return
 	var r := adm_create(ate_sel.duplicate(), String((adm_ui["name"] as LineEdit).text))
 	if bool(r["done"]):
 		(adm_ui["name"] as LineEdit).text = ""
@@ -2103,6 +2126,7 @@ func on_adm_create() -> void:
 
 
 func on_adm_delete() -> void:
+	if pl_deny(): return
 	var om: OptionButton = adm_ui["merge_to"]
 	if om.selected < 0:
 		return
@@ -2113,6 +2137,7 @@ func on_adm_delete() -> void:
 
 
 func on_adm_buy() -> void:
+	if pl_deny(): return
 	var ob: OptionButton = adm_ui["bdst"]
 	var bd: int = ob.get_item_id(ob.selected) if ob.selected >= 0 else 1000
 	var mult: float = [1.0, 1.5, 2.0][maxi(0, (adm_ui["bmult"] as OptionButton).selected)]

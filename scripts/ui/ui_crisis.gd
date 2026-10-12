@@ -38,6 +38,10 @@ func on_crisis_toggle(on: bool) -> void:
 	set_crisis_open(on)
 
 
+func crisis_is_open() -> bool:
+	return cr_ov != null and cr_ov.visible
+
+
 func set_crisis_open(on: bool) -> void:
 	if cr_ov == null:
 		return
@@ -47,9 +51,13 @@ func set_crisis_open(on: bool) -> void:
 		sfx("click")
 	if on and tech_ov != null and tech_ov.visible:
 		set_tech_open(false)
+	var was: bool = cr_ov.visible
 	cr_ov.visible = on
+	if on and not was:
+		win_fade_in(cr_ov, 0.18)
 	if cr_btn != null:
 		cr_btn.set_pressed_no_signal(on)
+	overlay_tabs_sync()
 	if on:
 		refresh()
 

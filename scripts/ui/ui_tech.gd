@@ -34,6 +34,10 @@ func make_tech_button(parent: Control) -> void:
 	parent.add_child(tech_btn)
 
 
+func tech_is_open() -> bool:
+	return tech_ov != null and tech_ov.visible
+
+
 func on_tech_toggle(on: bool) -> void:
 	set_tech_open(on)
 
@@ -45,9 +49,15 @@ func set_tech_open(on: bool) -> void:
 		on = false
 	if on != tech_ov.visible:
 		sfx("click")
+	if on and crisis_is_open():
+		set_crisis_open(false)
+	var was: bool = tech_ov.visible
 	tech_ov.visible = on
+	if on and not was:
+		win_fade_in(tech_ov, 0.18)
 	if tech_btn != null:
 		tech_btn.set_pressed_no_signal(on)
+	overlay_tabs_sync()
 	if on:
 		tw_sig = ""
 		refresh()
@@ -350,9 +360,35 @@ func tech_info_update() -> void:
 	tw_info_rt.text = t
 
 
+# v50: ветки, где сейчас ничего не изучается, хотя есть что начать (очки уходят впустую)
+func tech_idle_branches() -> int:
+	var n := 0
+	for b in TECH_NB:
+		if String(tech["cur"][b]) != "" or int(tech["w"][b]) <= 0:
+			continue
+		if tech_ai_pick(b, true) != "":
+			n += 1
+	return n
+
+
+func tech_tab_mark() -> void:
+	if tech_btn == null or tech.is_empty():
+		return
+	var idle := tech_idle_branches()
+	if idle > 0:
+		color_button(tech_btn, Color(1.0, 0.42, 0.40))
+		tech_btn.self_modulate = Color(1.0, 0.62, 0.60)
+		tech_btn.tooltip_text = "Внимание: в %d ветк. ничего не изучается — выберите технологию (или включите автовыбор в окне технологий)." % idle
+	else:
+		color_button(tech_btn, C_TEXT)
+		tech_btn.self_modulate = Color(1, 1, 1)
+		tech_btn.tooltip_text = "Окно технологий: схема исследований, сооружения, пассивное изучение от соседей."
+
+
 func update_tech_windows() -> void:
 	if tech_ov == null or tech.is_empty():
 		return
+	tech_tab_mark()
 	if tech_ov.visible and not current_event.is_empty():
 		set_tech_open(false)
 	if not tech_ov.visible:

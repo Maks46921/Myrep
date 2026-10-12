@@ -1,6 +1,16 @@
 # Интерфейс: «Религия и миграция» (desk 11) и «Влияние и зависимость» (desk 10).
 extends "res://scripts/ui/ui_fed.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func rm_dirty_all() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 var sw_rel_rt: RichTextLabel
 var sw_pol_rt: RichTextLabel
 var sw_mig_rt: RichTextLabel
@@ -123,7 +133,9 @@ func on_soc_sel(d: int) -> void:
 	soc_set_sel(d)
 func on_ex_meta(meta: Variant) -> void:
 	ex_sel = String(meta)
+	rm_dirty_all()
 	update_soc_windows()
+	update_realm_windows()
 func on_ex_deal(d: int) -> void:
 	if ex_sel != "": ex_deal_set(ex_sel, d)
 func on_ex_tar(d: int) -> void:

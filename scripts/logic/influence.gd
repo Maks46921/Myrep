@@ -256,6 +256,7 @@ func ex_cap(cost: float) -> bool:
 
 
 func ex_deal_set(c: String, dir: int) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	var v: int = int(p["deal"]) + dir
 	if v < 0 or v > 3 or ex_cd_get(c, "deal") > 0:
@@ -276,6 +277,7 @@ func ex_deal_set(c: String, dir: int) -> bool:
 
 
 func ex_tariff_set(c: String, dir: int) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	var v: int = int(p["tar"]) + dir
 	if v < 0 or v > 3 or ex_cd_get(c, "tar") > 0:
@@ -297,6 +299,7 @@ func ex_tariff_set(c: String, dir: int) -> bool:
 
 
 func ex_aid_give(c: String) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	if ex_cd_get(c, "aid") > 0:
 		return false
@@ -319,6 +322,7 @@ func ex_dbuy_amt(c: String) -> float:
 
 
 func ex_dbuy_set(c: String, dir: int) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	var v: int = int(p["dbuy"]) + dir
 	if v < 0 or v > 3 or ex_cd_get(c, "dbuy") > 0:
@@ -339,6 +343,7 @@ func ex_dbuy_set(c: String, dir: int) -> bool:
 
 
 func ex_favor(c: String, kind: String) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	if ex_cd_get(c, "favor") > 0 or float(p["infl"]) < 60.0:
 		return false

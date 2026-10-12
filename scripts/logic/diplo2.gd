@@ -625,6 +625,7 @@ func dx_treaty_acts(c: String) -> Array:
 
 
 func dx_treaty_do(id: String, c: String) -> bool:
+	if pl_deny(): return false
 	if not dx_on() or observer or not current_event.is_empty():
 		return false
 	var found: Dictionary = {}
@@ -688,6 +689,7 @@ func dx_spy_acts(c: String) -> Array:
 
 
 func dx_spy_do(id: String, c: String) -> bool:
+	if pl_deny(): return false
 	if not dx_on() or observer or not current_event.is_empty():
 		return false
 	var found: Dictionary = {}

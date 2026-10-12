@@ -87,15 +87,50 @@ func upper_renew(shares: Array) -> String:
 # --- конец заглушек ---
 
 
+# v50: насколько партия отвечает за работу власти: глава правительства — 1, партнёры по коалиции — 0.4, остальные — 0.
+# Раньше оценка власти группами (бюджет, события) всегда доставалась партии игрока — даже когда она в оппозиции.
+func gov_roles() -> Array[float]:
+	var out: Array[float] = []
+	var P := PARTY_NAMES.size()
+	for p in P:
+		out.append(0.0)
+	if opp_mode:
+		if opp_gov.is_empty():
+			return out
+		for q in (opp_gov.get("members", []) as Array):
+			if int(q) >= 0 and int(q) < P:
+				out[int(q)] = 0.4
+		var pmo: int = int(opp_gov.get("pm", -1))
+		if pmo >= 0 and pmo < P:
+			out[pmo] = 1.0
+		return out
+	for q in mini(P, in_coalition.size()):
+		if in_coalition[q]:
+			out[q] = 0.4
+	var pm: int = int(junior_info()["pm"])
+	out[clampi(pm, 0, P - 1)] = 1.0
+	return out
+
+
+func gov_pm_party() -> int:
+	var r := gov_roles()
+	for p in r.size():
+		if r[p] >= 1.0:
+			return p
+	return r.size()
+
+
 func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 	var w: Array[float] = []
 	var r: Dictionary = regions[ri]
 	var eff: float = clampf(float(support[g]) + (float(r["loy"]) - 50.0) * 0.5, 5.0, 100.0)
 	var lean: Array = LEAN[g]
+	var roles := gov_roles()
+	var ex: float = 4.0 if pres else 3.0
 	for p in PARTY_NAMES.size():
 		var v: float = float(lean[p])
-		if p == 0:
-			v *= pow(eff / 50.0, 4.0 if pres else 3.0)
+		if roles[p] > 0.0 and p != 9:
+			v *= pow(eff / 50.0, ex * roles[p])
 		elif p == 9:
 			v *= pow(clampf((100.0 - eff) / 50.0, 0.2, 2.0), 2.0)
 		elif p == REGIONAL_P:

@@ -400,6 +400,11 @@ func junior_quit() -> void:
 
 func opp_to_gov(members: Array, pm: int, why: String) -> void:
 	opp_mode = false
+	# v50: автобаланс и автоответ на события включались на время оппозиции (ими правило чужое правительство);
+	# вернувшись к власти, бюджет и решения — снова ваши (в автопилоте игрока остались только стройка и ремонт)
+	if not observer:
+		ap["bal"] = false
+		ap["events"] = false
 	for p in PARTY_NAMES.size():
 		in_coalition[p] = false
 	in_coalition[0] = true
@@ -550,8 +555,11 @@ func pact_can(p: int, kind: String) -> String:
 		return "нельзя"
 	if p in NO_GOV_SLOTS and kind != "attack":
 		return "партия не заключает соглашений"
-	if seats[p] <= 0 and kind != "talk" and kind != "attack":
+	# v50: предвыборный блок, помощь, похвала и прочее доступны и партиям без мест; в парламенте нужны места только для голосов
+	if seats[p] <= 0 and (kind == "tol" or kind == "votes"):
 		return "у партии нет мест в парламенте"
+	if int(seats[0]) <= 0 and (kind == "tol" or kind == "votes"):
+		return "у вашей партии нет мест в парламенте"
 	var pk: Dictionary = {}
 	for x in PACT_KINDS:
 		if String(x["id"]) == kind:

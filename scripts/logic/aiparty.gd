@@ -12,6 +12,10 @@ func autopilot_step() -> void:
 	pass
 
 
+func gov_style_step() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -422,6 +426,7 @@ func autopilot_run() -> void:
 	if opp_mode and not opp_gov.is_empty():
 		var pm: int = int(opp_gov["pm"])
 		var old := cap_swap(pm)
+		gov_style_step()
 		autopilot_step()
 		cap_unswap(pm, old)
 	else:
@@ -733,7 +738,10 @@ func bill_preview(b: Dictionary) -> Dictionary:
 func propose_variant(tid: String, idx: int, forced: Array = []) -> void:
 	if game_over:
 		return
-	if radical_bypass(tid, idx) or decree_power():
+	# v50: законопроекты вносят только партии, представленные в парламенте; указом — только правительство
+	if not observer and pl_deny("parl"):
+		return
+	if radical_bypass(tid, idx) or (decree_power() and pl_gov()):
 		adopt_variant(tid, idx, forced)
 		return
 	if idx == cur_idx(tid) and not law_tweak(tid):

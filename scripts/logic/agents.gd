@@ -113,7 +113,7 @@ func ag_calibrate() -> void:
 			tab.resize(Gn * P)
 			var cnt := PackedInt32Array()
 			cnt.resize(Gn)
-			AG.tally(ri, bw, sup, loy, 3.0, 0, 9, 1, tab, cnt)
+			AG.tally(ri, bw, sup, loy, 3.0, gov_pm_party(), 9, 1, tab, cnt)
 			for gi in Gn:
 				if cnt[gi] < 1:
 					continue
@@ -200,10 +200,51 @@ func ag_region_table(ri: int, pres: bool, only: Array) -> Dictionary:
 	tab.resize(Gn * P)
 	var cnt := PackedInt32Array()
 	cnt.resize(Gn)
-	AG.tally(ri, bw, ag_support_arr(), loy, 4.0 if pres else 3.0, 0, 9, stride, tab, cnt)
+	AG.tally(ri, bw, ag_support_arr(), loy, 4.0 if pres else 3.0, gov_pm_party(), 9, stride, tab, cnt)
 	var d := {"sig": sig, "tab": tab, "cnt": cnt}
 	ag_cache[key] = d
 	return d
+
+
+# v50: симпатии групп к партиям — доля каждой партии среди сторонников группы по всей стране (опрос агентов)
+var gp_cache := {}
+
+
+func group_party_shares() -> Array:
+	var key := "%d|%d|%s" % [turn, ag_ver, str(opp_mode)]
+	if String(gp_cache.get("k", "")) == key:
+		return gp_cache["v"]
+	var P := PARTY_NAMES.size()
+	var Gn := GROUPS.size()
+	var acc: Array = []
+	for gi in Gn:
+		var row: Array = []
+		row.resize(P)
+		row.fill(0.0)
+		acc.append(row)
+	for ri in regions.size():
+		if AG != null and ag_on:
+			var t := ag_region_table(ri, false, [])
+			for gi in Gn:
+				for p in P:
+					acc[gi][p] += float(t["tab"][gi * P + p])
+		else:
+			for gi in Gn:
+				var w := vote_weights(ri, GROUPS[gi], false)
+				var tot := 0.0
+				for p in P:
+					tot += w[p]
+				var m: float = float(reg_mix[ri][GROUPS[gi]]) * float(regions[ri]["popm"])
+				for p in P:
+					acc[gi][p] += m * w[p] / maxf(tot, 1e-9)
+	for gi in Gn:
+		var tt := 0.0
+		for p in P:
+			tt += float(acc[gi][p])
+		for p in P:
+			acc[gi][p] = float(acc[gi][p]) / maxf(tt, 1e-9)
+	gp_cache = {"k": key, "v": acc}
+	return acc
 
 
 # экзит-пол: как голосовали группы (по всем агентам)
