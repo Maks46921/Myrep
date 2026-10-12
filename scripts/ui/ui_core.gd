@@ -630,7 +630,39 @@ func make_button(text: String, parent: Control) -> Button:
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	parent.add_child(b)
+	tone_button(b)
 	return b
+
+
+# v50: действия «расширить / повысить / усилить» — зелёный край, «урезать / понизить / отменить» — красный, чтобы не путать
+const TONE_UP := ["Повысить", "Расширить", "Увеличить", "Поднять", "Усилить", "Принять в", "Заключить", "Начать", "Ввести"]
+const TONE_DN := ["Понизить", "Урезать", "Сократить", "Снизить", "Ослабить", "Отменить", "Расторгнуть", "Отозвать", "Выйти", "Свернуть", "Замедлить", "Сдерживать", "Остановить"]
+
+
+func tone_button(b: Button) -> void:
+	var t: String = b.text.strip_edges()
+	var tone := 0
+	for k in TONE_UP:
+		if t.begins_with(k):
+			tone = 1
+	for k in TONE_DN:
+		if t.begins_with(k):
+			tone = -1
+	if t.contains(" +1") or t.contains("+1 ("):
+		tone = 1
+	elif t.contains(" −1") or t.contains(" -1"):
+		tone = -1
+	if tone == 0:
+		return
+	var col: Color = Color(0.36, 0.80, 0.55) if tone > 0 else Color(0.93, 0.45, 0.42)
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		var base := b.get_theme_stylebox(st)
+		if base is StyleBoxFlat:
+			var sb := (base as StyleBoxFlat).duplicate() as StyleBoxFlat
+			sb.border_width_left = 4
+			sb.border_color = Color(col.r, col.g, col.b, 0.9 if st != "disabled" else 0.35)
+			sb.bg_color = sb.bg_color.lerp(col, 0.08 if st != "disabled" else 0.03)
+			b.add_theme_stylebox_override(st, sb)
 
 
 func make_rt(parent: Control) -> RichTextLabel:
@@ -640,8 +672,53 @@ func make_rt(parent: Control) -> RichTextLabel:
 	rt.scroll_active = false
 	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rt.add_theme_constant_override("line_separation", 2)
 	parent.add_child(rt)
+	fmt_rts.append(rt)
 	return rt
+
+
+# v50: сплошной текст упорядочивается — строка-заголовок «[b]…[/b]» получает цветную метку и отступ сверху,
+# пункты «• » — отступ. Проход после каждого обновления, только для изменившихся видимых текстов.
+var fmt_rts: Array = []
+
+
+func fmt_sections(t: String) -> String:
+	if not t.contains("[b]") and not t.contains("• "):
+		return t
+	var lines := t.split("\n")
+	var acc: String = C_ACCENT.lightened(0.25).to_html(false)
+	var out: PackedStringArray = []
+	for i in lines.size():
+		var ln: String = lines[i]
+		var st := ln.strip_edges()
+		if st.begins_with("[b]") and st.ends_with("[/b]") and st.count("[b]") == 1 and st.length() < 90:
+			if i > 0 and out.size() > 0 and String(out[out.size() - 1]).strip_edges() != "":
+				out.append("")
+			out.append("[color=#%s]▍[/color][b]%s[/b]" % [acc, st.substr(3, st.length() - 7)])
+		elif st.begins_with("• ") and not ln.begins_with("[indent]"):
+			out.append("[indent]" + ln + "[/indent]")
+		else:
+			out.append(ln)
+	return "\n".join(out)
+
+
+func fmt_pass() -> void:
+	var keep: Array = []
+	for rt in fmt_rts:
+		if not is_instance_valid(rt):
+			continue
+		keep.append(rt)
+		var r: RichTextLabel = rt
+		if not r.is_visible_in_tree():
+			continue
+		if r.text == String(r.get_meta("fmt", "")):
+			continue
+		var f := fmt_sections(r.text)
+		r.set_meta("fmt", f)
+		if f != r.text:
+			r.text = f
+	fmt_rts = keep
 
 
 func add_slider(parent: Control, d: Dictionary) -> void:
@@ -1116,6 +1193,7 @@ func refresh() -> void:
 	update_crisis_windows()
 	update_realm_windows()
 	update_win_locks()
+	fmt_pass()
 
 
 # v50: окна, которыми распоряжается только правительство (и те, где нужны места в парламенте), затемняются с объяснением

@@ -1,6 +1,16 @@
 # Интерфейс: дипломатия.
 extends "res://scripts/ui/ui_econ.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func treaty_sheet_open() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 # ---------- (карта Европы объединена с картой страны) ----------
 func select_dip(code: String) -> void:
 	dip_sel = code
@@ -32,6 +42,32 @@ func build_dip_windows() -> void:
 	dip_flag_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dip_flag_lbl.clip_text = true
 	fh.add_child(dip_flag_lbl)
+	# v50: быстрые действия со страной
+	var qa := HFlowContainer.new()
+	qa.add_theme_constant_override("h_separation", 4)
+	qa.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(qa)
+	var q1 := Button.new()
+	q1.theme_type_variation = "SmallButton"
+	q1.text = "📜 Договор"
+	q1.focus_mode = Control.FOCUS_NONE
+	q1.tooltip_text = "Составить и предложить этой стране договор."
+	q1.pressed.connect(func() -> void:
+		ex_sel = dip_sel
+		treaty_sheet_open())
+	qa.add_child(q1)
+	var q2 := Button.new()
+	q2.theme_type_variation = "SmallButton"
+	q2.text = "Влияние и торговля"
+	q2.focus_mode = Control.FOCUS_NONE
+	q2.pressed.connect(on_dip_far_ex)
+	qa.add_child(q2)
+	var q3 := Button.new()
+	q3.theme_type_variation = "SmallButton"
+	q3.text = "Армия и война"
+	q3.focus_mode = Control.FOCUS_NONE
+	q3.pressed.connect(func() -> void: show_desk(13))
+	qa.add_child(q3)
 	dip_info_rt = make_rt(w.body)
 	# v50: финансирование партии этой страны (доступно и вне власти — из денег партии)
 	add_title(w.body, "Финансировать партию")

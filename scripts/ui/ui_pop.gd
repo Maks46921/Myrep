@@ -88,6 +88,30 @@ func build_pop_windows() -> void:
 	w3.body.add_child(mv)
 	ag_ui["map"] = mv
 	ag_ui["mnote"] = make_fold(w3.body, "Как читать карту")
+	# v50: сдвинуть свою партию по осям, показанным на карте
+	var sh := HFlowContainer.new()
+	sh.add_theme_constant_override("h_separation", 4)
+	sh.add_theme_constant_override("v_separation", 4)
+	w3.body.add_child(sh)
+	var shl := Label.new()
+	shl.text = "Сдвинуть свою партию (капитал 4):"
+	shl.add_theme_font_size_override("font_size", 12)
+	shl.add_theme_color_override("font_color", C_DIM)
+	sh.add_child(shl)
+	for dd in [["←", 0, -1], ["→", 0, 1], ["↓", 1, -1], ["↑", 1, 1]]:
+		var sb := Button.new()
+		sb.theme_type_variation = "SmallButton"
+		sb.text = String(dd[0])
+		sb.focus_mode = Control.FOCUS_NONE
+		sb.custom_minimum_size = Vector2(30.0, 0.0)
+		var which: int = int(dd[1])
+		var dir: int = int(dd[2])
+		sb.pressed.connect(func() -> void:
+			var axis: int = (ag_ui["ax"] as OptionButton).selected if which == 0 else (ag_ui["ay"] as OptionButton).selected
+			if ag_party_shift(axis, dir):
+				ag_reset_ui())
+		sh.add_child(sb)
+		ag_ui["shift%d" % ag_ui.size()] = sb
 
 	var w4: FloatWindow = new_window("pop_agent", "Карточка агента", 6, Rect2(0.34, 0.64, 0.18, 0.36))
 	var ab := HFlowContainer.new()
@@ -172,7 +196,7 @@ func demo_rates() -> Dictionary:
 	var cdr := 0.0
 	for i in 18:
 		var a: float = float(i) * 5.0 + 2.5
-		var q: float = minf(0.35, 0.00035 * exp(0.088 * a))
+		var q: float = minf(0.35, 0.00002 * exp(0.1 * a))
 		cdr += (float(m[i]) * q * 1.15 + float(f[i]) * q * 0.85)
 	return {"cbr": cbr, "cdr": cdr * 1000.0}
 

@@ -77,6 +77,9 @@ func ag_build() -> void:
 		return
 	var k := ag_k()
 	ag_make_pos()
+	if ag_shift.size() == 4 and ag_pos.size() > 0:
+		for a in 4:
+			ag_pos[0][a] = clampf(float(ag_pos[0][a]) + float(ag_shift[a]), -2.6, 2.6)
 	var counts: Array = []
 	var secw: Array = []
 	for ri in regions.size():
@@ -292,6 +295,48 @@ func ag_exit_report(pres: bool, only_party: int) -> void:
 				wg = g
 		parts.append("«%s»: сильнее всего у группы «%s» (%.0f%%), слабее всего — «%s» (%.0f%%)" % [PARTY_NAMES[p], GROUPS[bg], bv * 100.0, GROUPS[wg], wv * 100.0])
 	log_line("[b]Экзит-пол по агентам[/b] (%d агентов, 1 агент = %d чел.): %s." % [AG.n, AG.k, "; ".join(parts)])
+
+
+# v50: перемещение своей партии по идеологической карте: ось a (0–3), направление d (−1/+1).
+# Партия делает шаг к новым избирателям; часть старых, оставшихся «позади», охладеет. Капитал 4, раз в 3 месяца.
+func ag_party_shift_check() -> String:
+	if AG == null or not ag_on:
+		return "модель агентов выключена"
+	if game_over:
+		return "игра окончена"
+	if capital < 4.0:
+		return "нужно 4 политкапитала"
+	if int(ag_shift_cd) > turn:
+		return "следующий шаг через %d мес." % (int(ag_shift_cd) - turn)
+	return ""
+
+
+var ag_shift_cd := 0
+var ag_shift: Array = []    # накопленный сдвиг партии игрока по осям (сохраняется: позиции пересчитываются при загрузке)
+
+
+func ag_party_shift(a: int, d: int) -> bool:
+	var why := ag_party_shift_check()
+	if why != "":
+		log_line("[color=%s]Сдвинуть партию нельзя: %s.[/color]" % [COL_WARN, why])
+		return false
+	capital -= 4.0
+	ag_shift_cd = turn + 3
+	var nv: float = clampf(float(ag_pos[0][a]) + 0.30 * float(d), -2.6, 2.6)
+	if ag_shift.size() < 4:
+		ag_shift = [0.0, 0.0, 0.0, 0.0]
+	ag_shift[a] = float(ag_shift[a]) + (nv - float(ag_pos[0][a]))
+	ag_pos[0][a] = nv
+	AG.pos[a] = nv
+	for i in AG.n:
+		AG.calc_aff(i)
+	ag_cache.clear()
+	ag_ver += 1
+	gp_cache = {}
+	var end_name: String = String(AgentPop.AXIS_ENDS[a][1 if d > 0 else 0])
+	log_tag("ПАРТИЯ", COL_PURPLE, "%s сдвигается по оси «%s» — к «%s». Новые избиратели присматриваются, часть прежних охладела." % [qn(PARTY_NAMES[0]), AgentPop.AXIS_SHORT[a], end_name])
+	refresh()
+	return true
 
 
 func ag_pick(i: int) -> void:

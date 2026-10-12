@@ -919,6 +919,29 @@ func build_map_windows() -> void:
 	fill_table_rows()
 
 	w = new_window("region", "Регион: сведения", 2, Rect2(0.0, 0.23, 0.25, 0.77))
+	# v50: быстрые действия с регионом — сразу под заголовком окна
+	var qa := HFlowContainer.new()
+	qa.add_theme_constant_override("h_separation", 4)
+	qa.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(qa)
+	for it in [["⚒ Строить", "build", "Окно строительства: выберите сооружение и щёлкните по АТЕ этого региона."], ["Трансферты", "regact", "Действия и трансферты для региона."],
+			["Экономика", "regecon", "Экономика региона."], ["Автономия", "", "Экран «Регионы и автономия»: полномочия региона."]]:
+		var qb := Button.new()
+		qb.theme_type_variation = "SmallButton"
+		qb.text = String(it[0])
+		qb.tooltip_text = String(it[2])
+		qb.focus_mode = Control.FOCUS_NONE
+		var wid: String = String(it[1])
+		qb.pressed.connect(func() -> void:
+			if wid == "":
+				show_desk(8)
+				return
+			if wins.has(wid):
+				var fw: FloatWindow = wins[wid]
+				fw.closed = false
+				show_desk(current_desk)
+				fw.move_to_front())
+		qa.add_child(qb)
 	reg_info_rt = make_rt(w.body)
 	add_bar(w.body, "rb_loy", "Лояльность", false)
 	add_bar(w.body, "rb_unrest", "Недовольство", true)

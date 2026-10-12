@@ -53,17 +53,15 @@ func relayout() -> void:
 		if not bool(vis[b]):
 			continue
 		var grp: Dictionary = game.tech["grp"][b]
-		var mx := 1
-		for t in grp:
-			mx = maxi(mx, (grp[t] as Array).size())
-		var lh: float = mx * NH + (mx - 1) * GY + 2.0 * LANE_PAD
-		lanes.append({"b": b, "y": y, "h": lh})
+		# v50: в разделе 2–3 подветки — каждая своей строкой; связи между уровнями пересекают подветки
+		var nl: int = (game.TECH_SUBS[b] as Array).size()
+		var lh: float = nl * NH + (nl - 1) * GY + 2.0 * LANE_PAD
+		lanes.append({"b": b, "y": y, "h": lh, "nl": nl})
 		for t in grp:
 			var ids: Array = grp[t]
-			var tot: float = ids.size() * NH + (ids.size() - 1) * GY
-			var y0: float = y + (lh - tot) * 0.5
 			for k in ids.size():
-				pos[String(ids[k])] = Rect2(LABEL_W + float(t) * (NW + GX), y0 + float(k) * (NH + GY), NW, NH)
+				var li: int = clampi(game.tech_lane(String(ids[k])), 0, nl - 1)
+				pos[String(ids[k])] = Rect2(LABEL_W + float(t) * (NW + GX), y + LANE_PAD + float(li) * (NH + GY), NW, NH)
 		y += lh + 6.0
 	zoom = 1.25 if lanes.size() == 1 else 1.0
 	custom_minimum_size = Vector2(LABEL_W + float(game.tech["ty"].size()) * (NW + GX), y + 4.0) * zoom
@@ -172,6 +170,20 @@ func _draw() -> void:
 			if game.tech_tier_done(b, int(t)) != "":
 				nd += 1
 		draw_string(f, Vector2(14.0, float(ln["y"]) + 62.0), "%d / %d" % [nd, (game.tech["grp"][b] as Dictionary).size()], HORIZONTAL_ALIGNMENT_LEFT, LABEL_W - 18.0, 12, Color(1, 1, 1, 0.6))
+		# подветки: подписи и тонкие разделители строк
+		var subs: Array = game.TECH_SUBS[b]
+		for li in subs.size():
+			var ly: float = float(ln["y"]) + LANE_PAD + float(li) * (NH + GY)
+			if li > 0:
+				draw_line(Vector2(LABEL_W - 8.0, ly - GY * 0.5), Vector2(w, ly - GY * 0.5), Color(c.r, c.g, c.b, 0.10), 1.0)
+			draw_string(f, Vector2(LABEL_W - 8.0 - 2.0, ly + NH - 4.0), "▸", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(c.r, c.g, c.b, 0.5))
+		# названия подветок — в левой колонке (первая строка занята названием раздела)
+		var tip := ""
+		for li2 in subs.size():
+			tip += ("▸ " if li2 == 0 else "  ▸ ") + String(subs[li2][0]).split(" ")[0]
+		draw_string(f, Vector2(14.0, float(ln["y"]) + 80.0), "подветки:", HORIZONTAL_ALIGNMENT_LEFT, LABEL_W - 18.0, 10, Color(1, 1, 1, 0.45))
+		for li2 in subs.size():
+			draw_string(f, Vector2(14.0, float(ln["y"]) + 94.0 + 13.0 * float(li2)), "%d. %s" % [li2 + 1, String(subs[li2][0])], HORIZONTAL_ALIGNMENT_LEFT, LABEL_W - 18.0, 10, Color(c.r, c.g, c.b, 0.8))
 	# связи
 	var hl: String = hover_id
 	for d in game.TECHS:

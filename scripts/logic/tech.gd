@@ -86,6 +86,115 @@ func tech_alts(id: String) -> Array:
 	return out
 
 
+# ---------- v50: подветки внутри разделов ----------
+# В каждом разделе 2–3 подветки; технология относится к подветке по теме (ключевые слова названия и описания).
+# Для перехода на следующий уровень годится любая технология предыдущего уровня — поэтому подветки пересекаются.
+const TECH_SUBS := [
+	[["Энергия и ресурсы", "энерг|солн|ветр|газ|атом|водород|ресурс|углерод|климат|топлив|сет"], ["Цифра и автоматизация", "цифр|автомат|робот|данн|интеллект|интернет|квант|платформ|вычисл|алгоритм|машин"], ["Финансы и рынки", "финанс|рын|бирж|кредит|налог|торг|валют|банк|инвест|платеж|экспорт|цен"]],
+	[["Медицина", "мед|здрав|ген|лекар|вакцин|болез|долголет|био|клиник|диагност|пандем"], ["Образование и наука", "образ|школ|учеб|наук|универ|знан|навык|исследов|учён|учен"], ["Общество и быт", "соц|город|жиль|семь|культур|равен|общ|пенси|труд|занят|досуг"]],
+	[["Госуправление", "управл|госуд|бюрократ|реестр|услуг|выбор|голос|бюджет|прозрач|коррупц|чиновн"], ["Безопасность", "безопас|полиц|развед|кибер|контрраз|наблюд|границ|кризис|защит"], ["Дипломатия и право", "диплом|прав|суд|договор|союз|междунар|санкц|влиян|перегов|закон"]],
+	[["Заводы и стройка", "завод|произв|стро|материал|печат|стал|цемент|станк|фабрик|сборк"], ["Добыча и село", "добыч|шахт|нефт|руд|сельск|агро|урож|ферм|почв|вод|лес|рыб"], ["Транспорт и логистика", "транспорт|логист|дорог|желез|порт|доставк|склад|грузов|магистрал"]],
+	[["Сухопутные войска", "танк|пехот|артил|сухопут|бронет|солдат|снаряж|резерв|мобилиз|подготов"], ["Авиация, флот и ПВО", "авиа|самол|флот|корабл|пво|ракет|беспилот|спутник|космос|радар"], ["Сдерживание и кибер", "ядер|сдерж|кибер|радиоэлектрон|рэб|информац|связ|командов|разведк"]],
+]
+var tech_lane_cache := {}
+
+
+func tech_lane(id: String) -> int:
+	if tech_lane_cache.is_empty():
+		tech_lanes_build()
+	return int(tech_lane_cache.get(id, 1))
+
+
+func tech_lanes_build() -> void:
+	tech_lane_cache.clear()
+	var rx := []
+	for b in TECH_SUBS.size():
+		var row := []
+		for sub in TECH_SUBS[b]:
+			var re := RegEx.new()
+			re.compile(String(sub[1]))
+			row.append(re)
+		rx.append(row)
+	# по уровням: альтернативы одного уровня — в разных подветках
+	var by_bt := {}
+	for d in TECHS:
+		var k := "%d_%d" % [int(d["b"]), int(d["t"])]
+		if not by_bt.has(k):
+			by_bt[k] = []
+		(by_bt[k] as Array).append(d)
+	for k in by_bt:
+		var used := {}
+		for d in by_bt[k]:
+			var b: int = int(d["b"])
+			var hay: String = (String(d["name"]) + " " + String(d.get("d", ""))).to_lower()
+			var best := -1
+			var bs := 0
+			for li in (rx[b] as Array).size():
+				var n: int = (rx[b][li] as RegEx).search_all(hay).size()
+				if n > bs and not used.has(li):
+					bs = n
+					best = li
+			if best < 0:
+				for li in [1, 0, 2]:
+					if not used.has(li) and li < (rx[b] as Array).size():
+						best = li
+						break
+			used[best] = true
+			tech_lane_cache[String(d["id"])] = best
+
+
+func tech_lane_name(id: String) -> String:
+	var d := tech_def(id)
+	if d.is_empty():
+		return ""
+	return String(TECH_SUBS[int(d["b"])][tech_lane(id)][0])
+
+
+# ---------- v50: откат выбора «или» за те же очки ----------
+# Если в группе «или» уже изучена одна технология, можно перейти на другую: вложенные очки переносятся.
+# Альтернатива дороже — доплачивается разница (переход станет текущим исследованием); дешевле — сразу изучена.
+func tech_swap_check(id: String) -> String:
+	if tech.is_empty() or game_over:
+		return "нельзя"
+	if tech_done(id):
+		return "уже изучена"
+	var cur_alt := ""
+	for a in tech_alts(id):
+		if tech_done(String(a)):
+			cur_alt = String(a)
+	if cur_alt == "":
+		return "в этой группе ещё ничего не изучено"
+	if int(tech.get("swap_cd", 0)) > turn:
+		return "перестройка науки уже шла недавно (ещё %d мес.)" % (int(tech["swap_cd"]) - turn)
+	return ""
+
+
+func tech_swap(id: String) -> bool:
+	var why := tech_swap_check(id)
+	if why != "":
+		log_line("[color=%s]Сменить выбор нельзя: %s.[/color]" % [COL_WARN, why])
+		return false
+	var d := tech_def(id)
+	var b: int = int(d["b"])
+	var old := ""
+	for a in tech_alts(id):
+		if tech_done(String(a)):
+			old = String(a)
+	var od := tech_def(old)
+	(tech["done"] as Dictionary).erase(old)
+	var paid: float = float(od["cost"])
+	tech["swap_cd"] = turn + 12
+	if paid >= float(d["cost"]):
+		tech["done"][id] = turn
+		log_tag("НАУКА", COL_TEAL, "%s: выбор пересмотрен — вместо «%s» изучена «%s» за те же очки." % [date_text(), od["name"], d["name"]])
+	else:
+		tech["prog"][id] = paid
+		tech["cur"][b] = id
+		log_tag("НАУКА", COL_TEAL, "%s: выбор пересмотрен — «%s» заменяется на «%s»; вложенные %.0f очк. засчитаны, осталось %.0f." % [date_text(), od["name"], d["name"], paid, float(d["cost"]) - paid])
+	refresh()
+	return true
+
+
 func tech_is_choice(id: String) -> bool:
 	return tech_alts(id).size() > 0
 

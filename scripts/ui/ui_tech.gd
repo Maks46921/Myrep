@@ -272,6 +272,10 @@ func on_tech_pick(id: String) -> void:
 	if tech_avail(id):
 		tech_select(b, id)
 		sfx("click")
+	elif tech_swap_check(id) == "":
+		# v50: щелчок по невыбранной альтернативе — пересмотреть выбор «или» за те же очки
+		tech_swap(id)
+		sfx("click")
 	tech_info_update()
 
 
@@ -340,11 +344,18 @@ func tech_info_text(id: String) -> String:
 	return t
 
 
+func tech_swap_note(id: String) -> String:
+	var why := tech_swap_check(id)
+	if why == "":
+		return "\n[color=%s]Щёлкните, чтобы пересмотреть выбор «или»: перейти на эту технологию за уже вложенные очки (раз в год).[/color]" % COL_TEAL
+	return ""
+
+
 func tech_info_update() -> void:
 	if tw_info_rt == null or tech.is_empty():
 		return
 	if tw_hover != "":
-		tw_info_rt.text = tech_info_text(tw_hover)
+		tw_info_rt.text = tech_info_text(tw_hover) + "\n[color=%s]Подветка: %s[/color]" % [COL_DIM, tech_lane_name(tw_hover)] + tech_swap_note(tw_hover)
 		return
 	var t := "[color=%s]Наведите курсор на карточку технологии, чтобы увидеть описание; щёлкните, чтобы начать изучение. Схему можно двигать, зажав левую кнопку на пустом месте, или колесом (Shift — по горизонтали).[/color]\n" % COL_DIM
 	var cur := PackedStringArray()
