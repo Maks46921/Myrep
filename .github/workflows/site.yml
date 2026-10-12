@@ -1,0 +1,42 @@
+# Сайт игры: раздел «Обновления» собирается из UPDATES.md и выкладывается на GitHub Pages.
+# Включить один раз: Settings → Pages → Source: GitHub Actions.
+name: Сайт
+
+on:
+  push:
+    branches: [claude/brave-pascal-w1vydc]
+    paths: [UPDATES.md, website/**, .github/workflows/site.yml]
+  pull_request:
+    paths: [UPDATES.md, website/**, .github/workflows/site.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать раздел «Обновления» из UPDATES.md
+        run: python3 website/build_updates.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
