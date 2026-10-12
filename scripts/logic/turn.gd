@@ -60,6 +60,10 @@ func dx_init() -> void:
 	pass
 
 
+func es_init() -> void:
+	pass
+
+
 func ex_g() -> float:
 	return 0.0
 
@@ -793,6 +797,7 @@ func init_state() -> void:
 	tech_init()
 	revolt_init()
 	au_init()
+	es_init()
 	rl_init()
 	dx_init()
 	fa_init()

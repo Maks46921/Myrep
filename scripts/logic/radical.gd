@@ -20,6 +20,14 @@ func au_step() -> void:
 	pass
 
 
+func es_dyn() -> void:
+	pass
+
+
+func es_step() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -211,6 +219,7 @@ func radical_dyn() -> void:
 	if decree_power() and regime_risk > 40.0:
 		mods["mood_shift"] = float(mods["mood_shift"]) - (regime_risk - 40.0) * 0.004
 	au_dyn()
+	es_dyn()
 
 
 func radical_step() -> void:
@@ -245,6 +254,7 @@ func radical_step() -> void:
 	else:
 		regime_risk *= 0.9
 	au_step()
+	es_step()
 
 
 func show_uprising() -> void:

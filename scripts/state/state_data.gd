@@ -1,5 +1,5 @@
 # Таблицы, которые страна подменяет при запуске (REGIONS, LEAN, PARTY_NAMES и др.).
-extends "res://scripts/data/data_countries.gd"
+extends "res://scripts/data/data_corp.gd"
 
 var SEATS := 630
 

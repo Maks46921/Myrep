@@ -3,6 +3,16 @@
 # репрессии». Меняется и вид: своя палитра и эмблема у каждого режима, заставка при смене строя.
 extends "res://scripts/ui/ui_vote.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func es_skin_acc(desk: int) -> Color:
+	return Color.WHITE
+
+
+# --- конец заглушек ---
+
+
 # палитры режимов: акцент, фон, рамка, эмблема
 const REG_SKIN := {
 	"hybrid": {"acc": Color(0.56, 0.66, 0.82), "bg": Color(0.055, 0.062, 0.078), "border": Color(0.22, 0.25, 0.31), "emb": "hall", "gold": Color(0.78, 0.82, 0.90)},
@@ -209,11 +219,11 @@ func reg_apply_skin() -> void:
 	for id in wins:
 		var w: FloatWindow = wins[id]
 		if sk.is_empty():
-			w.set_skin(accent_for_desk(w.desk), Color(0.090, 0.106, 0.149), Color(0.169, 0.196, 0.282))
+			w.set_skin(es_skin_acc(w.desk), Color(0.090, 0.106, 0.149), Color(0.169, 0.196, 0.282))
 		elif w.desk in REG_POL_DESKS:
 			w.set_skin(C_ACCENT, C_PANEL, C_BORDER)
 		else:
-			w.set_skin(accent_for_desk(w.desk), C_PANEL, C_BORDER)
+			w.set_skin(es_skin_acc(w.desk), C_PANEL, C_BORDER)
 
 
 # большая бледная эмблема режима на фоне рабочей области

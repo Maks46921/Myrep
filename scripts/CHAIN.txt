@@ -3,6 +3,7 @@ scripts/data/data_content.gd
 scripts/data/data_tech.gd
 scripts/data/data_events.gd
 scripts/data/data_countries.gd
+scripts/data/data_corp.gd
 scripts/state/state_data.gd
 scripts/state/state.gd
 scripts/logic/util.gd
@@ -31,6 +32,7 @@ scripts/logic/council.gd
 scripts/logic/radical.gd
 scripts/logic/revolt.gd
 scripts/logic/regime.gd
+scripts/logic/econsys.gd
 scripts/logic/realism.gd
 scripts/logic/diplo2.gd
 scripts/logic/fpai.gd
@@ -62,4 +64,5 @@ scripts/ui/ui_build.gd
 scripts/ui/ui_treaty.gd
 scripts/ui/ui_vote.gd
 scripts/ui/ui_regime.gd
+scripts/ui/ui_econsys.gd
 main.gd
