@@ -56,6 +56,10 @@ func build_gov_windows() -> void:
 	pass
 
 
+func build_io_windows() -> void:
+	pass
+
+
 func build_law_windows() -> void:
 	pass
 
@@ -110,6 +114,10 @@ func crisis_is_open() -> bool:
 
 func es_ui_sync() -> void:
 	pass
+
+
+func io_bar_h() -> float:
+	return 0.0
 
 
 func make_crisis_button(parent: Control) -> void:
@@ -201,6 +209,10 @@ func update_goods_windows() -> void:
 
 
 func update_gov_windows() -> void:
+	pass
+
+
+func update_io_windows() -> void:
 	pass
 
 
@@ -388,7 +400,7 @@ func show_desk(i: int) -> void:
 			# v49: окна нового раздела проявляются с небольшой задержкой друг за другом
 			win_fade_in(w, 0.18 + 0.04 * float(mini(k_fade, 5)))
 			k_fade += 1
-	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10 or i == 16 or i == 17) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15) else 2))
+	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10 or i == 16 or i == 17) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15) else (4 if i == 18 else 2)))
 	if i == 2:
 		map_apply_mode()
 	for kb in desk_buttons.size():
@@ -445,8 +457,8 @@ func build_ui() -> void:
 	tabs.add_theme_constant_override("separation", 4)
 	hb.add_child(tabs)
 	var grp := ButtonGroup.new()
-	var desk_names := ["Бюджет", "Экономика", "Политика", "Карта"]
-	for i in 4:
+	var desk_names := ["Бюджет", "Экономика", "Политика", "Карта", "Организации"]
+	for i in 5:
 		var b := Button.new()
 		b.theme_type_variation = "TabButton"
 		b.text = desk_names[i]
@@ -455,7 +467,7 @@ func build_ui() -> void:
 		b.custom_minimum_size = Vector2(0.0, 40.0)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(show_tab.bind(i))
-		btn_icon(b, ["coin", "chart", "hall", "pin"][i])
+		btn_icon(b, ["coin", "chart", "hall", "pin", "globe"][i])
 		tabs.add_child(b)
 		desk_buttons.append(b)
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
@@ -553,6 +565,7 @@ func build_ui() -> void:
 	build_build_window()
 	build_econ_windows()
 	build_econsys_windows()
+	build_io_windows()
 	build_dip_windows()
 	build_goods_windows()
 	build_fed_windows()
@@ -1214,6 +1227,8 @@ func refresh() -> void:
 		update_auto_window()
 	elif current_desk == 7:
 		update_goods_windows()
+	elif current_desk == 18:
+		update_io_windows()
 	elif current_desk == 16:
 		update_es_windows()
 	elif current_desk == 17:
@@ -1248,7 +1263,7 @@ func refresh() -> void:
 # v50: окна, которыми распоряжается только правительство (и те, где нужны места в парламенте), затемняются с объяснением
 const WIN_GOV_ONLY := ["tax", "measures", "ec_st", "ec_cb", "ec_gf", "cabinet", "neg", "commit", "actions", "xw_info", "war_ops", "war_talk",
 	"regact", "ar_budget", "ar_svc", "ar_proc", "ar_act", "dact", "fw_reg", "fw_bulk", "fw_dem", "tw_buy", "tw_union", "tw_sell",
-	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs", "rm_nato", "reg_tools", "reg_repr", "es_main", "co_card", "co_for"]
+	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs", "rm_nato", "reg_tools", "reg_repr", "es_main", "co_card", "co_for", "io_act"]
 const WIN_PARL_ONLY := ["bills"]
 
 
@@ -1649,7 +1664,7 @@ func on_log_detail(on: bool) -> void:
 # а нажатие на любую вкладку раздела закрывает их
 func overlay_tabs_sync() -> void:
 	var ov_on: bool = tech_is_open() or crisis_is_open()
-	var tab: int = 0 if current_desk == 0 else (1 if (current_desk == 5 or current_desk == 7 or current_desk == 10 or current_desk == 16 or current_desk == 17) else (3 if (current_desk == 2 or current_desk == 8 or current_desk == 9 or current_desk == 13 or current_desk == 14 or current_desk == 15) else 2))
+	var tab: int = 0 if current_desk == 0 else (1 if (current_desk == 5 or current_desk == 7 or current_desk == 10 or current_desk == 16 or current_desk == 17) else (3 if (current_desk == 2 or current_desk == 8 or current_desk == 9 or current_desk == 13 or current_desk == 14 or current_desk == 15) else (4 if current_desk == 18 else 2)))
 	for kb in desk_buttons.size():
 		(desk_buttons[kb] as Button).set_pressed_no_signal(kb == tab and not ov_on)
 
@@ -1659,7 +1674,7 @@ func show_tab(t: int) -> void:
 		set_tech_open(false)
 	if crisis_is_open():
 		set_crisis_open(false)
-	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else map_page)))
+	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else map_page))))
 
 
 func update_subbar(i: int) -> void:
@@ -1679,7 +1694,10 @@ func update_subbar(i: int) -> void:
 		var pg3 := [2, 8, 9, 13, 14, 15]
 		for k3 in 6:
 			(sub3_buttons[k3] as Button).set_pressed_no_signal(i == pg3[k3])
-	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3) else 0.0)
+	var on4: bool = i == 18
+	if io_bar != null:
+		io_bar.visible = on4
+	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3) else 0.0) + (io_bar_h() if on4 else 0.0)
 	var pages := [1, 3, 4, 6, 11, 12]
 	for k in 6:
 		(sub_buttons[k] as Button).set_pressed_no_signal(i == pages[k])
@@ -1833,6 +1851,7 @@ var gp_rt: RichTextLabel = null
 var selfcoup_btn: Button = null
 var ui_bg: ColorRect = null
 var ui_top: PanelContainer = null
+var io_bar: Control = null
 var selfcoup_note: Label = null
 
 

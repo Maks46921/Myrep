@@ -128,6 +128,10 @@ func idl_step() -> void:
 	pass
 
 
+func io_init() -> void:
+	pass
+
+
 func junior_power() -> float:
 	return 0.0
 
@@ -799,6 +803,7 @@ func init_state() -> void:
 	au_init()
 	es_init()
 	rl_init()
+	io_init()
 	dx_init()
 	fa_init()
 	ex_init()

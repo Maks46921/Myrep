@@ -21,6 +21,8 @@ func _init():
 	while not g.current_event.is_empty():
 		g.choose(0)
 	if g.election_open: g.election_continue()
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("org="): g.io["sel"] = String(a).substr(4)
 	g.show_desk(desk)
 	if OS.get_cmdline_user_args().has("tech=1"): g.set_tech_open(true)
 	if OS.get_cmdline_user_args().has("crisis=1"): g.set_crisis_open(true)

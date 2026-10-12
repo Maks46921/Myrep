@@ -32,6 +32,14 @@ func hist_dyn() -> void:
 	pass
 
 
+func io_dyn() -> void:
+	pass
+
+
+func io_step() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -225,6 +233,7 @@ func radical_dyn() -> void:
 	au_dyn()
 	es_dyn()
 	hist_dyn()
+	io_dyn()
 
 
 func radical_step() -> void:
@@ -260,6 +269,7 @@ func radical_step() -> void:
 		regime_risk *= 0.9
 	au_step()
 	es_step()
+	io_step()
 
 
 func show_uprising() -> void:
