@@ -609,6 +609,7 @@ func reg_draw_facade() -> void:
 	var st: Color = sk.get("acc", Color(0.9, 0.3, 0.3))
 	var sp := Vector2(w * 0.5, h * 0.62)
 	c.draw_set_transform(sp, -0.18, Vector2.ONE)
+	c.draw_rect(Rect2(-78.0, -18.0, 156.0, 32.0), Color(0.05, 0.04, 0.04, 0.7))
 	c.draw_rect(Rect2(-78.0, -18.0, 156.0, 32.0), Color(st.r, st.g, st.b, 0.85), false, 3.0)
 	c.draw_string(f, Vector2(-78.0, 6.0), "ОДОБРЕНО", HORIZONTAL_ALIGNMENT_CENTER, 156.0, 20, Color(st.r, st.g, st.b, 0.9))
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -329,7 +329,8 @@ func au_official_approval() -> float:
 func au_fraud_shares(sh: Array[float]) -> Array[float]:
 	if not au_on() or opp_mode or sh.is_empty() or sh[0] <= 0.0001:
 		return sh
-	var f: float = float(au["fraud"]) * 0.003
+	# официальные итоги прошлых выборов уже включают «привычный» уровень приписок — считаем только сверх него
+	var f: float = (float(au["fraud"]) - float((au.get("base", {}) as Dictionary).get("fraud", 0.0))) * 0.003
 	if f <= 0.0005:
 		return sh
 	var out: Array[float] = []
@@ -346,7 +347,7 @@ func au_fraud_shares(sh: Array[float]) -> Array[float]:
 func au_after_election() -> void:
 	if not au_on():
 		return
-	var f: float = float(au["fraud"])
+	var f: float = float(au["fraud"]) - float((au.get("base", {}) as Dictionary).get("fraud", 0.0)) * 0.5
 	if f < 20.0:
 		return
 	for r in regions:
