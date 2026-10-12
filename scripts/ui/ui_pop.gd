@@ -108,6 +108,116 @@ func build_pop_windows() -> void:
 	var w5: FloatWindow = new_window("pop_regions", "Протестные настроения по регионам", 6, Rect2(0.52, 0.64, 0.18, 0.36))
 	ag_ui["reg"] = make_rt(w5.body)
 
+	# v50: демография — пирамида возрастов, рождаемость и смертность (карточка агента — в меню «Окна»)
+	var w6: FloatWindow = new_window("pop_demo", "Демография: пирамида возрастов", 6, Rect2(0.34, 0.64, 0.18, 0.36))
+	demo_rt = make_rt(w6.body)
+	demo_ctl = Control.new()
+	demo_ctl.custom_minimum_size = Vector2(0.0, 190.0)
+	demo_ctl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	demo_ctl.draw.connect(draw_pyramid)
+	w6.body.add_child(demo_ctl)
+
+
+var demo_rt: RichTextLabel = null
+var demo_ctl: Control = null
+
+
+# пирамида: 18 пятилетних когорт (0–4 … 85+), мужчины слева, женщины справа. Строится из доли 65+ и рождаемости (модель «Реализма»)
+func demo_cohorts() -> Array:
+	var age65: float = 20.0
+	var tfr: float = 1.5
+	if not rl.is_empty() and (rl as Dictionary).has("d"):
+		age65 = float(rl["d"]["age"])
+		tfr = float(rl["d"]["tfr"])
+	var m: Array = []
+	var f: Array = []
+	for i in 18:
+		var a: float = float(i) * 5.0 + 2.5
+		var surv: float = exp(-pow(a / 86.0, 7.5))
+		var survf: float = exp(-pow(a / 90.0, 7.5))
+		# поколения: моложе 40 тем малочисленнее, чем ниже рождаемость; «бэби-бум» 1955–1970 г. р.
+		var gen: float = pow(clampf(tfr / 2.1, 0.4, 1.6), clampf((45.0 - a) / 30.0, 0.0, 1.5))
+		var boom: float = 1.0 + 0.22 * exp(-pow((a - 62.0) / 9.0, 2.0))
+		m.append(surv * gen * boom)
+		f.append(survf * gen * boom)
+	# доля 65+ подгоняется под модель
+	var young := 0.0
+	var old := 0.0
+	for i in 18:
+		if i >= 13:
+			old += float(m[i]) + float(f[i])
+		else:
+			young += float(m[i]) + float(f[i])
+	var k: float = (age65 / 100.0) * young / maxf(1e-6, (1.0 - age65 / 100.0) * old)
+	var tot := 0.0
+	for i in 18:
+		if i >= 13:
+			m[i] = float(m[i]) * k
+			f[i] = float(f[i]) * k
+		tot += float(m[i]) + float(f[i])
+	for i in 18:
+		m[i] = float(m[i]) / tot
+		f[i] = float(f[i]) / tot
+	return [m, f, tfr, age65]
+
+
+func demo_rates() -> Dictionary:
+	var c := demo_cohorts()
+	var m: Array = c[0]
+	var f: Array = c[1]
+	var wf := 0.0
+	for i in range(3, 10):
+		wf += float(f[i])
+	var cbr: float = float(c[2]) / 35.0 * wf * 1000.0
+	var cdr := 0.0
+	for i in 18:
+		var a: float = float(i) * 5.0 + 2.5
+		var q: float = minf(0.35, 0.00035 * exp(0.088 * a))
+		cdr += (float(m[i]) * q * 1.15 + float(f[i]) * q * 0.85)
+	return {"cbr": cbr, "cdr": cdr * 1000.0}
+
+
+func draw_pyramid() -> void:
+	var c := demo_ctl
+	if c == null:
+		return
+	var co := demo_cohorts()
+	var m: Array = co[0]
+	var f: Array = co[1]
+	var mx := 0.0
+	for i in 18:
+		mx = maxf(mx, maxf(float(m[i]), float(f[i])))
+	var w: float = c.size.x
+	var h: float = c.size.y
+	var cx: float = w * 0.5
+	var bh: float = h / 18.0
+	var font := c.get_theme_default_font()
+	for i in 18:
+		var y: float = h - float(i + 1) * bh
+		var lm: float = (cx - 22.0) * float(m[i]) / maxf(mx, 1e-6)
+		var lf: float = (cx - 22.0) * float(f[i]) / maxf(mx, 1e-6)
+		var old: bool = i >= 13
+		c.draw_rect(Rect2(cx - 18.0 - lm, y + 1.0, lm, bh - 2.0), Color(0.36, 0.60, 0.95, 0.95 if not old else 0.6))
+		c.draw_rect(Rect2(cx + 18.0, y + 1.0, lf, bh - 2.0), Color(0.93, 0.50, 0.62, 0.95 if not old else 0.6))
+		if i % 3 == 0:
+			c.draw_string(font, Vector2(cx - 16.0, y + bh - 1.0), "%d" % (i * 5), HORIZONTAL_ALIGNMENT_CENTER, 32.0, 10, C_DIM)
+	c.draw_string(font, Vector2(2.0, 11.0), "мужчины", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.55, 0.75, 1.0))
+	c.draw_string(font, Vector2(w - 2.0 - 52.0, 11.0), "женщины", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.65, 0.75))
+
+
+func update_demo_window() -> void:
+	if demo_rt == null or not demo_rt.is_visible_in_tree():
+		return
+	var r := demo_rates()
+	var pop := 0.0
+	for rg in regions:
+		pop += float(rg["popm"])
+	var co := demo_cohorts()
+	var nat: float = float(r["cbr"]) - float(r["cdr"])
+	demo_rt.text = "[font_size=13]Население [b]%.1f млн[/b] · старше 65 — [b]%.1f%%[/b]\nРождаемость [b]%.1f‰[/b] (детей на женщину %.2f) · смертность [b]%.1f‰[/b]\nЕстественный прирост: [color=%s]%s‰[/color] в год[/font_size]" % [
+		pop, float(co[3]), float(r["cbr"]), float(co[2]), float(r["cdr"]), COL_GOOD if nat >= 0.0 else COL_BAD, sg(nat, 1)]
+	demo_ctl.queue_redraw()
+
 
 const AG_GROUP_COLS := [Color("e8825a"), Color("5aa9e8"), Color("b5a1e8"), Color("f2d94d"), Color("5ae8c0"), Color("8cc152"), Color("9aa4b8"), Color("4fd16b")]
 
@@ -194,6 +304,7 @@ func ag_agent_text(i: int) -> String:
 
 
 func update_pop_windows() -> void:
+	update_demo_window()
 	if ag_ui.is_empty():
 		return
 	var head: RichTextLabel = ag_ui["head"]

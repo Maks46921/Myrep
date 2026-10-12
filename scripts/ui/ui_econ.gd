@@ -106,7 +106,7 @@ func build_econ_windows() -> void:
 	ec_st_fold = make_fold(w.body, "Сооружения подробнее")
 	ec_repair_btn = make_button("Отремонтировать всё", w.body)
 	ec_repair_btn.pressed.connect(repair_all)
-	add_note(w.body, "Строить сооружения нужно на экране «Карта» (карточка региона → «Проекты»).")
+	add_note(w.body, "Строить: «Карта» → кнопка «Строительство» (выберите сооружение и щёлкните по своей АТЕ) или карточка региона.")
 
 	# --- графики ---
 	w = new_window("ec_ch", "Графики", 5, Rect2(0.525, 0.60, 0.18, 0.40), false)

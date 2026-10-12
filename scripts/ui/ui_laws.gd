@@ -283,7 +283,7 @@ func update_law_windows() -> void:
 			tag += "◆ "
 		if dem.has(id):
 			tag += "★ "
-		btn.text = "%s%s\n%s" % [tag, t["name"], line2]
+		btn.text = "      %s%s\n      %s" % [tag, t["name"], line2]
 		btn.tooltip_text = ("◆ фундаментальный закон (две трети голосов)\n" if bool(t.get("fund", false)) else "") + (("★ требуют партии: %s" % ", ".join(PackedStringArray(dem[id]))) if dem.has(id) else "")
 		btn.set_pressed_no_signal(id == sel_topic)
 		if cur > 0:
@@ -495,6 +495,42 @@ func build_law_list(tgrp: ButtonGroup) -> void:
 				b.pressed.connect(on_topic_pressed.bind(t["id"]))
 				law_list_box.add_child(b)
 				law_topic_buttons[t["id"]] = b
+				# v50: значок закона
+				var ic: Control = Ico.make(law_icon(t), Color(LAW_CAT_COLORS[c]).lightened(0.15), 16.0)
+				ic.anchor_top = 0.5
+				ic.anchor_bottom = 0.5
+				ic.offset_left = 7.0
+				ic.offset_right = 23.0
+				ic.offset_top = -8.0
+				ic.offset_bottom = 8.0
+				ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				b.add_child(ic)
+
+
+# v50: значок закона — по ключевым словам названия и кода, иначе по сфере
+const LAW_ICON_KEYS := [
+	["налог|tax|ндс|vat|акциз", "coin"], ["пенси|pens", "person"], ["здрав|health|мед|больн|аборт|эвтан", "people"],
+	["образ|школ|edu|универ|наук", "flask"], ["арми|оборон|воен|призыв|army|draft|nato|нато", "shield"],
+	["полиц|police|безопас|оружи|gun|тюрьм|наказ|смерт", "shield"], ["сми|медиа|media|пресс|интернет|цензур", "scroll"],
+	["выбор|elect|голос|референд|партий|vote", "ballot"], ["суд|court|конституц|прав|const", "hall"],
+	["мигра|migr|граждан|убежищ|границ", "globe"], ["религ|церк|faith|relig|вер", "faith"], ["энерг|energy|климат|climate|атом|уголь|газ", "energy"],
+	["торг|trade|тариф|tariff|таможн|санкц", "tariff"], ["банк|bank|финанс|долг|debt|бюджет|валют|евро", "bank"],
+	["труд|работ|labor|зарплат|wage|профсоюз|забастов", "work"], ["регион|автоном|федер|region|местн", "map"],
+	["эколог|environ|природ|лес|отход", "globe"], ["жиль|housing|аренд|ипотек", "hall"], ["семь|брак|family|дет|материн", "people"],
+	["нарко|drug|алкогол|табак", "warn"], ["сельск|аграр|farm|agri|земл", "box"], ["транспорт|дорог|transport|желез", "grid"],
+	["собствен|property|приватиз|национализ|рынок|market", "handshake"], ["пособ|social|бедн|безработ|минимал", "person"],
+	["монарх|президент|президен|король|глава", "crown"], ["ес\b|евросоюз|\beu\b|союз", "star"],
+]
+
+
+func law_icon(t: Dictionary) -> String:
+	var hay: String = (String(t["id"]) + " " + String(t["name"])).to_lower()
+	for kv in LAW_ICON_KEYS:
+		var re := RegEx.new()
+		re.compile(String(kv[0]))
+		if re.search(hay) != null:
+			return String(kv[1])
+	return ["hall", "chart", "people"][clampi(int(t["cat"]), 0, 2)]
 
 
 func update_law_headers() -> void:

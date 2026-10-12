@@ -94,13 +94,54 @@ func build_war_windows() -> void:
 	# v38: переговоры и реакция мира
 	w = new_window("war_talk", "Переговоры и мир", 13, Rect2(0.22, 0.36, 0.19, 0.64))
 	war_talk_rt = make_rt(w.body)
-	add_title(w.body, "Требования")
+	# v50: условия мира — на «листе» договора, с названием
+	var sheet := PanelContainer.new()
+	var psb := StyleBoxFlat.new()
+	psb.bg_color = Color(0.94, 0.91, 0.83)
+	psb.border_color = Color(0.55, 0.45, 0.30)
+	psb.set_border_width_all(2)
+	psb.set_corner_radius_all(4)
+	psb.content_margin_left = 12.0
+	psb.content_margin_right = 12.0
+	psb.content_margin_top = 8.0
+	psb.content_margin_bottom = 8.0
+	sheet.add_theme_stylebox_override("panel", psb)
+	w.body.add_child(sheet)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 3)
+	sheet.add_child(sv)
+	var sh := Label.new()
+	sh.text = "МИРНЫЙ ДОГОВОР"
+	sh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sh.add_theme_font_size_override("font_size", 17)
+	sh.add_theme_color_override("font_color", Color(0.16, 0.14, 0.12))
+	sv.add_child(sh)
+	var pn := LineEdit.new()
+	pn.placeholder_text = "Название (необязательно)"
+	pn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pn.add_theme_color_override("font_color", Color(0.16, 0.14, 0.12))
+	pn.add_theme_color_override("font_placeholder_color", Color(0.45, 0.40, 0.33))
+	var lsb := StyleBoxFlat.new()
+	lsb.bg_color = Color(1, 1, 1, 0.0)
+	lsb.border_color = Color(0.45, 0.40, 0.33)
+	lsb.border_width_bottom = 1
+	pn.add_theme_stylebox_override("normal", lsb)
+	pn.add_theme_stylebox_override("focus", lsb)
+	pn.text_changed.connect(func(t: String) -> void: peace_name = t)
+	sv.add_child(pn)
+	var sl := Label.new()
+	sl.text = "Статьи (требования к противнику):"
+	sl.add_theme_font_size_override("font_size", 12)
+	sl.add_theme_color_override("font_color", Color(0.40, 0.36, 0.30))
+	sv.add_child(sl)
+	var ink := Color(0.16, 0.14, 0.12)
 	for id in TALK_IDS:
 		if id == "repar":
 			var rr := HBoxContainer.new()
-			w.body.add_child(rr)
+			sv.add_child(rr)
 			var lb := Label.new()
 			lb.text = "Репарации:"
+			lb.add_theme_color_override("font_color", ink)
 			rr.add_child(lb)
 			war_repar = fed_opt(rr, ["нет", "1% ВВП", "2% ВВП", "3% ВВП", "5% ВВП"], String(TALK_INFO["repar"][1]))
 			war_repar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -118,7 +159,16 @@ func build_war_windows() -> void:
 		cb.toggled.connect(func(on: bool) -> void:
 			talk_sel()[id] = on
 			refresh())
-		w.body.add_child(cb)
+		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+			var em := StyleBoxFlat.new()
+			em.bg_color = Color(0.55, 0.45, 0.30, 0.10) if st.begins_with("hover") else Color(0, 0, 0, 0)
+			em.content_margin_left = 2.0
+			cb.add_theme_stylebox_override(st, em)
+		cb.add_theme_color_override("font_color", ink)
+		cb.add_theme_color_override("font_hover_color", Color(0.05, 0.05, 0.05))
+		cb.add_theme_color_override("font_pressed_color", Color(0.10, 0.25, 0.12))
+		cb.add_theme_color_override("font_hover_pressed_color", Color(0.10, 0.25, 0.12))
+		sv.add_child(cb)
 		war_talk_chk[id] = cb
 	var t0 := HBoxContainer.new()
 	w.body.add_child(t0)

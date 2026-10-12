@@ -899,11 +899,9 @@ func bill_amend(bid: int, kind: String) -> bool:
 			did["sweet"] = true
 			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s»: компенсации и смягчающие поправки — %s согласны голосовать за." % [law_index[tid]["name"], ", ".join(added) if added.size() > 0 else "новых сторонников нет"])
 		"fast":
-			if bool(did.get("fast", false)) or capital < 4.0 or int(b["due"]) <= turn + 1:
-				return false
-			capital -= 4.0
-			b["due"] = int(b["due"]) - 1
-			did["fast"] = true
+			# v50: ускорение принятия закона отменено — парламент рассматривает законопроект в свой срок
+			log_line("[color=%s]Ускорить рассмотрение нельзя: парламент работает в своём темпе.[/color]" % COL_WARN)
+			return false
 		"slow":
 			if int(did.get("slow", 0)) >= 2:
 				return false
@@ -917,6 +915,139 @@ func bill_amend(bid: int, kind: String) -> bool:
 			return false
 	refresh()
 	return true
+
+
+# ---------- v50: поправки-оговорки: в пользу группы интересов, показателя страны или партии ----------
+const RIDER_CHARS := {
+	"env_lvl": ["Экологическая оговорка", "env", "Экологи"], "equality": ["Социальная оговорка", "benefits", "Рабочие"],
+	"security_lvl": ["Оговорка о безопасности", "police", "Силовики"], "corruption": ["Антикоррупционная оговорка", "", ""],
+	"edu_lvl": ["Оговорка об образовании", "edu", "Молодёжь"], "health_lvl": ["Оговорка о здравоохранении", "health", "Пенсионеры"],
+	"infra_lvl": ["Оговорка о региональной инфраструктуре", "infra", "Село"],
+}
+const RIDER_MAX := 4
+
+
+func bill_rider_list(b: Dictionary) -> Array:
+	if not b.has("riders"):
+		b["riders"] = []
+	return b["riders"]
+
+
+# kind: "group" (arg — группа), "char" (arg — показатель), "party" (arg — номер партии)
+func bill_rider_check(b: Dictionary, kind: String, arg: String) -> String:
+	if int(b["sponsor"]) != 0:
+		return "это чужой законопроект"
+	if bill_rider_list(b).size() >= RIDER_MAX:
+		return "не больше %d оговорок в одном законе" % RIDER_MAX
+	for r in bill_rider_list(b):
+		if String(r["k"]) == kind and String(r["a"]) == arg:
+			return "такая оговорка уже есть"
+	var cost: float = 4.0 if kind == "party" else 3.0
+	if capital < cost:
+		return "нужно %.0f политкапитала" % cost
+	if kind == "party":
+		var p := int(arg)
+		if p <= 0 or p >= PARTY_NAMES.size() or seats[p] <= 0:
+			return "партии нет в парламенте"
+	return ""
+
+
+func bill_rider_add(bid: int, kind: String, arg: String) -> bool:
+	var bi := bill_index(bid)
+	if bi < 0:
+		return false
+	var b: Dictionary = bills[bi]
+	var why := bill_rider_check(b, kind, arg)
+	if why != "":
+		log_line("[color=%s]Поправка невозможна: %s.[/color]" % [COL_WARN, why])
+		return false
+	var tid: String = String(b["tid"])
+	var y0: int = int(bill_preview(b)["yes"])
+	var won: PackedStringArray = []
+	var lost: PackedStringArray = []
+	var title := ""
+	match kind:
+		"group":
+			capital -= 3.0
+			title = "в пользу группы «%s»" % arg
+			# партии, чей электорат — эта группа, охотнее голосуют «за»
+			for p in range(1, PARTY_NAMES.size()):
+				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+					continue
+				var lean_sh: float = float(LEAN[arg][p]) / maxf(0.001, _lean_sum(arg))
+				if lean_sh > 1.4 / float(PARTY_NAMES.size()) and variant_stance(p, tid, int(b["idx"])) >= -3.0:
+					(b["forced"] as Array).append(p)
+					won.append(PARTY_NAMES[p])
+		"char":
+			capital -= 3.0
+			var ch: Array = RIDER_CHARS.get(arg, ["Оговорка", "", ""])
+			title = String(ch[0]).to_lower()
+			var pk: String = String(ch[1])
+			for p in range(1, PARTY_NAMES.size()):
+				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+					continue
+				var st: float = ideo_stance(p, pk) if policy_by_key.has(pk) else (0.4 if arg == "corruption" else 0.0)
+				if st > 0.25 and variant_stance(p, tid, int(b["idx"])) >= -3.5:
+					(b["forced"] as Array).append(p)
+					won.append(PARTY_NAMES[p])
+		"party":
+			capital -= 4.0
+			var q := int(arg)
+			title = "с учётом требований «%s»" % PARTY_NAMES[q]
+			if not (q in b["forced"]) and variant_stance(q, tid, int(b["idx"])) >= -5.0:
+				(b["forced"] as Array).append(q)
+				won.append(PARTY_NAMES[q])
+			rel_add(0, q, 3.0)
+			# противники этой партии отходят
+			for p in (b["forced"] as Array).duplicate():
+				if int(p) != q and int(p) != 0 and rel(int(p), q) < 32.0:
+					(b["forced"] as Array).erase(p)
+					lost.append(PARTY_NAMES[int(p)])
+	bill_rider_list(b).append({"k": kind, "a": arg, "t": title})
+	var y1: int = int(bill_preview(b)["yes"])
+	var t := "законопроект «%s»: оговорка %s; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], title, y0, y1, law_need(tid)]
+	if won.size() > 0:
+		t += " Поддержат: %s." % ", ".join(won)
+	if lost.size() > 0:
+		t += " Отвернулись: %s." % ", ".join(lost)
+	log_tag("ПОПРАВКА", COL_TEAL, t)
+	refresh()
+	return true
+
+
+func _lean_sum(g: String) -> float:
+	var t := 0.0
+	for v in (LEAN[g] as Array):
+		t += float(v)
+	return t
+
+
+# после принятия закона оговорки действуют: группы, показатели, партии
+func bill_riders_apply(b: Dictionary) -> void:
+	for r in (b.get("riders", []) as Array):
+		match String(r["k"]):
+			"group":
+				add_support(String(r["a"]), 2.0)
+				conc_all_groups_cost(0.04)
+			"char":
+				var key: String = String(r["a"])
+				if lvl.has(key):
+					lvl[key] = clampf(float(lvl[key]) + (-2.0 if key == "corruption" else 2.0), 0.0, 100.0)
+				var g: String = String((RIDER_CHARS.get(key, ["", "", ""]) as Array)[2])
+				if g != "":
+					add_support(g, 1.0)
+				conc_all_groups_cost(0.03)
+			"party":
+				var q := int(r["a"])
+				if q > 0 and q < PARTY_NAMES.size():
+					rel_add(0, q, 4.0)
+					if in_coalition[q]:
+						conc[q] = float(conc.get(q, 0.0)) + 6.0
+
+
+# оговорки стоят денег: небольшой разовый расход (доля ВВП)
+func conc_all_groups_cost(pp: float) -> void:
+	debt += gdp * pp / 100.0
 
 
 func bills_step() -> void:
@@ -955,6 +1086,8 @@ func bill_vote(b: Dictionary) -> void:
 	var ok: bool = int(law_cd.get(tid, 0)) > 0
 	if not ok:
 		law_cd[tid] = saved_cd
+	else:
+		bill_riders_apply(b)
 	for r in b["req"]:
 		if int(r["state"]) == 0:
 			rel_add(0, int(r["p"]), -2.0)

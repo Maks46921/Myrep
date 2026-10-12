@@ -12,6 +12,10 @@ var bill_rt: RichTextLabel
 var bill_acc: Button
 var bill_rej: Button
 var bill_am := {}
+var rider_kind: OptionButton = null
+var rider_arg: OptionButton = null
+var rider_btn: Button = null
+var rider_args: Array = []
 
 
 func build_opp_windows() -> void:
@@ -50,10 +54,20 @@ func build_opp_windows() -> void:
 	bill_acc.pressed.connect(on_bill_req.bind(true))
 	bill_rej = fed_btn("Отклонить просьбу", w.body, "Отношения с партией ухудшатся.")
 	bill_rej.pressed.connect(on_bill_req.bind(false))
-	for am in [["soft", "Смягчить закон (сила −0.2)"], ["hard", "Усилить закон (сила +0.2)"], ["sweet", "Компенсации оппонентам (капитал 4)"], ["fast", "Ускорить на месяц (капитал 4)"], ["slow", "Отложить на месяц"], ["withdraw", "Отозвать законопроект"]]:
+	for am in [["soft", "Смягчить закон (сила −0.2)"], ["hard", "Усилить закон (сила +0.2)"], ["sweet", "Компенсации оппонентам (капитал 4)"], ["slow", "Отложить на месяц"], ["withdraw", "Отозвать законопроект"]]:
 		var bb := fed_btn(String(am[1]), w.body)
 		bb.pressed.connect(on_bill_amend.bind(String(am[0])))
 		bill_am[String(am[0])] = bb
+	# v50: оговорки — поправки в пользу группы интересов, показателя страны или партии (до 4 в законе)
+	add_title(w.body, "Оговорки к закону")
+	rider_kind = fed_opt(w.body, ["В пользу группы интересов (капитал 3)", "Улучшить показатель страны (капитал 3)", "Учесть требования партии (капитал 4)"], "Какую оговорку внести.")
+	rider_kind.item_selected.connect(func(_i: int) -> void:
+		rider_fill()
+		refresh())
+	rider_arg = fed_opt(w.body, [], "Кому или чему оговорка.")
+	rider_btn = fed_btn("Внести оговорку", w.body, "Оговорка привлекает партии, которым дорога эта группа или показатель, а после принятия закона действует сама. Учёт требований партии может оттолкнуть её противников.")
+	rider_btn.pressed.connect(on_rider_add)
+	rider_fill()
 	add_note(w.body, "Закон принимается не сразу: после внесения он идёт через парламент несколько месяцев. Партии присылают просьбы о поправках — вы можете принять их (цена — капитал, смягчение) или внести свои.", true)
 	add_note(w.body, "Соглашения действуют и во власти, и в оппозиции: «поддержка» делает партию терпимой к правительству, «блок» добавляет голосов обеим на выборах, «союз по голосованию» помогает проводить законы.", true)
 
@@ -76,6 +90,34 @@ func on_bill_req(acc: bool) -> void:
 
 func on_bill_amend(kind: String) -> void:
 	bill_amend(bill_sel, kind)
+
+
+func rider_fill() -> void:
+	if rider_arg == null:
+		return
+	rider_arg.clear()
+	rider_args.clear()
+	match rider_kind.selected:
+		0:
+			for g in GROUPS:
+				rider_arg.add_item(g)
+				rider_args.append(["group", g])
+		1:
+			for k in RIDER_CHARS:
+				rider_arg.add_item(String(RIDER_CHARS[k][0]))
+				rider_args.append(["char", k])
+		_:
+			for p in range(1, PARTY_NAMES.size()):
+				if seats[p] > 0 and not (p in NO_GOV_SLOTS):
+					rider_arg.add_item(party_abbr(p) + " — " + String(PARTY_NAMES[p]).left(40))
+					rider_args.append(["party", str(p)])
+
+
+func on_rider_add() -> void:
+	var i := rider_arg.selected
+	if i < 0 or i >= rider_args.size():
+		return
+	bill_rider_add(bill_sel, String(rider_args[i][0]), String(rider_args[i][1]))
 
 
 func update_bill_window() -> void:
@@ -129,7 +171,18 @@ func update_bill_window() -> void:
 " % [String(r["txt"]), "[color=%s](принято)[/color]" % COL_GOOD if st == 1 else ("[color=%s](отклонено)[/color]" % COL_BAD if st == 2 else "")]
 		if st == 0:
 			pend = true
+	var rl: Array = b.get("riders", [])
+	if rl.size() > 0:
+		var rt: PackedStringArray = []
+		for r in rl:
+			rt.append(String(r["t"]))
+		t += "Оговорки: %s\n" % ", ".join(rt)
 	bill_rt.text = loc(t)
+	if rider_btn != null:
+		var ai := rider_arg.selected
+		var why2 := bill_rider_check(b, String(rider_args[ai][0]), String(rider_args[ai][1])) if ai >= 0 and ai < rider_args.size() else "выберите"
+		rider_btn.disabled = why2 != "" or game_over
+		rider_btn.tooltip_text = why2 if why2 != "" else "Оговорка привлекает партии, которым дорога эта группа или показатель, а после принятия закона действует сама."
 	if int(b["sponsor"]) == 0:
 		bill_acc.disabled = not pend or game_over
 		bill_rej.disabled = not pend or game_over

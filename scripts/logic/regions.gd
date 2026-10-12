@@ -12,6 +12,10 @@ func ag_unrest_term(i: int) -> float:
 	return 0.0
 
 
+func ate_name(a: int) -> String:
+	return ""
+
+
 func fed_auto_term(i: int) -> float:
 	return 0.0
 
@@ -188,26 +192,86 @@ func complete_project(i: int) -> void:
 	if pd.is_empty():
 		return
 	var eff := effective_reg(i, pd["reg"])
-	complete_struct(i, String(pd["id"]))
+	complete_struct(i, String(pd["id"]), int(pr.get("ate", -1)))
 	apply_reg_delta(i, pd["reg"], true)
 	var nat := apply_fx(pd["nat"])
 	log_tag("ПРОЕКТ", COL_GOOD, "завершён «%s» в регионе «%s». Регион: %s%s." % [
 		pd["name"], REGIONS[i]["name"], describe_reg(eff), (", страна: " + nat) if nat != "" else ""])
 
 
+# v50: стройка не стоит политкапитала, зато на неё реагируют группы интересов (экологи против угля и газа и т. п.)
+const PROJ_GROUP_FX := {
+	"power_coal": {"Экологи": -2.0, "Рабочие": 0.6, "Бизнес": 0.3}, "power_gas": {"Экологи": -1.0, "Бизнес": 0.4},
+	"power_nuke": {"Экологи": -1.4, "Бизнес": 0.6, "Силовики": 0.3}, "solar_wind": {"Экологи": 1.4, "Молодёжь": 0.4, "Село": -0.4},
+	"grid": {"Бизнес": 0.5}, "road": {"Бизнес": 0.4, "Село": 0.3, "Экологи": -0.4}, "rail": {"Бизнес": 0.4, "Экологи": 0.3},
+	"port": {"Бизнес": 0.6, "Экологи": -0.4}, "factory": {"Рабочие": 0.8, "Бизнес": 0.4, "Экологи": -0.8},
+	"indpark": {"Бизнес": 0.7}, "refinery": {"Рабочие": 0.5, "Бизнес": 0.4, "Экологи": -0.9}, "mine": {"Рабочие": 0.6, "Экологи": -1.5, "Село": -0.3},
+	"agro": {"Село": 0.8}, "irrig": {"Село": 0.6, "Экологи": -0.2}, "granary": {"Село": 0.5, "Пенсионеры": 0.2},
+	"hospital": {"Пенсионеры": 0.8, "Бюджетники": 0.4}, "university": {"Молодёжь": 0.8, "Бюджетники": 0.3},
+	"techpark": {"Молодёжь": 0.6, "Бизнес": 0.4}, "telecom": {"Бизнес": 0.4, "Молодёжь": 0.4},
+	"housing": {"Молодёжь": 0.6, "Рабочие": 0.3}, "eco": {"Экологи": 1.2, "Бизнес": -0.2},
+}
+
+
+func proj_group_text(pid: String) -> String:
+	var fx: Dictionary = PROJ_GROUP_FX.get(pid, {})
+	var parts: PackedStringArray = []
+	for g in fx:
+		var v: float = float(fx[g])
+		parts.append("[color=%s]%s %s[/color]" % [COL_GOOD if v > 0.0 else COL_BAD, g, sg(v, 1)])
+	return ", ".join(parts) if parts.size() > 0 else "группы равнодушны"
+
+
+# начать стройку pid в регионе i (ate — АТЕ, где будет сооружение; -1 — выбрать самую населённую АТЕ региона). "" — успех
+func project_start_at(i: int, pid: String, ate: int = -1) -> String:
+	if game_over:
+		return "игра окончена"
+	if opp_mode:
+		return "стройкой распоряжается правительство"
+	if i < 0 or i >= regions.size():
+		return "выберите свой регион"
+	if not (regions[i]["proj"] as Dictionary).is_empty():
+		return "в регионе уже идёт стройка"
+	var pd := find_by_id(PROJECTS, pid)
+	if pd.is_empty():
+		return "нет такого сооружения"
+	if ate < 0:
+		ate = region_main_ate(i)
+	var cost_pct := project_cost_pct(i, pd)
+	regions[i]["proj"] = {"id": pd["id"], "left": int(pd["months"]), "months": int(pd["months"]), "cost": cost_pct, "ate": ate}
+	var fx: Dictionary = PROJ_GROUP_FX.get(pid, {})
+	for g in fx:
+		add_support(String(g), float(fx[g]))
+	var where: String = ("«%s», %s" % [REGIONS[i]["name"], ate_name(ate)]) if ate >= 0 else "«%s»" % REGIONS[i]["name"]
+	log_tag("ПРОЕКТ", COL_TEAL, "%s — %s: начат «%s» (%d мес., всего %.1f млрд). Реакция: %s. %s" % [
+		date_text(), where, pd["name"], pd["months"], gdp * cost_pct / 100.0, proj_group_text(pid), roi_text(i, pd["reg"], cost_pct)])
+	refresh()
+	return ""
+
+
+func region_main_ate(i: int) -> int:
+	if ate_n <= 0 or i < 0:
+		return -1
+	var best := -1
+	var bp := -1.0
+	for ui in map_unit_local:
+		if int(map_unit_local[ui]) != i or int(ui) >= ate_lists.size():
+			continue
+		for a in (ate_lists[int(ui)] as PackedInt32Array):
+			var pp: float = ate_pw[a] if a < ate_pw.size() else 0.0
+			if pp > bp:
+				bp = pp
+				best = a
+	return best
+
+
 func start_project() -> void:
+	if pl_deny(): return
 	if game_over or proj_option == null:
 		return
-	var i := selected_region
-	if not (regions[i]["proj"] as Dictionary).is_empty() or capital < 2.0:
-		return
-	var pd: Dictionary = PROJECTS[proj_option.selected]
-	var cost_pct := project_cost_pct(i, pd)
-	capital -= 2.0
-	regions[i]["proj"] = {"id": pd["id"], "left": int(pd["months"]), "months": int(pd["months"]), "cost": cost_pct}
-	log_tag("ПРОЕКТ", COL_TEAL, "%s — в регионе «%s» начат «%s» (%d мес., всего %.1f млрд, политкапитал -2). %s" % [
-		date_text(), REGIONS[i]["name"], pd["name"], pd["months"], gdp * cost_pct / 100.0, roi_text(i, pd["reg"], cost_pct)])
-	refresh()
+	var why := project_start_at(selected_region, String(PROJECTS[proj_option.selected]["id"]), -1)
+	if why != "":
+		log_line("[color=%s]Стройка не начата: %s.[/color]" % [COL_WARN, why])
 
 
 func cancel_project() -> void:

@@ -147,14 +147,14 @@ func floor_share(key: String) -> float:
 	return want / gdp * 100.0
 
 
-func auto_floor() -> int:
+func auto_floor(only_selected: bool = false) -> int:
 	var n := 0
 	var parts: PackedStringArray = []
 	for d in POLICY:
 		var key: String = d["key"]
 		if String(d["kind"]) != "spend":
 			continue
-		if not auto_floor_on and not floor_keys.has(key):
+		if only_selected and not floor_keys.has(key):
 			continue
 		var share: float = minf(float(d["max"]), floor_share(key) + 0.005)
 		share = lock_allowed_share(key, share)
@@ -430,7 +430,7 @@ func form_government(verbose: bool) -> bool:
 func check_government() -> void:
 	check_commitments()
 	if auto_floor_on or not floor_keys.is_empty():
-		auto_floor()
+		auto_floor(not auto_floor_on)
 	var members := 0
 	var sum_sat := 0.0
 	for p in range(1, PARTY_NAMES.size()):

@@ -12,6 +12,10 @@ func build_army_windows() -> void:
 	pass
 
 
+func build_build_window() -> void:
+	pass
+
+
 func build_crisis_windows() -> void:
 	pass
 
@@ -140,6 +144,10 @@ func update_bud_head() -> void:
 	pass
 
 
+func update_build_window() -> void:
+	pass
+
+
 func update_crisis_windows() -> void:
 	pass
 
@@ -217,7 +225,7 @@ func new_window(id: String, title: String, desk: int, fr: Rect2, scrolling: bool
 
 
 # окна, закрытые по умолчанию (открываются через «Окна»)
-const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm"]
+const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm", "build", "pop_agent"]
 
 
 func win_vis(id: String, on: bool) -> void:
@@ -503,6 +511,7 @@ func build_ui() -> void:
 	build_gov_windows()
 	build_pop_windows()
 	build_map_windows()
+	build_build_window()
 	build_econ_windows()
 	build_dip_windows()
 	build_goods_windows()
@@ -678,7 +687,7 @@ func add_slider(parent: Control, d: Dictionary) -> void:
 		fb.toggled.connect(func(on: bool) -> void:
 			if on:
 				floor_keys[key] = true
-				auto_floor()
+				auto_floor(true)
 			else:
 				floor_keys.erase(key)
 			refresh())
@@ -1101,6 +1110,7 @@ func refresh() -> void:
 		update_army_windows()
 	if current_desk == 2:
 		update_dip_windows()
+		update_build_window()
 	update_regions_ui()
 	update_tech_windows()
 	update_crisis_windows()
@@ -1111,7 +1121,7 @@ func refresh() -> void:
 # v50: окна, которыми распоряжается только правительство (и те, где нужны места в парламенте), затемняются с объяснением
 const WIN_GOV_ONLY := ["tax", "measures", "ec_st", "ec_cb", "ec_gf", "cabinet", "neg", "commit", "actions", "xw_info", "war_ops", "war_talk",
 	"regact", "ar_budget", "ar_svc", "ar_proc", "ar_act", "dact", "fw_reg", "fw_bulk", "fw_dem", "tw_buy", "tw_union", "tw_sell",
-	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs"]
+	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs", "rm_nato"]
 const WIN_PARL_ONLY := ["bills"]
 
 

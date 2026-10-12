@@ -4,6 +4,10 @@ extends "res://scripts/logic/fpai.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func show_desk(i: int) -> void:
+	pass
+
+
 func update_pop_windows() -> void:
 	pass
 
@@ -293,6 +297,10 @@ func ag_exit_report(pres: bool, only_party: int) -> void:
 func ag_pick(i: int) -> void:
 	ag_sel = i
 	ag_ui_ver = -1
+	# v50: карточка агента по умолчанию закрыта — открываем её при выборе
+	if wins.has("pop_agent") and (wins["pop_agent"] as Control).get("closed") == true:
+		wins["pop_agent"].set("closed", false)
+		show_desk(current_desk)
 	update_pop_windows()
 
 

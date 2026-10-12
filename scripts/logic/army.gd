@@ -26,10 +26,6 @@ func fa_eu_sanc() -> bool:
 	return false
 
 
-func fa_hit(c: String, v: float, why: String) -> void:
-	pass
-
-
 func fa_on() -> bool:
 	return false
 

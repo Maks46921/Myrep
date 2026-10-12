@@ -167,6 +167,8 @@ func rl_blocs_step() -> void:
 	var ratio: float = debt / maxf(1.0, gdp) * 100.0
 	if bool(b["eu"]):
 		rl["g"] = float(rl["g"]) + 0.12
+		if bool(rl.get("eu_rebate", false)):
+			debt -= gdp * 0.05 / 100.0 / 12.0
 		var pc: float = rl_pc()
 		if pc < 35.0:
 			# структурные фонды: бедные члены получают долю ВВП
@@ -599,6 +601,17 @@ func rl_acts(page: String) -> Array:
 				out.append({"id": "leave_nato", "name": "Выйти из НАТО", "cap": 12.0, "desc": "Нейтралитет: армия дешевле по влиянию союзников, но гарантий безопасности больше нет и отношения ухудшаются."})
 			if bool(b["schg"]):
 				out.append({"id": "ctrl", "name": ("Снять пограничный контроль" if bool(b["ctrl"]) else "Ввести пограничный контроль"), "cap": 2.0, "desc": "Контроль на границах снижает миграционное напряжение и нравится силовикам, но замедляет торговлю и туризм."})
+		# v50: отдельные страницы Евросоюза и НАТО
+		"eu":
+			if bool(b["eu"]):
+				out.append({"id": "eu_funds", "name": "Запросить деньги фонда восстановления (−0,3% ВВП долга)", "cap": 6.0, "cd": 24, "desc": "Брюссель выделяет средства на проекты, если в стране верховенство права: коррупция не выше 60."})
+				out.append({"id": "eu_veto", "name": "Наложить вето на решение ЕС", "cap": 4.0, "cd": 12, "desc": "Защитить свои интересы: сторонники суверенитета довольны, партнёры по ЕС раздражены."})
+				out.append({"id": "eu_rebate", "name": "Добиться скидки на взнос в бюджет ЕС", "cap": 8.0, "cd": 48, "desc": "Взнос меньше на 0,05% ВВП в год, но партнёры недовольны торгом."})
+				out.append({"id": "eu_leave", "name": "Выйти из Евросоюза", "cap": 15.0, "desc": "Без единого рынка и фондов рост ниже, бизнес и молодёжь против; суверенитет радует часть избирателей. Уходит и евро, и Шенген."})
+		"nato":
+			if bool(b["nato"]):
+				out.append({"id": "nato_ex", "name": "Принять учения НАТО", "cap": 4.0, "cd": 12, "desc": "Союзники ближе, силовики довольны; соперники альянса злятся."})
+				out.append({"id": "nato_base", "name": "Разместить базу союзников", "cap": 8.0, "cd": 999, "desc": "Безопасность +3, сдерживание выше. Часть молодёжи против; Россия и Беларусь в ярости."})
 		"demo":
 			out.append({"id": "fam_up", "name": "Семейная политика +1 (расход +0,22% ВВП/год)", "cap": 3.0, "desc": "Пособия, детсады, жильё для семей: рождаемость растёт медленно, но верно.", "lv": "fam", "d": 1})
 			out.append({"id": "fam_dn", "name": "Семейная политика −1", "cap": 0.0, "desc": "Сократить расходы.", "lv": "fam", "d": -1})
@@ -654,7 +667,7 @@ func rl_do(id: String) -> bool:
 	if not rl_on() or observer or not current_event.is_empty():
 		return false
 	var found: Dictionary = {}
-	for pg in ["blocs", "demo", "energy", "law", "media", "region", "parl"]:
+	for pg in ["blocs", "eu", "nato", "demo", "energy", "law", "media", "region", "parl"]:
 		for a in rl_acts(pg):
 			if String(a["id"]) == id:
 				found = a
@@ -711,6 +724,54 @@ func rl_do(id: String) -> bool:
 			add_support("Силовики", -4.0)
 			rl_log("Страна вышла из НАТО и объявила нейтралитет.", COL_WARN)
 			fa_notify("leave_nato", "", 1.0)
+		"eu_funds":
+			if float(l["cor"]) > 60.0:
+				dip_all(-1.0, true)
+				rl_log("Брюссель отказал в деньгах: коррупция слишком высока (%.0f). Партнёры недовольны." % float(l["cor"]), COL_WARN)
+			else:
+				debt = maxf(0.0, debt - gdp * 0.3 / 100.0)
+				add_support("Бизнес", 1.0)
+				add_support("Село", 0.5)
+				rl_log("Евросоюз выделил средства фонда восстановления (0,3% ВВП).", COL_GOOD)
+		"eu_veto":
+			dip_all(-2.0, true)
+			add_support("Силовики", 1.0)
+			add_support("Село", 0.5)
+			add_support("Молодёжь", -0.5)
+			rl_log("Вы заблокировали решение ЕС: дома это сочли защитой интересов, в Брюсселе — шантажом.", COL_WARN)
+		"eu_rebate":
+			rl["eu_rebate"] = true
+			dip_all(-1.5, true)
+			add_support("Бизнес", 0.5)
+			rl_log("Взнос в бюджет ЕС снижен.", COL_GOOD)
+		"eu_leave":
+			b["eu"] = false
+			b["euro"] = false
+			b["schg"] = false
+			dip_all(-6.0, true)
+			add_support("Бизнес", -4.0)
+			add_support("Молодёжь", -3.0)
+			add_support("Силовики", 2.0)
+			add_support("Село", 1.0)
+			rl["g"] = float(rl["g"]) - 1.0
+			rl_log("Страна вышла из Евросоюза: единый рынок, фонды и общие правила остались позади.", COL_BAD)
+			fa_notify("leave_nato", "", 1.0)
+		"nato_ex":
+			dip_all(1.0, false)
+			add_support("Силовики", 1.0)
+			for foe in ["RU", "BY"]:
+				if foe != ccode:
+					ex_rel_change(foe, -3.0)
+			rl_log("На вашей территории прошли учения НАТО.", COL_GOOD)
+		"nato_base":
+			rl["nato_base"] = true
+			lvl["security_lvl"] = clampf(float(lvl["security_lvl"]) + 3.0, 0.0, 100.0)
+			add_support("Силовики", 2.0)
+			add_support("Молодёжь", -1.0)
+			for foe in ["RU", "BY"]:
+				if foe != ccode:
+					ex_rel_change(foe, -10.0)
+			rl_log("Размещена база союзников по НАТО.", COL_GOOD)
 		"ctrl":
 			b["ctrl"] = not bool(b["ctrl"])
 			add_support("Силовики", 2.0 if bool(b["ctrl"]) else -1.0)

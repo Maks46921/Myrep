@@ -4,6 +4,14 @@ extends "res://scripts/ui/ui_core.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func build_click(pos: Vector2) -> void:
+	pass
+
+
+func draw_struct_icons(c: Control, s: float, off: Vector2) -> void:
+	pass
+
+
 func draw_war_overlay(c: Control, ci: RID, s: float) -> void:
 	pass
 
@@ -786,7 +794,9 @@ func on_map_input(ev: InputEvent) -> void:
 			elif map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT:
 				if current_desk != 2 and current_desk != 8 and current_desk != 9:
 					show_desk(2)
-				if ate_mode and current_desk == 2:
+				if bld_pick != "" and current_desk == 2:
+					build_click(mb.position)
+				elif ate_mode and current_desk == 2:
 					ate_click(ate_at(mb.position), mb.shift_pressed)
 				else:
 					map_click(unit_at(mb.position))
@@ -828,7 +838,7 @@ func build_map_windows() -> void:
 	var hb3 := HFlowContainer.new()
 	hb3.add_theme_constant_override("h_separation", 4)
 	w.body.add_child(hb3)
-	for it in [["adm", "АТЕ и границы", "Окно административной реформы: режим выделения АТЕ на карте, передача АТЕ между регионами, новые регионы."],
+	for it in [["build", "Строительство", "Окно строительства: выберите сооружение и щёлкните по своей АТЕ на карте."], ["adm", "АТЕ и границы", "Окно административной реформы: режим выделения АТЕ на карте, передача АТЕ между регионами, новые регионы."],
 			["regtable", "Сводка регионов", "Таблица всех регионов с сортировкой."], ["regact", "Трансферты", "Действия и трансферты для выбранного региона."]]:
 		var ob3 := Button.new()
 		ob3.theme_type_variation = "SmallButton"
@@ -935,7 +945,7 @@ func build_map_windows() -> void:
 		proj_option.add_item("%s: %.2f%% ВВП, %d мес." % [pd["name"], pd["cost"], pd["months"]])
 	proj_option.item_selected.connect(func(_i: int) -> void: update_region_info())
 	w.body.add_child(proj_option)
-	proj_start = make_button("Начать проект (политкапитал 2)", w.body)
+	proj_start = make_button("Начать стройку в этом регионе", w.body)
 	proj_start.pressed.connect(start_project)
 	proj_cancel = make_button("Остановить проект", w.body)
 	proj_cancel.pressed.connect(cancel_project)
@@ -1668,7 +1678,7 @@ func update_region_info() -> void:
 			roi_text(i, pd["reg"], project_cost_pct(i, pd)), describe_reg(effective_reg(i, pd["reg"]))]
 		proj_label.text += "\n" + struct_effect_text(pd) + "\n" + region_struct_text(i)
 		proj_option.disabled = false
-		proj_start.disabled = game_over or capital < 2.0
+		proj_start.disabled = game_over or opp_mode
 		proj_cancel.disabled = true
 	else:
 		var pd2 := find_by_id(PROJECTS, pr["id"])
@@ -2246,6 +2256,8 @@ func draw_map_fx() -> void:
 	var bt: String = "%d км" % int(bar_km)
 	c.draw_string_outline(font, b0 + Vector2(0.0, -3.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.6))
 	c.draw_string(font, b0 + Vector2(0.0, -3.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.90, 0.82))
+	# v50: сооружения на своих АТЕ
+	draw_struct_icons(c, s, off)
 	# пульс своей столицы
 	if WORLD_CAPS.has(ccode):
 		var cp: Vector2 = (WORLD_CAPS[ccode] as Vector2) * s + off

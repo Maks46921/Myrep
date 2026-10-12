@@ -142,7 +142,7 @@ func auto_resolve_event() -> void:
 
 
 func autobuild_step() -> void:
-	if ec.is_empty() or capital < 8.0 or debt / gdp * 100.0 > 85.0:
+	if ec.is_empty() or debt / gdp * 100.0 > 85.0:
 		return
 	var active := 0
 	for r in regions:

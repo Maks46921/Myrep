@@ -33,6 +33,15 @@ func build_dip_windows() -> void:
 	dip_flag_lbl.clip_text = true
 	fh.add_child(dip_flag_lbl)
 	dip_info_rt = make_rt(w.body)
+	# v50: финансирование партии этой страны (доступно и вне власти — из денег партии)
+	add_title(w.body, "Финансировать партию")
+	dip_fund_opt = fed_opt(w.body, [], "Партия, которую вы поддержите деньгами до ближайших выборов.")
+	dip_fund_btn = fed_btn("Финансировать (6 капитала)", w.body, "Шансы партии на выборах вырастут, настроение избирателей сдвинется к её взглядам. Каждый месяц ~3% риск разоблачения: скандал и обида страны.")
+	dip_fund_btn.pressed.connect(func() -> void:
+		var i := dip_fund_opt.selected
+		if i >= 0:
+			w_fund(dip_sel, dip_fund_opt.get_item_id(i)))
+	dip_fund_rt = make_rt(w.body)
 
 	w = new_window("dact", "Взаимодействие со страной", 2, Rect2(0.45, 0.0, 0.255, 1.0))
 	add_title(w.body, "Быстрые действия")
@@ -72,6 +81,32 @@ func build_dip_windows() -> void:
 	add_note(w.body, "Каждое соглашение даёт эффект, пока отношения достаточно тёплые. Уровни выше обычных усиливают экономику и безопасность; в кризисе отношений соглашения рушатся.")
 
 
+var dip_fund_opt: OptionButton = null
+var dip_fund_btn: Button = null
+var dip_fund_rt: RichTextLabel = null
+var dip_fund_cc := ""
+
+
+func update_dip_fund() -> void:
+	if dip_fund_opt == null:
+		return
+	if dip_fund_cc != dip_sel:
+		dip_fund_cc = dip_sel
+		dip_fund_opt.clear()
+		for pi in w_fund_parties(dip_sel):
+			dip_fund_opt.add_item(w_party_name(dip_sel, int(pi)).left(46), int(pi))
+	var f: Dictionary = (wsim[dip_sel].get("fund", {}) as Dictionary) if wsim.has(dip_sel) else {}
+	var why := w_fund_check(dip_sel, dip_fund_opt.get_item_id(dip_fund_opt.selected) if dip_fund_opt.selected >= 0 else -1)
+	dip_fund_btn.disabled = why != ""
+	dip_fund_btn.tooltip_text = why if why != "" else "Шансы партии на выборах вырастут, настроение избирателей сдвинется к её взглядам. Каждый месяц ~3% риск разоблачения: скандал и обида страны."
+	if not f.is_empty():
+		dip_fund_rt.text = "[font_size=13]Вы финансируете «%s»: ещё %d мес. или до выборов.[/font_size]" % [w_party_name(dip_sel, int(f["p"])), int(f["left"])]
+	elif dip_fund_opt.item_count == 0:
+		dip_fund_rt.text = "[font_size=13][color=%s]Партии этой страны в игре не представлены.[/color][/font_size]" % COL_DIM
+	else:
+		dip_fund_rt.text = ""
+
+
 var dip_flag: TextureRect = null
 var dip_flag_lbl: Label = null
 
@@ -88,6 +123,7 @@ func dip_nohead(t: String) -> String:
 func update_dip_windows() -> void:
 	if dip_info_rt == null or dip.is_empty():
 		return
+	update_dip_fund()
 	if dip_flag != null and WORLD.has(dip_sel):
 		if String(dip_flag.get_meta("cc", "")) != dip_sel:
 			dip_flag.set_meta("cc", dip_sel)

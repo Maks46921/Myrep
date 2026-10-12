@@ -12,6 +12,10 @@ func fa_explain(c: String) -> String:
 	return ""
 
 
+func fa_hit(c: String, v: float, why: String) -> void:
+	pass
+
+
 func fa_rel_term(c: String) -> float:
 	return 0.0
 
@@ -427,11 +431,26 @@ func w_election(c: String) -> void:
 	var old: float = float(w["stance"])
 	var swing: float = randf_range(-0.45, 0.45) - (float(w["appr"]) - 45.0) / 100.0 * 0.5 * signf(old if absf(old) > 0.05 else 0.1)
 	w["stance"] = clampf(old * 0.5 + swing, -0.9, 0.9)
+	# v50: профинансированная партия тянет настроение к своим взглядам и чаще побеждает
+	var fd: Dictionary = w.get("fund", {})
+	var fp: int = int(fd.get("p", -1)) if not fd.is_empty() else -1
+	var archs0: Array = CDATA[c].get("PARCH", []) if CDATA.has(c) else []
+	if fp >= 0 and fp < archs0.size():
+		var fs: float = float(W_ARCH_STANCE.get(String(archs0[fp]), 0.0))
+		w["stance"] = clampf(lerpf(float(w["stance"]), fs, 0.35), -0.9, 0.9)
 	var term: int = int(CDATA[c]["MACRO"]["parl_term"]) if CDATA.has(c) else 48
 	w["next_elec"] = term
 	w["appr"] = clampf(50.0 + randf_range(-6.0, 8.0), 15.0, 80.0)
 	w["stab"] = clampf(float(w["stab"]) + 8.0, 0.0, 100.0)
 	var pi: int = w_party_for(c, float(w["stance"]), (50.0 - float(w["appr"])) / 50.0 + 0.3)
+	if fp >= 0 and randf() < 0.35:
+		pi = fp
+	if fp >= 0:
+		w["fund"] = {}
+		if pi == fp:
+			log_tag("ВЛИЯНИЕ", COL_GOOD, "%s: партия «%s», которую вы финансировали, пришла к власти." % [WORLD[c]["name"], w_party_name(c, fp)])
+			if dip.has(c):
+				dip_change(c, 8.0)
 	if pi >= 0:
 		w["gov"] = "правительство партии «%s» (выборы %s %d)" % [w_party_name(c, pi), MONTHS[month - 1], year]
 	else:
@@ -509,6 +528,74 @@ func w_party_for(c: String, stance: float, discontent: float) -> int:
 	if cand.is_empty():
 		return -1
 	return int(cand[randi() % cand.size()])
+
+
+# ---------- v50: финансирование партий за рубежом ----------
+# Партия игрока (во власти — и государство) тайно финансирует партию другой страны: на ближайших выборах её шансы выше,
+# а настроение избирателей сдвигается к её взглядам. Каждый месяц есть риск разоблачения — тогда скандал и обида страны.
+const W_ARCH_STANCE := {"left": -0.7, "popl": -0.6, "soc": -0.35, "green": -0.3, "lib": 0.1, "own": 0.0, "euro": 0.0, "region": 0.0, "cons": 0.35, "popr": 0.7, "none": 0.0}
+const W_FUND_CAP := 6.0
+const W_FUND_MONTHS := 12
+
+
+func w_fund_parties(c: String) -> Array:
+	var out: Array = []
+	if not CDATA.has(c):
+		return out
+	var n: int = 10 if c == "DE" else (CDATA[c].get("PARTY_NAMES", []) as Array).size()
+	for i in n:
+		if i == 6:
+			continue
+		out.append(i)
+	return out
+
+
+func w_fund_check(c: String, pi: int) -> String:
+	if game_over:
+		return "игра окончена"
+	if c == ccode or not wsim.has(c) or not CDATA.has(c):
+		return "выберите другую страну из игры"
+	if w_minor(c):
+		return "здесь нет нормальных выборов"
+	if not (pi in w_fund_parties(c)):
+		return "выберите партию"
+	var f: Dictionary = wsim[c].get("fund", {})
+	if not f.is_empty():
+		return "вы уже финансируете «%s» (ещё %d мес.)" % [w_party_name(c, int(f["p"])), int(f["left"])]
+	if capital < W_FUND_CAP:
+		return "нужно %.0f политкапитала" % W_FUND_CAP
+	return ""
+
+
+func w_fund(c: String, pi: int) -> bool:
+	var why := w_fund_check(c, pi)
+	if why != "":
+		log_line("[color=%s]Финансирование невозможно: %s.[/color]" % [COL_WARN, why])
+		return false
+	capital -= W_FUND_CAP
+	wsim[c]["fund"] = {"p": pi, "left": W_FUND_MONTHS}
+	if not opp_mode:
+		debt += gdp * 0.02 / 100.0
+	log_tag("ВЛИЯНИЕ", COL_PURPLE, "%s: вы начали финансировать партию «%s» (%s) на %d мес. Её шансы на выборах выше; если это раскроется — скандал." % [date_text(), w_party_name(c, pi), WORLD[c]["name"], W_FUND_MONTHS])
+	refresh()
+	return true
+
+
+func w_fund_step(c: String) -> void:
+	var w: Dictionary = wsim[c]
+	var f: Dictionary = w.get("fund", {})
+	if f.is_empty():
+		return
+	f["left"] = int(f["left"]) - 1
+	# разоблачение: 3% в месяц, в странах со свободной прессой выше
+	if randf() < 0.03:
+		w["fund"] = {}
+		fa_hit(c, -14.0, "финансирование партии «%s»" % w_party_name(c, int(f["p"])))
+		add_all_support(-0.6)
+		log_tag("СКАНДАЛ", COL_BAD, "в %s раскрыто, что вы финансировали партию «%s»: правительство страны возмущено, партия теряет доверие." % [WORLD[c]["name"], w_party_name(c, int(f["p"]))])
+		return
+	if int(f["left"]) <= 0:
+		w["fund"] = {}
 
 
 func wsim_step() -> void:
@@ -614,6 +701,7 @@ func wsim_step() -> void:
 					if r <= 0.0:
 						w_start_crisis(c, k)
 						break
+		w_fund_step(c)
 		# --- выборы ---
 		w["next_elec"] = int(w["next_elec"]) - 1
 		if int(w["next_elec"]) <= 0:

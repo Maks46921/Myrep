@@ -6,6 +6,16 @@
 # Плюс подсказки для новичка.
 extends "res://scripts/ui/ui_crisis.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func treaty_sheet_open() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 const TUT_STEPS := [
 	"Добро пожаловать! Вверху — разделы «Бюджет», «Экономика», «Политика», «Карта» и окна «Технологии», «Кризисы». Время идёт кнопками справа вверху: «▶» запускает ход, паузой можно остановить.",
 	"«Бюджет»: ползунки — налоги и расходы. Меняйте понемногу и смотрите прогноз роста, инфляции и рейтинга. Долг растёт, когда расходы выше доходов.",
@@ -51,9 +61,11 @@ func rm_attach(key: String, parent: Control, title: String, fn: Callable) -> voi
 
 
 func build_realm_windows() -> void:
-	rm_win("blocs", "rm_blocs", "Союзы и блоки", 10, Rect2(0.0, 0.66, 0.22, 0.34), rm_b_blocs)
-	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.22, 0.66, 0.26, 0.34), rm_b_treaty)
-	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.48, 0.66, 0.22, 0.34), rm_b_spy)
+	# v50: Евросоюз и НАТО — отдельные окна
+	rm_win("blocs", "rm_blocs", "Европейский союз", 10, Rect2(0.0, 0.66, 0.175, 0.34), rm_b_blocs)
+	rm_win("nato", "rm_nato", "НАТО", 10, Rect2(0.175, 0.66, 0.155, 0.34), rm_b_nato)
+	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.33, 0.66, 0.21, 0.34), rm_b_treaty)
+	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.54, 0.66, 0.165, 0.34), rm_b_spy)
 	rm_win("energy", "rm_energy", "Энергия и климат", 7, Rect2(0.0, 0.58, 0.30, 0.42), rm_b_energy)
 	rm_win("hist", "rm_hist", "История показателей", 7, Rect2(0.30, 0.58, 0.405, 0.42), rm_b_hist)
 	rm_win("demo", "rm_demo", "Демография и пенсии", 11, Rect2(0.0, 0.78, 0.705, 0.22), rm_b_demo)
@@ -118,19 +130,78 @@ func rm_do_rl(id: String, _arg: String) -> void:
 
 
 # ---------- содержимое секций ----------
+func rm_flags_row(box: Control, codes: Array) -> void:
+	var fl := HFlowContainer.new()
+	fl.add_theme_constant_override("h_separation", 3)
+	fl.add_theme_constant_override("v_separation", 3)
+	box.add_child(fl)
+	for c in codes:
+		if not Flags.has(String(c)):
+			continue
+		var f: TextureRect = Flags.make(String(c), 13.0)
+		f.tooltip_text = String(WORLD[c]["name"]) if WORLD.has(c) else String(c)
+		f.mouse_filter = Control.MOUSE_FILTER_PASS
+		fl.add_child(f)
+
+
 func rm_b_blocs(box: Control) -> void:
 	var b: Dictionary = rl["b"]
-	var s := ""
-	s += "ЕС: [b]%s[/b] · евро: [b]%s[/b]\nНАТО: [b]%s[/b] · Шенген: [b]%s[/b]%s\n" % [rl_yn(bool(b["eu"])), rl_yn(bool(b["euro"])), rl_yn(bool(b["nato"])), rl_yn(bool(b["schg"])), " (контроль на границах)" if bool(b["ctrl"]) else ""]
-	s += "Дефицит %.1f%% ВВП · долг %.0f%% ВВП" % [float(rl["defe"]), debt / maxf(1.0, gdp) * 100.0]
-	if bool(b["eu"]) and int(rl["edp"]) > 0:
-		s += "\n[color=%s]процедура чрезмерного дефицита: %d мес.[/color]" % [COL_WARN, int(rl["edp"])]
+	var mem: Array = []
+	for c in RL_EU:
+		if c != ccode:
+			mem.append(c)
+	if bool(b["eu"]):
+		mem.append(ccode)
+	var s := "Статус: [b]%s[/b] · членов: %d\nЕвро: [b]%s[/b] · Шенген: [b]%s[/b]%s\n" % ["член ЕС" if bool(b["eu"]) else ("кандидат" if (rl["acc"] as Dictionary).has("eu") else "вне ЕС"), mem.size(), rl_yn(bool(b["euro"])), rl_yn(bool(b["schg"])), " (контроль на границах)" if bool(b["ctrl"]) else ""]
+	if bool(b["eu"]):
+		var pc: float = rl_pc()
+		var fund: float = maxf(0.0, (35.0 - pc) / 35.0 * 0.5)
+		s += "Структурные фонды: [b]%s%% ВВП[/b] в год%s · единый рынок: рост +0,12 п.п.\n" % ["%.2f" % fund, " · скидка на взнос" if bool(rl.get("eu_rebate", false)) else ""]
+		s += "Дефицит %.1f%% (правило — 3%%) · долг %.0f%% (правило — 60%%)" % [float(rl["defe"]), debt / maxf(1.0, gdp) * 100.0]
+		if int(rl["edp"]) > 0:
+			s += "\n[color=%s]Процедура чрезмерного дефицита: %d мес.[/color]" % [COL_WARN, int(rl["edp"])]
 	for k in rl["acc"]:
+		if String(k) == "nato":
+			continue
 		var a: Dictionary = rl["acc"][k]
 		var goal: float = {"eu": 40.0, "euro": 24.0, "nato": 18.0}.get(k, 30.0)
 		s += "\nЗаявка «%s»: %.0f%%, критериев %d из 4" % [rl_bloc_name(String(k)), float(a["p"]) / goal * 100.0, int(a["met"])]
 	rm_text(box, s)
-	rm_acts_box(box, rl_acts("blocs"), rm_do_rl)
+	rm_flags_row(box, mem)
+	var acts: Array = []
+	for a2 in rl_acts("blocs"):
+		if String(a2["id"]) in ["acc_eu", "acc_euro", "ctrl"]:
+			acts.append(a2)
+	acts.append_array(rl_acts("eu"))
+	rm_acts_box(box, acts, rm_do_rl)
+
+
+func rm_b_nato(box: Control) -> void:
+	var b: Dictionary = rl["b"]
+	var mem: Array = []
+	for c in MIL_NATO:
+		if c != ccode:
+			mem.append(c)
+	if bool(b["nato"]):
+		mem.append(ccode)
+	var sr: float = mil_spend_ratio() if mil_on() else 1.0
+	var s := "Статус: [b]%s[/b] · членов в игре: %d\n" % ["член НАТО" if bool(b["nato"]) else ("кандидат" if (rl["acc"] as Dictionary).has("nato") else "вне альянса"), mem.size()]
+	s += "Оборонные расходы: [color=%s][b]%.0f%%[/b][/color] от обязательства%s\n" % [COL_GOOD if sr >= 0.95 else (COL_WARN if sr >= 0.85 else COL_BAD), sr * 100.0, " · статья 5: союзники защитят" if bool(b["nato"]) else ""]
+	if bool(b["nato"]) and int(rl["natop"]) > 0:
+		s += "[color=%s]Союзники недовольны расходами: %d мес.[/color]\n" % [COL_WARN, int(rl["natop"])]
+	if bool(rl.get("nato_base", false)):
+		s += "На территории — база союзников.\n"
+	if (rl["acc"] as Dictionary).has("nato"):
+		var a: Dictionary = rl["acc"]["nato"]
+		s += "Заявка: %.0f%%, критериев %d из 4" % [float(a["p"]) / 18.0 * 100.0, int(a["met"])]
+	rm_text(box, s)
+	rm_flags_row(box, mem)
+	var acts: Array = []
+	for a2 in rl_acts("blocs"):
+		if String(a2["id"]) in ["acc_nato", "leave_nato"]:
+			acts.append(a2)
+	acts.append_array(rl_acts("nato"))
+	rm_acts_box(box, acts, rm_do_rl)
 
 
 var rm_partner := ""   # v50: партнёр, выбранный прямо в окне договоров
@@ -147,6 +218,29 @@ func rm_dip_target() -> String:
 
 func rm_b_treaty(box: Control) -> void:
 	var c: String = rm_dip_target()
+	# v50: свой договор — «чистый лист» с пунктами и названием
+	var nb := fed_btn("📜 Предложить договор…", box, "Составить договор из статей, дать ему название и предложить партнёру.")
+	nb.pressed.connect(treaty_sheet_open)
+	var nl: Array = dx.get("named", [])
+	for k in nl.size():
+		var e: Dictionary = nl[k]
+		var row := HBoxContainer.new()
+		box.add_child(row)
+		var l := Label.new()
+		l.text = "«%s» — %s" % [e["name"], dx_name(String(e["c"]))]
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.clip_text = true
+		l.tooltip_text = ", ".join(PackedStringArray((e["ids"] as Array).map(func(i): return String(dx_clause(String(i)).get("name", i)))))
+		row.add_child(l)
+		var kk: int = k
+		var xb := Button.new()
+		xb.text = "Расторгнуть"
+		xb.theme_type_variation = "SmallButton"
+		xb.focus_mode = Control.FOCUS_NONE
+		xb.pressed.connect(func() -> void:
+			dx_named_break(kk)
+			rm_dirty_all())
+		row.add_child(xb)
 	var tr: Dictionary = (dx["tr"] as Dictionary).get(c, {})
 	var names := []
 	for k in tr:

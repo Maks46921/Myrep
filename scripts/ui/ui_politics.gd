@@ -27,7 +27,7 @@ func build_hemicycle() -> void:
 
 
 func build_politics_windows() -> void:
-	var w: FloatWindow = new_window("parliament", "Парламент: зал заседаний", 1, Rect2(0.0, 0.0, 0.28, 0.50), false)
+	var w: FloatWindow = new_window("parliament", "Парламент и глава государства", 1, Rect2(0.0, 0.0, 0.28, 0.50), false)
 	pol_header = add_wrap_label(w.body, "")
 	hemi_ctl = Control.new()
 	hemi_ctl.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -132,6 +132,24 @@ func on_party_button(k: int) -> void:
 		select_neg_party(p)
 
 
+func head_state_text() -> String:
+	var hk: String = String(ELEC.get("head", "monarch"))
+	var tn: String = String(ELEC.get("title_n", "Глава государства"))
+	match hk:
+		"monarch":
+			return "[b]Глава государства[/b] — монарх: не избирается, в политику не вмешивается."
+		"council":
+			return "[b]Глава государства[/b] — коллегиальный совет; следующие выборы через %s." % months_text(maxi(0, pres_due - turn))
+	var who := "—"
+	if pres_party >= 0 and pres_party < PARTY_NAMES.size():
+		who = "%s ([color=#%s]■[/color] %s)" % [head_cand_name(pres_party), (PARTY_COLORS[pres_party] as Color).lightened(0.2).to_html(false), party_abbr(pres_party)]
+	var how: String = "всенародные выборы" if hk == "direct" else "избирает %s" % String(ELEC.get("body", "парламент"))
+	var t := "[b]%s[/b]: %s. Как избирается: %s." % [tn, who, how]
+	if pres_due > turn:
+		t += " Следующие выборы через %s." % months_text(pres_due - turn)
+	return t
+
+
 func update_parliament() -> void:
 	if pol_header == null:
 		return
@@ -147,7 +165,10 @@ func update_parliament() -> void:
 	pol_header.tooltip_text = "Яркие кружки с белым ободком — партии коалиции. Наведите на кружок или щёлкните, чтобы выбрать партию."
 	hemi_ctl.queue_redraw()
 	if upper_rt != null:
-		upper_rt.text = loc(upper_summary())
+		# v50: в окне «Парламент» — обе палаты и глава государства
+		var lower := "[b]Нижняя палата[/b] — %d мест: у правительства %d, нужно для закона %d, для конституционного — %d." % [SEATS, gs, MAJORITY, SUPER]
+		var up := upper_summary()
+		upper_rt.text = loc(lower + ("\n" + up if up != "" else "") + "\n" + head_state_text())
 	update_party_table()
 	update_party_detail()
 

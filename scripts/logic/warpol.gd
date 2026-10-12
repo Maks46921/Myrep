@@ -315,6 +315,9 @@ func talk_terms(pkg: Array) -> Dictionary:
 	return t
 
 
+var peace_name := ""
+
+
 func talk_propose() -> Dictionary:
 	var q := talk_quote()
 	if not mil_at_war():
@@ -324,6 +327,10 @@ func talk_propose() -> Dictionary:
 	var pkg: Array = q["pkg"]
 	if mil_rng.randf() < float(q["p"]):
 		var t := talk_terms(pkg)
+		# v50: у мирного договора может быть название
+		if peace_name.strip_edges() != "":
+			mil_log("Подписан мирный договор «%s»: %s." % [peace_name.strip_edges(), talk_pkg_text(pkg)], COL_GOOD)
+			peace_name = ""
 		return mil_peace("annex" if t.has("land") or t.has("border") else "white", t)
 	var w: Dictionary = mil["war"]
 	w["prop_cd"] = 15

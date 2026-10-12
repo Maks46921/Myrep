@@ -118,6 +118,17 @@ func dx_treaty_step() -> void:
 			g += 0.03
 		if bool(t.get("nagg", false)) and rel < 40.0:
 			ex_rel_change(String(c), (40.0 - rel) * 0.1)
+		# v50: пункты из конструктора договоров
+		if bool(t.get("trade", false)):
+			g += 0.025
+		if bool(t.get("culture", false)):
+			ex_rel_change(String(c), 0.08)
+		if bool(t.get("invest", false)):
+			g += 0.02
+			debt += gdp * 0.01 / 100.0 / 12.0
+		if bool(t.get("migr", false)) and rv_on():
+			var nat: Dictionary = rv["nat"]
+			nat["wave"] = rv_clamp(float(nat["wave"]) - 0.05)
 	rl["g"] = float(rl["g"]) + g
 	dx["n_tech"] = n_tech
 
@@ -663,6 +674,121 @@ func dx_treaty_do(id: String, c: String) -> bool:
 		fa_notify("treaty", c, 1.0)
 		dx_log("заключён договор «%s» с «%s»." % [String(found["name"]).substr(String(found["name"]).find(": ") + 2), dx_name(c)], COL_GOOD)
 	return true
+
+
+# ---------- v50: конструктор договоров («чистый лист») ----------
+# Пункт: us — что даёт нам (текст), them — выгода партнёру (−10…+10, влияет на согласие), cap — политкапитал, once — разовый эффект.
+const DX_CLAUSES := [
+	{"id": "tech", "name": "Научный обмен", "them": 3.0, "cap": 2.0, "us": "исследования быстрее"},
+	{"id": "energy", "name": "Энергетическое партнёрство", "them": 4.0, "cap": 2.0, "us": "меньше зависимость от импорта энергии"},
+	{"id": "trade", "name": "Снижение пошлин", "them": 5.0, "cap": 2.0, "us": "рост +0,025 п.п. в месяц от торговли"},
+	{"id": "invest", "name": "Взаимная защита инвестиций", "them": 3.0, "cap": 2.0, "us": "рост +0,02 п.п.; расходы 0,01% ВВП"},
+	{"id": "visa", "name": "Безвизовый режим", "them": 4.0, "cap": 1.0, "us": "туризм и деловые поездки"},
+	{"id": "culture", "name": "Культурный и молодёжный обмен", "them": 3.0, "cap": 1.0, "us": "отношения медленно растут"},
+	{"id": "nagg", "name": "Ненападение и добрососедство", "them": 2.0, "cap": 1.0, "us": "отношения не ниже 40"},
+	{"id": "defense", "name": "Оборонный союз", "them": -2.0, "cap": 3.0, "us": "помощь в конфликтах; нужно доверие"},
+	{"id": "migr", "name": "Возврат нелегальных мигрантов", "them": -4.0, "cap": 1.0, "us": "меньше миграционного напряжения"},
+	{"id": "loan", "name": "Мы даём кредит (0,1% ВВП)", "them": 8.0, "cap": 0.0, "us": "расход сразу; партнёр благодарен", "once": true},
+	{"id": "aid", "name": "Партнёр даёт нам льготный кредит", "them": -7.0, "cap": 0.0, "us": "долг −0,1% ВВП сразу", "once": true},
+]
+
+
+func dx_clause(id: String) -> Dictionary:
+	for d in DX_CLAUSES:
+		if String(d["id"]) == id:
+			return d
+	return {}
+
+
+# оценка проекта договора: шанс согласия партнёра, цена, причины
+func dx_draft_eval(c: String, ids: Array) -> Dictionary:
+	var rel: float = fed_rel(c)
+	var them := 0.0
+	var cap := 2.0
+	var why: PackedStringArray = []
+	for id in ids:
+		var d := dx_clause(String(id))
+		if d.is_empty():
+			continue
+		them += float(d["them"])
+		cap += float(d["cap"])
+		if not bool(d.get("once", false)) and dx_has_treaty(c, String(id)):
+			why.append("«%s» уже действует" % d["name"])
+	if "defense" in ids and rel < 60.0:
+		them -= 8.0
+	var score: float = (rel - 50.0) * 0.8 + them * 2.2 - float(ids.size()) * 1.2
+	var p: float = clampf(0.5 + score / 40.0, 0.03, 0.97)
+	if ids.is_empty():
+		why.append("добавьте хотя бы один пункт")
+	if capital < cap:
+		why.append("нужно %.0f капитала" % cap)
+	if rel < 25.0:
+		why.append("отношения слишком плохие (%.0f)" % rel)
+	return {"p": p, "cap": cap, "why": why, "them": them}
+
+
+func dx_draft_propose(c: String, ids: Array, title: String) -> bool:
+	if pl_deny(): return false
+	if not dx_on() or not dx_target_ok(c):
+		return false
+	var ev := dx_draft_eval(c, ids)
+	if (ev["why"] as PackedStringArray).size() > 0:
+		log_line("[color=%s]Договор не предложен: %s.[/color]" % [COL_WARN, "; ".join(ev["why"])])
+		return false
+	capital -= float(ev["cap"])
+	var nm: String = title.strip_edges()
+	if nm == "":
+		nm = "Договор с «%s»" % dx_name(c)
+	if randf() >= float(ev["p"]):
+		ex_rel_change(c, -1.0)
+		dx_log("«%s» отклонила проект «%s» (шанс был %.0f%%). Политкапитал потрачен на переговоры." % [dx_name(c), nm, float(ev["p"]) * 100.0], COL_WARN)
+		return false
+	var tr: Dictionary = dx["tr"]
+	if not tr.has(c):
+		tr[c] = {}
+	var names: PackedStringArray = []
+	for id in ids:
+		var d := dx_clause(String(id))
+		names.append(String(d["name"]))
+		match String(id):
+			"loan":
+				debt += gdp * 0.1 / 100.0
+				ex_rel_change(c, 6.0)
+			"aid":
+				debt = maxf(0.0, debt - gdp * 0.1 / 100.0)
+				ex_rel_change(c, -2.0)
+			_:
+				tr[c][String(id)] = true
+	if (tr[c] as Dictionary).is_empty():
+		tr.erase(c)
+	if not dx.has("named"):
+		dx["named"] = []
+	(dx["named"] as Array).append({"c": c, "name": nm, "ids": ids.duplicate(), "turn": turn})
+	ex_rel_change(c, 2.0 + maxf(0.0, float(ev["them"])) * 0.3)
+	fa_notify("treaty", c, 1.0)
+	dx_log("подписан «%s» с «%s»: %s." % [nm, dx_name(c), ", ".join(names)], COL_GOOD)
+	refresh()
+	return true
+
+
+func dx_named_break(k: int) -> void:
+	if pl_deny(): return
+	var nl: Array = dx.get("named", [])
+	if k < 0 or k >= nl.size():
+		return
+	var e: Dictionary = nl[k]
+	var c: String = String(e["c"])
+	var tr: Dictionary = dx["tr"]
+	if tr.has(c):
+		for id in e["ids"]:
+			(tr[c] as Dictionary).erase(String(id))
+		if (tr[c] as Dictionary).is_empty():
+			tr.erase(c)
+	nl.remove_at(k)
+	ex_rel_change(c, -6.0)
+	fa_notify("treaty_break", c, 1.0)
+	dx_log("«%s» с «%s» расторгнут." % [e["name"], dx_name(c)], COL_WARN)
+	refresh()
 
 
 func dx_spy_acts(c: String) -> Array:
