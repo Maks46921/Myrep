@@ -16,7 +16,7 @@ func build_pop_windows() -> void:
 	ag_ui["table"] = make_rt(w1.body)
 	ag_ui["bask"] = make_fold(w1.body, "На что тратят группы и что для них дорожает")
 
-	var w2: FloatWindow = new_window("pop_hist", "Оценка власти: распределение агентов", 6, Rect2(0.0, 0.46, 0.34, 0.54))
+	var w2: FloatWindow = new_window("pop_hist", "Оценка власти: распределение агентов", 6, Rect2(0.0, 0.46, 0.34, 0.27))
 	var hb := HBoxContainer.new()
 	w2.body.add_child(hb)
 	var hl := Label.new()
@@ -33,6 +33,28 @@ func build_pop_windows() -> void:
 	w2.body.add_child(hv)
 	ag_ui["hist"] = hv
 	ag_ui["hnote"] = make_rt(w2.body)
+
+	# v52: национальный характер и историческая память
+	var wn: FloatWindow = new_window("nat_char", "Национальный характер и история", 6, Rect2(0.0, 0.73, 0.34, 0.27))
+	nat_traits_box = VBoxContainer.new()
+	nat_traits_box.add_theme_constant_override("separation", 4)
+	wn.body.add_child(nat_traits_box)
+	for t in hist_traits():
+		var d: Dictionary = HIST_TRAITS.get(String(t), {})
+		var hb2 := HBoxContainer.new()
+		hb2.add_theme_constant_override("separation", 6)
+		nat_traits_box.add_child(hb2)
+		var ic: Control = Ico.make(String(d.get("ico", "flag")), C_WARN.lightened(0.2), 16.0)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		hb2.add_child(ic)
+		var rt := make_rt(hb2)
+		rt.text = "[b]%s[/b] — %s [color=%s]%s[/color]" % [String(d.get("n", t)), String(d.get("d", "")), COL_DIM, nat_fx_text(d)]
+	add_title(wn.body, "Историческая память")
+	nat_rel_ctl = Control.new()
+	nat_rel_ctl.custom_minimum_size = Vector2(0.0, 22.0 * float((HIST_REL.get(ccode, []) as Array).size()) + 4.0)
+	nat_rel_ctl.draw.connect(draw_nat_rel)
+	wn.body.add_child(nat_rel_ctl)
+	add_note(wn.body, "С давними друзьями добрые дела ценятся больше, а обиды прощаются легче; с давними соперниками — наоборот. История немного сдвигает и долгий уровень отношений, и шанс договоров.")
 
 	var w3: FloatWindow = new_window("pop_map", "Идеологическая карта", 6, Rect2(0.34, 0.0, 0.36, 0.64))
 	var mb := HBoxContainer.new()
@@ -329,6 +351,7 @@ func ag_agent_text(i: int) -> String:
 
 func update_pop_windows() -> void:
 	update_demo_window()
+	update_nat_window()
 	if ag_ui.is_empty():
 		return
 	var head: RichTextLabel = ag_ui["head"]
@@ -476,3 +499,52 @@ func update_pop_windows() -> void:
 		mv2.sel = Vector2(INF, INF)
 		(ag_ui["card"] as RichTextLabel).text = "Выберите агента на карте или нажмите «Случайный агент»."
 	mv2.queue_redraw()
+
+
+var nat_traits_box: VBoxContainer = null
+var nat_rel_ctl: Control = null
+
+
+func nat_fx_text(d: Dictionary) -> String:
+	var names := {"growth_bonus": "рост", "unemp_base": "безработица", "mood_shift": "настроение", "gb_Бизнес": "бизнес", "reg_unrest_shift": "недовольство регионов",
+		"gb_Молодёжь": "молодёжь", "dem_shift": "демократия", "corr_shift": "коррупция", "eff_bonus": "эффективность госрасходов", "capital_bonus": "политкапитал",
+		"gb_Силовики": "силовики", "sec_bonus": "безопасность", "gb_Село": "село", "dip_bonus": "дипломатия", "gb_Экологи": "экологи", "equal_shift": "равенство",
+		"gb_Рабочие": "рабочие", "army_q": "армия", "env_eff": "экология", "edu_eff": "образование"}
+	var parts: PackedStringArray = []
+	var ad: Dictionary = d.get("a", {})
+	for k in ad:
+		var v: float = float(ad[k])
+		parts.append("%s %s%s" % [names.get(k, k), "+" if v > 0.0 else "−", ("%.2f" % absf(v)).trim_suffix("0").trim_suffix("0").trim_suffix(".")])
+	var xs: Dictionary = d.get("x", {})
+	for k in xs:
+		parts.append("%s ×%.2f" % [names.get(k, k), float(xs[k])])
+	return "(" + ", ".join(parts) + ")"
+
+
+func update_nat_window() -> void:
+	if nat_rel_ctl != null:
+		nat_rel_ctl.queue_redraw()
+
+
+# строки исторической памяти: флаг, страна, шкала −3..+3, причина
+func draw_nat_rel() -> void:
+	var c := nat_rel_ctl
+	var f: Font = c.get_theme_default_font()
+	var y := 2.0
+	var w: float = c.size.x
+	for r in HIST_REL.get(ccode, []):
+		var cc: String = String(r[0])
+		var v: int = int(r[1])
+		var nm: String = String(WORLD[cc]["name"]) if WORLD.has(cc) else cc
+		Flags.draw(c, cc, Rect2(0.0, y + 3.0, 21.0, 14.0))
+		c.draw_string(f, Vector2(26.0, y + 15.0), nm, HORIZONTAL_ALIGNMENT_LEFT, 100.0, 12, Color(0.90, 0.92, 0.96))
+		var bx := 130.0
+		var bw := 84.0
+		var mid: float = bx + bw * 0.5
+		c.draw_rect(Rect2(bx, y + 6.0, bw, 8.0), Color(1, 1, 1, 0.06))
+		var col: Color = Color(0.40, 0.82, 0.52) if v > 0 else Color(0.92, 0.40, 0.38)
+		var ww: float = bw * 0.5 * float(absi(v)) / 3.0
+		c.draw_rect(Rect2(mid if v > 0 else mid - ww, y + 6.0, ww, 8.0), col)
+		c.draw_line(Vector2(mid, y + 3.0), Vector2(mid, y + 17.0), Color(1, 1, 1, 0.4), 1.0)
+		c.draw_string(f, Vector2(bx + bw + 6.0, y + 15.0), String(r[2]), HORIZONTAL_ALIGNMENT_LEFT, w - bx - bw - 8.0, 11, Color(0.70, 0.73, 0.82))
+		y += 22.0

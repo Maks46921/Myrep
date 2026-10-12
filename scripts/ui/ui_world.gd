@@ -176,7 +176,7 @@ func update_dip_windows() -> void:
 		dip_far_box.visible = far
 	if far:
 		if WORLD.has(dip_sel):
-			dip_info_rt.text = dip_nohead(world_info(dip_sel)) + foreign_region_text() + "\nОтношения с вами: [b]%.0f[/b] (%s)\n" % [fed_rel(dip_sel), dip_rel_name(fed_rel(dip_sel))]
+			dip_info_rt.text = dip_nohead(world_info(dip_sel)) + foreign_region_text() + "\nОтношения с вами: [b]%.0f[/b] (%s)\n" % [fed_rel(dip_sel), dip_rel_name(fed_rel(dip_sel))] + hist_text_rel(dip_sel)
 			dip_far_lbl.text = "С этой страной нет двусторонних соглашений: она не входит в круг ближайших соседей. Доступны торговля, влияние, помощь и пошлины."
 		return
 	var d: Dictionary = DIP_C[dip_sel]
@@ -185,6 +185,8 @@ func update_dip_windows() -> void:
 	var tg := dip_target(dip_sel)
 	var t := world_info(dip_sel) + foreign_region_text()
 	t += "\nОтношения: [b][color=#%s]%.0f[/color][/b] — %s   (тенденция к %.0f)\n" % [scale_color(clampf(rel / 100.0, 0.0, 1.0)).to_html(false), rel, dip_rel_name(rel), tg]
+	if hist_rel(dip_sel) != 0:
+		t += hist_text_rel(dip_sel) + " Добрые дела здесь весят больше, обиды — меньше (или наоборот).\n"
 	t += "[color=%s]Ценит:[/color] %s\n[color=%s]Не любит:[/color] %s\n" % [COL_GOOD, d["likes"], COL_BAD, d["dislikes"]]
 	var lv: Dictionary = st["lv"]
 	t += "\n[b]Соглашения:[/b] торговля %d/3 · безопасность %d/3 · энергия и инфраструктура %d/3" % [int(lv["trade"]), int(lv["sec"]), int(lv["energy"])]

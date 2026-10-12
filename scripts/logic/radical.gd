@@ -28,6 +28,10 @@ func es_step() -> void:
 	pass
 
 
+func hist_dyn() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -220,6 +224,7 @@ func radical_dyn() -> void:
 		mods["mood_shift"] = float(mods["mood_shift"]) - (regime_risk - 40.0) * 0.004
 	au_dyn()
 	es_dyn()
+	hist_dyn()
 
 
 func radical_step() -> void:

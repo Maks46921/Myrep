@@ -20,6 +20,14 @@ func fa_rel_term(c: String) -> float:
 	return 0.0
 
 
+func hist_mult(c: String, delta: float) -> float:
+	return 0.0
+
+
+func hist_rel(c: String) -> int:
+	return 0
+
+
 func mil_dip_term(c: String) -> float:
 	return 0.0
 
@@ -70,7 +78,7 @@ func dip_rel_name(r: float) -> String:
 
 func dip_target(c: String) -> float:
 	var d: Dictionary = DIP_C[c]
-	var t: float = float(d["rel0"]) + 4.0 * (float(mods["dip_bonus"]) - dip_bonus0)
+	var t: float = float(d["rel0"]) + 4.0 * (float(mods["dip_bonus"]) - dip_bonus0) + 1.5 * float(hist_rel(c))
 	var likes: Dictionary = DIP_LIKES[c]
 	for tid in likes:
 		var idx: int = cur_idx(tid)
@@ -142,7 +150,7 @@ func dip_apply_mods() -> void:
 func dip_change(c: String, delta: float) -> void:
 	if not dip.has(c):
 		return
-	dip[c]["rel"] = clampf(float(dip[c]["rel"]) + delta, 0.0, 100.0)
+	dip[c]["rel"] = clampf(float(dip[c]["rel"]) + delta * hist_mult(c, delta), 0.0, 100.0)
 
 
 func dip_step() -> void:

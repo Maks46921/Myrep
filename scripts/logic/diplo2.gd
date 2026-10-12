@@ -716,7 +716,7 @@ func dx_draft_eval(c: String, ids: Array) -> Dictionary:
 			why.append("«%s» уже действует" % d["name"])
 	if "defense" in ids and rel < 60.0:
 		them -= 8.0
-	var score: float = (rel - 50.0) * 0.8 + them * 2.2 - float(ids.size()) * 1.2
+	var score: float = (rel - 50.0) * 0.8 + them * 2.2 - float(ids.size()) * 1.2 + float(hist_rel(c)) * 1.6
 	var p: float = clampf(0.5 + score / 40.0, 0.03, 0.97)
 	if ids.is_empty():
 		why.append("добавьте хотя бы один пункт")
