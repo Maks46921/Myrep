@@ -377,15 +377,21 @@ func update_law_votes() -> void:
 		var vl: Label = row["verdict"]
 		if has:
 			var it: Array = verdicts[p]
+			# v51: фракция голосует не единогласно — показываем ожидаемых отступников
+			var reb: int = 0
+			if it.size() > 5:
+				reb = (int(it[4]) + int(it[5])) if bool(it[2]) else (int(it[3]) + int(it[5]))
+			var tail: String = (" (−%d)" % reb) if reb > 0 else ""
 			if bool(it[2]):
-				vl.text = "ЗА"
+				vl.text = "ЗА" + tail
 				vl.add_theme_color_override("font_color", C_GOOD)
 			elif float(it[1]) >= -4.5:
-				vl.text = "колеблется"
+				vl.text = "колеблется" + tail
 				vl.add_theme_color_override("font_color", C_WARN)
 			else:
-				vl.text = "ПРОТИВ"
+				vl.text = "ПРОТИВ" + tail
 				vl.add_theme_color_override("font_color", C_BAD)
+			vl.tooltip_text = ("Ожидается: за %d, против %d, воздержатся %d. Часть депутатов может нарушить дисциплину; итог голосования случаен в пределах нескольких голосов." % [int(it[3]), int(it[4]), int(it[5])]) if it.size() > 5 else ""
 	var sw := {} if ok else variant_swing(tid, idx)
 	lv_neg.visible = not sw.is_empty()
 	if lv_neg.visible:

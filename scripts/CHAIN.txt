@@ -59,4 +59,5 @@ scripts/ui/ui_settings.gd
 scripts/ui/ui_budget.gd
 scripts/ui/ui_build.gd
 scripts/ui/ui_treaty.gd
+scripts/ui/ui_vote.gd
 main.gd
