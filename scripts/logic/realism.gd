@@ -213,7 +213,10 @@ func rl_blocs_step() -> void:
 		a["m"] = int(a["m"]) + 1
 		var goal: float = {"eu": 40.0, "euro": 24.0, "nato": 18.0}.get(k, 30.0)
 		if float(a["p"]) >= goal:
-			if rl_avg_rel() < 40.0:
+			if fa_ws_lvl() > 0:
+				if int(a["m"]) % 6 == 0:
+					rl_log("Заявка (%s) заморожена: против страны действуют санкции Запада." % rl_bloc_name(String(k)), COL_WARN)
+			elif rl_avg_rel() < 40.0:
 				if int(a["m"]) % 6 == 0:
 					rl_log("Заявка (%s) заблокирована одним из партнёров: улучшайте отношения." % rl_bloc_name(String(k)), COL_WARN)
 			else:

@@ -52,6 +52,18 @@ func flt_has_sea() -> bool:
 	return false
 
 
+func io_member(o: String) -> bool:
+	return false
+
+
+func io_members(o: String) -> Array:
+	return []
+
+
+func io_ready() -> bool:
+	return false
+
+
 func mil_resolve(i: int) -> void:
 	pass
 
@@ -96,7 +108,31 @@ func ev_de_only(t: String) -> bool:
 	return false
 
 
+# v53_1: события про международную организацию — только её членам
+const EV_ORG_WORDS := {
+	"НАТО": ["nato"], "ОДКБ": ["csto"], "ЕАЭС": ["eaeu"], "СНГ": ["cis"], "Еврокомисс": ["eu"],
+	"Брюссель выделяет": ["eu"], "фонды ЕС": ["eu"], "Фонды ЕС": ["eu"], "Саммит ЕС": ["eu"], "еврозон": ["euro"],
+	"Шенген": ["schengen"], "Совет Европы": ["coe"], "ОБСЕ": ["osce"],
+}
+
+
+func ev_org_blocked(t: String) -> bool:
+	if not io_ready():
+		return false
+	for w in EV_ORG_WORDS:
+		if t.find(String(w)) >= 0:
+			var ok := false
+			for o in EV_ORG_WORDS[w]:
+				if io_member(String(o)):
+					ok = true
+			if not ok:
+				return true
+	return false
+
+
 func event_ok(e: Dictionary) -> bool:
+	if ev_org_blocked(String(e.get("t", ""))):
+		return false
 	var cv: Variant = e.get("cond", "")
 	if typeof(cv) == TYPE_DICTIONARY:
 		return ev_cond_ok(cv)
@@ -169,7 +205,14 @@ func ev_cond_ok(c: Dictionary) -> bool:
 			"min_turn":
 				if turn < int(v): return false
 			"eu":
-				if bool(v) != bool(MACRO.get("eu", WORLD.get(ccode, {}).get("eu", false))): return false
+				var in_eu: bool = io_member("eu") if io_ready() else bool(MACRO.get("eu", WORLD.get(ccode, {}).get("eu", false)))
+				if bool(v) != in_eu: return false
+			"org":
+				if not io_ready(): continue
+				var any := false
+				for o in (v if typeof(v) == TYPE_ARRAY else [v]):
+					if io_member(String(o)): any = true
+				if not any: return false
 			"coast":
 				if bool(v) != flt_has_sea(): return false
 			"monarchy":
@@ -498,7 +541,7 @@ func present_event() -> void:
 	var cnd: Variant = current_event.get("cond", "")
 	if (typeof(cnd) == TYPE_DICTIONARY and not (cnd as Dictionary).is_empty()) or (typeof(cnd) == TYPE_STRING and String(cnd) != ""):
 		badges.append(["ПО ОБСТАНОВКЕ", C_TEAL])
-	if spec in ["nocon", "revolt", "war", "crisis"]:
+	if spec in ["nocon", "revolt", "war", "crisis", "coal"]:
 		badges.append(["ВАЖНО", C_BAD])
 	var hid: String = ev_id(current_event)
 	var hh: Dictionary = ev_hist.get(hid, {})
@@ -617,7 +660,8 @@ func show_event() -> void:
 		if ccode != "DE" and not e.has("reg") and ev_de_only(String(e.get("t", ""))) and not EVENTS_C.has(e):
 			continue
 		if e.has("reg"):
-			rpool.append(e)
+			if not ev_org_blocked(String(e.get("t", ""))):
+				rpool.append(e)
 		elif event_ok(e):
 			pool.append(e)
 	var chosen: Dictionary = {}
@@ -681,6 +725,8 @@ func choose(i: int) -> void:
 		resolve_no_confidence()
 	elif special == "crisis":
 		resolve_crisis(opt)
+	elif special == "coal":
+		coal_resolve(opt)
 	elif special == "offer":
 		opp_resolve_offer(i)
 	elif special == "fleet":
@@ -703,7 +749,10 @@ func dip_events() -> void:
 		# v46_1: тема саммита не повторяется 18 месяцев (несколько попыток найти свежую)
 		var ev: Dictionary = {}
 		for _try in 5:
-			var cand: Dictionary = DIP_SUMMITS[randi() % DIP_SUMMITS.size()] if ccode == "DE" else gen_dip_event(true)
+			# v53: саммиты — только организаций, в которых страна состоит (Германия вне ЕС тоже не зовётся на саммит ЕС)
+			var cand: Dictionary = DIP_SUMMITS[randi() % DIP_SUMMITS.size()] if (ccode == "DE" and io_member("eu")) else gen_dip_event(true)
+			if cand.is_empty():
+				break
 			var hc: Dictionary = ev_hist.get(ev_id(cand), {})
 			if hc.is_empty() or turn - int(hc["t"]) >= 18:
 				ev = cand
@@ -718,7 +767,7 @@ func dip_events() -> void:
 			present_event()
 		return
 	if randf() < 0.06:
-		var ev2: Dictionary = DIP_EVENTS[randi() % DIP_EVENTS.size()] if ccode == "DE" else gen_dip_event(false)
+		var ev2: Dictionary = DIP_EVENTS[randi() % DIP_EVENTS.size()] if (ccode == "DE" and io_member("eu")) else gen_dip_event(false)
 		current_event = ev2
 		event_region = -1
 		if auto_event_ok(ev2):
@@ -727,8 +776,31 @@ func dip_events() -> void:
 			present_event()
 
 
+# v53: саммиты организаций, в которых состоит страна (раньше «Саммит ЕС» приходил и России, и Швейцарии)
+const SUMMIT_ORGS := ["eu", "nato", "un", "osce", "coe", "csto", "eaeu", "cis"]
+
+
+func dip_summit_orgs() -> Array:
+	var out: Array = []
+	for o in SUMMIT_ORGS:
+		if io_member(String(o)):
+			out.append(String(o))
+	return out
+
+
 func gen_dip_event(summit: bool) -> Dictionary:
 	var oth: Array = DIP_ORDER.duplicate()
+	var org := ""
+	if summit:
+		var orgs := dip_summit_orgs()
+		if orgs.is_empty():
+			return {}
+		org = String(orgs[randi() % orgs.size()])
+		# партнёры по саммиту — члены той же организации
+		var mem: Array = io_members(org)
+		var both: Array = oth.filter(func(c) -> bool: return c in mem)
+		if not both.is_empty():
+			oth = both
 	var p: String = String(oth[randi() % oth.size()])
 	var pn: String = String(DIP_C[p]["name"])
 	var allp := {}
@@ -741,23 +813,84 @@ func gen_dip_event(summit: bool) -> Dictionary:
 	var cb: String = "@"
 	var kinds: Array = []
 	if summit:
-		kinds = [
-			{"t": "Саммит ЕС: обсуждается общий оборонный фонд. Мнения разделились.", "o": [
-				{"l": "Поддержать фонд (долг +0.3% ВВП)", "fx": {"debt": 0.3, "dip": {p: 5.0}, "state": {"security_lvl": 1.0}, "support": {"Силовики": 2.0}}},
-				{"l": "Предложить национальное финансирование", "fx": {"dip": {p: -3.0}, "support": {"Бизнес": 1.0}}},
-				{"l": "Компромисс: ограниченный фонд (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
-			{"t": "Саммит ЕС: спор о правилах миграции и распределении беженцев.", "o": [
-				{"l": "Поддержать квоты и общую систему убежища", "fx": {"dip": {p: 4.0}, "support": {"Молодёжь": 2.0, "Силовики": -2.0}}},
-				{"l": "Потребовать усиления внешних границ", "fx": {"dip": {p: -2.0}, "support": {"Силовики": 3.0, "Село": 2.0}}},
-				{"l": "Компромисс (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
-			{"t": "Саммит ЕС: бюджет союза на следующий период. Спор о взносах и выплатах.", "o": [
-				{"l": "Согласиться на увеличение взноса (долг +0.3% ВВП)", "fx": {"debt": 0.3, "dip": allp, "support": {"Бизнес": 1.0}}},
-				{"l": "Требовать экономии и скидки", "fx": {"dip": {p: -4.0}, "support": {"Бизнес": 2.0, "Пенсионеры": 1.0}}},
-				{"l": "Компромисс (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
-			{"t": "Саммит ЕС: торговые отношения с США и Китаем. Нужна общая позиция.", "o": [
-				{"l": "Твёрдая общая позиция против пошлин", "fx": {"dip": allp, "shock": -0.1, "support": {"Рабочие": 1.0}}},
-				{"l": "Искать двусторонние сделки", "fx": {"dip": {p: -3.0}, "shock": 0.2, "support": {"Бизнес": 2.0}}},
-				{"l": "Компромисс (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]}]
+		match org:
+			"nato":
+				kinds = [
+					{"t": "Саммит НАТО: союзники обсуждают новую цель расходов на оборону — 3,5% ВВП к 2035 году.", "o": [
+						{"l": "Поддержать новую цель (долг +0.3% ВВП)", "fx": {"debt": 0.3, "dip": allp, "state": {"security_lvl": 2.0}, "support": {"Силовики": 3.0, "Пенсионеры": -1.0}}},
+						{"l": "Просить отсрочку: бюджет не выдержит", "fx": {"dip": {p: -4.0}, "support": {"Пенсионеры": 1.0}}},
+						{"l": "Компромисс: рост расходов по графику (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
+					{"t": "Саммит НАТО: усиление восточного фланга. %s просит прислать войска и технику для передового присутствия." % pn, "o": [
+						{"l": "Направить батальон (долг +0.2% ВВП)", "fx": {"debt": 0.2, "dip": {p: 7.0}, "state": {"security_lvl": 1.0}, "support": {"Силовики": 2.0}}},
+						{"l": "Ограничиться деньгами на общий фонд (капитал -2)", "fx": {"capital": -2.0, "dip": {p: 2.0}}},
+						{"l": "Отказаться: наши войска нужны дома", "fx": {"dip": {p: -6.0}, "support": {"Силовики": -1.0}}}]},
+					{"t": "Саммит НАТО: спор о поставках оружия Украине и общем фонде закупок.", "o": [
+						{"l": "Увеличить вклад (долг +0.2% ВВП)", "fx": {"debt": 0.2, "dip": allp, "support": {"Молодёжь": 1.0, "Пенсионеры": -1.0}}},
+						{"l": "Сохранить прежний уровень", "fx": {"dip": allp_m}},
+						{"l": "Выступить за переговоры вместо оружия", "fx": {"dip": allp_n, "support": {"Пенсионеры": 2.0}}}]}]
+			"un":
+				kinds = [
+					{"t": "Генеральная Ассамблея ООН голосует по резолюции о гуманитарном перемирии в крупном конфликте.", "o": [
+						{"l": "Голосовать «за» вместе с большинством", "fx": {"dip_all": 1.0, "support": {"Молодёжь": 1.0}}},
+						{"l": "Воздержаться", "fx": {"capital": 1.0}},
+						{"l": "Голосовать «против» вслед за союзником", "fx": {"dip": {p: 3.0}, "dip_all": -1.0}}]},
+					{"t": "ООН просит взнос в фонд помощи беженцам и миротворческим миссиям.", "o": [
+						{"l": "Внести щедрый взнос (долг +0.1% ВВП)", "fx": {"debt": 0.1, "dip_all": 1.0}},
+						{"l": "Обычный взнос", "fx": {}},
+						{"l": "Отказаться: у нас свои беженцы", "fx": {"dip_all": -1.0, "support": {"Силовики": 1.0}}}]}]
+			"osce":
+				kinds = [
+					{"t": "Совет министров ОБСЕ спорит о мандате миссий наблюдателей и бюджете организации.", "o": [
+						{"l": "Поддержать продление миссий (капитал -2)", "fx": {"capital": -2.0, "dip": allp_m}},
+						{"l": "Требовать сократить бюджет", "fx": {"dip": {p: -3.0}, "support": {"Бизнес": 1.0}}}]}]
+			"coe":
+				kinds = [
+					{"t": "ПАСЕ готовит доклад о свободе СМИ и независимости судов. %s предлагает смягчить формулировки." % pn, "o": [
+						{"l": "Поддержать жёсткий доклад", "fx": {"dip_all": 0.5, "dip": {p: -3.0}, "support": {"Молодёжь": 1.0}}},
+						{"l": "Согласиться на компромисс (капитал -2)", "fx": {"capital": -2.0, "dip": {p: 3.0}}}]}]
+			"csto":
+				kinds = [
+					{"t": "Саммит ОДКБ: Москва предлагает расширить коллективные силы быстрого реагирования и провести совместные учения.", "o": [
+						{"l": "Выделить контингент (долг +0.2% ВВП)", "fx": {"debt": 0.2, "dip": {p: 6.0}, "state": {"security_lvl": 1.0}, "support": {"Силовики": 3.0}}},
+						{"l": "Участвовать символически", "fx": {"dip": {p: 1.0}}},
+						{"l": "Уклониться: «у нас другие приоритеты»", "fx": {"dip": {p: -6.0}, "support": {"Молодёжь": 1.0}}}]},
+					{"t": "Саммит ОДКБ: %s просит союзников о военной помощи на границе." % pn, "o": [
+						{"l": "Отправить инструкторов и технику (долг +0.1% ВВП)", "fx": {"debt": 0.1, "dip": {p: 7.0}, "support": {"Силовики": 2.0}}},
+						{"l": "Ограничиться заявлением", "fx": {"dip": {p: -3.0}}}]}]
+			"eaeu":
+				kinds = [
+					{"t": "Высший Евразийский экономический совет: спор о единых пошлинах и допуске товаров друг друга.", "o": [
+						{"l": "Согласиться на общие правила", "fx": {"dip": allp, "shock": 0.1, "support": {"Бизнес": 1.0, "Село": -1.0}}},
+						{"l": "Защищать свой рынок", "fx": {"dip": {p: -4.0}, "support": {"Село": 2.0, "Рабочие": 1.0}}},
+						{"l": "Компромисс с изъятиями (капитал -3)", "fx": {"capital": -3.0, "dip": allp_m}}]},
+					{"t": "ЕАЭС обсуждает общий рынок газа и нефти: %s хочет единых цен." % pn, "o": [
+						{"l": "Поддержать единые цены", "fx": {"dip": {p: 5.0}, "support": {"Бизнес": -1.0}}},
+						{"l": "Требовать скидку для себя", "fx": {"dip": {p: -3.0}, "support": {"Рабочие": 1.0}}}]}]
+			"cis":
+				kinds = [
+					{"t": "Саммит СНГ: обсуждаются взаимное признание дипломов и трудовая миграция.", "o": [
+						{"l": "Поддержать облегчение миграции", "fx": {"dip": allp, "support": {"Бизнес": 2.0, "Силовики": -1.0}}},
+						{"l": "Ужесточить правила для мигрантов", "fx": {"dip": allp_n, "support": {"Силовики": 2.0, "Рабочие": 1.0}}}]}]
+			_:
+				kinds = [
+					{"t": "Саммит ЕС: обсуждается общий оборонный фонд. Мнения разделились.", "o": [
+						{"l": "Поддержать фонд (долг +0.3% ВВП)", "fx": {"debt": 0.3, "dip": {p: 5.0}, "state": {"security_lvl": 1.0}, "support": {"Силовики": 2.0}}},
+						{"l": "Предложить национальное финансирование", "fx": {"dip": {p: -3.0}, "support": {"Бизнес": 1.0}}},
+						{"l": "Компромисс: ограниченный фонд (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
+					{"t": "Саммит ЕС: спор о правилах миграции и распределении беженцев.", "o": [
+						{"l": "Поддержать квоты и общую систему убежища", "fx": {"dip": {p: 4.0}, "support": {"Молодёжь": 2.0, "Силовики": -2.0}}},
+						{"l": "Потребовать усиления внешних границ", "fx": {"dip": {p: -2.0}, "support": {"Силовики": 3.0, "Село": 2.0}}},
+						{"l": "Компромисс (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
+					{"t": "Саммит ЕС: бюджет союза на следующий период. Спор о взносах и выплатах.", "o": [
+						{"l": "Согласиться на увеличение взноса (долг +0.3% ВВП)", "fx": {"debt": 0.3, "dip": allp, "support": {"Бизнес": 1.0}}},
+						{"l": "Требовать экономии и скидки", "fx": {"dip": {p: -4.0}, "support": {"Бизнес": 2.0, "Пенсионеры": 1.0}}},
+						{"l": "Компромисс (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]},
+					{"t": "Саммит ЕС: торговые отношения с США и Китаем. Нужна общая позиция.", "o": [
+						{"l": "Твёрдая общая позиция против пошлин", "fx": {"dip": allp, "shock": -0.1, "support": {"Рабочие": 1.0}}},
+						{"l": "Искать двусторонние сделки", "fx": {"dip": {p: -3.0}, "shock": 0.2, "support": {"Бизнес": 2.0}}},
+						{"l": "Компромисс (капитал -4)", "fx": {"capital": -4.0, "dip": allp_m}}]}]
+		for kd in kinds:
+			(kd as Dictionary)["org"] = org
 	else:
 		kinds = [
 			{"t": "%s предлагает совместный оборонный проект: общая система ПВО и закупки техники." % pn, "o": [

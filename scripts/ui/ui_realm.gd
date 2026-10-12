@@ -52,10 +52,11 @@ func rm_attach(key: String, parent: Control, title: String, fn: Callable) -> voi
 
 func build_realm_windows() -> void:
 	# v50: Евросоюз и НАТО — отдельные окна
-	rm_win("blocs", "rm_blocs", "Европейский союз", 10, Rect2(0.0, 0.66, 0.175, 0.34), rm_b_blocs)
-	rm_win("nato", "rm_nato", "НАТО", 10, Rect2(0.175, 0.66, 0.155, 0.34), rm_b_nato)
-	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.33, 0.66, 0.21, 0.34), rm_b_treaty)
-	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.54, 0.66, 0.165, 0.34), rm_b_spy)
+	rm_win("blocs", "rm_blocs", "Европейский союз", 10, Rect2(0.0, 0.66, 0.14, 0.34), rm_b_blocs)
+	rm_win("nato", "rm_nato", "НАТО", 10, Rect2(0.14, 0.66, 0.125, 0.34), rm_b_nato)
+	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.265, 0.66, 0.165, 0.34), rm_b_treaty)
+	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.43, 0.66, 0.115, 0.34), rm_b_spy)
+	rm_win("world", "rm_world", "Мир и санкции", 10, Rect2(0.545, 0.66, 0.16, 0.34), rm_b_world)
 	rm_win("energy", "rm_energy", "Энергия и климат", 7, Rect2(0.0, 0.58, 0.30, 0.42), rm_b_energy)
 	rm_win("hist", "rm_hist", "История показателей", 7, Rect2(0.30, 0.58, 0.405, 0.42), rm_b_hist)
 	rm_win("demo", "rm_demo", "Демография и пенсии", 11, Rect2(0.0, 0.78, 0.705, 0.22), rm_b_demo)
@@ -261,6 +262,21 @@ func rm_b_treaty(box: Control) -> void:
 		rm_text(box, "[color=%s]С %s договоры и научные проекты не заключаются — выберите страну из списка.[/color]" % [COL_WARN, dx_name(ex_sel)])
 	rm_text(box, "Партнёр: [b]%s[/b]\nОтношения [b]%.0f[/b] · договоры: %s\nПроекты: %s" % [dx_name(c), fed_rel(c), ", ".join(names) if names.size() > 0 else "нет", ", ".join(pj) if pj.size() > 0 else "нет"])
 	rm_acts_box(box, dx_treaty_acts(c), func(id: String, arg: String) -> void: dx_treaty_do(id, arg if arg != "" else c))
+
+
+# v53_1: отношение мира, мировые санкции и путь их снятия
+func rm_b_world(box: Control) -> void:
+	rm_text(box, fa_ws_text())
+	var g := GridContainer.new()
+	g.columns = 1
+	g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(g)
+	rm_acts_box(g, fa_ws_acts(), func(id: String, _a: String) -> void: fa_ws_do(id))
+	if fa_on():
+		var lg: Array = fa["log"]
+		if lg.size() > 0:
+			add_title(box, "Последние события")
+			rm_text(box, "\n".join(PackedStringArray(lg.slice(maxi(0, lg.size() - 6)))))
 
 
 func rm_b_spy(box: Control) -> void:

@@ -77,6 +77,9 @@ func au_auth() -> bool:
 func au_class_name(cls: String = "") -> String:
 	if cls == "":
 		cls = String(au.get("cls", "dem"))
+	# v53: «гибрид» с очень низким индексом демократии — электоральный авторитаризм (Россия, Беларусь)
+	if cls == "hybrid" and democracy_index() < 0.15:
+		return "Электоральный авторитаризм"
 	return String(AU_CLASS_NAMES.get(cls, cls))
 
 
@@ -235,6 +238,7 @@ func au_step() -> void:
 		au["fraud"] = float(au["fraud"]) * 0.9
 		au["pris"] = int(float(au["pris"]) * 0.8)
 		return
+	au_note_start()
 	# лояльность и влияние кланов
 	var cl: Dictionary = au["cl"]
 	var wsum := 0.0
@@ -325,22 +329,77 @@ func au_official_approval() -> float:
 	return minf(97.0, a + float(au["prop"]) * 0.25 + float(au["fear"]) * 0.15 + (8.0 if au_auth() else 0.0))
 
 
-# выборы в гибридном режиме: «административный ресурс» переносит часть голосов к партии власти
+# v53: партия власти — та, что возглавляет правительство (игрок в оппозиции — партия главы правительства)
+func au_pp() -> int:
+	if not opp_mode:
+		return 0
+	if not opp_gov.is_empty():
+		return int(opp_gov["pm"])
+	var top := 0
+	for p in seats.size():
+		if seats[p] > seats[top]:
+			top = p
+	return top
+
+
+# v53: сила контроля над выборами (0 — честные, до 0,92): страх, фальсификации, пропаганда, слабость институтов.
+# Оттепель на два года ослабляет контроль; в диктатуре без выборов (decree_power) он не нужен.
+func au_control() -> float:
+	if not au_on():
+		return 0.0
+	var d := democracy_index()
+	var c: float = 0.30 + float(au["fear"]) * 0.006 + float(au["fraud"]) * 0.008 + float(au["prop"]) * 0.002 - d * 0.8
+	if turn - int(au.get("lib_t", -999)) < 24:
+		c -= 0.15
+	return clampf(c, 0.0, 0.92)
+
+
+# стартовый результат партии власти — «норма», которую режим обеспечивает на выборах
+func au_note_start() -> void:
+	if not au_on() or au.has("s0") or regions.is_empty():
+		return
+	var sh := national_shares(false)
+	var pp := au_pp()
+	if pp < sh.size():
+		au["s0"] = sh[pp]
+
+
+# выборы в гибридном режиме (v53 — управляемые выборы): партия власти не опускается ниже «нормы» настолько,
+# насколько позволяет контроль (au_control): провал её реальной поддержки ЦИК «дорисовывает». Сверх того —
+# фальсификации выше стартового уровня (рычаг «Больше административного ресурса»).
 func au_fraud_shares(sh: Array[float]) -> Array[float]:
-	if not au_on() or opp_mode or sh.is_empty() or sh[0] <= 0.0001:
+	au["last_add"] = 0.0
+	if not au_on() or sh.is_empty():
 		return sh
+	var pp := au_pp()
+	if pp >= sh.size() or sh[pp] <= 0.0001:
+		return sh
+	var s: float = sh[pp]
+	var tgt: float = float(au.get("s0", s))
+	var add: float = maxf(0.0, tgt - s) * au_control()
 	# официальные итоги прошлых выборов уже включают «привычный» уровень приписок — считаем только сверх него
-	var f: float = (float(au["fraud"]) - float((au.get("base", {}) as Dictionary).get("fraud", 0.0))) * 0.003
-	if f <= 0.0005:
-		return sh
-	var out: Array[float] = []
+	add += maxf(0.0, float(au["fraud"]) - float((au.get("base", {}) as Dictionary).get("fraud", 0.0))) * 0.003
 	var rest := 0.0
-	for p in range(1, sh.size()):
-		rest += sh[p]
-	var mv: float = minf(rest * 0.6, f)
-	out.append(sh[0] + mv)
-	for p in range(1, sh.size()):
-		out.append(sh[p] - (mv * sh[p] / rest if rest > 0.0 else 0.0))
+	var mx := 0.0
+	for p in sh.size():
+		if p != pp:
+			rest += sh[p]
+			mx = maxf(mx, sh[p])
+	# при сильном контроле ни одна партия официально не обходит партию власти: отрыв не меньше (1 + контроль)
+	var ctl: float = au_control()
+	if ctl >= 0.3 and rest > 0.0:
+		var k: float = 1.0 + ctl
+		add = maxf(add, (k * mx - s) / (1.0 + k * mx / rest))
+	if add <= 0.0005:
+		return sh
+	var mv: float = minf(rest * 0.6, add)
+	au["last_add"] = mv
+	var out: Array[float] = []
+	for p in sh.size():
+		if p == pp:
+			out.append(sh[p] + mv)
+		else:
+			out.append(sh[p] - (mv * sh[p] / rest if rest > 0.0 else 0.0))
 	return out
 
 
@@ -348,6 +407,11 @@ func au_after_election() -> void:
 	if not au_on():
 		return
 	var f: float = float(au["fraud"]) - float((au.get("base", {}) as Dictionary).get("fraud", 0.0)) * 0.5
+	var drawn: float = float(au.get("last_add", 0.0)) * 100.0
+	if drawn >= 3.0:
+		log_line("[color=%s]Управляемые выборы: по данным независимых наблюдателей, партии власти «дорисовано» около %.0f п.п.[/color]" % [COL_DIM, drawn])
+	# чем больше разрыв между настоящей поддержкой и официальным итогом, тем злее улица
+	f += maxf(0.0, drawn - 5.0) * 1.5
 	if f < 20.0:
 		return
 	for r in regions:

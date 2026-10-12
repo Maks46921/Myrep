@@ -129,7 +129,7 @@ func show_election(rep: Dictionary) -> void:
 	el_view.visible = true
 	el_head.visible = false
 	var cst: String = String(rep["state"])
-	el_view.set_data(rows, order, thr, SEATS, MAJORITY, "%d" % gov_seats(), "коалиция · нужно %d из %d" % [MAJORITY, SEATS], C_GOOD if cst == "gov" else (C_WARN if (cst == "crisis" or cst == "opp") else C_BAD))
+	el_view.set_data(rows, order, thr, SEATS, MAJORITY, "%d" % gov_seats(), "коалиция · нужно %d из %d" % [MAJORITY, SEATS], C_GOOD if cst == "gov" else (C_WARN if (cst == "crisis" or cst == "opp" or cst == "talks") else C_BAD))
 	var sham: bool = bool(rep["sham"])
 	var gold := Color(1.0, 0.82, 0.40) if not sham else C_BAD
 	el_banner.add_theme_stylebox_override("panel", ev_style(gold))
@@ -159,6 +159,9 @@ func show_election(rep: Dictionary) -> void:
 		vcol = C_GOOD
 	elif st == "crisis":
 		vtitle = "Правительственный кризис: нет большинства"
+		vcol = C_WARN
+	elif st == "talks":
+		vtitle = "Коалиционные переговоры"
 		vcol = C_WARN
 	elif st == "opp":
 		vtitle = "Вы в оппозиции"
@@ -201,6 +204,8 @@ func show_election(rep: Dictionary) -> void:
 		t += "[color=%s]Коалиция: %s — %d мест из %d (большинство %d). Политкапитал +8.[/color]" % [COL_GOOD, coalition_names(), gov_seats(), SEATS, MAJORITY]
 	elif st == "crisis":
 		t += "[color=%s]В вашей коалиции %d мест из %d. У вас %d мес., чтобы найти партнёров, иначе будут назначены новые выборы.[/color]" % [COL_WARN, gov_seats(), SEATS, crisis_limit()]
+	elif st == "talks":
+		t += "[color=%s]Большинства у вашей партии нет: %d мест из %d, нужно %d. Коалицию собираете вы — после этого окна откроются переговоры с партиями (%d мес.).[/color]" % [COL_WARN, seats[0], SEATS, MAJORITY, crisis_limit()]
 	elif st == "opp":
 		t += "[color=%s]%s Игра продолжается: критикуйте власть, договаривайтесь с партиями и добивайтесь возвращения к власти.[/color]" % [COL_WARN, String(rep.get("opp", ""))]
 	else:
@@ -240,6 +245,7 @@ func election_continue() -> void:
 		end_game(m)
 		return
 	refresh()
+	coal_talks_event()
 
 
 func build_event_window() -> void:

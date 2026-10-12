@@ -16,6 +16,10 @@ func council_min_vote(m: int, p: int, old: int) -> Dictionary:
 	return {}
 
 
+func crisis_tol_pick() -> int:
+	return 0
+
+
 func end_game(msg: String) -> void:
 	pass
 
@@ -713,6 +717,9 @@ func willingness(p: int, promise: bool) -> float:
 		w += (float(prel[p]) - 50.0) * (0.45 if is_cordon(p) else 0.25)
 	# v35: после повторных выборов без правительства партии охотнее идут на компромисс
 	w += 4.0 * float(mini(deadlock, 4))
+	# v53: при управляемой политике «системная оппозиция» послушно идёт в правительство (кроме несистемной — слот 9)
+	if p != 9:
+		w += au_control() * 30.0
 	if promise and not law_demand_of(p).is_empty() and not law_demand_met(p):
 		w += 8.0
 	return w
@@ -784,6 +791,8 @@ func invite_party(p: int, promise: bool = false, mins: int = 0) -> void:
 	if gov_ok() and crisis_months > 0:
 		crisis_months = 0
 		log_line("[color=%s]Парламентская поддержка восстановлена.[/color]" % COL_GOOD)
+	if gov_ok() and coal_talks:
+		coal_talks_done()
 	recompute_mods()
 	refresh()
 
@@ -888,3 +897,112 @@ func apply_psat(p: int, v: float) -> void:
 		return
 	conc[p] = float(conc.get(p, 0.0)) + v
 	satis[p] = clampf(float(satis.get(p, 50.0)) + v * 0.7, 0.0, 100.0)
+
+
+# ============================================================
+#  v53: КОАЛИЦИОННЫЕ ПЕРЕГОВОРЫ ПОСЛЕ ВЫБОРОВ (коалицию собирает игрок)
+# ============================================================
+func coal_manual() -> bool:
+	return int(game_opts.get("coal", 1)) == 1 and not observer
+
+
+# кандидаты в партнёры: [готовность, партия], лучшие первыми
+func coal_cands() -> Array:
+	var out: Array = []
+	for p in range(1, PARTY_NAMES.size()):
+		if in_coalition[p] or seats[p] <= 0 or not can_govern(p):
+			continue
+		out.append([invite_offer_w(p, false, 0), p])
+	out.sort_custom(func(a, b) -> bool: return float(a[0]) > float(b[0]))
+	return out
+
+
+# можно ли вообще собрать большинство с готовыми (хотя бы за уступки) партиями
+func coal_feasible() -> bool:
+	var s: int = gov_seats()
+	for c in coal_cands():
+		if float(c[0]) + 6.0 + 8.0 >= COALITION_JOIN_PAID:
+			s += int(seats[int(c[1])])
+	return s >= MAJORITY
+
+
+func coal_talks_start() -> void:
+	coal_talks = true
+	coal_tried.clear()
+	crisis_months = 1
+	capital = minf(100.0, maxf(capital, 30.0) + 4.0)
+	log_line("[color=%s][b]Коалиционные переговоры.[/b] У вашей партии %d мест из %d, для большинства нужно %d. Пригласите партнёров (окно переговоров и раздел «Правительство»): у вас %d мес., иначе — правительственный кризис.[/color]" % [COL_WARN, seats[0], SEATS, MAJORITY, crisis_limit()])
+
+
+func coal_talks_done() -> void:
+	coal_talks = false
+	coal_tried.clear()
+	crisis_months = 0
+	crisis_offered = false
+	deadlock = 0
+	capital = minf(100.0, capital + 4.0)
+	log_line("[color=%s][b]Правительство сформировано[/b] по итогам переговоров: %s — %d мест из %d.[/color]" % [COL_GOOD, coalition_names(), gov_seats(), SEATS])
+
+
+func coal_w_text(w: float) -> String:
+	if w >= COALITION_JOIN:
+		return "согласится"
+	if w >= COALITION_JOIN_PAID:
+		return "согласится за уступки (капитал −%.0f)" % CONCESSION_COST
+	return "скорее откажет"
+
+
+# окно переговоров: с кем говорить и что предложить
+func coal_talks_event() -> void:
+	if not coal_talks or game_over or election_open or not current_event.is_empty():
+		return
+	if gov_ok():
+		coal_talks_done()
+		return
+	var opts: Array = []
+	var lines: PackedStringArray = []
+	for c in coal_cands():
+		var p: int = int(c[1])
+		var w: float = float(c[0])
+		lines.append("«%s» — %d мест, готовность %.0f: %s" % [PARTY_NAMES[p], seats[p], w, coal_w_text(w)])
+		if p in coal_tried or opts.size() >= 6:
+			continue
+		opts.append({"l": "Пригласить «%s» (%d мест): %s" % [PARTY_NAMES[p], seats[p], coal_w_text(w)], "fx": {}, "coal": "inv", "p": p, "promise": false, "mins": 0})
+		var w2: float = invite_offer_w(p, true, 1)
+		if w < COALITION_JOIN and w2 >= COALITION_JOIN_PAID:
+			opts.append({"l": "«%s»: предложить министерство и обещать их закон (%s)" % [PARTY_NAMES[p], coal_w_text(w2)], "fx": {}, "coal": "inv", "p": p, "promise": true, "mins": 1})
+	var tp := crisis_tol_pick()
+	if tp > 0:
+		opts.append({"l": "Правительство меньшинства: «%s» обещает не голосовать против (капитал −5)" % PARTY_NAMES[tp], "fx": {"capital": -5.0}, "coal": "tol", "p": tp})
+	opts.append({"l": "Продолжить переговоры самостоятельно (раздел «Правительство», осталось %d мес.)" % maxi(1, crisis_limit() - crisis_months + 1), "fx": {}, "coal": "self", "p": -1})
+	var t := "Коалиционные переговоры. У вашей партии «%s» %d мест из %d, у коалиции %d; для большинства нужно %d. С кем договариваться?" % [PARTY_NAMES[0], seats[0], SEATS, gov_seats(), MAJORITY]
+	if lines.size() > 0:
+		t += "\n" + "\n".join(lines)
+	current_event = {"t": t, "special": "coal", "o": opts}
+	event_region = -1
+	event_party = -1
+	event_min = -1
+	present_event()
+
+
+func coal_resolve(opt: Dictionary) -> void:
+	var p: int = int(opt.get("p", -1))
+	match String(opt.get("coal", "self")):
+		"inv":
+			coal_tried.append(p)
+			invite_party(p, bool(opt.get("promise", false)), int(opt.get("mins", 0)))
+		"tol":
+			minority_gov = true
+			if not pacts.has(p):
+				pacts[p] = {}
+			pacts[p]["tol"] = parl_term() - (turn - last_parl)
+			prel[p] = clampf(float(prel[p]) + 5.0, 0.0, 100.0)
+			log_tag("КОАЛИЦИЯ", COL_GOOD, "правительство меньшинства: «%s» обязуется не поддерживать вотум недоверия до следующих выборов." % PARTY_NAMES[p])
+		_:
+			return
+	if gov_ok():
+		if coal_talks:
+			coal_talks_done()
+		recompute_mods()
+		return
+	coal_talks_event()

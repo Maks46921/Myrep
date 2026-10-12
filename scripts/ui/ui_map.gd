@@ -1453,9 +1453,8 @@ func draw_map() -> void:
 				if MapLabels.draw(c, font, lab, lname, s, off, tcol, 78.0):
 					lab_ok[code0] = true
 			else:
-				# страна шире обзора (Россия) — подпись её видимой части
-				var lp: Array = map_lab_pts.get(code0, [PackedVector2Array(), PackedFloat32Array()])
-				if MapLabels.draw_fit(c, font, "m:" + String(code0), lab, lp[0], lp[1], lname, s, off, map_free_rect(), tcol, 64.0):
+				# v53: подпись привязана к стране и не ездит за камерой (раньше у крупных стран подпись следовала за видимой частью)
+				if MapLabels.draw(c, font, lab, lname, s, off, tcol, 64.0):
 					lab_ok[code0] = true
 	# названия и показатели стран (без наложений: сначала крупные экономики)
 	if is_world_layer() or s < 2.4:

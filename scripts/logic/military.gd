@@ -99,6 +99,10 @@ func ar_wm(cc: String) -> float:
 	return 0.0
 
 
+func fa_war_ended(kind: String, terms: Dictionary, annexed: bool, lead: String) -> void:
+	pass
+
+
 func talk_apply(t: Dictionary, enemies: Array, lead: String, parts: PackedStringArray) -> void:
 	pass
 
@@ -2011,9 +2015,11 @@ func mil_peace(kind: String, terms: Dictionary = {}) -> Dictionary:
 	# аннексия земель демократии нападавшим не признаётся
 	if annexed and bool(w["aggr"]) and war_demo(lead) >= 0.5:
 		var nr: Dictionary = mil.get("nonrec", {})
-		nr[lead] = 36
+		nr[lead] = 12 if terms.has("recog") else 36
 		mil["nonrec"] = nr
-		parts.append("мир не признаёт аннексию (3 года)")
+		parts.append("мир не признаёт аннексию (%s)" % ("1 год: противник признал границы" if terms.has("recog") else "3 года"))
+	# v53_1: мировые санкции переживают войну — меняются только условия их снятия
+	fa_war_ended(kind, terms, annexed, lead)
 	# конец войны
 	var nm := String(WORLD[lead]["name"]) if WORLD.has(lead) else lead
 	var title := {"white": "белый мир — довоенные границы", "repar": "мир с репарациями", "annex": "мир с присоединением занятых земель",

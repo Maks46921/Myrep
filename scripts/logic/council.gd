@@ -331,6 +331,7 @@ func resolve_crisis(opt: Dictionary) -> void:
 			return
 	crisis_months = 0
 	crisis_offered = false
+	coal_talks = false
 	deadlock = 0
 	recompute_mods()
 

@@ -135,7 +135,16 @@ func build_war_windows() -> void:
 	sl.add_theme_color_override("font_color", Color(0.40, 0.36, 0.30))
 	sv.add_child(sl)
 	var ink := Color(0.16, 0.14, 0.12)
-	for id in TALK_IDS:
+	for id in TALK_IDS + ["-"] + TALK_GIVE:
+		if id == "-":
+			var gl := Label.new()
+			gl.text = "Наши уступки (облегчают согласие):"
+			gl.add_theme_font_size_override("font_size", 12)
+			gl.add_theme_color_override("font_color", Color(0.40, 0.36, 0.30))
+			gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			gl.custom_minimum_size = Vector2(40.0, 0.0)
+			sv.add_child(gl)
+			continue
 		if id == "repar":
 			var rr := HBoxContainer.new()
 			sv.add_child(rr)
@@ -143,7 +152,7 @@ func build_war_windows() -> void:
 			lb.text = "Репарации:"
 			lb.add_theme_color_override("font_color", ink)
 			rr.add_child(lb)
-			war_repar = fed_opt(rr, ["нет", "1% ВВП", "2% ВВП", "3% ВВП", "5% ВВП"], String(TALK_INFO["repar"][1]))
+			war_repar = fed_opt(rr, ["нет", "1% ВВП", "2% ВВП", "3% ВВП", "5% ВВП", "8% ВВП"], String(TALK_INFO["repar"][1]))
 			war_repar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			war_repar.item_selected.connect(func(i: int) -> void:
 				talk_sel()["repar"] = i
@@ -235,7 +244,7 @@ func update_war_talk() -> void:
 		cb.disabled = why != ""
 		cb.text = "%s (%.0f)" % [String(TALK_INFO[id][0]), talk_cost(String(id))]
 		cb.tooltip_text = String(TALK_INFO[id][1]) + ("\n" + why if why != "" else "")
-	war_repar.select(clampi(int(sel.get("repar", 0)), 0, 4))
+	war_repar.select(clampi(int(sel.get("repar", 0)), 0, 5))
 	for k in ["white", "capit", "full"]:
 		var mq := mil_peace_quote(k)
 		var b5: Button = war_btn["p_" + k]

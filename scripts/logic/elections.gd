@@ -20,6 +20,10 @@ func au_after_election() -> void:
 	pass
 
 
+func au_control() -> float:
+	return 0.0
+
+
 func au_fraud_shares(sh: Array[float]) -> Array[float]:
 	var r: Array[float] = []
 	return r
@@ -27,6 +31,18 @@ func au_fraud_shares(sh: Array[float]) -> Array[float]:
 
 func au_on() -> bool:
 	return false
+
+
+func coal_feasible() -> bool:
+	return false
+
+
+func coal_manual() -> bool:
+	return false
+
+
+func coal_talks_start() -> void:
+	pass
 
 
 func coalition_names() -> String:
@@ -38,6 +54,10 @@ func decree_power() -> bool:
 
 
 func form_government(verbose: bool) -> bool:
+	return false
+
+
+func gov_ok() -> bool:
 	return false
 
 
@@ -140,12 +160,23 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 	var lean: Array = LEAN[g]
 	var roles := gov_roles()
 	var ex: float = 4.0 if pres else 3.0
+	# v53: в оппозиции (или если вы играете не за стартовую партию власти) support — поддержка ВАШЕЙ партии,
+	# а оценка власти правящими партиями считается отдельно (effg) и относительно старта: их LEAN уже содержит базу.
+	# Раньше партия власти получала множитель от вашей же поддержки, а ваша партия — постоянный вес: игра за
+	# оппозицию в России давала КПРФ ~49 %, а «Единой России» — 22 %.
+	var own_full: bool = opp_mode or player_orig != 0
+	var gb: float = maxf(5.0, float(GROUP_BASE[g]))
+	var effg: float = eff
+	if opp_mode:
+		effg = clampf(gb - (eff - gb) / 0.6, 5.0, 100.0)
 	for p in PARTY_NAMES.size():
 		var v: float = float(lean[p])
-		if roles[p] > 0.0 and p != 9:
-			v *= pow(eff / 50.0, ex * roles[p])
+		if p == 0 and own_full:
+			v *= pow(eff / 50.0, ex)
+		elif roles[p] > 0.0 and p != 9:
+			v *= pow((effg / gb) if own_full else (eff / 50.0), ex * roles[p])
 		elif p == 9:
-			v *= pow(clampf((100.0 - eff) / 50.0, 0.2, 2.0), 2.0)
+			v *= pow(clampf((100.0 - effg) / 50.0, 0.2, 2.0), 2.0)
 		elif p == REGIONAL_P:
 			v *= (1.0 + float(r["unrest"]) / 40.0) * lerpf(0.6, 1.5, float(REGIONS[ri]["reg"]))
 		v *= float(REG_BIAS[ri][p]) * funding_mult(p) * pact_mult(p)
@@ -205,28 +236,57 @@ func parl_shares() -> Array[float]:
 	return raw
 
 
-func allocate_seats(shares_in: Array[float]) -> Array[int]:
+# наибольшие остатки: n мест пропорционально весам
+func hare_seats(w_in: Array[float], n: int) -> Array[int]:
 	var shares: Array[float] = []
 	var ssum := 0.0
-	for x in shares_in:
+	for x in w_in:
 		ssum += x
-	for x in shares_in:
+	for x in w_in:
 		shares.append(x / maxf(ssum, 0.0001))
 	var res: Array[int] = []
 	var rem: Array = []
 	var used := 0
 	for p in shares.size():
-		var q: float = shares[p] * SEATS
+		var q: float = shares[p] * n
 		var fl := int(floor(q))
 		res.append(fl)
 		used += fl
 		rem.append([q - fl, p])
 	rem.sort_custom(func(a, c): return a[0] > c[0])
 	var i := 0
-	while used < SEATS:
+	while used < n and i < rem.size():
 		res[rem[i][1]] += 1
 		used += 1
 		i += 1
+	return res
+
+
+# v53: смешанная несвязанная система (Россия: 225 по спискам + 225 округов). Округа достаются почти целиком лидеру:
+# доля округов ~ доля голосов в степени k («закон куба»); при управляемых выборах (au_control) степень выше —
+# административный ресурс сильнее всего работает в одномандатных округах.
+func smd_frac() -> float:
+	return float(ELEC.get("smd", 0.0))
+
+
+func smd_power() -> float:
+	return 2.5 + au_control() * 1.5
+
+
+func allocate_seats(shares_in: Array[float]) -> Array[int]:
+	var res: Array[int] = []
+	var nsmd: int = int(round(float(SEATS) * smd_frac()))
+	if nsmd > 0 and nsmd < SEATS:
+		var lst: Array[int] = hare_seats(shares_in, SEATS - nsmd)
+		var kw: float = smd_power()
+		var w: Array[float] = []
+		for x in shares_in:
+			w.append(pow(maxf(float(x), 0.0), kw))
+		var sm: Array[int] = hare_seats(w, nsmd)
+		for p in lst.size():
+			res.append(lst[p] + sm[p])
+	else:
+		res = hare_seats(shares_in, SEATS)
 	var bonus: float = float(mods["seat_bonus"])
 	if bonus > 0.0:
 		var top := 0
@@ -634,6 +694,7 @@ func hold_parliament_core(reason: String) -> void:
 		pres_due = turn + 2
 	crisis_months = 0
 	crisis_offered = false
+	coal_talks = false
 	minority_gov = false
 	techno_until = -1
 	pm_lead = false
@@ -718,6 +779,10 @@ func hold_parliament_core(reason: String) -> void:
 		else:
 			opp_msg = "Правительство: %s. Вы остаётесь в оппозиции: %d мест из %d." % [opp_gov_text(), seats[0], SEATS]
 			log_line("[color=%s]%s[/color]" % [COL_WARN, opp_msg])
+	elif coal_manual() and not gov_ok() and coal_feasible():
+		# v53: коалицию собирает игрок — переговоры вместо автоматического «приглашения» партнёров
+		state = "talks"
+		coal_talks_start()
 	elif form_government(true):
 		deadlock = 0
 		# v35: новый мандат — после выборов у правительства есть капитал на первые шаги

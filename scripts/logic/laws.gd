@@ -1068,7 +1068,7 @@ func brake_step(deficit_pct: float) -> void:
 		else:
 			risk_prem = maxf(0.0, risk_prem - 0.05)
 		if brake_over == 3:
-			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else "Еврокомиссия предупреждает правительство, инвесторы требуют премию за риск."])
+			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else ("Еврокомиссия предупреждает" if bool(MACRO.get("eu", false)) else "Рейтинговые агентства предупреждают") + " правительство, инвесторы требуют премию за риск."])
 		elif brake_over >= 6:
 			capital = maxf(0.0, capital - (0.8 if strict else 0.15))
 			if brake_over % 6 == 0:

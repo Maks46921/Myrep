@@ -5,7 +5,7 @@ static var pending_code := ""
 static var pending_party := 0
 
 # Настройки новой игры (задаются в меню перед стартом и не меняются во время игры; переживают перезагрузку сцены)
-static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "tut": 1, "observer": false, "music": 0.45, "sfx": 0.6}
+static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "tut": 1, "coal": 1, "observer": false, "music": 0.45, "sfx": 0.6}
 
 var ccode := "DE"
 var map_reg_pick: OptionButton = null   # список регионов в окне карты
@@ -77,6 +77,8 @@ var h12 := {}                 # v35: помесячная история пок�
 var observer := false         # v35: режим наблюдателя — вашей партией управляет ИИ
 var deadlock := 0             # v35: досрочных выборов подряд из-за несформированного правительства
 var minority_gov := false     # v35: правительство меньшинства на терпимости (выход из кризиса)
+var coal_talks := false       # v53: после выборов идут коалиционные переговоры (коалицию собирает игрок)
+var coal_tried: Array = []    # v53: партии, с которыми уже говорили в этом раунде переговоров
 var pm_lead := false          # v38: глава правительства — игрок, хотя его партия в коалиции не крупнейшая (до первых выборов)
 var techno_until := -1        # v35: техническое правительство до этого месяца
 var extra_mins := {}          # v35: p -> обещанные министерства сверх квоты

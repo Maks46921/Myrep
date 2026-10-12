@@ -7,6 +7,10 @@ extends "res://scripts/logic/history.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func fa_ws_lvl() -> int:
+	return 0
+
+
 func rl_acts(page: String) -> Array:
 	return []
 
@@ -49,6 +53,10 @@ func io_init() -> void:
 		io["next"][o] = 2 + (k * 5) % maxi(1, int(d["per"]))
 		k += 1
 	io["mem0"] = (io["mem"] as Dictionary).duplicate()
+
+
+func io_ready() -> bool:
+	return not io.is_empty()
 
 
 func io_member(o: String) -> bool:
@@ -139,7 +147,8 @@ func io_req(id: String) -> Array:
 		"east": return ["Страна между Балтийским, Адриатическим и Чёрным морями", ccode in IO_EAST]
 		"postsoviet": return ["Бывшая республика СССР", ccode in IO_POSTSOV]
 		"blacksea": return ["Страна Черноморского региона", ccode in IO_BLACKSEA]
-		"notrus": return ["Не ведёт агрессивную войну против соседа", not (ccode in ["RU", "BY"])]
+		"notrus": return ["Не ведёт агрессивную войну и не под санкциями Запада", not (mil_on() and mil_at_war() and war_aggressor() == ccode) and fa_ws_lvl() < 2]
+		"nosanc": return ["Нет мировых санкций", fa_ws_lvl() == 0]
 	if IO_GEO.has(id):
 		return ["Входит в исторический круг стран-основательниц", ccode in IO_GEO[id]]
 	return [id, true]
