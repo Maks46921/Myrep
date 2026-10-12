@@ -103,7 +103,12 @@ func _init():
 	if String(g.current_event.get("id", "")) == "x_pipeline_2": shown = true
 	settle(g)
 	check(shown or g.ev_hist.has("x_pipeline_2"), "продолжение цепочки не показано")
-	check(g.ev_later.is_empty(), "отложенное последствие не применено")
+	# v50: за эти месяцы другие события могли запланировать свои последствия — проверяем именно тестовое
+	var left_test := 0
+	for l in g.ev_later:
+		if String(l.get("t", "")) == "проверка":
+			left_test += 1
+	check(left_test == 0, "отложенное последствие не применено")
 	# --- частота событий за 5 лет ---
 	var g3 = mk({"seed": 9})
 	for i in 4: await process_frame

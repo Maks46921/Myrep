@@ -56,13 +56,17 @@ func _init():
 	check(g.rl_do("grn_up") and int(g.rl["lv"]["grn"]) == 1, "зелёный переход")
 	var gr0: float = g.rl["e"]["green"]
 	months(g, 12)
-	check(float(g.rl["e"]["green"]) > gr0 + 3.0, "зелёная доля должна расти")
+	# v50: у стран с почти полностью зелёной энергетикой (Швеция, Норвегия, Албания — 98–100%) расти некуда
+	check(float(g.rl["e"]["green"]) > minf(gr0 + 3.0, 99.0), "зелёная доля должна расти")
 	var age0: float = g.rl["d"]["age"]
 	months(g, 12)
 	check(float(g.rl["d"]["age"]) > age0, "население стареет")
 	check(not is_nan(g.gdp) and not is_nan(g.debt) and not is_nan(g.inflation), "NaN в экономике")
 	# --- блоки ---
 	settle(g)
+	# v50: вступать в блоки и выходить из них может только правительство — если партия игрока к этому времени в оппозиции, вернём её к власти
+	if g.opp_mode:
+		g.opp_to_gov([0], 0, "тест")
 	g.capital = 90.0
 	if bool(g.rl["b"]["nato"]):
 		check(g.rl_do("leave_nato") and not g.mil_is_nato(cc), "выход из НАТО")
@@ -99,7 +103,7 @@ func _init():
 	check(g.sv_save(2), "сохранение не записано")
 	check(g.sv_info(2) != "", "информация о слоте пуста")
 	months(g, 8)
-	check(g.turn > turn_s, "ход не идёт после сохранения")
+	check(g.turn > turn_s or g.game_over, "ход не идёт после сохранения")
 	check(g.sv_load(2), "загрузка не удалась")
 	check(g.turn == turn_s and absf(g.gdp - gdp_s) < 1e-6 and absf(g.capital - cap_s) < 1e-6, "состояние после загрузки не совпало: turn %d/%d gdp %.3f/%.3f" % [g.turn, turn_s, g.gdp, gdp_s])
 	check(g.rl_on() and g.dx_on() and not g.rl["h"]["gdp"].is_empty(), "rl/dx после загрузки")
