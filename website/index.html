@@ -23,6 +23,7 @@
   --no: #e3645b;
   --abst: #6a7389;
   --seat: #2b3653;
+  --d1: #3f7f5c; --d2: #5f8d4a; --d3: #9a8a3c; --d4: #a8673a; --d5: #a3463f; --sea: #0e1628; --land-line: #0b1120; --reg-bg: #170b10; --reg-panel: #22111a; --reg-line: #47202c; --reg-accent: #e0645a;
   --shadow: 0 30px 80px -30px rgba(0, 0, 0, .75);
   --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
   --f-body: "Golos Text", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -35,13 +36,16 @@
     --bg: #eef1f6; --panel: #ffffff; --panel-2: #f6f8fb; --line: #d3d9e5; --fg: #111a2c; --muted: #55607a;
     --brass: #a8701a; --brass-ink: #ffffff; --yes: #23864f; --no: #bb3b33; --abst: #9aa2b4; --seat: #d7dce7;
     --shadow: 0 30px 70px -35px rgba(20, 30, 60, .45); color-scheme: light;
+    --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a;
   }
 }
 :root[data-theme="light"] {
   --bg: #eef1f6; --panel: #ffffff; --panel-2: #f6f8fb; --line: #d3d9e5; --fg: #111a2c; --muted: #55607a;
   --brass: #a8701a; --brass-ink: #ffffff; --yes: #23864f; --no: #bb3b33; --abst: #9aa2b4; --seat: #d7dce7;
   --shadow: 0 30px 70px -35px rgba(20, 30, 60, .45); color-scheme: light;
+  --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a;
 }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -77,7 +81,8 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .logo svg { width: 26px; height: 15px; }
 .nav ul { list-style: none; display: flex; gap: 22px; margin: 0 0 0 auto; padding: 0; }
 .nav ul a { color: var(--muted); text-decoration: none; font-size: .9rem; }
-.nav ul a:hover { color: var(--fg); }
+.nav ul a:hover, .nav ul a.on { color: var(--fg); }
+.nav ul a.on { box-shadow: 0 2px 0 var(--brass); }
 .ver { font-family: var(--f-mono); font-size: .75rem; color: var(--brass); border: 1px solid color-mix(in srgb, var(--brass) 45%, transparent); padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
 @media (max-width: 760px) { .nav ul { display: none; } .ver { margin-left: auto; } }
 
@@ -110,17 +115,8 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .stamp.on { opacity: 1; transform: rotate(-6deg) scale(1); }
 .hall-note { margin-top: 12px; font-size: var(--s-1); color: var(--muted); }
 
-.screen { margin-top: clamp(48px, 7vw, 84px); border-radius: 14px; border: 1px solid var(--line); overflow: hidden; box-shadow: var(--shadow); background: #0b1120; }
-.screen .bar { display: flex; gap: 7px; align-items: center; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); font-family: var(--f-mono); font-size: .72rem; color: var(--muted); }
-.screen .bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); display: inline-block; }
-.screen .bar span { margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.screen button { all: unset; cursor: zoom-in; display: block; width: 100%; }
 
-.ticker { margin-top: 28px; overflow: hidden; border-block: 1px solid var(--line); padding-block: 12px; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-.ticker-row { display: flex; gap: 28px; width: max-content; animation: tick 70s linear infinite; font-family: var(--f-mono); font-size: .85rem; color: var(--muted); }
-.ticker-row span::before { content: "◆"; color: var(--brass); margin-right: 10px; font-size: .6rem; vertical-align: 2px; }
 @keyframes tick { to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .ticker-row { animation: none; flex-wrap: wrap; width: auto; } }
 
 /* ── об игре ── */
 .about-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); }
@@ -152,7 +148,7 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .panel { display: grid; gap: 22px; min-width: 0; }
 .panel figure { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b1120; box-shadow: var(--shadow); }
 .panel figure button { all: unset; cursor: zoom-in; display: block; width: 100%; }
-.panel figure img { width: 100%; height: auto; aspect-ratio: 1600 / 861; object-fit: cover; }
+.panel figure img { width: 100%; height: auto; aspect-ratio: 1400 / 929; object-fit: cover; }
 .panel figcaption { font-family: var(--f-mono); font-size: .72rem; color: var(--muted); padding: 9px 14px; background: var(--panel-2); border-top: 1px solid var(--line); }
 .panel-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
 @media (max-width: 700px) { .panel-body { grid-template-columns: minmax(0, 1fr); } }
@@ -200,6 +196,141 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .rel.next .card { padding: 16px 20px; border-style: dashed; color: var(--muted); background: transparent; }
 .rel.next .dot { border-style: dashed; }
 
+
+/* ── фон первого экрана: контур Европы из игры ── */
+.hero-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.hero-bg svg { position: absolute; right: -6%; top: -8%; width: min(980px, 95%); height: auto; opacity: .55; mask-image: radial-gradient(70% 70% at 60% 45%, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(70% 70% at 60% 45%, #000 30%, transparent 75%); }
+.hero-bg path { fill: color-mix(in srgb, var(--fg) 4%, transparent); stroke: color-mix(in srgb, var(--brass) 28%, transparent); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.hero-bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(40% 50% at 78% 30%, color-mix(in srgb, var(--brass) 10%, transparent), transparent 70%); }
+.hero > .wrap { position: relative; z-index: 1; }
+
+/* ── кадры из игры ── */
+.frames { display: grid; grid-template-columns: 1.05fr 1.4fr 1.25fr; gap: 16px; margin-top: clamp(44px, 6vw, 72px); }
+@media (max-width: 900px) { .frames { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .frames figure:last-child { grid-column: 1 / -1; } }
+@media (max-width: 520px) { .frames { grid-template-columns: minmax(0, 1fr); } }
+.frames figure { margin: 0; display: grid; grid-template-rows: auto 1fr; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #0b1120; box-shadow: var(--shadow); min-width: 0; }
+.frames figcaption { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; font-family: var(--f-mono); font-size: .72rem; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.frames figcaption b { color: var(--fg); font-weight: 600; }
+.frames button { all: unset; cursor: zoom-in; display: block; position: relative; overflow: hidden; }
+.frames img { width: 100%; height: 100%; object-fit: cover; object-position: top left; transition: transform .6s ease; }
+.frames button:hover img { transform: scale(1.04); }
+@media (prefers-reduced-motion: reduce) { .frames img { transition: none; } .frames button:hover img { transform: none; } }
+
+.flagline { margin-top: 28px; overflow: hidden; border-block: 1px solid var(--line); padding-block: 12px; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.flagline-row { display: flex; gap: 22px; width: max-content; animation: tick 90s linear infinite; }
+.flagline:hover .flagline-row { animation-play-state: paused; }
+.flagline a { display: inline-flex; align-items: center; gap: 9px; color: var(--muted); text-decoration: none; font-size: .85rem; white-space: nowrap; }
+.flagline a:hover { color: var(--fg); }
+.flagline img { width: 27px; height: 18px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+@media (prefers-reduced-motion: reduce) { .flagline-row { animation: none; flex-wrap: wrap; width: auto; } }
+
+/* ── страны ── */
+#countries { background: radial-gradient(80% 60% at 20% 0%, color-mix(in srgb, var(--brass) 6%, transparent), transparent 70%); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.filters button { all: unset; cursor: pointer; font-size: .85rem; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); transition: all .15s ease; }
+.filters button:hover { color: var(--fg); border-color: var(--muted); }
+.filters button[aria-pressed="true"] { color: var(--brass-ink); background: var(--brass); border-color: var(--brass); }
+.filters button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.legend { margin-left: auto; display: flex; gap: 10px; align-items: center; font-family: var(--f-mono); font-size: .7rem; color: var(--muted); }
+.legend i { display: inline-block; width: 18px; height: 8px; border-radius: 2px; }
+@media (max-width: 700px) { .legend { margin-left: 0; width: 100%; } }
+.atlas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 22px; align-items: start; }
+@media (max-width: 1000px) { .atlas { grid-template-columns: minmax(0, 1fr); } }
+.map-wrap { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 76px); border-radius: 18px; border: 1px solid var(--line); background:
+  radial-gradient(90% 70% at 50% 40%, color-mix(in srgb, var(--brass) 5%, var(--sea)), var(--sea)); overflow: hidden; box-shadow: var(--shadow); }
+@media (max-width: 1000px) { .map-wrap { position: relative; top: 0; } }
+#eumap { display: block; width: 100%; height: auto; aspect-ratio: 1 / .92; }
+#eumap .grat { stroke: color-mix(in srgb, var(--fg) 6%, transparent); stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
+#eumap .c { stroke: var(--land-line); stroke-width: .9; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .2s ease, opacity .2s ease, filter .2s ease; outline: none; }
+#eumap .c:hover, #eumap .c:focus-visible { filter: brightness(1.25) saturate(1.1); }
+#eumap .c.dim { opacity: .22; }
+#eumap .c.sel { fill: var(--brass) !important; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--brass) 70%, transparent)); }
+.map-tip { position: absolute; pointer-events: none; padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: .82rem; white-space: nowrap; transform: translate(-50%, -130%); box-shadow: var(--shadow); }
+.map-note { position: absolute; left: 14px; bottom: 10px; font-family: var(--f-mono); font-size: .68rem; color: var(--muted); }
+
+.dossier { border-radius: 18px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); overflow: hidden; min-width: 0; }
+.dz-head { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--line); background: linear-gradient(120deg, color-mix(in srgb, var(--dzc, var(--brass)) 16%, var(--panel)), var(--panel) 60%); }
+@media (max-width: 560px) { .dz-head { grid-template-columns: auto minmax(0, 1fr); } .dz-shape { display: none; } }
+.dz-flag { position: relative; width: 96px; aspect-ratio: 3 / 2; border-radius: 6px; overflow: hidden; box-shadow: 0 10px 24px -8px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.2); }
+.dz-flag img { width: 100%; height: 100%; object-fit: cover; }
+.dz-flag::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.22) 22%, rgba(0,0,0,.12) 45%, rgba(255,255,255,.14) 68%, rgba(0,0,0,.16) 100%); background-size: 200% 100%; animation: wave 6s ease-in-out infinite alternate; mix-blend-mode: soft-light; }
+@keyframes wave { from { background-position: 0 0; } to { background-position: 100% 0; } }
+@media (prefers-reduced-motion: reduce) { .dz-flag::after { animation: none; } }
+.dz-name { font-family: var(--f-display); font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 600; line-height: 1.1; }
+.dz-sub { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 6px; color: var(--muted); font-size: .9rem; }
+.pips { display: inline-flex; gap: 3px; vertical-align: middle; }
+.pips i { width: 10px; height: 10px; border-radius: 2px; background: var(--seat); }
+.pips i.on { background: var(--pc); }
+.tag { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid currentColor; }
+.tag.reg { color: var(--reg-accent); }
+.dz-shape svg { display: block; width: 120px; height: 100px; }
+.dz-shape path { fill: color-mix(in srgb, var(--dzc, var(--brass)) 30%, transparent); stroke: color-mix(in srgb, var(--fg) 55%, transparent); stroke-width: .6; vector-effect: non-scaling-stroke; }
+.dz-body { padding: 22px 24px 26px; display: grid; gap: 24px; }
+.dz-blurb { font-size: 1.02rem; line-height: 1.55; border-left: 3px solid var(--brass); padding-left: 16px; }
+.dz-blurb small { display: block; font-family: var(--f-mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); margin-bottom: 6px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpis div { padding: 12px 14px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; }
+.kpis b { display: block; font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpis small { color: var(--muted); font-size: .75rem; }
+.dz-h { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 10px; }
+.dz-h b { color: var(--fg); font-weight: 600; letter-spacing: 0; text-transform: none; font-family: var(--f-body); font-size: .85rem; }
+.parl { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+@media (max-width: 560px) { .parl { grid-template-columns: minmax(0, 1fr); } }
+.parl svg { width: 100%; height: auto; display: block; }
+.plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: .86rem; }
+.plist li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.plist i { width: 10px; height: 10px; border-radius: 50%; }
+.plist span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plist b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.plist li.gov span { color: var(--fg); font-weight: 600; }
+.facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 22px; margin: 0; }
+@media (max-width: 560px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+.facts div { padding: 9px 0; border-bottom: 1px dashed var(--line); min-width: 0; }
+.facts dt { font-size: .74rem; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-size: .9rem; }
+.traits { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.traits div { padding: 12px 14px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+.traits b { display: block; font-weight: 600; font-size: .9rem; margin-bottom: 3px; }
+.traits span { color: var(--muted); font-size: .82rem; line-height: 1.45; display: block; }
+.rels { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rels li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: .88rem; }
+.rels img { width: 24px; height: 16px; border-radius: 2px; }
+.rels button { all: unset; cursor: pointer; font-weight: 600; }
+.rels button:hover { color: var(--brass); }
+.rels small { color: var(--muted); }
+.rels em { font-style: normal; font-family: var(--f-mono); font-size: .75rem; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+.rels em.pos { color: var(--yes); background: color-mix(in srgb, var(--yes) 14%, transparent); }
+.rels em.neg { color: var(--no); background: color-mix(in srgb, var(--no) 14%, transparent); }
+.rels em.zero { color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, transparent); }
+.orgs { display: flex; flex-wrap: wrap; gap: 6px; }
+.orgs span { font-size: .78rem; padding: 4px 9px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.orgs span.key { color: var(--fg); border-color: color-mix(in srgb, var(--brass) 50%, var(--line)); }
+.dz-nav { display: flex; justify-content: space-between; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--line); background: var(--panel-2); }
+.dz-nav button { all: unset; cursor: pointer; font-size: .85rem; color: var(--muted); display: inline-flex; gap: 8px; align-items: center; }
+.dz-nav button:hover { color: var(--fg); }
+.dz-nav button:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+.dz-nav img { width: 21px; height: 14px; border-radius: 2px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 22px; }
+.fgrid button { all: unset; cursor: pointer; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); transition: border-color .15s ease, opacity .2s ease, transform .15s ease; }
+.fgrid button:hover { border-color: var(--muted); transform: translateY(-1px); }
+.fgrid button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.fgrid button[aria-current="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.fgrid button.dim { opacity: .35; }
+.fgrid img { width: 30px; height: 20px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
+.fgrid span { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fgrid small { display: block; font-size: .68rem; color: var(--muted); font-family: var(--f-mono); }
+
+/* ── режимы: свой мир ── */
+#regimes { background: var(--reg-bg); border-block: 1px solid var(--reg-line); position: relative; overflow: hidden; }
+#regimes::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, transparent 0 22px, color-mix(in srgb, var(--reg-accent) 4%, transparent) 22px 23px); pointer-events: none; }
+#regimes .wrap { position: relative; }
+#regimes .eyebrow { color: var(--reg-accent); }
+#regimes .chips span { border-color: var(--reg-line); background: var(--reg-panel); }
+#regimes .chips span.hl { border-color: var(--reg-accent); color: var(--fg); }
+#regimes .shot { border-color: var(--reg-line); box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--reg-accent) 35%, transparent); }
+.splash { display: inline-block; margin-bottom: 18px; font-family: var(--f-display); font-weight: 800; letter-spacing: .3em; font-size: .78rem; color: var(--reg-accent); border-block: 2px solid var(--reg-accent); padding: 6px 2px; }
+
 /* ── галерея ── */
 .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 860px) { .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -207,7 +338,10 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .gallery button { all: unset; cursor: zoom-in; display: grid; gap: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); transition: border-color .15s ease, transform .15s ease; }
 .gallery button:hover { border-color: var(--brass); transform: translateY(-2px); }
 .gallery button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-.gallery img { aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; width: 100%; }
+.gallery img { aspect-ratio: 3 / 2; object-fit: cover; object-position: top left; width: 100%; }
+.gallery button:first-child { grid-column: span 2; grid-row: span 2; }
+.gallery button:first-child img { aspect-ratio: auto; height: 100%; }
+@media (max-width: 480px) { .gallery button:first-child { grid-column: auto; grid-row: auto; } .gallery button:first-child img { aspect-ratio: 3 / 2; } }
 .gallery span { padding: 10px 14px; font-size: .88rem; color: var(--muted); }
 
 /* ── запуск ── */
@@ -235,6 +369,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
     <a class="logo" href="#top"><svg viewBox="0 0 26 15" aria-hidden="true"><path d="M1 14a12 12 0 0 1 24 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 14a7 7 0 0 1 14 0" fill="none" stroke="#e2ae55" stroke-width="2"/></svg>SYMPHONY</a>
     <ul>
       <li><a href="#about">Об игре</a></li>
+      <li><a href="#countries">Страны</a></li>
       <li><a href="#mechanics">Механики</a></li>
       <li><a href="#updates">Обновления</a></li>
       <li><a href="#gallery">Скриншоты</a></li>
@@ -245,6 +380,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
 </nav>
 
 <header class="hero" id="top">
+  <div class="hero-bg" aria-hidden="true"><svg id="hero-eu" viewBox="-290 -620 1610 1520"></svg></div>
   <div class="wrap">
     <div class="hero-grid">
       <div>
@@ -256,7 +392,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
           <a class="btn" href="#updates">Что нового в <span data-ver>v52_1</span></a>
         </div>
         <div class="stats">
-          <div><b>38</b><small>стран Европы со своими партиями и законами</small></div>
+          <div><b><a href="#countries" style="color:inherit;text-decoration:none">38</a></b><small>стран Европы со своими партиями и законами</small></div>
           <div><b>27</b><small>международных организаций</small></div>
           <div><b>124</b><small>технологии в пяти ветках</small></div>
           <div><b>89</b><small>регионов в одной только России</small></div>
@@ -276,13 +412,14 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
       </div>
     </div>
 
-    <figure class="screen" style="margin-inline:0;margin-bottom:0">
-      <div class="bar"><i></i><i></i><i></i><span>Symphony · выбор страны</span></div>
-      <button type="button" data-full="img/europe.webp" data-cap="Выбор страны: у каждой своя сложность, парламент и стартовая ситуация"><img src="img/europe.webp" width="1600" height="861" alt="Карта Европы на экране выбора страны, справа карточка Германии с параметрами" fetchpriority="high"></button>
-    </figure>
+    <div class="frames">
+      <figure><figcaption><b>Парламент</b><span>Франция</span></figcaption><button type="button" data-full="img/parliament.webp" data-cap="Франция: нижняя палата и сенат, партии и переговоры"><img src="img/crop/d_hemi.webp" width="660" height="555" alt="Окно парламента Франции: полукруги Национального собрания и сената" fetchpriority="high"></button></figure>
+      <figure><figcaption><b>Вертикаль власти</b><span>Россия</span></figcaption><button type="button" data-full="img/regime.webp" data-cap="Россия: гибридный режим, кланы элиты и угрозы"><img src="img/crop/d_vertical.webp" width="1000" height="635" alt="Окно гибридного режима: кланы силовиков, олигархов, губернаторов и администрации"></button></figure>
+      <figure><figcaption><b>Регионы</b><span>Иль-де-Франс</span></figcaption><button type="button" data-full="img/map.webp" data-cap="Франция: слои карты и сведения о регионе"><img src="img/crop/d_map.webp" width="1000" height="681" alt="Карта Франции с выделенным регионом Иль-де-Франс"></button></figure>
+    </div>
 
-    <div class="ticker" aria-label="Страны в игре">
-      <div class="ticker-row" id="ticker"></div>
+    <div class="flagline" aria-label="Страны в игре">
+      <div class="flagline-row" id="flagline"></div>
     </div>
   </div>
 </header>
@@ -312,6 +449,25 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
   </div>
 </section>
 
+<section id="countries">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Страны</p><h2>38 стран, и в каждой своя политика</h2><p class="lede">Выберите страну на карте или в списке. Здесь те же данные, что и в игре: стартовая ситуация, парламент, экономика, национальный характер и старые счёты с соседями.</p></div>
+    <div class="filters" role="group" aria-label="Показать на карте" id="filters">
+      <button type="button" data-f="all" aria-pressed="true">Все</button>
+      <button type="button" data-f="eu" aria-pressed="false">ЕС</button>
+      <button type="button" data-f="euro" aria-pressed="false">Еврозона</button>
+      <button type="button" data-f="nato" aria-pressed="false">НАТО</button>
+      <button type="button" data-f="out" aria-pressed="false">Вне ЕС</button>
+      <span class="legend" aria-label="Сложность">сложность <i style="background:var(--d1)"></i><i style="background:var(--d2)"></i><i style="background:var(--d3)"></i><i style="background:var(--d4)"></i><i style="background:var(--d5)"></i></span>
+    </div>
+    <div class="atlas">
+      <div class="map-wrap"><svg id="eumap" viewBox="-290 -620 1610 1480" role="group" aria-label="Карта Европы: щёлкните по стране"></svg><div class="map-tip" id="map-tip" hidden></div><span class="map-note">Карта из игры · Россия продолжается на восток</span></div>
+      <article class="dossier" id="dossier" aria-live="polite"></article>
+    </div>
+    <div class="fgrid" id="fgrid" aria-label="Все страны"></div>
+  </div>
+</section>
+
 <section id="mechanics">
   <div class="wrap">
     <div class="sec-head"><p class="eyebrow">Механики</p><h2>Десять систем, которые работают одновременно</h2><p class="lede">Выберите раздел слева. Скриншоты сняты в текущей версии игры, нажмите на любой, чтобы рассмотреть его целиком.</p></div>
@@ -325,14 +481,14 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
 <section id="regimes">
   <div class="wrap regimes">
     <div>
-      <div class="sec-head" style="margin-bottom:20px"><p class="eyebrow">Режимы</p><h2>Когда парламент становится декорацией</h2></div>
+      <span class="splash" aria-hidden="true">СМЕНА РЕЖИМА</span><div class="sec-head" style="margin-bottom:20px"><p class="eyebrow">Режимы</p><h2>Когда парламент становится декорацией</h2></div>
       <p class="lede">При недемократическом режиме весь раздел «Политика» перестраивается. Вместо партий и опросов появляются вертикаль власти, кланы элиты, страх, пропаганда и подполье. У режима своя палитра и эмблема, а смену строя игра отмечает отдельной заставкой.</p>
       <div class="chips" aria-label="Типы режимов">
         <span class="hl">Гибридный режим</span><span>Диктатура</span><span>Хунта</span><span>Однопартийное государство</span><span>Абсолютная монархия</span><span>Теократия</span>
       </div>
       <p style="margin-top:22px;color:var(--muted);max-width:60ch">Россия и Беларусь начинают игру гибридными режимами. У каждого режима есть особые решения: хунта может пообещать передать власть, монарх дарует конституцию, партия собирает пленум ЦК, а президент проводит «обнуление». Выйти из режима можно через круглый стол и переход к демократии.</p>
     </div>
-    <figure class="shot"><button type="button" data-full="img/regime.webp" data-cap="Россия: вертикаль власти, кланы элиты, инструменты режима и фасадный парламент"><img src="img/regime.webp" width="1600" height="861" loading="lazy" alt="Экран политики России: гибридный режим, кланы силовиков, олигархов, губернаторов и администрации"></button></figure>
+    <figure class="shot"><button type="button" data-full="img/regime.webp" data-cap="Россия: вертикаль власти, кланы элиты, инструменты режима и фасадный парламент"><img src="img/crop/regime.webp" width="1400" height="929" loading="lazy" alt="Экран политики России: гибридный режим, кланы силовиков, олигархов, губернаторов и администрации"></button></figure>
   </div>
 </section>
 
@@ -456,13 +612,159 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
   <p><span id="lb-cap"></span><button type="button" id="lb-close">Закрыть ✕</button></p>
 </dialog>
 
+<script src="countries.js"></script>
 <script>
 (function () {
   "use strict";
-  var COUNTRIES = ["Германия","Франция","Нидерланды","Бельгия","Люксембург","Австрия","Швейцария","Чехия","Дания","Испания","Италия","Норвегия","Польша","Португалия","Швеция","Великобритания","Ирландия","Словения","Словакия","Венгрия","Финляндия","Хорватия","Сербия","Босния и Герцеговина","Черногория","Северная Македония","Албания","Косово","Болгария","Румыния","Греция","Эстония","Латвия","Литва","Молдова","Беларусь","Украина","Россия"];
-  var tk = document.getElementById("ticker");
-  var html = COUNTRIES.map(function (c) { return "<span>" + c + "</span>"; }).join("");
-  tk.innerHTML = html + html.replace(/<span>/g, '<span aria-hidden="true">');
+  /* ── Страны: карта Европы, досье, список ── */
+  var C = window.SYM_COUNTRIES || [], GEO = window.SYM_GEO || { eu: {}, shape: {} };
+  var BY = {}; C.forEach(function (c, i) { c.i = i; BY[c.cc] = c; });
+  var NS = "http://www.w3.org/2000/svg";
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (ch) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]; }); }
+  function num(x, d) { return Number(x).toLocaleString("ru-RU", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
+  function flag(cc) { return "img/flags/" + cc + ".webp"; }
+  var DIFW = ["", "очень лёгкая", "лёгкая", "средняя", "трудная", "очень трудная"];
+  var isNato = function (c) { return c.orgs.indexOf("НАТО") >= 0; };
+  var FILT = {
+    all: function () { return true; }, eu: function (c) { return c.eu; }, euro: function (c) { return c.euro; },
+    nato: isNato, out: function (c) { return !c.eu; }
+  };
+
+  // контур Европы на фоне первого экрана
+  var heroSvg = document.getElementById("hero-eu");
+  if (heroSvg) heroSvg.innerHTML = Object.keys(GEO.eu).map(function (k) { return '<path d="' + GEO.eu[k] + '"/>'; }).join("");
+
+  // лента флагов
+  var fl = document.getElementById("flagline");
+  if (fl) {
+    var row = C.map(function (c) { return '<a href="#countries" data-cc="' + c.cc + '"><img src="' + flag(c.cc) + '" width="27" height="18" alt="" loading="lazy">' + esc(c.n) + "</a>"; }).join("");
+    fl.innerHTML = row + row.replace(/<a /g, '<a aria-hidden="true" tabindex="-1" ');
+    fl.addEventListener("click", function (e) { var a = e.target.closest("[data-cc]"); if (a) pickCountry(a.getAttribute("data-cc")); });
+  }
+
+  // карта
+  var map = document.getElementById("eumap"), tip = document.getElementById("map-tip");
+  var grat = "";
+  for (var gx = -200; gx <= 1300; gx += 150) grat += '<path class="grat" d="M' + gx + ' -620V860"/>';
+  for (var gy = -500; gy <= 860; gy += 150) grat += '<path class="grat" d="M-290 ' + gy + 'H1320"/>';
+  map.innerHTML = grat + C.map(function (c) {
+    return '<path class="c" tabindex="0" role="button" data-cc="' + c.cc + '" aria-label="' + esc(c.n) + '" style="fill:var(--d' + c.dif + ')" d="' + (GEO.eu[c.cc] || "") + '"></path>';
+  }).join("");
+  var paths = {}; [].forEach.call(map.querySelectorAll(".c"), function (p) { paths[p.getAttribute("data-cc")] = p; });
+  map.addEventListener("click", function (e) { var p = e.target.closest(".c"); if (p) pickCountry(p.getAttribute("data-cc"), true); });
+  map.addEventListener("keydown", function (e) { var p = e.target.closest(".c"); if (p && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickCountry(p.getAttribute("data-cc"), true); } });
+  map.addEventListener("mousemove", function (e) {
+    var p = e.target.closest(".c");
+    if (!p) { tip.hidden = true; return; }
+    var c = BY[p.getAttribute("data-cc")], r = map.parentNode.getBoundingClientRect();
+    tip.textContent = c.n + " · " + "★".repeat(c.dif);
+    tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px"; tip.hidden = false;
+  });
+  map.addEventListener("mouseleave", function () { tip.hidden = true; });
+
+  // список
+  var grid = document.getElementById("fgrid");
+  grid.innerHTML = C.map(function (c) {
+    return '<button type="button" data-cc="' + c.cc + '"><img src="' + flag(c.cc) + '" width="30" height="20" alt="" loading="lazy"><span>' + esc(c.n) + "<small>" + "★".repeat(c.dif) + "</small></span></button>";
+  }).join("");
+  grid.addEventListener("click", function (e) { var b = e.target.closest("[data-cc]"); if (b) pickCountry(b.getAttribute("data-cc"), true); });
+
+  // фильтры
+  var curF = "all";
+  document.getElementById("filters").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-f]"); if (!b) return;
+    curF = b.getAttribute("data-f");
+    [].forEach.call(this.querySelectorAll("[data-f]"), function (x) { x.setAttribute("aria-pressed", x === b); });
+    C.forEach(function (c) {
+      var on = FILT[curF](c);
+      paths[c.cc].classList.toggle("dim", !on);
+      grid.querySelector('[data-cc="' + c.cc + '"]').classList.toggle("dim", !on);
+    });
+  });
+
+  // полукруг парламента в цветах партий
+  function hemicycle(parties, total) {
+    var R1 = 190, R0 = 64, rows = 3, best = 1e9, k;
+    for (k = 2; k <= 22; k++) {
+      var rad = (R1 - R0) / (k - 1), arc = Math.PI * (R0 + R1) * k / 2 / total, d = Math.abs(rad - arc);
+      if (d < best) { best = d; rows = k; }
+    }
+    var radii = [], sum = 0;
+    for (k = 0; k < rows; k++) { radii.push(R0 + (R1 - R0) * (rows === 1 ? 1 : k / (rows - 1))); sum += radii[k]; }
+    var counts = radii.map(function (r) { return Math.round(total * r / sum); });
+    counts[rows - 1] += total - counts.reduce(function (a, b) { return a + b; }, 0);
+    var seats = [];
+    radii.forEach(function (r, ri) { for (var j = 0; j < counts[ri]; j++) { var a = Math.PI - Math.PI * (j + .5) / counts[ri]; seats.push({ x: 200 + r * Math.cos(a), y: 200 - r * Math.sin(a), a: a }); } });
+    seats.sort(function (p, q) { return q.a - p.a; });
+    var colors = []; parties.forEach(function (p) { for (var i = 0; i < p.s; i++) colors.push(p.c); });
+    var dr = Math.min((R1 - R0) / (rows - 1), Math.PI * (R0 + R1) * rows / 2 / total) * .42;
+    return '<svg viewBox="0 0 400 210" role="img" aria-label="Распределение ' + total + ' мест по партиям">' + seats.map(function (s, i) {
+      return '<circle cx="' + s.x.toFixed(1) + '" cy="' + s.y.toFixed(1) + '" r="' + dr.toFixed(1) + '" fill="' + (colors[i] || "#777") + '"/>';
+    }).join("") + '<text x="200" y="196" text-anchor="middle" font-family="Unbounded, sans-serif" font-weight="600" font-size="30" fill="currentColor">' + total + "</text></svg>";
+  }
+  function shapeSvg(cc) {
+    var sh = GEO.shape[cc]; if (!sh) return "";
+    return '<svg viewBox="-6 -6 ' + (sh.w + 12) + " " + (sh.h + 12) + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' + sh.r.map(function (d) { return '<path d="' + d + '"/>'; }).join("") + "</svg>";
+  }
+
+  var dz = document.getElementById("dossier"), cur = null;
+  function render(c) {
+    var lead = c.p.slice().sort(function (a, b) { return b.s - a.s; });
+    var gp = c.gp;
+    var pc = lead.length ? lead[0].c : "var(--brass)";
+    var gcol = (c.p.filter(function (p) { return p.n === gp; })[0] || {}).c || pc;
+    var perCap = c.gdp / c.pop;
+    var KEY = { "ЕС": 1, "НАТО": 1, "Еврозона": 1, "СНГ": 1, "ОДКБ": 1, "ЕАЭС": 1 };
+    var prev = C[(c.i + C.length - 1) % C.length], next = C[(c.i + 1) % C.length];
+    dz.style.setProperty("--dzc", gcol);
+    dz.innerHTML =
+      '<header class="dz-head"><div class="dz-flag"><img src="' + flag(c.cc) + '" width="330" height="220" alt="Флаг: ' + esc(c.n) + '"></div>' +
+      '<div><h3 class="dz-name">' + esc(c.n) + '</h3><div class="dz-sub"><span>' + esc(c.cap) + '</span><span class="pips" style="--pc:var(--d' + c.dif + ')" title="Сложность: ' + DIFW[c.dif] + '">' +
+      [1, 2, 3, 4, 5].map(function (n) { return '<i class="' + (n <= c.dif ? "on" : "") + '"></i>'; }).join("") + '</span><span>сложность ' + DIFW[c.dif] + "</span>" +
+      (c.regime ? '<span class="tag reg">' + c.regime + "</span>" : "") + "</div></div>" +
+      '<div class="dz-shape" title="' + c.reg + ' регионов">' + shapeSvg(c.cc) + "</div></header>" +
+      '<div class="dz-body">' +
+      '<p class="dz-blurb"><small>Ваш старт</small>' + esc(c.blurb) + "</p>" +
+      '<div class="kpis">' +
+      "<div><b>" + num(c.pop, c.pop < 10 ? 1 : 0) + "</b><small>млн жителей</small></div>" +
+      "<div><b>" + num(c.gdp) + "</b><small>ВВП, млрд €</small></div>" +
+      "<div><b>" + num(perCap, 1) + "</b><small>тыс. € на человека</small></div>" +
+      "<div><b>" + num(c.debt) + "%</b><small>госдолг, % ВВП</small></div>" +
+      "<div><b>" + (c.gr > 0 ? "+" : "") + num(c.gr, 1) + "%</b><small>рост ВВП</small></div>" +
+      "<div><b>" + num(c.inf, 1) + "%</b><small>инфляция</small></div>" +
+      "<div><b>" + num(c.un, 1) + "%</b><small>безработица</small></div>" +
+      "<div><b>" + c.reg + "</b><small>регионов</small></div></div>" +
+      '<div><div class="dz-h"><span>' + esc(c.parl) + "</span><b>большинство: " + c.maj + " из " + c.seats + "</b></div>" +
+      '<div class="parl">' + hemicycle(c.p, c.seats) + '<ul class="plist">' + lead.slice(0, 7).map(function (p) {
+        return '<li class="' + (p.n === gp ? "gov" : "") + '"><i style="background:' + p.c + '"></i><span>' + esc(p.n) + "</span><b>" + p.s + "</b></li>";
+      }).join("") + (lead.length > 7 ? '<li><i style="background:var(--seat)"></i><span>ещё ' + (lead.length - 7) + "</span><b>" + lead.slice(7).reduce(function (a, p) { return a + p.s; }, 0) + "</b></li>" : "") + "</ul></div></div>" +
+      '<dl class="facts">' +
+      "<div><dt>Вы играете за</dt><dd>" + esc(c.you) + "</dd></div>" +
+      "<div><dt>Глава государства</dt><dd>" + esc(c.head) + (c.headk ? ", " + c.headk : "") + "</dd></div>" +
+      '<div style="grid-column:1/-1"><dt>Правительство</dt><dd>' + esc(c.gov.charAt(0).toUpperCase() + c.gov.slice(1)) + "</dd></div>" +
+      "<div><dt>Выборы</dt><dd>" + esc(c.sys) + "</dd></div>" +
+      "<div><dt>Срок парламента · верхняя палата</dt><dd>" + Math.round(c.term / 12) + " года · " + (c.up ? esc(c.up) + (c.upn ? " (" + c.upn + ")" : "") : "нет") + "</dd></div>" +
+      "</dl>" +
+      '<div><div class="dz-h"><span>Национальный характер</span></div><div class="traits">' + c.tr.map(function (t) { return "<div><b>" + esc(t.n) + "</b><span>" + esc(t.d) + "</span></div>"; }).join("") + "</div></div>" +
+      (c.rel.length ? '<div><div class="dz-h"><span>Старые счёты и дружба</span></div><ul class="rels">' + c.rel.map(function (r) {
+        var o = BY[r[0]], v = r[1];
+        return "<li><img src=\"" + flag(r[0]) + '" width="24" height="16" alt="" loading="lazy"><span><button type="button" data-go="' + r[0] + '">' + esc(o ? o.n : r[0]) + "</button> <small>" + esc(r[2]) + '</small></span><em class="' + (v > 0 ? "pos" : v < 0 ? "neg" : "zero") + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v) + "</em></li>";
+      }).join("") + "</ul></div>" : "") +
+      '<div><div class="dz-h"><span>Организации</span><b>' + c.orgs.length + " из 27</b></div><div class=\"orgs\">" + c.orgs.map(function (o) { return '<span class="' + (KEY[o] ? "key" : "") + '">' + esc(o) + "</span>"; }).join("") + "</div></div>" +
+      "</div>" +
+      '<nav class="dz-nav" aria-label="Соседние страны в списке"><button type="button" data-go="' + prev.cc + '">← <img src="' + flag(prev.cc) + '" alt="" width="21" height="14">' + esc(prev.n) + '</button><button type="button" data-go="' + next.cc + '">' + esc(next.n) + ' <img src="' + flag(next.cc) + '" alt="" width="21" height="14"> →</button></nav>';
+  }
+  dz.addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (b) pickCountry(b.getAttribute("data-go")); });
+  function pickCountry(cc, keepScroll) {
+    var c = BY[cc]; if (!c) return;
+    if (cur) { paths[cur].classList.remove("sel"); var ob = grid.querySelector('[data-cc="' + cur + '"]'); if (ob) ob.removeAttribute("aria-current"); }
+    cur = cc; paths[cc].classList.add("sel"); paths[cc].parentNode.appendChild(paths[cc]);
+    grid.querySelector('[data-cc="' + cc + '"]').setAttribute("aria-current", "true");
+    render(c);
+    if (!keepScroll && window.matchMedia("(max-width: 1000px)").matches) dz.scrollIntoView({ block: "start" });
+  }
+  var h0 = (location.hash || "").match(/^#c-([A-Z]{2})$/);
+  pickCountry(h0 && BY[h0[1]] ? h0[1] : "DE", true);
 
   var MECH = [
     { id: "parliament", t: "Парламент и коалиция", img: "parliament", cap: "Франция: нижняя палата и сенат, партии, переговоры и опросы",
@@ -543,7 +845,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
     var n = (i + 1 < 10 ? "0" : "") + (i + 1);
     th += '<button class="tab" role="tab" id="tab-' + m.id + '" aria-controls="p-' + m.id + '" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? 0 : -1) + '"><span class="n">' + n + '</span><span>' + m.t + '</span></button>';
     ph += '<div class="panel" role="tabpanel" id="p-' + m.id + '" aria-labelledby="tab-' + m.id + '"' + (i === 0 ? "" : " hidden") + '>' +
-      '<figure><button type="button" data-full="img/' + m.img + '.webp" data-cap="' + m.cap + '"><img src="img/' + m.img + '.webp" width="1600" height="861" loading="' + (i === 0 ? "eager" : "lazy") + '" alt="' + m.cap + '"></button><figcaption>' + m.cap + '</figcaption></figure>' +
+      '<figure><button type="button" data-full="img/' + m.img + '.webp" data-cap="' + m.cap + '"><img src="img/crop/' + m.img + '.webp" width="1400" height="929" loading="' + (i === 0 ? "eager" : "lazy") + '" alt="' + m.cap + '"></button><figcaption>' + m.cap + '</figcaption></figure>' +
       '<div><h3>' + m.t + '</h3><p class="intro">' + m.intro + '</p><span class="fact"><b>' + m.fact[0] + '</b>' + m.fact[1] + '</span></div>' +
       '<div class="panel-body"><ul>' + m.a.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul><ul>' + m.b.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div></div>';
   });
@@ -567,14 +869,14 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
   });
 
   var GAL = [
-    ["map", "Карта Франции и сведения о регионе"], ["russia", "Россия: 89 регионов на карте"], ["parliament", "Парламент, партии и опросы"],
+    ["parliament", "Парламент, партии и опросы"],
     ["laws", "Законы и варианты"], ["budget", "Бюджет и налоги"], ["economy", "Рынки, товары и энергия"],
     ["corporations", "Корпорации и иностранный капитал"], ["population", "Население и идеологическая карта"], ["religion", "Религия и миграция"],
     ["opposition", "Оппозиция и сделки партий"], ["diplomacy", "Влияние и зависимость от соседей"], ["orgs", "ООН и другие организации"],
-    ["regime", "Гибридный режим"], ["crisis", "Кризисы и сепаратизм"], ["tech", "Дерево технологий"]
+    ["regime", "Гибридный режим"], ["crisis", "Кризисы и сепаратизм"], ["tech", "Дерево технологий"], ["map", "Регионы и слои карты"]
   ];
   document.getElementById("gal").innerHTML = GAL.map(function (g) {
-    return '<button type="button" data-full="img/' + g[0] + '.webp" data-cap="' + g[1] + '"><img src="img/' + g[0] + '.webp" width="1600" height="861" loading="lazy" alt="' + g[1] + '"><span>' + g[1] + '</span></button>';
+    return '<button type="button" data-full="img/' + g[0] + '.webp" data-cap="' + g[1] + '"><img src="img/crop/' + g[0] + '.webp" width="1400" height="929" loading="lazy" alt="' + g[1] + '"><span>' + g[1] + '</span></button>';
   }).join("");
 
   var lb = document.getElementById("lb"), lbImg = document.getElementById("lb-img"), lbCap = document.getElementById("lb-cap");
@@ -647,6 +949,18 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
   cv.addEventListener("click", play);
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { draw(); });
   new MutationObserver(function () { draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  /* активный пункт меню */
+  var navLinks = [].slice.call(document.querySelectorAll('.nav ul a'));
+  if ("IntersectionObserver" in window) {
+    var secObs = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        navLinks.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id); });
+      });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    navLinks.forEach(function (a) { var t = document.querySelector(a.getAttribute("href")); if (t) secObs.observe(t); });
+  }
 })();
 </script>
 </body>

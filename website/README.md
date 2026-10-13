@@ -21,3 +21,16 @@
 Собрать вручную: `python3 website/build_updates.py` (из корня репозитория).
 
 Скриншоты сняты из игры (Godot 4.3, xvfb) на 1600 px по ширине в формате WebP.
+
+## Раздел «Страны»
+
+Карта, досье и флаги 38 стран берутся прямо из игры и лежат в `countries.js` и `img/flags/`. Если в игре поменялись данные стран, пересоберите их так (из корня репозитория):
+
+```
+xvfb-run -a godot --rendering-driver opengl3 --path . --script website/tools/export_countries.gd -- out=/tmp/sym
+python3 website/tools/build_countries.py /tmp/sym
+```
+
+Первый шаг выгружает данные и флаги из Godot, второй собирает `countries.js` (контуры регионов берёт из `data/world_units.dat`) и `img/flags/*.webp`.
+Файл `website/.gdignore` нужен, чтобы Godot не импортировал картинки сайта как ресурсы игры.
+Кадры в `img/crop/` вырезаны из полных скриншотов, полные по-прежнему открываются по клику.
