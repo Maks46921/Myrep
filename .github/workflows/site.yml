@@ -1,0 +1,41 @@
+# Сайт игры: раздел «Обновления» собирается из UPDATES.md, и сайт выкладывается на Netlify
+# (https://symphony-game.netlify.app). Нужен секрет репозитория NETLIFY_AUTH_TOKEN
+# (Netlify → User settings → Applications → Personal access tokens).
+name: Сайт
+
+on:
+  push:
+    branches: [claude/brave-pascal-w1vydc, claude/symphony-website-b7fyuh]
+    paths: [UPDATES.md, website/**, .github/workflows/site.yml]
+  pull_request:
+    paths: [UPDATES.md, website/**, .github/workflows/site.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+env:
+  NETLIFY_SITE_ID: 9c0672e5-d4fd-451e-97ec-5d34e9decfbb
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать раздел «Обновления» из UPDATES.md
+        run: python3 website/build_updates.py
+      - name: Выложить на Netlify
+        if: github.event_name != 'pull_request'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "::warning::Нет секрета NETLIFY_AUTH_TOKEN, сайт не выложен"
+            exit 0
+          fi
+          rm -rf website/tools website/README.md
+          npx -y netlify-cli@17 deploy --prod --dir website --site "$NETLIFY_SITE_ID" --message "${GITHUB_SHA::7}"

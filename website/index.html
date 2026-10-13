@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Symphony</title>
+<meta name="description" content="Symphony: политико-экономический симулятор 38 стран Европы. Парламент, коалиции, законы, бюджет, экономика, режимы, кризисы и международные организации.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: «пульт дирижёра» — слева партитура (текст), справа зал парламента; дальше разделы как части симфонии, обновления — лентой версий. */
+:root {
+  --bg: #0b1120;
+  --panel: #121a2c;
+  --panel-2: #172238;
+  --line: #26324d;
+  --fg: #ebe7dc;
+  --muted: #9aa3b6;
+  --brass: #e2ae55;
+  --brass-ink: #1a1305;
+  --yes: #5cc28a;
+  --no: #e3645b;
+  --abst: #6a7389;
+  --seat: #2b3653;
+  --d1: #3f7f5c; --d2: #5f8d4a; --d3: #9a8a3c; --d4: #a8673a; --d5: #a3463f; --sea: #0e1628; --land-line: #0b1120; --reg-bg: #170b10; --reg-panel: #22111a; --reg-line: #47202c; --reg-accent: #e0645a; --q0: #1d2c44; --q1: #f0b44c;
+  --shadow: 0 30px 80px -30px rgba(0, 0, 0, .75);
+  --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-body: "Golos Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --s-1: .8125rem; --s0: 1rem; --s1: 1.1875rem; --s2: 1.5rem; --s3: 2.125rem; --s4: clamp(2.6rem, 5.4vw, 4.6rem);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #eef1f6; --panel: #ffffff; --panel-2: #f6f8fb; --line: #d3d9e5; --fg: #111a2c; --muted: #55607a;
+    --brass: #a8701a; --brass-ink: #ffffff; --yes: #23864f; --no: #bb3b33; --abst: #9aa2b4; --seat: #d7dce7;
+    --shadow: 0 30px 70px -35px rgba(20, 30, 60, .45); color-scheme: light;
+    --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a; --q0: #e3e9f1; --q1: #b0660e;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #eef1f6; --panel: #ffffff; --panel-2: #f6f8fb; --line: #d3d9e5; --fg: #111a2c; --muted: #55607a;
+  --brass: #a8701a; --brass-ink: #ffffff; --yes: #23864f; --no: #bb3b33; --abst: #9aa2b4; --seat: #d7dce7;
+  --shadow: 0 30px 70px -35px rgba(20, 30, 60, .45); color-scheme: light;
+  --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a; --q0: #e3e9f1; --q1: #b0660e;
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--f-body); font-size: var(--s0); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--brass); }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h2 { font-size: var(--s3); font-weight: 600; letter-spacing: -.01em; }
+h3 { font-size: var(--s1); font-weight: 600; }
+p { margin: 0; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 20px; }
+.eyebrow { font-family: var(--f-mono); font-size: var(--s-1); letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
+.lede { color: var(--muted); max-width: 62ch; font-size: var(--s1); }
+section { padding-block: clamp(56px, 9vw, 112px); }
+.sec-head { display: grid; gap: 14px; margin-bottom: 40px; }
+
+/* ── шапка ── */
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.nav .wrap { display: flex; align-items: center; gap: 24px; min-height: 60px; }
+.logo { font-family: var(--f-display); font-weight: 800; letter-spacing: .18em; font-size: .95rem; color: var(--fg); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo svg { width: 26px; height: 15px; }
+.nav ul { list-style: none; display: flex; gap: 22px; margin: 0 0 0 auto; padding: 0; }
+.nav ul a { color: var(--muted); text-decoration: none; font-size: .9rem; }
+.nav ul a:hover, .nav ul a.on { color: var(--fg); }
+.nav ul a.on { box-shadow: 0 2px 0 var(--brass); }
+.ver { font-family: var(--f-mono); font-size: .75rem; color: var(--brass); border: 1px solid color-mix(in srgb, var(--brass) 45%, transparent); padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+@media (max-width: 760px) { .nav ul { display: none; } .ver { margin-left: auto; } }
+
+/* ── первый экран ── */
+.hero { padding-block: clamp(40px, 7vw, 88px) 0; position: relative; overflow: hidden; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+.wordmark { font-size: var(--s4); font-weight: 800; letter-spacing: .03em; line-height: 1; margin-block: 18px 22px; }
+.wordmark span { color: var(--brass); }
+.hero .lede { margin-bottom: 30px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; font-size: .95rem; border: 1px solid var(--line); color: var(--fg); background: var(--panel); transition: transform .15s ease, border-color .15s ease; }
+.btn:hover { transform: translateY(-1px); border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 40px; border-top: 1px solid var(--line); }
+.stats div { padding: 16px 12px 0 0; }
+.stats b { display: block; font-family: var(--f-display); font-size: var(--s2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stats small { color: var(--muted); font-size: var(--s-1); line-height: 1.35; display: block; }
+@media (max-width: 480px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 8px; } }
+
+.hall { position: relative; background: radial-gradient(120% 90% at 50% 100%, color-mix(in srgb, var(--brass) 12%, var(--panel)) 0%, var(--panel) 60%); border: 1px solid var(--line); border-radius: 18px; padding: 22px 22px 18px; box-shadow: var(--shadow); }
+.hall-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-family: var(--f-mono); font-size: var(--s-1); color: var(--muted); }
+.hall-top b { color: var(--fg); font-weight: 600; }
+#hemi { width: 100%; aspect-ratio: 2 / 1.08; max-width: 100%; display: block; margin-top: 8px; }
+.tally { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; border-top: 1px dashed var(--line); padding-top: 14px; }
+.tally div { font-family: var(--f-mono); font-size: var(--s-1); color: var(--muted); }
+.tally b { display: block; font-size: var(--s2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.t-yes b { color: var(--yes); } .t-no b { color: var(--no); } .t-ab b { color: var(--abst); }
+.stamp { font-family: var(--f-display); font-weight: 800; letter-spacing: .14em; font-size: .9rem; color: var(--yes); border: 2px solid var(--yes); border-radius: 6px; padding: 6px 10px; transform: rotate(-6deg); opacity: 0; transition: opacity .3s ease, transform .3s ease; }
+.stamp.on { opacity: 1; transform: rotate(-6deg) scale(1); }
+.hall-note { margin-top: 12px; font-size: var(--s-1); color: var(--muted); }
+
+
+@keyframes tick { to { transform: translateX(-50%); } }
+
+/* ── об игре ── */
+.about-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); }
+@media (max-width: 860px) { .about-grid { grid-template-columns: minmax(0, 1fr); } }
+.about-text { display: grid; gap: 18px; font-size: var(--s1); max-width: 62ch; }
+.about-text p:first-child { font-size: var(--s2); line-height: 1.4; font-family: var(--f-display); font-weight: 400; }
+.loop { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: step; }
+.loop li { counter-increment: step; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.loop li:first-child { border-top: 1px solid var(--line); }
+.loop li::before { content: counter(step, decimal-leading-zero); font-family: var(--f-mono); color: var(--brass); font-size: .85rem; padding-top: 3px; }
+.loop b { display: block; font-weight: 600; margin-bottom: 2px; }
+.loop p { color: var(--muted); font-size: .95rem; }
+.ends { margin-top: 22px; padding: 16px 18px; border-left: 3px solid var(--no); background: color-mix(in srgb, var(--no) 8%, transparent); border-radius: 0 10px 10px 0; font-size: .95rem; }
+.ends b { color: var(--no); font-weight: 600; }
+
+/* ── механики ── */
+#mechanics { background: linear-gradient(180deg, var(--bg), var(--panel) 30%, var(--panel) 70%, var(--bg)); }
+.mech { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (max-width: 900px) { .mech { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+.tabs { display: grid; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 80px); }
+@media (max-width: 900px) { .tabs { position: static; display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: thin; } }
+.tab { all: unset; cursor: pointer; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: center; padding: 11px 14px; border-radius: 10px; color: var(--muted); font-size: .95rem; transition: background .15s ease, color .15s ease; }
+.tab .n { font-family: var(--f-mono); font-size: .72rem; color: var(--abst); }
+.tab:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 5%, transparent); }
+.tab[aria-selected="true"] { color: var(--fg); background: var(--bg); box-shadow: inset 3px 0 0 var(--brass); }
+.tab[aria-selected="true"] .n { color: var(--brass); }
+.tab:focus-visible { outline: 2px solid var(--brass); }
+@media (max-width: 900px) { .tab { white-space: nowrap; border: 1px solid var(--line); grid-template-columns: auto auto; } .tab[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--brass); } }
+.panel { display: grid; gap: 22px; min-width: 0; }
+.panel figure { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b1120; box-shadow: var(--shadow); }
+.panel figure button { all: unset; cursor: zoom-in; display: block; width: 100%; }
+.panel figure img { width: 100%; height: auto; aspect-ratio: 1400 / 929; object-fit: cover; }
+.panel figcaption { font-family: var(--f-mono); font-size: .72rem; color: var(--muted); padding: 9px 14px; background: var(--panel-2); border-top: 1px solid var(--line); }
+.panel-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 700px) { .panel-body { grid-template-columns: minmax(0, 1fr); } }
+.panel h3 { font-size: var(--s2); margin-bottom: 10px; }
+.panel .intro { color: var(--fg); max-width: 60ch; }
+.panel ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.panel li { padding-left: 20px; position: relative; color: var(--muted); font-size: .95rem; }
+.panel li::before { content: ""; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; border-radius: 50%; background: var(--seat); box-shadow: 0 0 0 2px var(--brass) inset; }
+.panel li b { color: var(--fg); font-weight: 600; }
+.fact { display: inline-flex; gap: 10px; align-items: baseline; margin-top: 16px; font-family: var(--f-mono); font-size: .8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.fact b { color: var(--brass); font-size: 1rem; }
+
+/* ── режимы ── */
+.regimes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: center; }
+@media (max-width: 860px) { .regimes { grid-template-columns: minmax(0, 1fr); } }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.chips span { font-size: .85rem; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.chips span.hl { border-color: var(--brass); color: var(--fg); }
+.shot { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: #0b1120; }
+.shot button { all: unset; cursor: zoom-in; display: block; width: 100%; }
+
+/* ── обновления ── */
+.timeline { position: relative; display: grid; gap: 14px; }
+.timeline::before { content: ""; position: absolute; left: 92px; top: 6px; bottom: 6px; width: 1px; background: var(--line); }
+@media (max-width: 640px) { .timeline::before { left: 7px; } }
+.rel { display: grid; grid-template-columns: 80px 24px minmax(0, 1fr); gap: 0 12px; align-items: start; }
+@media (max-width: 640px) { .rel { grid-template-columns: 16px minmax(0, 1fr); } .rel .v { grid-column: 2; order: -1; } .rel .dot { grid-row: 1 / span 2; } }
+.rel .v { font-family: var(--f-mono); font-size: .85rem; color: var(--muted); text-align: right; padding-top: 18px; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .rel .v { text-align: left; padding-top: 0; } }
+.rel .dot { width: 13px; height: 13px; border-radius: 50%; margin: 22px auto 0; background: var(--bg); border: 2px solid var(--abst); position: relative; z-index: 1; }
+@media (max-width: 640px) { .rel .dot { margin: 4px 0 0 1px; } }
+.rel.new .dot { border-color: var(--brass); background: var(--brass); box-shadow: 0 0 0 5px color-mix(in srgb, var(--brass) 20%, transparent); }
+.rel.new .v { color: var(--brass); }
+.rel details, .rel .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.rel summary { cursor: pointer; list-style: none; padding: 16px 20px; display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+.rel summary::-webkit-details-marker { display: none; }
+.rel summary h3 { font-size: 1.02rem; }
+.rel summary::after { content: "+"; font-family: var(--f-mono); color: var(--muted); font-size: 1.1rem; line-height: 1; }
+.rel details[open] summary::after { content: "−"; }
+.rel .body { padding: 0 20px 18px; color: var(--muted); font-size: .95rem; }
+.rel .body ul { margin: 0; padding-left: 18px; display: grid; gap: 7px; }
+.rel .body b { color: var(--fg); font-weight: 600; }
+.rel.new details { border-color: color-mix(in srgb, var(--brass) 55%, var(--line)); }
+.badge { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--brass-ink); background: var(--brass); padding: 2px 7px; border-radius: 4px; margin-left: 8px; vertical-align: 2px; }
+.rel.next .card { padding: 16px 20px; border-style: dashed; color: var(--muted); background: transparent; }
+.rel.next .dot { border-style: dashed; }
+
+
+/* ── фон первого экрана: контур Европы из игры ── */
+.hero-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.hero-bg svg { position: absolute; right: -6%; top: -8%; width: min(980px, 95%); height: auto; opacity: .55; mask-image: radial-gradient(70% 70% at 60% 45%, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(70% 70% at 60% 45%, #000 30%, transparent 75%); }
+.hero-bg path { fill: color-mix(in srgb, var(--fg) 4%, transparent); stroke: color-mix(in srgb, var(--brass) 28%, transparent); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.hero-bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(40% 50% at 78% 30%, color-mix(in srgb, var(--brass) 10%, transparent), transparent 70%); }
+.hero > .wrap { position: relative; z-index: 1; }
+
+/* ── кадры из игры ── */
+.frames { display: grid; grid-template-columns: 1.05fr 1.4fr 1.25fr; gap: 16px; margin-top: clamp(44px, 6vw, 72px); }
+@media (max-width: 900px) { .frames { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .frames figure:last-child { grid-column: 1 / -1; } }
+@media (max-width: 520px) { .frames { grid-template-columns: minmax(0, 1fr); } }
+.frames figure { margin: 0; display: grid; grid-template-rows: auto 1fr; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #0b1120; box-shadow: var(--shadow); min-width: 0; }
+.frames figcaption { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; font-family: var(--f-mono); font-size: .72rem; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.frames figcaption b { color: var(--fg); font-weight: 600; }
+.frames button { all: unset; cursor: zoom-in; display: block; position: relative; overflow: hidden; }
+.frames img { width: 100%; height: 100%; object-fit: cover; object-position: top left; transition: transform .6s ease; }
+.frames button:hover img { transform: scale(1.04); }
+@media (prefers-reduced-motion: reduce) { .frames img { transition: none; } .frames button:hover img { transform: none; } }
+
+.flagline { margin-top: 28px; overflow: hidden; border-block: 1px solid var(--line); padding-block: 12px; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.flagline-row { display: flex; gap: 22px; width: max-content; animation: tick 90s linear infinite; }
+.flagline:hover .flagline-row { animation-play-state: paused; }
+.flagline a { display: inline-flex; align-items: center; gap: 9px; color: var(--muted); text-decoration: none; font-size: .85rem; white-space: nowrap; }
+.flagline a:hover { color: var(--fg); }
+.flagline img { width: 27px; height: 18px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+@media (prefers-reduced-motion: reduce) { .flagline-row { animation: none; flex-wrap: wrap; width: auto; } }
+
+/* ── страны ── */
+#countries { background: radial-gradient(80% 60% at 20% 0%, color-mix(in srgb, var(--brass) 6%, transparent), transparent 70%); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.filters button { all: unset; cursor: pointer; font-size: .85rem; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); transition: all .15s ease; }
+.filters button:hover { color: var(--fg); border-color: var(--muted); }
+.filters button[aria-pressed="true"] { color: var(--brass-ink); background: var(--brass); border-color: var(--brass); }
+.filters button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.mapbar { margin-bottom: 14px; display: grid; gap: 4px; }
+.mapbar .filters { margin-bottom: 0; }
+.fl-lab { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); width: 84px; }
+@media (max-width: 700px) { .fl-lab { width: 100%; } }
+.legend { margin-left: auto; display: flex; gap: 8px; align-items: center; font-family: var(--f-mono); font-size: .7rem; color: var(--muted); }
+.legend .ramp { width: 120px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--q0), color-mix(in oklab, var(--q0), var(--q1)) , var(--q1)); }
+.legend i { display: inline-block; width: 18px; height: 8px; border-radius: 2px; }
+@media (max-width: 700px) { .legend { margin-left: 0; width: 100%; } }
+.atlas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 22px; align-items: start; }
+@media (max-width: 1000px) { .atlas { grid-template-columns: minmax(0, 1fr); } }
+.map-wrap { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 76px); border-radius: 18px; border: 1px solid var(--line); background:
+  radial-gradient(90% 70% at 50% 40%, color-mix(in srgb, var(--brass) 5%, var(--sea)), var(--sea)); overflow: hidden; box-shadow: var(--shadow); }
+@media (max-width: 1000px) { .map-wrap { position: relative; top: 0; } }
+#eumap { display: block; width: 100%; height: auto; aspect-ratio: 1 / .92; }
+#eumap .grat { stroke: color-mix(in srgb, var(--fg) 6%, transparent); stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
+#eumap .c { fill: var(--fill); stroke: var(--land-line); stroke-width: .9; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .2s ease, opacity .2s ease, filter .2s ease; outline: none; }
+#eumap .c:hover, #eumap .c:focus-visible { filter: brightness(1.25) saturate(1.1); }
+#eumap .c.dim { opacity: .22; }
+#eumap .c.sel { fill: var(--brass) !important; stroke: var(--fg); stroke-width: 1.6; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--brass) 70%, transparent)); }
+.map-tip { position: absolute; pointer-events: none; padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: .82rem; white-space: nowrap; transform: translate(-50%, -130%); box-shadow: var(--shadow); }
+.map-note { position: absolute; left: 14px; bottom: 10px; font-family: var(--f-mono); font-size: .68rem; color: var(--muted); }
+
+.dossier { border-radius: 18px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); overflow: hidden; min-width: 0; }
+.dz-head { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--line); background: linear-gradient(120deg, color-mix(in srgb, var(--dzc, var(--brass)) 16%, var(--panel)), var(--panel) 60%); }
+@media (max-width: 560px) { .dz-head { grid-template-columns: auto minmax(0, 1fr); } .dz-shape { display: none; } }
+.dz-flag { position: relative; width: 96px; aspect-ratio: 3 / 2; border-radius: 6px; overflow: hidden; box-shadow: 0 10px 24px -8px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.2); }
+.dz-flag img { width: 100%; height: 100%; object-fit: cover; }
+.dz-flag::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.22) 22%, rgba(0,0,0,.12) 45%, rgba(255,255,255,.14) 68%, rgba(0,0,0,.16) 100%); background-size: 200% 100%; animation: wave 6s ease-in-out infinite alternate; mix-blend-mode: soft-light; }
+@keyframes wave { from { background-position: 0 0; } to { background-position: 100% 0; } }
+@media (prefers-reduced-motion: reduce) { .dz-flag::after { animation: none; } }
+.dz-name { font-family: var(--f-display); font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 600; line-height: 1.1; }
+.dz-sub { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 6px; color: var(--muted); font-size: .9rem; }
+.pips { display: inline-flex; gap: 3px; vertical-align: middle; }
+.pips i { width: 10px; height: 10px; border-radius: 2px; background: var(--seat); }
+.pips i.on { background: var(--pc); }
+.tag { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid currentColor; }
+.tag.reg { color: var(--reg-accent); }
+.dz-shape svg { display: block; width: 120px; height: 100px; }
+.dz-shape path { fill: color-mix(in srgb, var(--dzc, var(--brass)) 30%, transparent); stroke: color-mix(in srgb, var(--fg) 55%, transparent); stroke-width: .6; vector-effect: non-scaling-stroke; }
+.dz-body { padding: 22px 24px 26px; display: grid; gap: 24px; }
+.dz-blurb { font-size: 1.02rem; line-height: 1.55; border-left: 3px solid var(--brass); padding-left: 16px; }
+.dz-blurb small { display: block; font-family: var(--f-mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); margin-bottom: 6px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpis div { padding: 12px 14px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; }
+.kpis b { display: block; font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpis small { color: var(--muted); font-size: .75rem; }
+.dz-h { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 10px; }
+.dz-h b { color: var(--fg); font-weight: 600; letter-spacing: 0; text-transform: none; font-family: var(--f-body); font-size: .85rem; }
+.parl { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+@media (max-width: 560px) { .parl { grid-template-columns: minmax(0, 1fr); } }
+.parl svg { width: 100%; height: auto; display: block; }
+.plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: .86rem; }
+.plist li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.plist i { width: 10px; height: 10px; border-radius: 50%; }
+.plist span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plist b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.plist li.gov span { color: var(--fg); font-weight: 600; }
+.facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 22px; margin: 0; }
+@media (max-width: 560px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+.facts div { padding: 9px 0; border-bottom: 1px dashed var(--line); min-width: 0; }
+.facts dt { font-size: .74rem; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-size: .9rem; }
+.traits { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.traits div { padding: 12px 14px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+.traits b { display: block; font-weight: 600; font-size: .9rem; margin-bottom: 3px; }
+.traits span { color: var(--muted); font-size: .82rem; line-height: 1.45; display: block; }
+.rels { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rels li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: .88rem; }
+.rels img { width: 24px; height: 16px; border-radius: 2px; }
+.rels button { all: unset; cursor: pointer; font-weight: 600; }
+.rels button:hover { color: var(--brass); }
+.rels small { color: var(--muted); }
+.rels em { font-style: normal; font-family: var(--f-mono); font-size: .75rem; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+.rels em.pos { color: var(--yes); background: color-mix(in srgb, var(--yes) 14%, transparent); }
+.rels em.neg { color: var(--no); background: color-mix(in srgb, var(--no) 14%, transparent); }
+.rels em.zero { color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, transparent); }
+.orgs { display: flex; flex-wrap: wrap; gap: 6px; }
+.orgs span { font-size: .78rem; padding: 4px 9px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.orgs span.key { color: var(--fg); border-color: color-mix(in srgb, var(--brass) 50%, var(--line)); }
+.dz-nav { display: flex; justify-content: space-between; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--line); background: var(--panel-2); }
+.dz-nav button { all: unset; cursor: pointer; font-size: .85rem; color: var(--muted); display: inline-flex; gap: 8px; align-items: center; }
+.dz-nav button:hover { color: var(--fg); }
+.dz-nav button:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+.dz-nav img { width: 21px; height: 14px; border-radius: 2px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 22px; }
+.fgrid button { all: unset; cursor: pointer; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); transition: border-color .15s ease, opacity .2s ease, transform .15s ease; }
+.fgrid button:hover { border-color: var(--muted); transform: translateY(-1px); }
+.fgrid button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.fgrid button[aria-current="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.fgrid button.dim { opacity: .35; }
+.fgrid img { width: 30px; height: 20px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
+.fgrid span { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fgrid small { display: block; font-size: .68rem; color: var(--muted); font-family: var(--f-mono); }
+
+/* ── режимы: свой мир ── */
+#regimes { background: var(--reg-bg); border-block: 1px solid var(--reg-line); position: relative; overflow: hidden; }
+#regimes::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, transparent 0 22px, color-mix(in srgb, var(--reg-accent) 4%, transparent) 22px 23px); pointer-events: none; }
+#regimes .wrap { position: relative; }
+#regimes .eyebrow { color: var(--reg-accent); }
+#regimes .chips span { border-color: var(--reg-line); background: var(--reg-panel); }
+#regimes .chips span.hl { border-color: var(--reg-accent); color: var(--fg); }
+#regimes .shot { border-color: var(--reg-line); box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--reg-accent) 35%, transparent); }
+.splash { display: inline-block; margin-bottom: 18px; font-family: var(--f-display); font-weight: 800; letter-spacing: .3em; font-size: .78rem; color: var(--reg-accent); border-block: 2px solid var(--reg-accent); padding: 6px 2px; }
+
+.release { display: flex; gap: clamp(20px, 4vw, 44px); align-items: center; padding: clamp(22px, 4vw, 44px); border-radius: 24px; border: 1px solid color-mix(in oklab, #fa5c5c 45%, var(--line)); background: radial-gradient(70% 120% at 0% 0%, color-mix(in oklab, #fa5c5c 16%, transparent), transparent 70%), var(--panel); box-shadow: var(--shadow); }
+.release .eyebrow { color: #fa5c5c; }
+.release h2 { margin: 6px 0 10px; }
+.release .lede { margin: 0; }
+.rel-date { flex: none; display: grid; place-items: center; align-content: center; width: clamp(110px, 16vw, 150px); aspect-ratio: 1; border-radius: 22px; background: #fa5c5c; color: #fff; text-align: center; box-shadow: 0 20px 50px -20px #fa5c5c; }
+.rel-date b { font-family: var(--f-display); font-size: clamp(2.8rem, 6vw, 3.8rem); line-height: 1; }
+.rel-date span { font-weight: 600; font-size: 1rem; margin-top: 4px; }
+.rel-date small { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; opacity: .85; margin-top: 2px; }
+@media (max-width: 560px) { .release { flex-direction: column; align-items: flex-start; } }
+/* режимы: палитра берётся из игры (REG_SKIN) и меняется вместе с вкладкой */
+#regimes { --ra: #8fa8d1; --rt: #38404f; --reg-accent: var(--ra); --reg-ink: color-mix(in oklab, var(--ra) 70%, var(--fg));
+  --reg-bg: color-mix(in oklab, var(--rt) 22%, var(--bg)); --reg-panel: color-mix(in oklab, var(--ra) 7%, var(--panel)); --reg-line: color-mix(in oklab, var(--ra) 32%, var(--line));
+  transition: background-color .4s ease; }
+#regimes .eyebrow, #regimes .splash { transition: color .4s ease, border-color .4s ease; }
+.rtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
+.rtabs button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--reg-line); background: var(--reg-panel); color: var(--muted); font-size: .9rem; transition: all .2s ease; }
+.rtabs button svg { width: 18px; height: 18px; fill: var(--c); opacity: .85; }
+.rtabs button:hover { color: var(--fg); }
+.rtabs button[aria-selected="true"] { color: var(--fg); border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c), 0 10px 30px -14px var(--c); }
+.rtabs button:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.rpanel { border: 1px solid var(--reg-line); border-radius: 20px; background: var(--reg-panel); padding: clamp(18px, 3vw, 34px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); box-shadow: 0 30px 80px -40px color-mix(in srgb, var(--ra) 45%, transparent); animation: rin .35s ease; }
+@keyframes rin { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .rpanel { animation: none; } }
+@media (max-width: 900px) { .rpanel { grid-template-columns: minmax(0, 1fr); } }
+.r-top { display: flex; gap: 16px; align-items: center; margin-bottom: 14px; }
+.r-emb { flex: none; width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; background: color-mix(in oklab, var(--ra) 16%, transparent); border: 1px solid var(--reg-line); }
+.r-emb svg { width: 34px; height: 34px; fill: var(--ra); }
+.r-top h3 { font-family: var(--f-display); font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; line-height: 1.1; }
+.r-top p { margin: 4px 0 0; color: var(--reg-ink); font-style: italic; }
+.r-start { display: inline-block; margin-bottom: 14px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--reg-ink); border: 1px solid var(--reg-line); border-radius: 6px; padding: 3px 8px; }
+.r-blk { margin-top: 18px; }
+.r-blk h4 { margin: 0 0 8px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--reg-ink); font-weight: 500; }
+.r-blk p { margin: 0; color: var(--fg); line-height: 1.6; }
+.r-pm { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .r-pm { grid-template-columns: 1fr; } }
+.r-pm ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: .92rem; }
+.r-pm li { padding-left: 20px; position: relative; color: var(--muted); }
+.r-pm li::before { position: absolute; left: 0; top: 0; font-family: var(--f-mono); font-weight: 600; }
+.r-pm .up li::before { content: "+"; color: var(--d1); }
+.r-pm .dn li::before { content: "−"; color: var(--d5); }
+.clans { display: grid; gap: 10px; }
+.clan { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; font-size: .92rem; }
+.clan b { font-family: var(--f-mono); font-weight: 600; color: var(--reg-ink); }
+.clan .bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in oklab, var(--ra) 12%, transparent); overflow: hidden; }
+.clan .bar i { display: block; height: 100%; border-radius: 3px; background: var(--ra); transform-origin: left; animation: grow .6s ease; }
+@keyframes grow { from { transform: scaleX(0); } }
+.unders { display: flex; flex-wrap: wrap; gap: 6px; }
+.unders span { font-size: .85rem; padding: 5px 11px; border-radius: 99px; border: 1px dashed var(--reg-line); color: var(--muted); }
+.acts { display: grid; gap: 8px; }
+.acts div { border: 1px solid var(--reg-line); border-left: 3px solid var(--ra); border-radius: 10px; padding: 10px 12px; background: color-mix(in oklab, var(--ra) 4%, transparent); }
+.acts b { display: block; font-size: .92rem; }
+.acts span { display: block; font-size: .85rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.r-shot { margin: 18px 0 0; }
+.r-shot button { all: unset; cursor: zoom-in; display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--reg-line); }
+.r-shot img { display: block; width: 100%; }
+.r-shot figcaption { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+.rcommon { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.rcommon > p { grid-column: 1 / -1; margin: 6px 0 0; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--reg-ink); }
+.rcommon div { border: 1px solid var(--reg-line); border-radius: 12px; padding: 12px 14px; background: var(--reg-panel); }
+.rcommon b { display: block; font-size: .85rem; margin-bottom: 6px; }
+.rcommon span { display: block; font-size: .82rem; color: var(--muted); line-height: 1.55; }
+
+/* ── галерея ── */
+.gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .gallery { grid-template-columns: minmax(0, 1fr); } }
+.gallery button { all: unset; cursor: zoom-in; display: grid; gap: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); transition: border-color .15s ease, transform .15s ease; }
+.gallery button:hover { border-color: var(--brass); transform: translateY(-2px); }
+.gallery button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.gallery img { aspect-ratio: 3 / 2; object-fit: cover; object-position: top left; width: 100%; }
+.gallery button:first-child { grid-column: span 2; grid-row: span 2; }
+.gallery button:first-child img { aspect-ratio: auto; height: 100%; }
+@media (max-width: 480px) { .gallery button:first-child { grid-column: auto; grid-row: auto; } .gallery button:first-child img { aspect-ratio: 3 / 2; } }
+.gallery span { padding: 10px 14px; font-size: .88rem; color: var(--muted); }
+
+/* ── запуск ── */
+
+footer { border-top: 1px solid var(--line); padding-block: 36px; color: var(--muted); font-size: .88rem; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; justify-content: space-between; }
+
+/* ── просмотр скриншота ── */
+dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1700px); max-height: 94vh; }
+dialog::backdrop { background: rgba(5, 8, 16, .88); }
+dialog img { max-height: 86vh; width: auto; border-radius: 10px; border: 1px solid #26324d; }
+dialog p { color: #ebe7dc; font-family: var(--f-mono); font-size: .8rem; margin-top: 10px; display: flex; justify-content: space-between; gap: 16px; }
+dialog button { all: unset; cursor: pointer; color: #e2ae55; }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Разделы">
+  <div class="wrap">
+    <a class="logo" href="#top"><svg viewBox="0 0 26 15" aria-hidden="true"><path d="M1 14a12 12 0 0 1 24 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 14a7 7 0 0 1 14 0" fill="none" stroke="#e2ae55" stroke-width="2"/></svg>SYMPHONY</a>
+    <ul>
+      <li><a href="#about">Об игре</a></li>
+      <li><a href="#countries">Страны</a></li>
+      <li><a href="#mechanics">Механики</a></li>
+      <li><a href="#updates">Обновления</a></li>
+      <li><a href="#gallery">Скриншоты</a></li>
+      <li><a href="#run">Релиз</a></li>
+    </ul>
+    <span class="ver" data-ver>v52_1</span>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="hero-bg" aria-hidden="true"><svg id="hero-eu" viewBox="-290 -620 1610 1520"></svg></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Политико-экономический симулятор · Европа · 2026</p>
+        <h1 class="wordmark">SYMPH<span>O</span>NY</h1>
+        <p class="lede">Выберите страну и партию и попробуйте удержать власть. Нужно собрать большинство в парламенте, провести законы, свести бюджет и пережить кризисы. Остальные 37 стран живут своей жизнью и помнят, как вы с ними обошлись.</p>
+        <div class="cta">
+          <a class="btn primary" href="#mechanics">Как устроена игра</a>
+          <a class="btn" href="#updates">Что нового в <span data-ver>v52_1</span></a>
+        </div>
+        <div class="stats">
+          <div><b><a href="#countries" style="color:inherit;text-decoration:none">38</a></b><small>стран Европы со своими партиями и законами</small></div>
+          <div><b>27</b><small>международных организаций</small></div>
+          <div><b>124</b><small>технологии в пяти ветках</small></div>
+          <div><b>89</b><small>регионов в одной только России</small></div>
+        </div>
+      </div>
+
+      <div class="hall" aria-label="Голосование в бундестаге: пример из игры">
+        <div class="hall-top"><span>Бундестаг · <b>630 мест</b></span><span>нужно <b>316</b></span></div>
+        <canvas id="hemi" width="1040" height="560" role="img" aria-label="Зал парламента: 325 за, 280 против, 25 воздержались. Закон принят."></canvas>
+        <div class="tally">
+          <div class="t-yes">за<b id="c-yes">325</b></div>
+          <div class="t-no">против<b id="c-no">280</b></div>
+          <div class="t-ab">воздерж.<b id="c-ab">25</b></div>
+          <div class="stamp on" id="stamp">ПРИНЯТ</div>
+        </div>
+        <p class="hall-note">Так в игре выглядит итоговое голосование: места загораются по одному, а табло считает голоса.</p>
+      </div>
+    </div>
+
+    <div class="frames">
+      <figure><figcaption><b>Парламент</b><span>Франция</span></figcaption><button type="button" data-full="img/parliament.webp" data-cap="Франция: нижняя палата и сенат, партии и переговоры"><img src="img/crop/d_hemi.webp" width="660" height="555" alt="Окно парламента Франции: полукруги Национального собрания и сената" fetchpriority="high"></button></figure>
+      <figure><figcaption><b>Вертикаль власти</b><span>Россия</span></figcaption><button type="button" data-full="img/regime.webp" data-cap="Россия: гибридный режим, кланы элиты и угрозы"><img src="img/crop/d_vertical.webp" width="1000" height="635" alt="Окно гибридного режима: кланы силовиков, олигархов, губернаторов и администрации"></button></figure>
+      <figure><figcaption><b>Регионы</b><span>Иль-де-Франс</span></figcaption><button type="button" data-full="img/map.webp" data-cap="Франция: слои карты и сведения о регионе"><img src="img/crop/d_map.webp" width="1000" height="681" alt="Карта Франции с выделенным регионом Иль-де-Франс"></button></figure>
+    </div>
+
+    <div class="flagline" aria-label="Страны в игре">
+      <div class="flagline-row" id="flagline"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="about">
+  <div class="wrap about-grid">
+    <div>
+      <div class="sec-head"><p class="eyebrow">Об игре</p><h2>Вы руководите партией, а страна достаётся в придачу</h2></div>
+      <div class="about-text">
+        <p>Symphony моделирует государство целиком: от голосования в парламенте до цены хлеба в отдельном регионе.</p>
+        <p>Игра начинается в январе 2026 года. У каждой из 38 стран свои настоящие партии, лидеры, избирательная система, регионы, законы и события. Можно взять правящую партию или начать в оппозиции и бороться за власть.</p>
+        <p>Население состоит из тысяч агентов. У каждого есть работа, кошелёк, образование и взгляды, и голосуют на выборах именно они. Поэтому любое решение где-то отзовётся: в опросах, на улицах или в отношениях с соседями.</p>
+      </div>
+    </div>
+    <div>
+      <p class="eyebrow" style="margin-bottom:14px">Как идёт партия</p>
+      <ol class="loop">
+        <li><div><b>Выберите страну и партию</b><p>На карте у каждой страны отмечена сложность от одной до пяти звёзд. Партия может быть у власти или в оппозиции.</p></div></li>
+        <li><div><b>Запустите время</b><p>Календарь идёт по дням, вы выбираете скорость. Экономика и политика пересчитываются на границе месяцев.</p></div></li>
+        <li><div><b>Отвечайте на события</b><p>События приходят с вариантами ответа. У них бывает продолжение и отложенные последствия, которые всплывут через несколько месяцев.</p></div></li>
+        <li><div><b>Тратьте политический капитал</b><p>Законы, переговоры, стройка и дипломатия стоят капитала, а запас у него ограничен.</p></div></li>
+        <li><div><b>Переживите выборы</b><p>Выборы проходят по правилам конкретной страны. Проиграли, значит уходите в оппозицию и готовите реванш.</p></div></li>
+      </ol>
+      <p class="ends"><b>Игра может кончиться досрочно.</b> Например, если госдолг превысит 150% ВВП и случится дефолт, если пройдёт вотум недоверия или если съезд собственной партии решит, что вы предали её курс.</p>
+    </div>
+  </div>
+</section>
+
+<section id="countries">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Страны</p><h2>38 стран, и в каждой своя политика</h2><p class="lede">Выберите страну на карте или в списке. Здесь те же данные, что и в игре: стартовая ситуация, парламент, экономика, национальный характер и старые счёты с соседями.</p></div>
+    <div class="mapbar">
+      <div class="filters" role="group" aria-label="Цвет карты" id="modes">
+        <span class="fl-lab">Цвет</span>
+        <button type="button" data-m="base" aria-pressed="true">Как в игре</button>
+        <button type="button" data-m="dif" aria-pressed="false">Сложность</button>
+        <button type="button" data-m="pop" aria-pressed="false">Население</button>
+        <button type="button" data-m="gdpc" aria-pressed="false">ВВП на душу</button>
+        <button type="button" data-m="debt" aria-pressed="false">Госдолг</button>
+        <button type="button" data-m="gr" aria-pressed="false">Рост</button>
+        <button type="button" data-m="inf" aria-pressed="false">Инфляция</button>
+        <button type="button" data-m="un" aria-pressed="false">Безработица</button>
+      </div>
+      <div class="filters" role="group" aria-label="Показать на карте" id="filters">
+        <span class="fl-lab">Показать</span>
+        <button type="button" data-f="all" aria-pressed="true">Все</button>
+        <button type="button" data-f="eu" aria-pressed="false">ЕС</button>
+        <button type="button" data-f="euro" aria-pressed="false">Еврозона</button>
+        <button type="button" data-f="nato" aria-pressed="false">НАТО</button>
+        <button type="button" data-f="out" aria-pressed="false">Вне ЕС</button>
+        <span class="legend" id="legend" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="atlas">
+      <div class="map-wrap"><svg id="eumap" viewBox="-290 -620 1610 1480" role="group" aria-label="Карта Европы: щёлкните по стране"></svg><div class="map-tip" id="map-tip" hidden></div><span class="map-note">Карта из игры · Россия продолжается на восток</span></div>
+      <article class="dossier" id="dossier" aria-live="polite"></article>
+    </div>
+    <div class="fgrid" id="fgrid" aria-label="Все страны"></div>
+  </div>
+</section>
+
+<section id="mechanics">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Механики</p><h2>Десять систем, которые работают одновременно</h2><p class="lede">Выберите раздел слева. Скриншоты сняты в текущей версии игры, нажмите на любой, чтобы рассмотреть его целиком.</p></div>
+    <div class="mech">
+      <div class="tabs" role="tablist" aria-label="Механики игры" id="tabs"></div>
+      <div id="panels"></div>
+    </div>
+  </div>
+</section>
+
+<section id="regimes">
+  <div class="wrap">
+    <span class="splash" aria-hidden="true">СМЕНА РЕЖИМА</span>
+    <div class="sec-head" style="margin-bottom:20px"><p class="eyebrow">Режимы</p><h2>Когда парламент становится декорацией</h2><p class="lede">При недемократическом режиме раздел «Политика» перестраивается. Вместо партий и опросов появляются вертикаль власти, кланы элиты, страх, пропаганда и подполье. У каждого режима свои кланы, свои враги, свои особые решения и своя палитра.</p></div>
+    <div class="rtabs" role="tablist" aria-label="Типы режимов" id="rtabs"></div>
+    <div class="rpanel" id="rpanel" role="tabpanel" aria-live="polite"></div>
+    <div class="rcommon" id="rcommon"></div>
+  </div>
+</section>
+
+<section id="updates">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Обновления</p><h2>Как игра росла от версии к версии</h2><p class="lede">Свежие версии сверху. Каждую проверяли тестами на всех странах, прежде чем выпустить.</p></div>
+    <div class="timeline">
+<!-- updates:start (генерирует website/build_updates.py из UPDATES.md) -->
+      <div class="rel new"><span class="v">v52_1</span><span class="dot"></span>
+        <details open><summary><h3>История, организации и удобство <span class="badge">сейчас</span></h3></summary>
+          <div class="body"><ul><li><b>Исторические предпосылки:</b> у каждой страны 3–5 черт национального характера (трудолюбие, бережливость, предпринимательский дух, традиция протеста, теневая экономика, военная традиция, эмиграция и др.) с постоянными эффектами; историческая дружба и неприязнь между странами (например, Польша — Россия, Чехия — Словакия, Португалия — Великобритания) усиливают добрые дела и обиды, сдвигают отношения и шанс договоров. Окно «Национальный характер и история» во вкладке «Население».</li><li><b>«Партнёры и зависимость»:</b> флаги после названий стран и сортировка по шести признакам.</li><li><b>Верхняя палата</b> нарисована полукругом рядом с нижней.</li><li><b>Рамка «Организации»</b> с 27 вкладками: ООН, ЕС, еврозона, Шенген, ЕЭЗ, НАТО, ОБСЕ, Совет Европы, ЕПС, ОЭСР, ВТО, МВФ, Всемирный банк, ЕАСТ, ЦЕФТА, Три моря, V4, Бенилюкс, Северный совет, Балтия, ОЧЭС, ГУАМ, СНГ, ЕАЭС, ОДКБ, Союзное государство, Франкофония. В каждой: члены с флагами и отношениями, правило решений, выгоды и взносы, условия вступления, ваше влияние, особые действия, сессии с голосованием по реальным вопросам (с правом вето при консенсусе).</li><li><b>Технологии и кризисы</b> доступны только правительству; вне власти окна открыты для чтения, технологии ведёт советник правительства.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v51_1</span><span class="dot"></span>
+        <details open><summary><h3>Голосование, режимы, экономические модели, корпорации</h3></summary>
+          <div class="body"><ul><li><b>Голосование:</b> фракции больше не голосуют единогласно — бывают отступники (зависит от дисциплины, коалиции, характера лидера, режима) и редкие случайные голоса. Закон может провалиться при голосовании. Новое окно итогового голосования с анимацией зала: места загораются зелёным, красным и серым, табло считает голоса, в конце — «ПРИНЯТ» или «ОТКЛОНЁН» и таблица отступников.</li><li><b>Недемократические режимы</b> (гибридный, диктатура, хунта, однопартийное государство, абсолютная монархия, теократия):<ul><li>кланы элиты со своей лояльностью и влиянием (награда, чистка, кризисы в верхушке);</li><li>страх, пропаганда, культ личности, фальсификации выборов, цензура, аресты и амнистия, политзаключённые, подполье, преемник, оттепель;</li><li>особые решения каждого режима: обещание хунты передать власть, конституция монарха, пленумы ЦК, указы духовного совета, «обнуление»; круглый стол и переход к демократии;</li><li>Россия и Беларусь со старта — гибридные режимы.</li></ul></li><li><b>Политика при режиме</b> перестраивается: вместо парламента, партий и опросов — окна «Вертикаль власти», «Инструменты режима», «Настроения и угрозы», «Фасадный парламент», «Подполье и репрессии»; своя палитра и эмблема режима, заставка «СМЕНА РЕЖИМА».</li><li><b>Экономические модели:</b> у каждой своя вкладка-пульт и панель показателей — Госплан (пятилетка, план отраслям, дефицит и очереди), промышленная политика, социальное партнёрство (сделки о зарплатах, риск забастовок), госкорпорации и госбанки, рыночное регулирование (биржевой индекс, деловой климат), самоуправление; окна экономики окрашиваются в цвет модели.</li><li><b>Корпорации:</b> новая вкладка с 8 крупнейшими компаниями каждой из 38 стран (доля государства, выручка, работники) и иностранными компаниями по странам происхождения с флагами. Действия зависят от модели: антимонопольные штрафы и приватизация, покупка пакетов и национализация, национальные чемпионы, работники в совете директоров, план и ордена предприятиям, передача коллективу. Иностранный капитал можно привлекать или ограничивать.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v50_1</span><span class="dot"></span>
+        <details><summary><h3>Права партий, бюджет, стройка, дипломатия</h3></summary>
+          <div class="body"><ul><li><b>Россия:</b> все 85 субъектов и 4 занятые территории — 89 регионов, как в реальности; война России и Украины идёт с начала игры.</li><li><b>Партия вне власти</b> не может распоряжаться государством: окна правительства затемняются с объяснением; законопроекты вносят только партии с местами.</li><li><b>Настройки</b> (кнопка ⚙): тема интерфейса, море, анимации, масштаб, музыка, звук кнопок, сохранение и загрузка. Стартовое окно перед игрой.</li><li><b>Группы интересов</b> голосуют за партии; стиль правления ИИ-правительств; влияние в коалиции по министерствам; совет коалиции решает приём и исключение партнёров; захват власти, находясь у власти.</li><li><b>Бюджет:</b> объединённое окно, план и «Принять бюджет» (в коалиции — через совет и переговоры), авто-подъём по выбранным статьям.</li><li><b>Строительство:</b> окно «Строительство», сооружения ставятся на конкретную АТЕ, на стройку реагируют группы интересов, показан спрос на продукцию.</li><li><b>Законы:</b> иконки, поправки к законопроектам, обе палаты парламента и глава государства в одном окне.</li><li><b>Население:</b> демографическая пирамида, рождаемость и смертность.</li><li><b>Дипломатия:</b> конструктор договоров и мирных договоров, отдельные окна ЕС и НАТО, финансирование зарубежных партий.</li><li><b>Технологии:</b> 2–3 подветки внутри ветки, откат выбора «или»; идеологическую карту можно двигать; цвета автономии регионов.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v49_1</span><span class="dot"></span>
+        <details><summary><h3>Новые страны на востоке</h3></summary>
+          <div class="body"><ul><li>Добавлены Молдова, Беларусь, Украина и Россия (всего 38 стран) — со своими партиями, регионами, законами и событиями.</li><li>Непризнанные образования: ПМР, ДНР, ЛНР; Крым; война России и Украины в мире игры.</li><li>Карта расширена на восток; подписи стран идут вдоль их формы; своя страна при приближении переходит к административному виду.</li><li>Плавность (анимации окон, камеры, чисел), новые значки, флаги всех стран.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v48_1</span><span class="dot"></span>
+        <details><summary><h3>Большое обновление армии</h3></summary>
+          <div class="body"><ul><li>Рода войск, структура оборонного бюджета, комплектование (призыв/контракт), резерв, боеприпасы, военно-промышленный комплекс, авиация и ПВО, боевой дух.</li><li>Закупки вооружений, учения, миротворцы, военная помощь, экспорт оружия, гонка вооружений ИИ-соседей.</li><li>Окна армии с графиками и значками родов войск на карте.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v47_1</span><span class="dot"></span>
+        <details><summary><h3>Агенты и ИИ стран</h3></summary>
+          <div class="body"><ul><li>Агенты населения: работа с памятью, образование, кошелёк, окружение, дрейф взглядов, явка, активизм.</li><li>ИИ стран во внешней политике: память о ваших поступках, характер, реакции, солидарность, санкции, собственные инициативы.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v46_1</span><span class="dot"></span>
+        <details><summary><h3>Большое обновление событий</h3></summary>
+          <div class="body"><ul><li>Движок событий: условия, веса, память о прошлых событиях, цепочки, отложенные последствия, риски.</li><li>Около 70 новых событий.</li><li>Окно события с иллюстрированной шапкой, карточками вариантов и советом советника.</li><li>Баланс частоты и силы событий.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v45_1</span><span class="dot"></span>
+        <details><summary><h3>Большое обновление графики</h3></summary>
+          <div class="body"><ul><li>Карта мира: море, берег, рельеф, границы, подписи.</li><li>Новая карта выбора страны.</li><li>Интерфейс: новая тема, окна с отблесками и градиентами, верхняя панель, графики.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v44_1</span><span class="dot"></span>
+        <details><summary><h3>Государство и мир («Реализм»)</h3></summary>
+          <div class="body"><ul><li>Блоки: ЕС, еврозона, Шенген, НАТО — вступление по критериям, правила дефицита, взносы, выход.</li><li>Демография (старение, рождаемость, пенсии, миграция), энергия и климат (зависимость от импорта, зелёный переход, ценовые шоки).</li><li>Право и коррупция (независимость судов, антикоррупционное бюро), СМИ (свобода прессы, доверие, фейки), регионы.</li><li>Дипломатия: договоры, разведка, вмешательство в выборы, признание новых государств, мирные конференции.</li><li>Совместные научные проекты с другими странами, этика технологий.</li><li>Сохранения и откат игры, графики показателей, отчёт о финалах игры.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v43_1</span><span class="dot"></span>
+        <details><summary><h3>Кризисы, революции и перевороты</h3></summary>
+          <div class="body"><ul><li>ИИ-советник выбирает технологии за игрока (по желанию), страны-соседи тоже развивают свои деревья.</li><li>Протесты и недовольство в регионах идут по стадиям: спокойно → протесты → беспорядки → вооружённый мятеж → война.</li><li>Сепаратизм: регионы могут потребовать референдум, провозгласить независимость, отделиться миром или войной.</li><li>Гражданская война и война за отделение с фронтом, мобилизацией, перемирием и признанием.</li><li>Революция и государственный переворот (в том числе «самопереворот» действующей власти).</li><li>Новое окно «Кризисы» с действиями по регионам и конфликтам.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v42_1</span><span class="dot"></span>
+        <details><summary><h3>Военная ветка и окно технологий</h3></summary>
+          <div class="body"><ul><li>Пятая ветка — военная (14 уровней), всего 124 технологии.</li><li>Отдельное окно «Технологии» со схемой дерева: связи, уровни, годы открытия, выбор «или».</li><li>Пассивное изучение: технологии, освоенные соседями, изучаются дешевле.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v41_1</span><span class="dot"></span>
+        <details><summary><h3>Промышленная ветка</h3></summary>
+          <div class="body"><ul><li>Четвёртая ветка — промышленная (12 уровней, выборы «или» на 5 уровнях).</li><li>Код технологий обобщён на любое число веток.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v40_1</span><span class="dot"></span>
+        <details><summary><h3>Выбор «одна из N»</h3></summary>
+          <div class="body"><ul><li>Дерево расширено до 57 технологий.</li><li>На некоторых уровнях появился выбор «одна из двух/трёх»: изучить можно только одну альтернативу.</li><li>Баланс скорости исследований проверен симуляциями.</li></ul></div>
+        </details>
+      </div>
+      <div class="rel"><span class="v">v39_1</span><span class="dot"></span>
+        <details><summary><h3>Технологии</h3></summary>
+          <div class="body"><ul><li>Новая система технологий: три ветки (экономическая, социальная, политическая) по 10 технологий на 100 лет игры.</li><li>Скорость исследований зависит от расходов на образование, уровня образования, размера экономики и свободы слова; у скорости есть «мягкий потолок» — выше него вложения дают всё меньше.</li><li>Очки исследований распределяются между ветками по весам; если в ветке нечего изучать, очки копятся в запасе.</li><li>Научные сооружения (исследовательский центр, кампус, технопарк, институт, центр анализа, прорывная лаборатория): строятся в долг и ускоряют науку или усиливают свою ветку.</li><li>Технологии дают постоянные бонусы к экономике, обществу и политике.</li></ul></div>
+        </details>
+      </div>
+<!-- updates:end -->
+    </div>
+  </div>
+</section>
+
+<section id="gallery" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">Скриншоты</p><h2>Как это выглядит в игре</h2></div>
+    <div class="gallery" id="gal"></div>
+  </div>
+</section>
+
+<section id="run" style="padding-top:0">
+  <div class="wrap">
+    <div class="release">
+      <div class="rel-date"><b>14</b><span>октября</span><small>среда</small></div>
+      <div>
+        <p class="eyebrow">Релиз</p>
+        <h2>Symphony выходит на itch.io</h2>
+        <p class="lede">В среду, 14 октября, игра станет доступна на itch.io.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><b style="font-family:var(--f-display);letter-spacing:.16em;color:var(--fg)">SYMPHONY</b> · раньше называлась PolitGame</span>
+    <span>версия <span data-ver>v52_1</span></span>
+  </div>
+</footer>
+
+<dialog id="lb" aria-label="Скриншот">
+  <img id="lb-img" src="" alt="">
+  <p><span id="lb-cap"></span><button type="button" id="lb-close">Закрыть ✕</button></p>
+</dialog>
+
+<script src="countries.js"></script>
+<script>
+(function () {
+  "use strict";
+  /* ── Страны: карта Европы, досье, список ── */
+  var C = window.SYM_COUNTRIES || [], GEO = window.SYM_GEO || { eu: {}, shape: {} };
+  var BY = {}; C.forEach(function (c, i) { c.i = i; BY[c.cc] = c; });
+  var NS = "http://www.w3.org/2000/svg";
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (ch) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]; }); }
+  function num(x, d) { return Number(x).toLocaleString("ru-RU", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
+  function flag(cc) { return "img/flags/" + cc + ".webp"; }
+  var DIFW = ["", "очень лёгкая", "лёгкая", "средняя", "трудная", "очень трудная"];
+  var isNato = function (c) { return c.orgs.indexOf("НАТО") >= 0; };
+  var FILT = {
+    all: function () { return true; }, eu: function (c) { return c.eu; }, euro: function (c) { return c.euro; },
+    nato: isNato, out: function (c) { return !c.eu; }
+  };
+
+  // контур Европы на фоне первого экрана
+  var heroSvg = document.getElementById("hero-eu");
+  if (heroSvg) heroSvg.innerHTML = Object.keys(GEO.eu).map(function (k) { return '<path d="' + GEO.eu[k] + '"/>'; }).join("");
+
+  // лента флагов
+  var fl = document.getElementById("flagline");
+  if (fl) {
+    var row = C.map(function (c) { return '<a href="#countries" data-cc="' + c.cc + '"><img src="' + flag(c.cc) + '" width="27" height="18" alt="" loading="lazy">' + esc(c.n) + "</a>"; }).join("");
+    fl.innerHTML = row + row.replace(/<a /g, '<a aria-hidden="true" tabindex="-1" ');
+    fl.addEventListener("click", function (e) { var a = e.target.closest("[data-cc]"); if (a) pickCountry(a.getAttribute("data-cc")); });
+  }
+
+  // карта
+  var map = document.getElementById("eumap"), tip = document.getElementById("map-tip");
+  var grat = "";
+  for (var gx = -200; gx <= 1300; gx += 150) grat += '<path class="grat" d="M' + gx + ' -620V860"/>';
+  for (var gy = -500; gy <= 860; gy += 150) grat += '<path class="grat" d="M-290 ' + gy + 'H1320"/>';
+  map.innerHTML = grat + C.map(function (c) {
+    return '<path class="c" tabindex="0" role="button" data-cc="' + c.cc + '" aria-label="' + esc(c.n) + '" style="--fill:' + c.col + '" d="' + (GEO.eu[c.cc] || "") + '"></path>';
+  }).join("");
+  var paths = {}; [].forEach.call(map.querySelectorAll(".c"), function (p) { paths[p.getAttribute("data-cc")] = p; });
+  map.addEventListener("click", function (e) { var p = e.target.closest(".c"); if (p) pickCountry(p.getAttribute("data-cc"), true); });
+  map.addEventListener("keydown", function (e) { var p = e.target.closest(".c"); if (p && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickCountry(p.getAttribute("data-cc"), true); } });
+  map.addEventListener("mousemove", function (e) {
+    var p = e.target.closest(".c");
+    if (!p) { tip.hidden = true; return; }
+    var c = BY[p.getAttribute("data-cc")], r = map.parentNode.getBoundingClientRect();
+    tip.textContent = c.n + " · " + (MODES[curM].v ? MODES[curM].f(MODES[curM].v(c)) : "★".repeat(c.dif));
+    tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px"; tip.hidden = false;
+  });
+  map.addEventListener("mouseleave", function () { tip.hidden = true; });
+
+  // список
+  var grid = document.getElementById("fgrid");
+  grid.innerHTML = C.map(function (c) {
+    return '<button type="button" data-cc="' + c.cc + '"><img src="' + flag(c.cc) + '" width="30" height="20" alt="" loading="lazy"><span>' + esc(c.n) + "<small data-v>" + "★".repeat(c.dif) + "</small></span></button>";
+  }).join("");
+  grid.addEventListener("click", function (e) { var b = e.target.closest("[data-cc]"); if (b) pickCountry(b.getAttribute("data-cc"), true); });
+
+  // фильтры
+  var curF = "all";
+  document.getElementById("filters").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-f]"); if (!b) return;
+    curF = b.getAttribute("data-f");
+    [].forEach.call(this.querySelectorAll("[data-f]"), function (x) { x.setAttribute("aria-pressed", x === b); });
+    C.forEach(function (c) {
+      var on = FILT[curF](c);
+      paths[c.cc].classList.toggle("dim", !on);
+      grid.querySelector('[data-cc="' + c.cc + '"]').classList.toggle("dim", !on);
+    });
+  });
+
+  // цвет карты: базовый, по сложности или по показателю
+  function pct(v, d) { return (v > 0 && d ? "+" : "") + num(v, 1) + " %"; }
+  var MODES = {
+    base: { leg: "цвета стран как на карте игры" },
+    dif: { leg: "сложность" },
+    pop: { v: function (c) { return c.pop; }, f: function (v) { return num(v, v < 10 ? 1 : 0) + " млн"; } },
+    gdpc: { v: function (c) { return c.gdp / c.pop; }, f: function (v) { return num(v, 1) + " тыс. €"; } },
+    debt: { v: function (c) { return c.debt; }, f: function (v) { return num(v) + " % ВВП"; } },
+    gr: { v: function (c) { return c.gr; }, f: function (v) { return pct(v, 1); } },
+    inf: { v: function (c) { return c.inf; }, f: function (v) { return pct(v); } },
+    un: { v: function (c) { return c.un; }, f: function (v) { return pct(v); } }
+  };
+  var curM = "base", legend = document.getElementById("legend");
+  function applyMode() {
+    var m = MODES[curM], lo = 0, hi = 0;
+    if (m.v) {
+      // цвет по месту в ряду, а не по абсолютному значению: Россия и Люксембург не сплющивают шкалу
+      var sorted = C.map(m.v).sort(function (a, b) { return a - b; });
+      lo = sorted[0]; hi = sorted[sorted.length - 1];
+    }
+    C.forEach(function (c) {
+      var fill = c.col, lab = "★".repeat(c.dif);
+      if (curM === "dif") fill = "var(--d" + c.dif + ")";
+      else if (m.v) {
+        var v = m.v(c), t = C.filter(function (x) { return m.v(x) < v; }).length / (C.length - 1);
+        fill = "color-mix(in oklab, var(--q0), var(--q1) " + Math.round(t * 100) + "%)"; lab = m.f(v);
+      }
+      paths[c.cc].style.setProperty("--fill", fill);
+      grid.querySelector('[data-cc="' + c.cc + '"] [data-v]').textContent = lab;
+    });
+    legend.innerHTML = curM === "dif" ? "сложность <i style=\"background:var(--d1)\"></i><i style=\"background:var(--d2)\"></i><i style=\"background:var(--d3)\"></i><i style=\"background:var(--d4)\"></i><i style=\"background:var(--d5)\"></i>"
+      : m.v ? esc(m.f(lo)) + ' <span class="ramp"></span> ' + esc(m.f(hi)) : m.leg;
+  }
+  document.getElementById("modes").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-m]"); if (!b) return;
+    curM = b.getAttribute("data-m");
+    [].forEach.call(this.querySelectorAll("[data-m]"), function (x) { x.setAttribute("aria-pressed", x === b); });
+    applyMode();
+  });
+  applyMode();
+
+  // полукруг парламента в цветах партий
+  function hemicycle(parties, total) {
+    var R1 = 190, R0 = 64, rows = 3, best = 1e9, k;
+    for (k = 2; k <= 22; k++) {
+      var rad = (R1 - R0) / (k - 1), arc = Math.PI * (R0 + R1) * k / 2 / total, d = Math.abs(rad - arc);
+      if (d < best) { best = d; rows = k; }
+    }
+    var radii = [], sum = 0;
+    for (k = 0; k < rows; k++) { radii.push(R0 + (R1 - R0) * (rows === 1 ? 1 : k / (rows - 1))); sum += radii[k]; }
+    var counts = radii.map(function (r) { return Math.round(total * r / sum); });
+    counts[rows - 1] += total - counts.reduce(function (a, b) { return a + b; }, 0);
+    var seats = [];
+    radii.forEach(function (r, ri) { for (var j = 0; j < counts[ri]; j++) { var a = Math.PI - Math.PI * (j + .5) / counts[ri]; seats.push({ x: 200 + r * Math.cos(a), y: 200 - r * Math.sin(a), a: a }); } });
+    seats.sort(function (p, q) { return q.a - p.a; });
+    var colors = []; parties.forEach(function (p) { for (var i = 0; i < p.s; i++) colors.push(p.c); });
+    var dr = Math.min((R1 - R0) / (rows - 1), Math.PI * (R0 + R1) * rows / 2 / total) * .42;
+    return '<svg viewBox="0 0 400 210" role="img" aria-label="Распределение ' + total + ' мест по партиям">' + seats.map(function (s, i) {
+      return '<circle cx="' + s.x.toFixed(1) + '" cy="' + s.y.toFixed(1) + '" r="' + dr.toFixed(1) + '" fill="' + (colors[i] || "#777") + '"/>';
+    }).join("") + '<text x="200" y="196" text-anchor="middle" font-family="Unbounded, sans-serif" font-weight="600" font-size="30" fill="currentColor">' + total + "</text></svg>";
+  }
+  function shapeSvg(cc) {
+    var sh = GEO.shape[cc]; if (!sh) return "";
+    return '<svg viewBox="-6 -6 ' + (sh.w + 12) + " " + (sh.h + 12) + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' + sh.r.map(function (d) { return '<path d="' + d + '"/>'; }).join("") + "</svg>";
+  }
+
+  var dz = document.getElementById("dossier"), cur = null;
+  function render(c) {
+    var lead = c.p.slice().sort(function (a, b) { return b.s - a.s; });
+    var gp = c.gp;
+    var pc = lead.length ? lead[0].c : "var(--brass)";
+    var gcol = (c.p.filter(function (p) { return p.n === gp; })[0] || {}).c || pc;
+    var perCap = c.gdp / c.pop;
+    var KEY = { "ЕС": 1, "НАТО": 1, "Еврозона": 1, "СНГ": 1, "ОДКБ": 1, "ЕАЭС": 1 };
+    var prev = C[(c.i + C.length - 1) % C.length], next = C[(c.i + 1) % C.length];
+    dz.style.setProperty("--dzc", gcol);
+    dz.innerHTML =
+      '<header class="dz-head"><div class="dz-flag"><img src="' + flag(c.cc) + '" width="330" height="220" alt="Флаг: ' + esc(c.n) + '"></div>' +
+      '<div><h3 class="dz-name">' + esc(c.n) + '</h3><div class="dz-sub"><span>' + esc(c.cap) + '</span><span class="pips" style="--pc:var(--d' + c.dif + ')" title="Сложность: ' + DIFW[c.dif] + '">' +
+      [1, 2, 3, 4, 5].map(function (n) { return '<i class="' + (n <= c.dif ? "on" : "") + '"></i>'; }).join("") + '</span><span>сложность ' + DIFW[c.dif] + "</span>" +
+      (c.regime ? '<span class="tag reg">' + c.regime + "</span>" : "") + "</div></div>" +
+      '<div class="dz-shape" title="' + c.reg + ' регионов">' + shapeSvg(c.cc) + "</div></header>" +
+      '<div class="dz-body">' +
+      '<p class="dz-blurb"><small>Ваш старт</small>' + esc(c.blurb) + "</p>" +
+      '<div class="kpis">' +
+      "<div><b>" + num(c.pop, c.pop < 10 ? 1 : 0) + "</b><small>млн жителей</small></div>" +
+      "<div><b>" + num(c.gdp) + "</b><small>ВВП, млрд €</small></div>" +
+      "<div><b>" + num(perCap, 1) + "</b><small>тыс. € на человека</small></div>" +
+      "<div><b>" + num(c.debt) + "%</b><small>госдолг, % ВВП</small></div>" +
+      "<div><b>" + (c.gr > 0 ? "+" : "") + num(c.gr, 1) + "%</b><small>рост ВВП</small></div>" +
+      "<div><b>" + num(c.inf, 1) + "%</b><small>инфляция</small></div>" +
+      "<div><b>" + num(c.un, 1) + "%</b><small>безработица</small></div>" +
+      "<div><b>" + c.reg + "</b><small>регионов</small></div></div>" +
+      '<div><div class="dz-h"><span>' + esc(c.parl) + "</span><b>большинство: " + c.maj + " из " + c.seats + "</b></div>" +
+      '<div class="parl">' + hemicycle(c.p, c.seats) + '<ul class="plist">' + lead.slice(0, 7).map(function (p) {
+        return '<li class="' + (p.n === gp ? "gov" : "") + '"><i style="background:' + p.c + '"></i><span>' + esc(p.n) + "</span><b>" + p.s + "</b></li>";
+      }).join("") + (lead.length > 7 ? '<li><i style="background:var(--seat)"></i><span>ещё ' + (lead.length - 7) + "</span><b>" + lead.slice(7).reduce(function (a, p) { return a + p.s; }, 0) + "</b></li>" : "") + "</ul></div></div>" +
+      '<dl class="facts">' +
+      "<div><dt>Вы играете за</dt><dd>" + esc(c.you) + "</dd></div>" +
+      "<div><dt>Глава государства</dt><dd>" + esc(c.head) + (c.headk ? ", " + c.headk : "") + "</dd></div>" +
+      '<div style="grid-column:1/-1"><dt>Правительство</dt><dd>' + esc(c.gov.charAt(0).toUpperCase() + c.gov.slice(1)) + "</dd></div>" +
+      "<div><dt>Выборы</dt><dd>" + esc(c.sys) + "</dd></div>" +
+      "<div><dt>Срок парламента · верхняя палата</dt><dd>" + Math.round(c.term / 12) + " года · " + (c.up ? esc(c.up) + (c.upn ? " (" + c.upn + ")" : "") : "нет") + "</dd></div>" +
+      "</dl>" +
+      '<div><div class="dz-h"><span>Национальный характер</span></div><div class="traits">' + c.tr.map(function (t) { return "<div><b>" + esc(t.n) + "</b><span>" + esc(t.d) + "</span></div>"; }).join("") + "</div></div>" +
+      (c.rel.length ? '<div><div class="dz-h"><span>Старые счёты и дружба</span></div><ul class="rels">' + c.rel.map(function (r) {
+        var o = BY[r[0]], v = r[1];
+        return "<li><img src=\"" + flag(r[0]) + '" width="24" height="16" alt="" loading="lazy"><span><button type="button" data-go="' + r[0] + '">' + esc(o ? o.n : r[0]) + "</button> <small>" + esc(r[2]) + '</small></span><em class="' + (v > 0 ? "pos" : v < 0 ? "neg" : "zero") + '">' + (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v) + "</em></li>";
+      }).join("") + "</ul></div>" : "") +
+      '<div><div class="dz-h"><span>Организации</span><b>' + c.orgs.length + " из 27</b></div><div class=\"orgs\">" + c.orgs.map(function (o) { return '<span class="' + (KEY[o] ? "key" : "") + '">' + esc(o) + "</span>"; }).join("") + "</div></div>" +
+      "</div>" +
+      '<nav class="dz-nav" aria-label="Соседние страны в списке"><button type="button" data-go="' + prev.cc + '">← <img src="' + flag(prev.cc) + '" alt="" width="21" height="14">' + esc(prev.n) + '</button><button type="button" data-go="' + next.cc + '">' + esc(next.n) + ' <img src="' + flag(next.cc) + '" alt="" width="21" height="14"> →</button></nav>';
+  }
+  dz.addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (b) pickCountry(b.getAttribute("data-go")); });
+  function pickCountry(cc, keepScroll) {
+    var c = BY[cc]; if (!c) return;
+    if (cur) { paths[cur].classList.remove("sel"); var ob = grid.querySelector('[data-cc="' + cur + '"]'); if (ob) ob.removeAttribute("aria-current"); }
+    cur = cc; paths[cc].classList.add("sel"); paths[cc].parentNode.appendChild(paths[cc]);
+    grid.querySelector('[data-cc="' + cc + '"]').setAttribute("aria-current", "true");
+    render(c);
+    if (!keepScroll && window.matchMedia("(max-width: 1000px)").matches) dz.scrollIntoView({ block: "start" });
+  }
+  var h0 = (location.hash || "").match(/^#c-([A-Z]{2})$/);
+  pickCountry(h0 && BY[h0[1]] ? h0[1] : "DE", true);
+
+  var MECH = [
+    { id: "parliament", t: "Парламент и коалиция", img: "parliament", cap: "Франция: нижняя палата и сенат, партии, переговоры и опросы",
+      intro: "Чтобы принять закон, нужно большинство. В Германии это 316 голосов из 630, во Франции 289 из 577. Своих мест почти никогда не хватает.",
+      a: ["<b>Коалиция.</b> Позовите партию в правительство. Совет коалиции решает, кого принять и кого исключить, а влияние партнёров зависит от доставшихся им министерств.",
+          "<b>Соглашения партий:</b> переговоры, предвыборный блок, поддержка без входа в правительство, союз по голосованию или публичная атака."],
+      b: ["<b>Оппозиция.</b> Без власти бюджет и министерства у других. Остаются критика, митинги, расследования, требование досрочных выборов и вотум недоверия.",
+          "<b>Глава государства</b> и верхняя палата нарисованы рядом с нижней. Монарх, всенародно избранный президент или президент, которого выбирает парламент, зависит от страны."],
+      fact: ["38", "избирательных систем, по одной на страну"] },
+    { id: "laws", t: "Законы и голосование", img: "laws", cap: "Законы по сферам, варианты закона и подсчёт голосов",
+      intro: "Закон выбирается из нескольких вариантов, а игра сразу показывает, сколько голосов он соберёт. Потом законопроект несколько месяцев идёт через палаты.",
+      a: ["<b>Варианты и сила действия.</b> Один и тот же закон можно сделать мягче или жёстче, к нему можно добавить поправки.",
+          "<b>Обе палаты и глава государства</b> собраны в одном окне. Верхняя палата может отклонить закон, а последнее слово остаётся за главой государства."],
+      b: ["<b>Отступники.</b> Фракции голосуют не единогласно. Это зависит от дисциплины, характера лидера и режима, плюс бывают случайные голоса.",
+          "<b>Итоговое голосование</b> показывается анимацией зала: места загораются зелёным, красным и серым, в конце табло пишет «ПРИНЯТ» или «ОТКЛОНЁН»."],
+      fact: ["3", "исхода для каждого места: за, против, воздержался"] },
+    { id: "budget", t: "Бюджет и налоги", img: "budget", cap: "Бюджет: доходы и расходы, налоги, группы интересов",
+      intro: "Бюджет собирается из статей доходов и расходов. Каждое повышение кому-то нравится, а кому-то нет, и группы интересов это запоминают.",
+      a: ["<b>План бюджета</b> и кнопка «Принять бюджет». В коалиции бюджет утверждает совет коалиции после переговоров.",
+          "<b>Автоподъём расходов</b> до минимума по выбранным статьям, чтобы не следить за каждой вручную."],
+      b: ["<b>Эмиссия</b> доступна странам со своей валютой. В еврозоне печатать деньги нельзя, пока страна из неё не выйдет.",
+          "<b>Госдолг.</b> Выше 150% ВВП наступает дефолт и конец игры."],
+      fact: ["150%", "ВВП: порог госдолга, за которым дефолт"] },
+    { id: "economy", t: "Экономика и модели", img: "economy", cap: "Экономика: рынки, товары, энергия, графики показателей",
+      intro: "Экономика считается снизу: 18 видов товаров и услуг стоят на шести рынках, у каждого своя цена и спрос. Из них складываются инфляция, безработица и рост ВВП.",
+      a: ["<b>Шесть моделей управления:</b> Госплан с пятилеткой и очередями, промышленная политика, социальное партнёрство, госкорпорации и госбанки, рыночное регулирование с биржевым индексом, самоуправление.",
+          "<b>У каждой модели свой пульт</b> и своя панель показателей, а окна экономики окрашиваются в её цвет."],
+      b: ["<b>Корпорации.</b> По восемь крупнейших компаний в каждой стране с долей государства, выручкой и числом работников.",
+          "<b>Иностранный капитал</b> разбит по странам происхождения. Его можно привлекать или ограничивать, а с компаниями работать по правилам своей модели."],
+      fact: ["18", "товаров и услуг на шести рынках"] },
+    { id: "population", t: "Население", img: "population", cap: "Население: агенты, идеологическая карта, демографическая пирамида",
+      intro: "Население состоит из агентов. Один агент представляет от 100 до 1000 человек, у него есть работа, образование, кошелёк, окружение и взгляды.",
+      a: ["<b>Выборы считаются по агентам,</b> а опросы по выборке из них, так что опрос может и ошибиться.",
+          "<b>Взгляды дрейфуют</b> со временем. От них зависят явка и готовность выйти на улицу."],
+      b: ["<b>Демографическая пирамида,</b> рождаемость, смертность, пенсии и миграция.",
+          "<b>Национальный характер:</b> черты вроде трудолюбия, бережливости или традиции протеста дают стране постоянные эффекты."],
+      fact: ["100–1000", "человек в одном агенте"] },
+    { id: "map", t: "Карта и регионы", img: "map", cap: "Франция: слои карты, сведения о регионе Иль-де-Франс",
+      intro: "У каждого региона своя экономика, бюджет, настроения и автономия. Слои карты показывают лояльность, безработицу, доходы и ещё два десятка показателей.",
+      a: ["<b>Административный вид.</b> Если приблизить свою страну, она распадается на регионы и административные единицы.",
+          "<b>Строительство</b> идёт на конкретной территории. На каждую стройку реагируют группы интересов, а окно показывает спрос на продукцию."],
+      b: ["<b>Автономия регионов</b> отмечена цветами, регионы могут требовать больше прав.",
+          "<b>Россия</b> разделена на 89 регионов, включая занятые территории. Война России и Украины идёт с начала игры."],
+      fact: ["27", "слоёв карты"] },
+    { id: "crisis", t: "Кризисы", img: "crisis", cap: "Окно «Кризисы»: стадии протестов, сепаратизм, риск переворота",
+      intro: "Недовольство в регионах растёт по стадиям. Если его не гасить, за протестами придут беспорядки, вооружённый мятеж и война.",
+      a: ["<b>Сепаратизм.</b> Регион может потребовать референдум, провозгласить независимость и отделиться миром или войной.",
+          "<b>Гражданская война</b> идёт с фронтом, мобилизацией, перемирием и признанием."],
+      b: ["<b>Революция и переворот.</b> Свергнуть могут и вас, а можно и самому устроить самопереворот, если вы уже у власти.",
+          "<b>Управлять кризисами</b> может только правительство. Партия вне власти видит окно, но действовать не может."],
+      fact: ["5", "стадий: спокойно, протесты, беспорядки, мятеж, война"] },
+    { id: "regime", t: "Режимы", img: "regime", cap: "Россия: гибридный режим, вертикаль власти и кланы элиты",
+      intro: "Демократия не единственный вариант. При гибридном режиме, диктатуре, хунте, однопартийном государстве, абсолютной монархии или теократии политика устроена иначе.",
+      a: ["<b>Кланы элиты:</b> силовики, олигархи, губернаторы, администрация. У каждого своя лояльность и влияние, клан можно наградить или зачистить.",
+          "<b>Инструменты режима:</b> страх, пропаганда, культ личности, фальсификации, цензура, аресты и амнистия."],
+      b: ["<b>Угрозы:</b> раскол элит, подполье, усталость от правителя и политзаключённые.",
+          "<b>Выход есть.</b> Круглый стол и оттепель ведут к переходу к демократии, преемник позволяет передать власть."],
+      fact: ["6", "типов недемократических режимов"] },
+    { id: "world", t: "Мир и организации", img: "orgs", cap: "Рамка «Организации»: ООН, члены, правила решений и сессии",
+      intro: "Вокруг вас 37 стран под управлением ИИ. Они помнят ваши поступки, вводят санкции, заключают договоры и вооружаются.",
+      a: ["<b>27 организаций,</b> от ООН и ЕС до ОДКБ и Северного совета. У каждой свои члены, правило решений, взносы, выгоды и условия вступления.",
+          "<b>Сессии</b> голосуют по реальным вопросам. Где решения принимаются консенсусом, одна страна может наложить вето."],
+      b: ["<b>Дипломатия:</b> конструктор договоров и мирных договоров, разведка, вмешательство в чужие выборы, финансирование зарубежных партий.",
+          "<b>Армия:</b> рода войск, призыв или контракт, резерв, ВПК, ПВО, учения, миротворцы и гонка вооружений."],
+      fact: ["27", "международных организаций"] },
+    { id: "tech", t: "Технологии", img: "tech", cap: "Окно «Технологии»: ветки, уровни, выбор «или», скорость исследований",
+      intro: "Пять веток на сто лет игры: экономическая, социальная, политическая, промышленная и военная. Всего 124 технологии.",
+      a: ["<b>Выбор «или».</b> На некоторых уровнях можно изучить только одну из альтернатив, выбор можно откатить.",
+          "<b>Скорость науки</b> зависит от расходов на образование, размера экономики и свободы слова. Выше «мягкого потолка» деньги работают всё хуже."],
+      b: ["<b>Научные сооружения:</b> исследовательский центр, кампус, технопарк, прорывная лаборатория.",
+          "<b>Пассивное изучение.</b> То, что уже освоили соседи, изучать дешевле. Вести дерево можно доверить советнику."],
+      fact: ["124", "технологии в пяти ветках"] }
+  ];
+
+  var tabs = document.getElementById("tabs"), panels = document.getElementById("panels");
+  var th = "", ph = "";
+  MECH.forEach(function (m, i) {
+    var n = (i + 1 < 10 ? "0" : "") + (i + 1);
+    th += '<button class="tab" role="tab" id="tab-' + m.id + '" aria-controls="p-' + m.id + '" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? 0 : -1) + '"><span class="n">' + n + '</span><span>' + m.t + '</span></button>';
+    ph += '<div class="panel" role="tabpanel" id="p-' + m.id + '" aria-labelledby="tab-' + m.id + '"' + (i === 0 ? "" : " hidden") + '>' +
+      '<figure><button type="button" data-full="img/' + m.img + '.webp" data-cap="' + m.cap + '"><img src="img/crop/' + m.img + '.webp" width="1400" height="929" loading="' + (i === 0 ? "eager" : "lazy") + '" alt="' + m.cap + '"></button><figcaption>' + m.cap + '</figcaption></figure>' +
+      '<div><h3>' + m.t + '</h3><p class="intro">' + m.intro + '</p><span class="fact"><b>' + m.fact[0] + '</b>' + m.fact[1] + '</span></div>' +
+      '<div class="panel-body"><ul>' + m.a.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul><ul>' + m.b.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div></div>';
+  });
+  tabs.innerHTML = th; panels.innerHTML = ph;
+  var tabEls = [].slice.call(tabs.querySelectorAll(".tab"));
+  function select(i, focus) {
+    tabEls.forEach(function (t, k) {
+      var on = k === i;
+      t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    if (focus) tabEls[i].focus();
+    if (window.matchMedia("(max-width: 900px)").matches) tabEls[i].scrollIntoView({ block: "nearest", inline: "center" });
+  }
+  tabEls.forEach(function (t, i) {
+    t.addEventListener("click", function () { select(i); });
+    t.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); select((i + 1) % tabEls.length, true); }
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); select((i - 1 + tabEls.length) % tabEls.length, true); }
+    });
+  });
+
+  var GAL = [
+    ["parliament", "Парламент, партии и опросы"],
+    ["laws", "Законы и варианты"], ["budget", "Бюджет и налоги"], ["economy", "Рынки, товары и энергия"],
+    ["corporations", "Корпорации и иностранный капитал"], ["population", "Население и идеологическая карта"], ["religion", "Религия и миграция"],
+    ["opposition", "Оппозиция и сделки партий"], ["diplomacy", "Влияние и зависимость от соседей"], ["orgs", "ООН и другие организации"],
+    ["regime", "Гибридный режим"], ["crisis", "Кризисы и сепаратизм"], ["tech", "Дерево технологий"], ["map", "Регионы и слои карты"]
+  ];
+  document.getElementById("gal").innerHTML = GAL.map(function (g) {
+    return '<button type="button" data-full="img/' + g[0] + '.webp" data-cap="' + g[1] + '"><img src="img/crop/' + g[0] + '.webp" width="1400" height="929" loading="lazy" alt="' + g[1] + '"><span>' + g[1] + '</span></button>';
+  }).join("");
+
+  var lb = document.getElementById("lb"), lbImg = document.getElementById("lb-img"), lbCap = document.getElementById("lb-cap");
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-full]");
+    if (!b) return;
+    lbImg.src = b.getAttribute("data-full"); lbImg.alt = b.getAttribute("data-cap"); lbCap.textContent = b.getAttribute("data-cap");
+    if (lb.showModal) lb.showModal();
+  });
+  document.getElementById("lb-close").addEventListener("click", function () { lb.close(); });
+  lb.addEventListener("click", function (e) { if (e.target === lb) lb.close(); });
+
+  /* Зал парламента: 630 мест полукругом, как окно голосования в игре */
+  var cv = document.getElementById("hemi"), ctx = cv.getContext("2d");
+  var SEATS = 630, YES = 325, NO = 280, AB = 25, ROWS = 14;
+  var W = cv.width, H = cv.height, cx = W / 2, cy = H - 22, R1 = 460, R0 = 150;
+  var seats = [], radii = [], total = 0, k;
+  for (k = 0; k < ROWS; k++) { radii.push(R0 + (R1 - R0) * k / (ROWS - 1)); total += radii[k]; }
+  var counts = radii.map(function (r) { return Math.round(SEATS * r / total); });
+  var diff = SEATS - counts.reduce(function (a, b) { return a + b; }, 0);
+  counts[ROWS - 1] += diff;
+  radii.forEach(function (r, ri) {
+    var n = counts[ri];
+    for (var j = 0; j < n; j++) {
+      var a = Math.PI - Math.PI * (j + .5) / n;
+      seats.push({ x: cx + r * Math.cos(a), y: cy - r * Math.sin(a), a: a, v: 0, t: 0 });
+    }
+  });
+  seats.sort(function (p, q) { return q.a - p.a; });
+  seats.forEach(function (s, i) { s.vote = i < YES ? 1 : (i < YES + AB ? 3 : 2); });
+  var dotR = (R1 - R0) / (ROWS - 1) * .36;
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function draw(shown) {
+    var col = { 0: css("--seat"), 1: css("--yes"), 2: css("--no"), 3: css("--abst") };
+    ctx.clearRect(0, 0, W, H);
+    seats.forEach(function (s) {
+      var lit = shown ? shown(s) : s.vote;
+      ctx.beginPath(); ctx.arc(s.x, s.y, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = col[lit]; ctx.fill();
+    });
+    ctx.strokeStyle = css("--brass"); ctx.globalAlpha = .55; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy - R0 + 30); ctx.lineTo(cx, cy - R1 - 18); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  draw();
+  var cY = document.getElementById("c-yes"), cN = document.getElementById("c-no"), cA = document.getElementById("c-ab"), stamp = document.getElementById("stamp");
+  function play() {
+    if (reduce) { draw(); return; }
+    var order = seats.map(function (s, i) { return i; });
+    for (var i = order.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = order[i]; order[i] = order[j]; order[j] = t; }
+    seats.forEach(function (s) { s.on = false; });
+    stamp.classList.remove("on");
+    var start = null, DUR = 2600;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var p = Math.min(1, (ts - start) / DUR), lit = Math.floor(p * SEATS), y = 0, n = 0, a = 0;
+      for (var q = 0; q < lit; q++) seats[order[q]].on = true;
+      seats.forEach(function (s) { if (s.on) { if (s.vote === 1) y++; else if (s.vote === 2) n++; else a++; } });
+      cY.textContent = y; cN.textContent = n; cA.textContent = a;
+      draw(function (s) { return s.on ? s.vote : 0; });
+      if (p < 1) requestAnimationFrame(frame); else stamp.classList.add("on");
+    }
+    requestAnimationFrame(frame);
+  }
+  var played = false;
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (es, ob) { es.forEach(function (e) { if (e.isIntersecting && !played) { played = true; ob.disconnect(); setTimeout(play, 400); } }); }, { threshold: .4 }).observe(cv);
+  }
+  cv.addEventListener("click", play);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { draw(); });
+  new MutationObserver(function () { draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  /* активный пункт меню */
+  var navLinks = [].slice.call(document.querySelectorAll('.nav ul a'));
+  if ("IntersectionObserver" in window) {
+    var secObs = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        navLinks.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id); });
+      });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    navLinks.forEach(function (a) { var t = document.querySelector(a.getAttribute("href")); if (t) secObs.observe(t); });
+  }
+})();
+
+// режимы: данные из scripts/logic/regime.gd, radical.gd и палитры из ui_regime.gd
+(function () {
+  var EMB = {
+    hall: "M12 2 2 7v2h20V7zM4 10h2.5v8H4zm4.8 0h2.5v8H8.8zm4.9 0h2.5v8h-2.5zm4.8 0H21v8h-2.5zM2 19h20v3H2z",
+    star: "M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7L12 17.5 5.8 21.2l1.6-7L2 9.5l7.1-.6z",
+    shield: "M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm0 4.5 4.5 1.7V11c0 3-1.8 5.8-4.5 7z",
+    crown: "M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5zM5 19h14v2H5z",
+    faith: "M12 2c1 4 5.5 6 5.5 11.5a5.5 5.5 0 0 1-11 0c0-3.2 2-4.6 2.2-7.5 1.6 1.1 2.3 2.8 2.3 4.5 1.2-2.4 1.4-5.6 1-8.5z"
+  };
+  var ROUND = ["Круглый стол и переход к демократии", "Договор с оппозицией: режим уступает место республике со свободными выборами. Конец власти указами."];
+  var R = [
+    { id: "hybrid", n: "Гибридный режим", m: "Выборы есть, но исход известен заранее", e: "hall", a: "#8fa8d1", t: "#38404f", start: "В начале игры: Россия и Беларусь",
+      how: "Режим складывается сам, когда индекс демократии падает ниже 0,25, или при суперпрезидентской республике с индексом ниже 0,45. Переворот для этого не нужен.",
+      up: ["Парламент и выборы остаются, но партия власти получает «административный ресурс»", "Есть вертикаль власти, инструменты режима и сводка угроз"],
+      dn: ["Партии и опросы скрыты, на виду только официальный рейтинг", "После грубых фальсификаций возможны протесты"],
+      cl: [["Силовики", 32], ["Олигархи и госкорпорации", 26], ["Администрация и бюрократия", 24], ["Губернаторы", 18]],
+      un: ["Несистемная оппозиция", "Независимые журналисты и блогеры", "Независимые профсоюзы"],
+      acts: [["Референдум о продлении полномочий", "«Обнуление»: усталость от правителя сброшена, но фальсификации растут, а подполье злится. Раз в три года."]],
+      out: "Оттепель и честные выборы поднимают индекс демократии. Когда он вырастет, страна снова станет демократией и раздел «Политика» вернётся к партиям и опросам.",
+      shot: true },
+    { id: "dictatorship", n: "Диктатура", m: "Режим личной власти: правитель, его семья и силовики", e: "star", a: "#db423d", t: "#522424",
+      how: "Закон «Форма правления», вариант «Диктатура (режим личной власти)». Это переворот: голосование не нужно, но нужна поддержка силовиков не ниже 60.",
+      up: ["Законы принимаются указом, политкапитал растёт", "Силовики довольны, безопасность выше"],
+      dn: ["Выборы становятся ритуалом, оппозиция запрещена", "Коррупция, изоляция и реальный риск восстания"],
+      cl: [["Силовые структуры", 34], ["Семья и ближний круг", 28], ["Олигархи", 22], ["Региональные бароны", 16]],
+      un: ["Демократическое подполье", "Студенческие кружки", "Оппозиция в эмиграции"],
+      acts: [["Референдум о продлении полномочий", "«Обнуление»: усталость от правителя сброшена, но фальсификации растут, а подполье злится."]],
+      out: "Круглый стол с оппозицией: режим уступает место республике со свободными выборами." },
+    { id: "junta", n: "Военная хунта", m: "Военный совет: приказы вместо законов", e: "shield", a: "#a8b35c", t: "#40472b",
+      how: "Закон «Форма правления», вариант «Военное правление (хунта)». Нужен кризис (недовольство от 28) и сильная опора на силовиков, от 65. Голосование не нужно.",
+      up: ["Порядок и безопасность растут быстрее всех режимов", "Армия получает бюджеты и контроль над ведомствами"],
+      dn: ["Конституция приостановлена, комендантский час", "Экономика растёт медленнее, мир отворачивается"],
+      cl: [["Армейское командование", 38], ["Спецслужбы", 22], ["Крупный бизнес", 20], ["Военные губернаторы", 20]],
+      un: ["Гражданское движение за выборы", "Недовольные младшие офицеры", "Забастовочные комитеты"],
+      acts: [["Пообещать передать власть гражданским", "Риск переворота ниже, отношения с миром лучше, подполье спокойнее. Но через два года обещание нужно выполнить, иначе будет взрыв недовольства."]],
+      out: "Круглый стол и передача власти гражданским. Если хунта обещала уйти, тянуть с этим нельзя." },
+    { id: "oneparty", n: "Однопартийное государство", m: "Партия — руководящая и направляющая сила", e: "star", a: "#e64d38", t: "#5c291f",
+      how: "Закон «Форма правления», вариант «Однопартийное государство». Голосование не нужно, нужна поддержка силовиков от 50.",
+      up: ["Бюджетники и рабочие получают стабильность и равенство", "Парламент собирается только для одобрения решений"],
+      dn: ["Легальна только ваша партия, политических свобод нет", "Бизнес и молодёжь недовольны"],
+      cl: [["Политбюро", 32], ["Консерваторы", 24], ["Госбезопасность", 24], ["Реформаторы", 20]],
+      un: ["Диссиденты и самиздат", "Свободные профсоюзы", "Национальные движения"],
+      acts: [["Пленум ЦК: консервативный курс", "Консерваторы и госбезопасность усиливаются, реформаторы в опале, страх растёт."],
+             ["Пленум ЦК: курс на реформы", "Реформаторы получают посты, и два года экономика растёт быстрее. Консерваторы недовольны."]],
+      out: "Круглый стол: партия отказывается от монополии на власть, и страна переходит к свободным выборам." },
+    { id: "monarchy_abs", n: "Абсолютная монархия", m: "Воля монарха — закон", e: "crown", a: "#d6ad52", t: "#4d385c",
+      how: "Закон «Форма правления», вариант «Абсолютная монархия». Голосование не нужно, нужна поддержка силовиков от 55.",
+      up: ["Решения мгновенны, политкапитал не нужен", "Село, пенсионеры и силовики поддерживают трон"],
+      dn: ["Парламент распущен или совещателен, суды подчинены двору", "Страна выпадает из семьи демократий, а власть зависит от верности армии"],
+      cl: [["Двор и знать", 30], ["Гвардия", 28], ["Купечество", 22], ["Духовенство", 20]],
+      un: ["Конституционалисты", "Республиканское подполье", "Студенты и интеллигенция"],
+      acts: [["Даровать конституцию", "Монарх делит власть с парламентом, и страна становится конституционной монархией. Двор и духовенство недовольны, конституционалисты удовлетворены."]],
+      out: "Даровать конституцию и остаться монархом или пойти на круглый стол и стать республикой." },
+    { id: "theocracy", n: "Теократия", m: "Власть от веры: духовенство над государством", e: "faith", a: "#52bd7a", t: "#264d38",
+      how: "Закон «Религия и государство», вариант «Теократия: религиозное право». В отличие от переворотов его нужно провести как обычный закон.",
+      up: ["Ценности сплачивают верующих, село и пенсионеров", "Больше политкапитала и безопасности"],
+      dn: ["Религиозные нормы становятся законом, у духовенства право вето", "Молодёжь теряет права, мир отворачивается"],
+      cl: [["Совет духовенства", 34], ["Стражи веры", 28], ["Торговые кланы", 20], ["Чиновничество", 18]],
+      un: ["Светская оппозиция", "Женское движение", "Студенческие протесты"],
+      acts: [["Указ духовного совета", "Совет духовенства и стражи веры довольны, молодёжь и женское движение против."]],
+      out: "Круглый стол с оппозицией и возвращение к светскому государству со свободными выборами." }
+  ];
+  var COMMON = [
+    ["Страх и репрессии", "Аресты активистов, амнистия политзаключённых, цензура интернета."],
+    ["Пропаганда и культ", "Пропаганду можно усилить или ослабить, культ личности поднять или опустить на ступень."],
+    ["Выборы", "Больше «административного ресурса» или честнее выборы. Фальсификации дают голоса, но после них бывают протесты."],
+    ["Будущее режима", "Назначить преемника, чтобы снять усталость от правителя, или начать оттепель."]
+  ];
+  var sec = document.getElementById("regimes"), tabs = document.getElementById("rtabs"), panel = document.getElementById("rpanel");
+  if (!sec || !tabs) return;
+  function svg(e) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + EMB[e] + '"/></svg>'; }
+  tabs.innerHTML = R.map(function (r, i) {
+    return '<button type="button" role="tab" id="rt-' + r.id + '" aria-controls="rpanel" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? 0 : -1) + '" style="--c:' + r.a + '">' + svg(r.e) + r.n + "</button>";
+  }).join("");
+  document.getElementById("rcommon").innerHTML = "<p>Рычаги, общие для всех режимов</p>" + COMMON.map(function (c) { return "<div><b>" + c[0] + "</b><span>" + c[1] + "</span></div>"; }).join("");
+  function li(a) { return a.map(function (x) { return "<li>" + x + "</li>"; }).join(""); }
+  function show(i, focus) {
+    var r = R[i];
+    sec.style.setProperty("--ra", r.a); sec.style.setProperty("--rt", r.t);
+    [].forEach.call(tabs.children, function (b, k) { b.setAttribute("aria-selected", k === i); b.tabIndex = k === i ? 0 : -1; if (k === i && focus) b.focus(); });
+    panel.setAttribute("aria-labelledby", "rt-" + r.id);
+    var acts = r.acts.slice(); if (r.id !== "hybrid") acts.push(ROUND);
+    panel.innerHTML =
+      "<div>" +
+        '<div class="r-top"><div class="r-emb">' + svg(r.e) + "</div><div><h3>" + r.n + "</h3><p>" + r.m + "</p></div></div>" +
+        (r.start ? '<span class="r-start">' + r.start + "</span>" : "") +
+        '<div class="r-blk"><h4>Как к нему прийти</h4><p>' + r.how + "</p></div>" +
+        '<div class="r-blk"><h4>Что меняется</h4><div class="r-pm"><ul class="up">' + li(r.up) + '</ul><ul class="dn">' + li(r.dn) + "</ul></div></div>" +
+        '<div class="r-blk"><h4>Особые решения</h4><div class="acts">' + acts.map(function (a) { return "<div><b>" + a[0] + "</b><span>" + a[1] + "</span></div>"; }).join("") + "</div></div>" +
+        '<div class="r-blk"><h4>Как выйти</h4><p>' + r.out + "</p></div>" +
+      "</div><div>" +
+        '<div class="r-blk" style="margin-top:0"><h4>Кланы элиты · исходное влияние</h4><div class="clans">' + r.cl.map(function (c) {
+          return '<div class="clan"><span>' + c[0] + "</span><b>" + c[1] + '%</b><span class="bar"><i style="width:' + (c[1] / 40 * 100) + '%"></i></span></div>';
+        }).join("") + "</div></div>" +
+        '<div class="r-blk"><h4>Подполье против режима</h4><div class="unders">' + r.un.map(function (u) { return "<span>" + u + "</span>"; }).join("") + "</div></div>" +
+        (r.shot ? '<figure class="r-shot"><button type="button" data-full="img/regime.webp" data-cap="Россия: вертикаль власти, кланы элиты, инструменты режима и фасадный парламент"><img src="img/crop/regime.webp" width="1400" height="929" loading="lazy" alt="Экран политики России при гибридном режиме"></button><figcaption>Так это выглядит в игре: Россия</figcaption></figure>' : "") +
+      "</div>";
+  }
+  tabs.addEventListener("click", function (e) { var b = e.target.closest("[role=tab]"); if (b) show([].indexOf.call(tabs.children, b)); });
+  tabs.addEventListener("keydown", function (e) {
+    var i = [].indexOf.call(tabs.children, document.activeElement), n = R.length;
+    if (i < 0) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); show((i + 1) % n, true); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); show((i + n - 1) % n, true); }
+  });
+  show(0);
+})();
+</script>
+</body>
+</html>
