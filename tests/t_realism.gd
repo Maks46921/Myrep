@@ -81,6 +81,12 @@ func _init():
 		g.rl["acc"]["eu"]["p"] = 99.0
 		for d in g.dip: g.dip[d]["rel"] = 80.0
 		months(g, 2)
+		if g.fa_ws_lvl() > 0:
+			# v53_1: под санкциями Запада заявка заморожена; снимаем санкции и проверяем приём
+			check(not bool(g.rl["b"]["eu"]), "приём в ЕС под санкциями")
+			g.fa_ws()["lvl"] = 0
+			g.rl["acc"]["eu"]["p"] = 99.0
+			months(g, 2)
 		check(bool(g.rl["b"]["eu"]) and bool(g.MACRO["eu"]), "приём в ЕС")
 	g.capital = 90.0
 	settle(g)
