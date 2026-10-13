@@ -23,7 +23,7 @@
   --no: #e3645b;
   --abst: #6a7389;
   --seat: #2b3653;
-  --d1: #3f7f5c; --d2: #5f8d4a; --d3: #9a8a3c; --d4: #a8673a; --d5: #a3463f; --sea: #0e1628; --land-line: #0b1120; --reg-bg: #170b10; --reg-panel: #22111a; --reg-line: #47202c; --reg-accent: #e0645a;
+  --d1: #3f7f5c; --d2: #5f8d4a; --d3: #9a8a3c; --d4: #a8673a; --d5: #a3463f; --sea: #0e1628; --land-line: #0b1120; --reg-bg: #170b10; --reg-panel: #22111a; --reg-line: #47202c; --reg-accent: #e0645a; --q0: #1d2c44; --q1: #f0b44c;
   --shadow: 0 30px 80px -30px rgba(0, 0, 0, .75);
   --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
   --f-body: "Golos Text", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -36,14 +36,14 @@
     --bg: #eef1f6; --panel: #ffffff; --panel-2: #f6f8fb; --line: #d3d9e5; --fg: #111a2c; --muted: #55607a;
     --brass: #a8701a; --brass-ink: #ffffff; --yes: #23864f; --no: #bb3b33; --abst: #9aa2b4; --seat: #d7dce7;
     --shadow: 0 30px 70px -35px rgba(20, 30, 60, .45); color-scheme: light;
-    --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a;
+    --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a; --q0: #e3e9f1; --q1: #b0660e;
   }
 }
 :root[data-theme="light"] {
   --bg: #eef1f6; --panel: #ffffff; --panel-2: #f6f8fb; --line: #d3d9e5; --fg: #111a2c; --muted: #55607a;
   --brass: #a8701a; --brass-ink: #ffffff; --yes: #23864f; --no: #bb3b33; --abst: #9aa2b4; --seat: #d7dce7;
   --shadow: 0 30px 70px -35px rgba(20, 30, 60, .45); color-scheme: light;
-  --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a;
+  --d1: #7fbf97; --d2: #a3c27f; --d3: #e0c869; --d4: #e7a46d; --d5: #e08077; --sea: #dfe6f1; --land-line: #ffffff; --reg-bg: #f7ecea; --reg-panel: #fff8f6; --reg-line: #e8c9c4; --reg-accent: #a7322a; --q0: #e3e9f1; --q1: #b0660e;
 }
 :root[data-theme="dark"] { color-scheme: dark; }
 
@@ -231,7 +231,12 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .filters button:hover { color: var(--fg); border-color: var(--muted); }
 .filters button[aria-pressed="true"] { color: var(--brass-ink); background: var(--brass); border-color: var(--brass); }
 .filters button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-.legend { margin-left: auto; display: flex; gap: 10px; align-items: center; font-family: var(--f-mono); font-size: .7rem; color: var(--muted); }
+.mapbar { margin-bottom: 14px; display: grid; gap: 4px; }
+.mapbar .filters { margin-bottom: 0; }
+.fl-lab { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); width: 84px; }
+@media (max-width: 700px) { .fl-lab { width: 100%; } }
+.legend { margin-left: auto; display: flex; gap: 8px; align-items: center; font-family: var(--f-mono); font-size: .7rem; color: var(--muted); }
+.legend .ramp { width: 120px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--q0), color-mix(in oklab, var(--q0), var(--q1)) , var(--q1)); }
 .legend i { display: inline-block; width: 18px; height: 8px; border-radius: 2px; }
 @media (max-width: 700px) { .legend { margin-left: 0; width: 100%; } }
 .atlas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 22px; align-items: start; }
@@ -241,10 +246,10 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 @media (max-width: 1000px) { .map-wrap { position: relative; top: 0; } }
 #eumap { display: block; width: 100%; height: auto; aspect-ratio: 1 / .92; }
 #eumap .grat { stroke: color-mix(in srgb, var(--fg) 6%, transparent); stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
-#eumap .c { stroke: var(--land-line); stroke-width: .9; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .2s ease, opacity .2s ease, filter .2s ease; outline: none; }
+#eumap .c { fill: var(--fill); stroke: var(--land-line); stroke-width: .9; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .2s ease, opacity .2s ease, filter .2s ease; outline: none; }
 #eumap .c:hover, #eumap .c:focus-visible { filter: brightness(1.25) saturate(1.1); }
 #eumap .c.dim { opacity: .22; }
-#eumap .c.sel { fill: var(--brass) !important; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--brass) 70%, transparent)); }
+#eumap .c.sel { fill: var(--brass) !important; stroke: var(--fg); stroke-width: 1.6; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--brass) 70%, transparent)); }
 .map-tip { position: absolute; pointer-events: none; padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: .82rem; white-space: nowrap; transform: translate(-50%, -130%); box-shadow: var(--shadow); }
 .map-note { position: absolute; left: 14px; bottom: 10px; font-family: var(--f-mono); font-size: .68rem; color: var(--muted); }
 
@@ -330,6 +335,59 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 #regimes .chips span.hl { border-color: var(--reg-accent); color: var(--fg); }
 #regimes .shot { border-color: var(--reg-line); box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--reg-accent) 35%, transparent); }
 .splash { display: inline-block; margin-bottom: 18px; font-family: var(--f-display); font-weight: 800; letter-spacing: .3em; font-size: .78rem; color: var(--reg-accent); border-block: 2px solid var(--reg-accent); padding: 6px 2px; }
+
+/* режимы: палитра берётся из игры (REG_SKIN) и меняется вместе с вкладкой */
+#regimes { --ra: #8fa8d1; --rt: #38404f; --reg-accent: var(--ra); --reg-ink: color-mix(in oklab, var(--ra) 70%, var(--fg));
+  --reg-bg: color-mix(in oklab, var(--rt) 22%, var(--bg)); --reg-panel: color-mix(in oklab, var(--ra) 7%, var(--panel)); --reg-line: color-mix(in oklab, var(--ra) 32%, var(--line));
+  transition: background-color .4s ease; }
+#regimes .eyebrow, #regimes .splash { transition: color .4s ease, border-color .4s ease; }
+.rtabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 18px; }
+.rtabs button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--reg-line); background: var(--reg-panel); color: var(--muted); font-size: .9rem; transition: all .2s ease; }
+.rtabs button svg { width: 18px; height: 18px; fill: var(--c); opacity: .85; }
+.rtabs button:hover { color: var(--fg); }
+.rtabs button[aria-selected="true"] { color: var(--fg); border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c), 0 10px 30px -14px var(--c); }
+.rtabs button:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.rpanel { border: 1px solid var(--reg-line); border-radius: 20px; background: var(--reg-panel); padding: clamp(18px, 3vw, 34px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); box-shadow: 0 30px 80px -40px color-mix(in srgb, var(--ra) 45%, transparent); animation: rin .35s ease; }
+@keyframes rin { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .rpanel { animation: none; } }
+@media (max-width: 900px) { .rpanel { grid-template-columns: minmax(0, 1fr); } }
+.r-top { display: flex; gap: 16px; align-items: center; margin-bottom: 14px; }
+.r-emb { flex: none; width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; background: color-mix(in oklab, var(--ra) 16%, transparent); border: 1px solid var(--reg-line); }
+.r-emb svg { width: 34px; height: 34px; fill: var(--ra); }
+.r-top h3 { font-family: var(--f-display); font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; line-height: 1.1; }
+.r-top p { margin: 4px 0 0; color: var(--reg-ink); font-style: italic; }
+.r-start { display: inline-block; margin-bottom: 14px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--reg-ink); border: 1px solid var(--reg-line); border-radius: 6px; padding: 3px 8px; }
+.r-blk { margin-top: 18px; }
+.r-blk h4 { margin: 0 0 8px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--reg-ink); font-weight: 500; }
+.r-blk p { margin: 0; color: var(--fg); line-height: 1.6; }
+.r-pm { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .r-pm { grid-template-columns: 1fr; } }
+.r-pm ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: .92rem; }
+.r-pm li { padding-left: 20px; position: relative; color: var(--muted); }
+.r-pm li::before { position: absolute; left: 0; top: 0; font-family: var(--f-mono); font-weight: 600; }
+.r-pm .up li::before { content: "+"; color: var(--d1); }
+.r-pm .dn li::before { content: "−"; color: var(--d5); }
+.clans { display: grid; gap: 10px; }
+.clan { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; font-size: .92rem; }
+.clan b { font-family: var(--f-mono); font-weight: 600; color: var(--reg-ink); }
+.clan .bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in oklab, var(--ra) 12%, transparent); overflow: hidden; }
+.clan .bar i { display: block; height: 100%; border-radius: 3px; background: var(--ra); transform-origin: left; animation: grow .6s ease; }
+@keyframes grow { from { transform: scaleX(0); } }
+.unders { display: flex; flex-wrap: wrap; gap: 6px; }
+.unders span { font-size: .85rem; padding: 5px 11px; border-radius: 99px; border: 1px dashed var(--reg-line); color: var(--muted); }
+.acts { display: grid; gap: 8px; }
+.acts div { border: 1px solid var(--reg-line); border-left: 3px solid var(--ra); border-radius: 10px; padding: 10px 12px; background: color-mix(in oklab, var(--ra) 4%, transparent); }
+.acts b { display: block; font-size: .92rem; }
+.acts span { display: block; font-size: .85rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.r-shot { margin: 18px 0 0; }
+.r-shot button { all: unset; cursor: zoom-in; display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--reg-line); }
+.r-shot img { display: block; width: 100%; }
+.r-shot figcaption { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+.rcommon { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.rcommon > p { grid-column: 1 / -1; margin: 6px 0 0; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--reg-ink); }
+.rcommon div { border: 1px solid var(--reg-line); border-radius: 12px; padding: 12px 14px; background: var(--reg-panel); }
+.rcommon b { display: block; font-size: .85rem; margin-bottom: 6px; }
+.rcommon span { display: block; font-size: .82rem; color: var(--muted); line-height: 1.55; }
 
 /* ── галерея ── */
 .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -452,13 +510,27 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
 <section id="countries">
   <div class="wrap">
     <div class="sec-head"><p class="eyebrow">Страны</p><h2>38 стран, и в каждой своя политика</h2><p class="lede">Выберите страну на карте или в списке. Здесь те же данные, что и в игре: стартовая ситуация, парламент, экономика, национальный характер и старые счёты с соседями.</p></div>
-    <div class="filters" role="group" aria-label="Показать на карте" id="filters">
-      <button type="button" data-f="all" aria-pressed="true">Все</button>
-      <button type="button" data-f="eu" aria-pressed="false">ЕС</button>
-      <button type="button" data-f="euro" aria-pressed="false">Еврозона</button>
-      <button type="button" data-f="nato" aria-pressed="false">НАТО</button>
-      <button type="button" data-f="out" aria-pressed="false">Вне ЕС</button>
-      <span class="legend" aria-label="Сложность">сложность <i style="background:var(--d1)"></i><i style="background:var(--d2)"></i><i style="background:var(--d3)"></i><i style="background:var(--d4)"></i><i style="background:var(--d5)"></i></span>
+    <div class="mapbar">
+      <div class="filters" role="group" aria-label="Цвет карты" id="modes">
+        <span class="fl-lab">Цвет</span>
+        <button type="button" data-m="base" aria-pressed="true">Как в игре</button>
+        <button type="button" data-m="dif" aria-pressed="false">Сложность</button>
+        <button type="button" data-m="pop" aria-pressed="false">Население</button>
+        <button type="button" data-m="gdpc" aria-pressed="false">ВВП на душу</button>
+        <button type="button" data-m="debt" aria-pressed="false">Госдолг</button>
+        <button type="button" data-m="gr" aria-pressed="false">Рост</button>
+        <button type="button" data-m="inf" aria-pressed="false">Инфляция</button>
+        <button type="button" data-m="un" aria-pressed="false">Безработица</button>
+      </div>
+      <div class="filters" role="group" aria-label="Показать на карте" id="filters">
+        <span class="fl-lab">Показать</span>
+        <button type="button" data-f="all" aria-pressed="true">Все</button>
+        <button type="button" data-f="eu" aria-pressed="false">ЕС</button>
+        <button type="button" data-f="euro" aria-pressed="false">Еврозона</button>
+        <button type="button" data-f="nato" aria-pressed="false">НАТО</button>
+        <button type="button" data-f="out" aria-pressed="false">Вне ЕС</button>
+        <span class="legend" id="legend" aria-live="polite"></span>
+      </div>
     </div>
     <div class="atlas">
       <div class="map-wrap"><svg id="eumap" viewBox="-290 -620 1610 1480" role="group" aria-label="Карта Европы: щёлкните по стране"></svg><div class="map-tip" id="map-tip" hidden></div><span class="map-note">Карта из игры · Россия продолжается на восток</span></div>
@@ -479,16 +551,12 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
 </section>
 
 <section id="regimes">
-  <div class="wrap regimes">
-    <div>
-      <span class="splash" aria-hidden="true">СМЕНА РЕЖИМА</span><div class="sec-head" style="margin-bottom:20px"><p class="eyebrow">Режимы</p><h2>Когда парламент становится декорацией</h2></div>
-      <p class="lede">При недемократическом режиме весь раздел «Политика» перестраивается. Вместо партий и опросов появляются вертикаль власти, кланы элиты, страх, пропаганда и подполье. У режима своя палитра и эмблема, а смену строя игра отмечает отдельной заставкой.</p>
-      <div class="chips" aria-label="Типы режимов">
-        <span class="hl">Гибридный режим</span><span>Диктатура</span><span>Хунта</span><span>Однопартийное государство</span><span>Абсолютная монархия</span><span>Теократия</span>
-      </div>
-      <p style="margin-top:22px;color:var(--muted);max-width:60ch">Россия и Беларусь начинают игру гибридными режимами. У каждого режима есть особые решения: хунта может пообещать передать власть, монарх дарует конституцию, партия собирает пленум ЦК, а президент проводит «обнуление». Выйти из режима можно через круглый стол и переход к демократии.</p>
-    </div>
-    <figure class="shot"><button type="button" data-full="img/regime.webp" data-cap="Россия: вертикаль власти, кланы элиты, инструменты режима и фасадный парламент"><img src="img/crop/regime.webp" width="1400" height="929" loading="lazy" alt="Экран политики России: гибридный режим, кланы силовиков, олигархов, губернаторов и администрации"></button></figure>
+  <div class="wrap">
+    <span class="splash" aria-hidden="true">СМЕНА РЕЖИМА</span>
+    <div class="sec-head" style="margin-bottom:20px"><p class="eyebrow">Режимы</p><h2>Когда парламент становится декорацией</h2><p class="lede">При недемократическом режиме раздел «Политика» перестраивается. Вместо партий и опросов появляются вертикаль власти, кланы элиты, страх, пропаганда и подполье. У каждого режима свои кланы, свои враги, свои особые решения и своя палитра.</p></div>
+    <div class="rtabs" role="tablist" aria-label="Типы режимов" id="rtabs"></div>
+    <div class="rpanel" id="rpanel" role="tabpanel" aria-live="polite"></div>
+    <div class="rcommon" id="rcommon"></div>
   </div>
 </section>
 
@@ -648,7 +716,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
   for (var gx = -200; gx <= 1300; gx += 150) grat += '<path class="grat" d="M' + gx + ' -620V860"/>';
   for (var gy = -500; gy <= 860; gy += 150) grat += '<path class="grat" d="M-290 ' + gy + 'H1320"/>';
   map.innerHTML = grat + C.map(function (c) {
-    return '<path class="c" tabindex="0" role="button" data-cc="' + c.cc + '" aria-label="' + esc(c.n) + '" style="fill:var(--d' + c.dif + ')" d="' + (GEO.eu[c.cc] || "") + '"></path>';
+    return '<path class="c" tabindex="0" role="button" data-cc="' + c.cc + '" aria-label="' + esc(c.n) + '" style="--fill:' + c.col + '" d="' + (GEO.eu[c.cc] || "") + '"></path>';
   }).join("");
   var paths = {}; [].forEach.call(map.querySelectorAll(".c"), function (p) { paths[p.getAttribute("data-cc")] = p; });
   map.addEventListener("click", function (e) { var p = e.target.closest(".c"); if (p) pickCountry(p.getAttribute("data-cc"), true); });
@@ -657,7 +725,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
     var p = e.target.closest(".c");
     if (!p) { tip.hidden = true; return; }
     var c = BY[p.getAttribute("data-cc")], r = map.parentNode.getBoundingClientRect();
-    tip.textContent = c.n + " · " + "★".repeat(c.dif);
+    tip.textContent = c.n + " · " + (MODES[curM].v ? MODES[curM].f(MODES[curM].v(c)) : "★".repeat(c.dif));
     tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px"; tip.hidden = false;
   });
   map.addEventListener("mouseleave", function () { tip.hidden = true; });
@@ -665,7 +733,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
   // список
   var grid = document.getElementById("fgrid");
   grid.innerHTML = C.map(function (c) {
-    return '<button type="button" data-cc="' + c.cc + '"><img src="' + flag(c.cc) + '" width="30" height="20" alt="" loading="lazy"><span>' + esc(c.n) + "<small>" + "★".repeat(c.dif) + "</small></span></button>";
+    return '<button type="button" data-cc="' + c.cc + '"><img src="' + flag(c.cc) + '" width="30" height="20" alt="" loading="lazy"><span>' + esc(c.n) + "<small data-v>" + "★".repeat(c.dif) + "</small></span></button>";
   }).join("");
   grid.addEventListener("click", function (e) { var b = e.target.closest("[data-cc]"); if (b) pickCountry(b.getAttribute("data-cc"), true); });
 
@@ -681,6 +749,47 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
       grid.querySelector('[data-cc="' + c.cc + '"]').classList.toggle("dim", !on);
     });
   });
+
+  // цвет карты: базовый, по сложности или по показателю
+  function pct(v, d) { return (v > 0 && d ? "+" : "") + num(v, 1) + " %"; }
+  var MODES = {
+    base: { leg: "цвета стран как на карте игры" },
+    dif: { leg: "сложность" },
+    pop: { v: function (c) { return c.pop; }, f: function (v) { return num(v, v < 10 ? 1 : 0) + " млн"; } },
+    gdpc: { v: function (c) { return c.gdp / c.pop; }, f: function (v) { return num(v, 1) + " тыс. €"; } },
+    debt: { v: function (c) { return c.debt; }, f: function (v) { return num(v) + " % ВВП"; } },
+    gr: { v: function (c) { return c.gr; }, f: function (v) { return pct(v, 1); } },
+    inf: { v: function (c) { return c.inf; }, f: function (v) { return pct(v); } },
+    un: { v: function (c) { return c.un; }, f: function (v) { return pct(v); } }
+  };
+  var curM = "base", legend = document.getElementById("legend");
+  function applyMode() {
+    var m = MODES[curM], lo = 0, hi = 0;
+    if (m.v) {
+      // цвет по месту в ряду, а не по абсолютному значению: Россия и Люксембург не сплющивают шкалу
+      var sorted = C.map(m.v).sort(function (a, b) { return a - b; });
+      lo = sorted[0]; hi = sorted[sorted.length - 1];
+    }
+    C.forEach(function (c) {
+      var fill = c.col, lab = "★".repeat(c.dif);
+      if (curM === "dif") fill = "var(--d" + c.dif + ")";
+      else if (m.v) {
+        var v = m.v(c), t = C.filter(function (x) { return m.v(x) < v; }).length / (C.length - 1);
+        fill = "color-mix(in oklab, var(--q0), var(--q1) " + Math.round(t * 100) + "%)"; lab = m.f(v);
+      }
+      paths[c.cc].style.setProperty("--fill", fill);
+      grid.querySelector('[data-cc="' + c.cc + '"] [data-v]').textContent = lab;
+    });
+    legend.innerHTML = curM === "dif" ? "сложность <i style=\"background:var(--d1)\"></i><i style=\"background:var(--d2)\"></i><i style=\"background:var(--d3)\"></i><i style=\"background:var(--d4)\"></i><i style=\"background:var(--d5)\"></i>"
+      : m.v ? esc(m.f(lo)) + ' <span class="ramp"></span> ' + esc(m.f(hi)) : m.leg;
+  }
+  document.getElementById("modes").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-m]"); if (!b) return;
+    curM = b.getAttribute("data-m");
+    [].forEach.call(this.querySelectorAll("[data-m]"), function (x) { x.setAttribute("aria-pressed", x === b); });
+    applyMode();
+  });
+  applyMode();
 
   // полукруг парламента в цветах партий
   function hemicycle(parties, total) {
@@ -961,6 +1070,114 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
     }, { rootMargin: "-45% 0px -50% 0px" });
     navLinks.forEach(function (a) { var t = document.querySelector(a.getAttribute("href")); if (t) secObs.observe(t); });
   }
+})();
+
+// режимы: данные из scripts/logic/regime.gd, radical.gd и палитры из ui_regime.gd
+(function () {
+  var EMB = {
+    hall: "M12 2 2 7v2h20V7zM4 10h2.5v8H4zm4.8 0h2.5v8H8.8zm4.9 0h2.5v8h-2.5zm4.8 0H21v8h-2.5zM2 19h20v3H2z",
+    star: "M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7L12 17.5 5.8 21.2l1.6-7L2 9.5l7.1-.6z",
+    shield: "M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm0 4.5 4.5 1.7V11c0 3-1.8 5.8-4.5 7z",
+    crown: "M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5zM5 19h14v2H5z",
+    faith: "M12 2c1 4 5.5 6 5.5 11.5a5.5 5.5 0 0 1-11 0c0-3.2 2-4.6 2.2-7.5 1.6 1.1 2.3 2.8 2.3 4.5 1.2-2.4 1.4-5.6 1-8.5z"
+  };
+  var ROUND = ["Круглый стол и переход к демократии", "Договор с оппозицией: режим уступает место республике со свободными выборами. Конец власти указами."];
+  var R = [
+    { id: "hybrid", n: "Гибридный режим", m: "Выборы есть, но исход известен заранее", e: "hall", a: "#8fa8d1", t: "#38404f", start: "В начале игры: Россия и Беларусь",
+      how: "Режим складывается сам, когда индекс демократии падает ниже 0,25, или при суперпрезидентской республике с индексом ниже 0,45. Переворот для этого не нужен.",
+      up: ["Парламент и выборы остаются, но партия власти получает «административный ресурс»", "Есть вертикаль власти, инструменты режима и сводка угроз"],
+      dn: ["Партии и опросы скрыты, на виду только официальный рейтинг", "После грубых фальсификаций возможны протесты"],
+      cl: [["Силовики", 32], ["Олигархи и госкорпорации", 26], ["Администрация и бюрократия", 24], ["Губернаторы", 18]],
+      un: ["Несистемная оппозиция", "Независимые журналисты и блогеры", "Независимые профсоюзы"],
+      acts: [["Референдум о продлении полномочий", "«Обнуление»: усталость от правителя сброшена, но фальсификации растут, а подполье злится. Раз в три года."]],
+      out: "Оттепель и честные выборы поднимают индекс демократии. Когда он вырастет, страна снова станет демократией и раздел «Политика» вернётся к партиям и опросам.",
+      shot: true },
+    { id: "dictatorship", n: "Диктатура", m: "Режим личной власти: правитель, его семья и силовики", e: "star", a: "#db423d", t: "#522424",
+      how: "Закон «Форма правления», вариант «Диктатура (режим личной власти)». Это переворот: голосование не нужно, но нужна поддержка силовиков не ниже 60.",
+      up: ["Законы принимаются указом, политкапитал растёт", "Силовики довольны, безопасность выше"],
+      dn: ["Выборы становятся ритуалом, оппозиция запрещена", "Коррупция, изоляция и реальный риск восстания"],
+      cl: [["Силовые структуры", 34], ["Семья и ближний круг", 28], ["Олигархи", 22], ["Региональные бароны", 16]],
+      un: ["Демократическое подполье", "Студенческие кружки", "Оппозиция в эмиграции"],
+      acts: [["Референдум о продлении полномочий", "«Обнуление»: усталость от правителя сброшена, но фальсификации растут, а подполье злится."]],
+      out: "Круглый стол с оппозицией: режим уступает место республике со свободными выборами." },
+    { id: "junta", n: "Военная хунта", m: "Военный совет: приказы вместо законов", e: "shield", a: "#a8b35c", t: "#40472b",
+      how: "Закон «Форма правления», вариант «Военное правление (хунта)». Нужен кризис (недовольство от 28) и сильная опора на силовиков, от 65. Голосование не нужно.",
+      up: ["Порядок и безопасность растут быстрее всех режимов", "Армия получает бюджеты и контроль над ведомствами"],
+      dn: ["Конституция приостановлена, комендантский час", "Экономика растёт медленнее, мир отворачивается"],
+      cl: [["Армейское командование", 38], ["Спецслужбы", 22], ["Крупный бизнес", 20], ["Военные губернаторы", 20]],
+      un: ["Гражданское движение за выборы", "Недовольные младшие офицеры", "Забастовочные комитеты"],
+      acts: [["Пообещать передать власть гражданским", "Риск переворота ниже, отношения с миром лучше, подполье спокойнее. Но через два года обещание нужно выполнить, иначе будет взрыв недовольства."]],
+      out: "Круглый стол и передача власти гражданским. Если хунта обещала уйти, тянуть с этим нельзя." },
+    { id: "oneparty", n: "Однопартийное государство", m: "Партия — руководящая и направляющая сила", e: "star", a: "#e64d38", t: "#5c291f",
+      how: "Закон «Форма правления», вариант «Однопартийное государство». Голосование не нужно, нужна поддержка силовиков от 50.",
+      up: ["Бюджетники и рабочие получают стабильность и равенство", "Парламент собирается только для одобрения решений"],
+      dn: ["Легальна только ваша партия, политических свобод нет", "Бизнес и молодёжь недовольны"],
+      cl: [["Политбюро", 32], ["Консерваторы", 24], ["Госбезопасность", 24], ["Реформаторы", 20]],
+      un: ["Диссиденты и самиздат", "Свободные профсоюзы", "Национальные движения"],
+      acts: [["Пленум ЦК: консервативный курс", "Консерваторы и госбезопасность усиливаются, реформаторы в опале, страх растёт."],
+             ["Пленум ЦК: курс на реформы", "Реформаторы получают посты, и два года экономика растёт быстрее. Консерваторы недовольны."]],
+      out: "Круглый стол: партия отказывается от монополии на власть, и страна переходит к свободным выборам." },
+    { id: "monarchy_abs", n: "Абсолютная монархия", m: "Воля монарха — закон", e: "crown", a: "#d6ad52", t: "#4d385c",
+      how: "Закон «Форма правления», вариант «Абсолютная монархия». Голосование не нужно, нужна поддержка силовиков от 55.",
+      up: ["Решения мгновенны, политкапитал не нужен", "Село, пенсионеры и силовики поддерживают трон"],
+      dn: ["Парламент распущен или совещателен, суды подчинены двору", "Страна выпадает из семьи демократий, а власть зависит от верности армии"],
+      cl: [["Двор и знать", 30], ["Гвардия", 28], ["Купечество", 22], ["Духовенство", 20]],
+      un: ["Конституционалисты", "Республиканское подполье", "Студенты и интеллигенция"],
+      acts: [["Даровать конституцию", "Монарх делит власть с парламентом, и страна становится конституционной монархией. Двор и духовенство недовольны, конституционалисты удовлетворены."]],
+      out: "Даровать конституцию и остаться монархом или пойти на круглый стол и стать республикой." },
+    { id: "theocracy", n: "Теократия", m: "Власть от веры: духовенство над государством", e: "faith", a: "#52bd7a", t: "#264d38",
+      how: "Закон «Религия и государство», вариант «Теократия: религиозное право». В отличие от переворотов его нужно провести как обычный закон.",
+      up: ["Ценности сплачивают верующих, село и пенсионеров", "Больше политкапитала и безопасности"],
+      dn: ["Религиозные нормы становятся законом, у духовенства право вето", "Молодёжь теряет права, мир отворачивается"],
+      cl: [["Совет духовенства", 34], ["Стражи веры", 28], ["Торговые кланы", 20], ["Чиновничество", 18]],
+      un: ["Светская оппозиция", "Женское движение", "Студенческие протесты"],
+      acts: [["Указ духовного совета", "Совет духовенства и стражи веры довольны, молодёжь и женское движение против."]],
+      out: "Круглый стол с оппозицией и возвращение к светскому государству со свободными выборами." }
+  ];
+  var COMMON = [
+    ["Страх и репрессии", "Аресты активистов, амнистия политзаключённых, цензура интернета."],
+    ["Пропаганда и культ", "Пропаганду можно усилить или ослабить, культ личности поднять или опустить на ступень."],
+    ["Выборы", "Больше «административного ресурса» или честнее выборы. Фальсификации дают голоса, но после них бывают протесты."],
+    ["Будущее режима", "Назначить преемника, чтобы снять усталость от правителя, или начать оттепель."]
+  ];
+  var sec = document.getElementById("regimes"), tabs = document.getElementById("rtabs"), panel = document.getElementById("rpanel");
+  if (!sec || !tabs) return;
+  function svg(e) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + EMB[e] + '"/></svg>'; }
+  tabs.innerHTML = R.map(function (r, i) {
+    return '<button type="button" role="tab" id="rt-' + r.id + '" aria-controls="rpanel" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? 0 : -1) + '" style="--c:' + r.a + '">' + svg(r.e) + r.n + "</button>";
+  }).join("");
+  document.getElementById("rcommon").innerHTML = "<p>Рычаги, общие для всех режимов</p>" + COMMON.map(function (c) { return "<div><b>" + c[0] + "</b><span>" + c[1] + "</span></div>"; }).join("");
+  function li(a) { return a.map(function (x) { return "<li>" + x + "</li>"; }).join(""); }
+  function show(i, focus) {
+    var r = R[i];
+    sec.style.setProperty("--ra", r.a); sec.style.setProperty("--rt", r.t);
+    [].forEach.call(tabs.children, function (b, k) { b.setAttribute("aria-selected", k === i); b.tabIndex = k === i ? 0 : -1; if (k === i && focus) b.focus(); });
+    panel.setAttribute("aria-labelledby", "rt-" + r.id);
+    var acts = r.acts.slice(); if (r.id !== "hybrid") acts.push(ROUND);
+    panel.innerHTML =
+      "<div>" +
+        '<div class="r-top"><div class="r-emb">' + svg(r.e) + "</div><div><h3>" + r.n + "</h3><p>" + r.m + "</p></div></div>" +
+        (r.start ? '<span class="r-start">' + r.start + "</span>" : "") +
+        '<div class="r-blk"><h4>Как к нему прийти</h4><p>' + r.how + "</p></div>" +
+        '<div class="r-blk"><h4>Что меняется</h4><div class="r-pm"><ul class="up">' + li(r.up) + '</ul><ul class="dn">' + li(r.dn) + "</ul></div></div>" +
+        '<div class="r-blk"><h4>Особые решения</h4><div class="acts">' + acts.map(function (a) { return "<div><b>" + a[0] + "</b><span>" + a[1] + "</span></div>"; }).join("") + "</div></div>" +
+        '<div class="r-blk"><h4>Как выйти</h4><p>' + r.out + "</p></div>" +
+      "</div><div>" +
+        '<div class="r-blk" style="margin-top:0"><h4>Кланы элиты · исходное влияние</h4><div class="clans">' + r.cl.map(function (c) {
+          return '<div class="clan"><span>' + c[0] + "</span><b>" + c[1] + '%</b><span class="bar"><i style="width:' + (c[1] / 40 * 100) + '%"></i></span></div>';
+        }).join("") + "</div></div>" +
+        '<div class="r-blk"><h4>Подполье против режима</h4><div class="unders">' + r.un.map(function (u) { return "<span>" + u + "</span>"; }).join("") + "</div></div>" +
+        (r.shot ? '<figure class="r-shot"><button type="button" data-full="img/regime.webp" data-cap="Россия: вертикаль власти, кланы элиты, инструменты режима и фасадный парламент"><img src="img/crop/regime.webp" width="1400" height="929" loading="lazy" alt="Экран политики России при гибридном режиме"></button><figcaption>Так это выглядит в игре: Россия</figcaption></figure>' : "") +
+      "</div>";
+  }
+  tabs.addEventListener("click", function (e) { var b = e.target.closest("[role=tab]"); if (b) show([].indexOf.call(tabs.children, b)); });
+  tabs.addEventListener("keydown", function (e) {
+    var i = [].indexOf.call(tabs.children, document.activeElement), n = R.length;
+    if (i < 0) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); show((i + 1) % n, true); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); show((i + n - 1) % n, true); }
+  });
+  show(0);
 })();
 </script>
 </body>

@@ -4,7 +4,7 @@
 1) godot --headless --path . --script website/tools/export_countries.gd -- out=/tmp/sym
 2) python3 website/tools/build_countries.py /tmp/sym
 """
-import json, math, sys
+import json, re, math, sys
 from collections import defaultdict
 from pathlib import Path
 from PIL import Image
@@ -73,15 +73,26 @@ def geo():
     return {"eu": eu, "shape": shape}
 
 
+def base_colors():
+    # базовые цвета стран на карте игры (WORLD_CCOL в data_core.gd)
+    src = (ROOT / "scripts/data/data_core.gd").read_text(encoding="utf-8")
+    line = next(l for l in src.splitlines() if l.startswith("const WORLD_CCOL"))
+    out = {}
+    for cc, r, g, b in re.findall(r'"(\w+)": Color\(([\d.]+), ([\d.]+), ([\d.]+)', line):
+        out[cc] = "#%02x%02x%02x" % tuple(round(float(x) * 255) for x in (r, g, b))
+    return out
+
+
 def main():
     d = json.loads((OUT / "countries.json").read_text(encoding="utf-8"))
     (ROOT / "website/img/flags").mkdir(parents=True, exist_ok=True)
     out = []
+    col = base_colors()
     for cc in ORDER:
         v = d[cc]; inf = v["info"]
         total = sum(v["seats"])
         out.append({
-            "cc": cc, "n": v["name"], "cap": v["cap"], "pop": inf.get("pop", v["pop"]), "gdp": inf.get("gdp", v["gdp"]),
+            "cc": cc, "col": col.get(cc, "#8c8094"), "n": v["name"], "cap": v["cap"], "pop": inf.get("pop", v["pop"]), "gdp": inf.get("gdp", v["gdp"]),
             "debt": inf.get("debt_pct"), "dif": inf.get("difficulty", 3), "blurb": inf.get("blurb", ""), "desc": v["desc"],
             "you": v["leader"], "gov": v["gov"], "gp": v["gov_party"],
             "head": "Монарх" if v["head"] == "monarch" else (v["head_title"] or "Федеральный совет"), "headk": HEAD.get(v["head"], ""),
