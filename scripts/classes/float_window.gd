@@ -17,10 +17,17 @@ var _btn: Button
 var _grips: Array = []
 var _content: Control
 var _drag := false
+var lock_why := ""                        # v50: почему окно недоступно ("" — доступно)
+var _lock_bar: PanelContainer = null
+var _lock_lbl: Label = null
+var _lock_cover: Control = null
 var _drag_off := Vector2.ZERO
 var _rmode := 0
 var _rs_size := Vector2.ZERO
 var _rs_mouse := Vector2.ZERO
+var _sb: StyleBoxFlat = null
+var _tsb: StyleBoxFlat = null
+var _bg: Panel = null
 
 func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.937)) -> void:
 	accent = acc
@@ -36,7 +43,14 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	sb.shadow_size = 10
 	sb.shadow_offset = Vector2(0.0, 3.0)
 	bg.add_theme_stylebox_override("panel", sb)
+	_sb = sb
+	_bg = bg
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# v45_1: мягкий отблеск сверху окна
+	bg.draw.connect(func() -> void:
+		var hh: float = minf(90.0, bg.size.y * 0.5)
+		bg.draw_polygon(PackedVector2Array([Vector2(1.0, 1.0), Vector2(bg.size.x - 1.0, 1.0), Vector2(bg.size.x - 1.0, hh), Vector2(1.0, hh)]),
+			PackedColorArray([Color(1, 1, 1, 0.035), Color(1, 1, 1, 0.035), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)])))
 	add_child(bg)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_vb = VBoxContainer.new()
@@ -54,9 +68,18 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	tsb.content_margin_top = 3.0
 	tsb.content_margin_bottom = 3.0
 	_title_bar.add_theme_stylebox_override("panel", tsb)
+	_tsb = tsb
 	_title_bar.mouse_filter = Control.MOUSE_FILTER_STOP
 	_title_bar.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	_title_bar.gui_input.connect(_title_input)
+	# v45_1: градиент цвета раздела в заголовке
+	_title_bar.draw.connect(func() -> void:
+		var r := Rect2(Vector2(3.0, 0.0), _title_bar.size - Vector2(3.0, 0.0))
+		var a0 := Color(accent.r, accent.g, accent.b, 0.30)
+		var a1 := Color(accent.r, accent.g, accent.b, 0.0)
+		_title_bar.draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+			PackedColorArray([a0, a1, a1, a0]))
+		_title_bar.draw_line(Vector2(3.0, 0.5), Vector2(_title_bar.size.x * 0.6, 0.5), Color(1, 1, 1, 0.10), 1.0))
 	_vb.add_child(_title_bar)
 	var hb := HBoxContainer.new()
 	_title_bar.add_child(hb)
@@ -145,6 +168,78 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 			gr.add_child(mark)
 		gr.gui_input.connect(_grip_input.bind(mode))
 		_grips.append(gr)
+
+# v51: перекраска окна (смена режима): акцент заголовка, фон и рамка
+func set_skin(acc: Color, bg: Color, border: Color) -> void:
+	accent = acc
+	if _tsb != null:
+		_tsb.bg_color = bg.lightened(0.06).lerp(acc, 0.20)
+		_tsb.border_color = acc
+	if _sb != null:
+		_sb.bg_color = Color(bg.r, bg.g, bg.b, 0.95)
+		_sb.border_color = border
+	if _title_bar != null:
+		_title_bar.queue_redraw()
+	if _bg != null:
+		_bg.queue_redraw()
+
+
+# v50: недоступное окно затемняется, сверху — причина; содержимое можно читать и прокручивать, но не нажимать
+func set_locked(why: String) -> void:
+	if why == lock_why:
+		return
+	lock_why = why
+	if _lock_bar == null:
+		_lock_bar = PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.20, 0.13, 0.10, 0.96)
+		sb.border_color = Color(0.93, 0.62, 0.33, 0.85)
+		sb.border_width_left = 3
+		sb.set_corner_radius_all(5)
+		sb.content_margin_left = 8.0
+		sb.content_margin_right = 6.0
+		sb.content_margin_top = 3.0
+		sb.content_margin_bottom = 3.0
+		_lock_bar.add_theme_stylebox_override("panel", sb)
+		_lock_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_lock_lbl = Label.new()
+		_lock_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_lock_lbl.add_theme_font_size_override("font_size", 12)
+		_lock_lbl.add_theme_color_override("font_color", Color(1.0, 0.82, 0.62))
+		_lock_bar.add_child(_lock_lbl)
+		_vb.add_child(_lock_bar)
+		_vb.move_child(_lock_bar, 1)
+		_lock_cover = Control.new()
+		_lock_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+		_lock_cover.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
+		_lock_cover.gui_input.connect(_cover_input)
+		add_child(_lock_cover)
+		_content.resized.connect(_place_cover)
+		_content.item_rect_changed.connect(_place_cover)
+	_lock_lbl.text = "✖  " + why
+	_lock_bar.visible = why != ""
+	_lock_cover.visible = why != ""
+	_lock_cover.tooltip_text = why
+	_content.modulate = Color(0.62, 0.62, 0.66, 0.78) if why != "" else Color(1, 1, 1, 1)
+	_place_cover()
+
+
+func _place_cover() -> void:
+	if _lock_cover == null or not _lock_cover.visible:
+		return
+	_lock_cover.position = _content.position + _vb.position
+	_lock_cover.size = _content.size if not collapsed else Vector2.ZERO
+
+
+func _cover_input(ev: InputEvent) -> void:
+	var mb := ev as InputEventMouseButton
+	if mb == null or not mb.pressed:
+		return
+	move_to_front()
+	var sc := _content as ScrollContainer
+	if sc != null and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		sc.scroll_vertical += 48 * (1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1)
+
 
 func set_closable(on: bool) -> void:
 	closable = on

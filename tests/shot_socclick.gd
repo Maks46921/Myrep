@@ -44,7 +44,7 @@ func _init():
 	for i in 4: await process_frame
 	g.show_desk(5)
 	for i in 6: await process_frame
-	check(g.subbar2.visible and g.sub2_buttons.size() == 3, "подпанель экономики без «Влияния и зависимости»")
+	check(g.subbar2.visible and g.sub2_buttons.size() >= 3, "подпанель экономики без «Влияния и зависимости»")
 	await click(g.sub2_buttons[2])
 	for i in 4: await process_frame
 	check(g.current_desk == 10, "вкладка «Влияние и зависимость» не открылась (desk %d)" % g.current_desk)

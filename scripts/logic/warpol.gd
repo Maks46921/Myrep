@@ -5,13 +5,25 @@
 #     признание вины, нейтралитет), готовность противника, встречные предложения, перемирие, посредник.
 #  3) Международная реакция: осуждение, санкции по доле торговли, премия за риск по долгу, ООН, оружие и
 #     добровольцы для жертвы, беженцы, вступление третьих стран, непризнание аннексий.
-extends "res://scripts/logic/military.gd"
+extends "res://scripts/logic/army.gd"
+
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func fa_ws_annex_has(c: String) -> bool:
+	return false
+
+
+# --- конец заглушек ---
+
 
 # отношение архетипов партий к войне: >0 — «ястребы», <0 — «голуби»
 const WAR_HAWK := {"popr": 0.6, "cons": 0.3, "own": 0.1, "region": -0.1, "none": 0.0, "oth": 0.0, "prot": -0.1, "popl": -0.3,
 	"lib": -0.35, "soc": -0.45, "euro": -0.55, "left": -0.8, "green": -0.9}
 # требования на переговорах
-const TALK_IDS := ["land", "border", "repar", "disarm", "dmz", "fleet", "trade", "guilt", "neutral"]
+const TALK_IDS := ["land", "border", "recog", "repar", "disarm", "dmz", "unpk", "guar", "fleet", "trade", "res", "guilt", "trib", "minor", "pow", "neutral"]
+# v53_1: наши уступки противнику — делают мир для него приемлемее (отрицательная «цена»)
+const TALK_GIVE := ["return", "comp", "lift"]
 const TALK_INFO := {
 	"land": ["Все занятые земли", "Все занятые вами АТЕ противника (кроме столицы) переходят к вам."],
 	"border": ["Только приграничные земли", "Только занятые АТЕ, граничащие с вашей довоенной территорией: дешевле, чем все занятые земли."],
@@ -21,8 +33,18 @@ const TALK_INFO := {
 	"fleet": ["Передача флота", "Половина кораблей противника переходит к вам."],
 	"trade": ["Торговые уступки", "Противник снижает пошлины для ваших товаров на 3 года: рост +0,15 п.п."],
 	"guilt": ["Признание вины", "Противник официально признаёт ответственность за войну: рейтинг и политкапитал растут."],
-	"neutral": ["Нейтралитет противника", "Противник выходит из НАТО и не получит помощи союзников в будущей войне с вами."]}
-const TALK_REPAR := [1, 2, 3, 5]
+	"neutral": ["Нейтралитет противника", "Противник выходит из НАТО и не получит помощи союзников в будущей войне с вами."],
+	"recog": ["Признание новых границ", "Противник официально признаёт переход к вам земель (в том числе занятых раньше): мир быстрее примет аннексию (непризнание 1 год вместо 3), снимается условие санкций о границах."],
+	"unpk": ["Миротворцы ООН на линии разграничения", "Войска ООН разводят армии: 5 лет ни одна сторона не держит войска у границы, мир одобряет урегулирование."],
+	"guar": ["Гарантии безопасности", "Великие державы гарантируют договор: 15 лет противник не держит войска у границы, безопасность страны выше. Доступно стране, на которую напали."],
+	"res": ["Ресурсные концессии", "Противник отдаёт вашим компаниям месторождения и порты на 5 лет: рост +0,1 п.п."],
+	"trib": ["Международный трибунал", "Виновные в развязывании войны предстают перед судом: демократии одобряют, политкапитал растёт. Доступно стране, на которую напали."],
+	"minor": ["Права соотечественников", "Противник гарантирует язык, школы и автономию вашим соотечественникам: Силовики и Пенсионеры довольны, отношения с противником легче восстановить."],
+	"pow": ["Обмен пленными «всех на всех»", "Пленные и интернированные возвращаются домой: рейтинг растёт у всех групп."],
+	"return": ["Уступка: вернуть занятые земли", "Вы уходите со всех занятых земель противника: он гораздо охотнее подпишет мир, условие санкций о границах выполнено."],
+	"comp": ["Уступка: компенсация ущерба (1,5% ВВП)", "Вы платите за разрушения: долг растёт, противник сговорчивее, условие санкций о компенсации выполнено."],
+	"lift": ["Уступка: отказ от претензий и санкций", "Вы снимаете свои пошлины и претензии к противнику: он сговорчивее, торговля восстанавливается."]}
+const TALK_REPAR := [1, 2, 3, 5, 8]
 
 
 # ---------- демократия и партии ----------
@@ -215,8 +237,21 @@ func talk_avail(id: String) -> String:
 			if float(FLEET.get("navy0", {}).get(lead, {}).size()) == 0.0 or not flt_has_sea() or bool(flt.get("land", true)):
 				return "У противника нет флота или у вас нет выхода к морю."
 		"neutral":
-			if not (lead in MIL_NATO) or lead in mil.get("neutral", []):
+			if not mil_is_nato(lead) or lead in mil.get("neutral", []):
 				return "Противник не в НАТО."
+		"recog":
+			var sel0 := talk_sel()
+			if not fa_ws_annex_has(lead) and not (bool(sel0.get("land", false)) and talk_avail("land") == "") and not (bool(sel0.get("border", false)) and talk_avail("border") == ""):
+				return "Нужно требовать земли (все занятые или приграничные) или иметь непризнанные прежние аннексии."
+		"guar", "trib":
+			if bool(w["aggr"]):
+				return "Только для страны, на которую напали."
+		"return":
+			var n3 := 0
+			for c in mil_side_ccs(1):
+				n3 += mil_occupied_by_us(String(c)).size()
+			if n3 == 0:
+				return "Вы не занимаете земель противника."
 	return ""
 
 
@@ -243,6 +278,26 @@ func talk_cost(id: String, lvl: int = 0) -> float:
 			return 6.0
 		"neutral":
 			return 22.0
+		"recog":
+			return 12.0 + land * 0.3
+		"unpk":
+			return 5.0
+		"guar":
+			return 10.0
+		"res":
+			return 10.0
+		"trib":
+			return 14.0
+		"minor":
+			return 4.0
+		"pow":
+			return 1.0
+		"return":
+			return -(8.0 + land * 0.6)
+		"comp":
+			return -10.0
+		"lift":
+			return -4.0
 	return 0.0
 
 
@@ -250,8 +305,11 @@ func talk_cost(id: String, lvl: int = 0) -> float:
 func talk_package() -> Array:
 	var sel := talk_sel()
 	var out: Array = []
-	for id in TALK_IDS:
+	var giving_back: bool = bool(sel.get("return", false)) and talk_avail("return") == ""
+	for id in TALK_IDS + TALK_GIVE:
 		if not sel.has(id) or (id != "repar" and not bool(sel[id])):
+			continue
+		if giving_back and id in ["land", "border", "recog"]:
 			continue
 		if id == "repar" and int(sel["repar"]) <= 0:
 			continue
@@ -300,11 +358,15 @@ func talk_pkg_text(pkg: Array) -> String:
 		return "белый мир (довоенные границы)"
 	var parts: PackedStringArray = []
 	for it in pkg:
+		if String(it[0]) in TALK_GIVE:
+			parts.append(String(TALK_INFO[String(it[0])][0]).replace("Уступка: ", "мы обязуемся: "))
+			continue
 		var id := String(it[0])
 		if id == "repar":
 			parts.append("репарации %d%% ВВП" % int(TALK_REPAR[int(it[1])]))
 		else:
-			parts.append(String(TALK_INFO[id][0]).to_lower())
+			var nm0 := String(TALK_INFO[id][0])
+			parts.append(nm0.substr(0, 1).to_lower() + nm0.substr(1))
 	return ", ".join(parts)
 
 
@@ -313,6 +375,9 @@ func talk_terms(pkg: Array) -> Dictionary:
 	for it in pkg:
 		t[String(it[0])] = int(TALK_REPAR[int(it[1])]) if String(it[0]) == "repar" else 1
 	return t
+
+
+var peace_name := ""
 
 
 func talk_propose() -> Dictionary:
@@ -324,6 +389,10 @@ func talk_propose() -> Dictionary:
 	var pkg: Array = q["pkg"]
 	if mil_rng.randf() < float(q["p"]):
 		var t := talk_terms(pkg)
+		# v50: у мирного договора может быть название
+		if peace_name.strip_edges() != "":
+			mil_log("Подписан мирный договор «%s»: %s." % [peace_name.strip_edges(), talk_pkg_text(pkg)], COL_GOOD)
+			peace_name = ""
 		return mil_peace("annex" if t.has("land") or t.has("border") else "white", t)
 	var w: Dictionary = mil["war"]
 	w["prop_cd"] = 15
@@ -459,7 +528,61 @@ func talk_apply(t: Dictionary, enemies: Array, lead: String, parts: PackedString
 		for g in GROUPS:
 			add_support(g, 2.0)
 		capital = minf(100.0, capital + 4.0)
+		# v53_1: признание вины видит весь мир
+		for b in fa_bots():
+			fa_hit(b, 1.5 if not bool(mil["war"].get("aggr", false)) else -1.0, "признание вины в войне")
 		parts.append("противник признал вину за войну")
+	if t.has("recog"):
+		parts.append("противник признал новые границы")
+	if t.has("unpk"):
+		var dz2: Dictionary = mil.get("dmz", {})
+		dz2[lead] = maxi(int(dz2.get(lead, 0)), 60)
+		mil["dmz"] = dz2
+		for b2 in fa_bots():
+			fa_hit(b2, 2.0, "миротворцы ООН и урегулирование")
+		parts.append("миротворцы ООН на линии разграничения (5 лет)")
+	if t.has("guar"):
+		var dz3: Dictionary = mil.get("dmz", {})
+		dz3[lead] = maxi(int(dz3.get(lead, 0)), 180)
+		mil["dmz"] = dz3
+		lvl["security_lvl"] = clampf(float(lvl["security_lvl"]) + 4.0, 0.0, 100.0)
+		add_support("Силовики", 1.0)
+		parts.append("гарантии безопасности великих держав (15 лет)")
+	if t.has("res"):
+		var rs: Dictionary = mil.get("res", {})
+		rs[lead] = 60
+		mil["res"] = rs
+		parts.append("ресурсные концессии на 5 лет")
+	if t.has("trib"):
+		capital = minf(100.0, capital + 3.0)
+		for b3 in fa_bots():
+			fa_hit(b3, 1.0 + 2.0 * fa_pers(b3)["values"], "трибунал над агрессорами")
+		parts.append("международный трибунал над виновными")
+	if t.has("minor"):
+		add_support("Силовики", 1.5)
+		add_support("Пенсионеры", 1.5)
+		var rx: Dictionary = fst.get("rel_x", {})
+		rx[lead] = float(rx.get(lead, 0.0)) + 4.0
+		parts.append("права соотечественников гарантированы")
+	if t.has("pow"):
+		for g2 in GROUPS:
+			add_support(g2, 1.0)
+		parts.append("обмен пленными «всех на всех»")
+	if t.has("return"):
+		for b4 in fa_bots():
+			fa_hit(b4, 2.0, "возврат занятых земель")
+		parts.append("занятые земли возвращены")
+	if t.has("comp"):
+		var amt: float = gdp * 0.015
+		debt += amt
+		if wsim.has(lead):
+			wsim[lead]["debt"] = maxf(0.0, float(wsim[lead]["debt"]) - amt / maxf(1.0, float(wsim[lead]["gdp"])) * 100.0)
+		add_support("Силовики", -2.0)
+		parts.append("вы выплачиваете компенсацию ущерба %.1f млрд €" % amt)
+	if t.has("lift") and ex.has("p") and (ex["p"] as Dictionary).has(lead):
+		ex["p"][lead]["tar"] = 0
+		ex["p"][lead]["ret"] = 0
+		parts.append("взаимные пошлины и претензии сняты")
 	if t.has("neutral"):
 		var nl: Array = mil.get("neutral", [])
 		if not (lead in nl):
@@ -488,7 +611,7 @@ func war_victim() -> String:
 
 # стартовое осуждение агрессора ag за нападение на vi
 func war_cond0(ag: String, vi: String) -> float:
-	var c: float = 20.0 + 35.0 * war_demo(vi) + (15.0 if war_both_eu(ag, vi) else 0.0) + (10.0 if vi in MIL_NATO else 0.0) - 15.0 * (1.0 - war_demo(ag))
+	var c: float = 20.0 + 35.0 * war_demo(vi) + (15.0 if war_both_eu(ag, vi) else 0.0) + (10.0 if mil_is_nato(vi) else 0.0) - 15.0 * (1.0 - war_demo(ag))
 	return clampf(c, 5.0, 100.0)
 
 
@@ -595,7 +718,7 @@ func war_intl_month() -> void:
 		add_support("Пенсионеры", -0.3)
 		add_support("Рабочие", -0.3)
 	# помощь жертве: оружие, деньги, добровольцы
-	var k_aid: float = float(it["cond"]) / 100.0 * (0.05 if vi in MIL_NATO or bool(WORLD.get(vi, {}).get("eu", false)) else 0.03)
+	var k_aid: float = float(it["cond"]) / 100.0 * (0.05 if mil_is_nato(vi) or bool(WORLD.get(vi, {}).get("eu", false)) else 0.03)
 	if months >= 1 and k_aid > 0.01:
 		var add_k := 0.0
 		for f in mil_units_of(vi):
@@ -631,6 +754,8 @@ func war_intl_month() -> void:
 
 
 func war_join_check(w: Dictionary, it: Dictionary) -> void:
+	if bool(w.get("ongoing", false)):
+		return      # v50: в войне, идущей с начала игры, расклад союзников уже сложился
 	var ag := war_aggressor()
 	var vi := war_victim()
 	var ag_side := mil_side(ag)
@@ -736,7 +861,7 @@ func war_dip_extra(c: String) -> float:
 
 
 func war_timers_month() -> void:
-	for key in ["lim", "dmz", "trd", "nonrec"]:
+	for key in ["lim", "dmz", "trd", "nonrec", "res"]:
 		var d: Dictionary = mil.get(key, {})
 		for c in d.keys():
 			if key == "lim":
@@ -754,7 +879,7 @@ func war_timers_month() -> void:
 
 
 func war_trade_g() -> float:
-	return 0.15 * float((mil.get("trd", {}) as Dictionary).size())
+	return 0.15 * float((mil.get("trd", {}) as Dictionary).size()) + 0.1 * float((mil.get("res", {}) as Dictionary).size())
 
 
 func war_intl_text() -> String:

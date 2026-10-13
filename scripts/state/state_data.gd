@@ -1,5 +1,5 @@
 # Таблицы, которые страна подменяет при запуске (REGIONS, LEAN, PARTY_NAMES и др.).
-extends "res://scripts/data/data_countries.gd"
+extends "res://scripts/data/data_orgs.gd"
 
 var SEATS := 630
 
@@ -273,7 +273,7 @@ var MARKETS := [
 
 var BASE_MODS := {
 	"pension_mult": 1.0, "admin_mult": 1.0, "income_mult": 1.0, "corp_mult": 1.0, "vat_mult": 1.0,
-	"edu_eff": 1.0, "health_eff": 1.0, "env_eff": 1.0, "extra_spend": 0.0, "growth_bonus": 0.0,
+	"edu_eff": 1.0, "army_q": 1.0, "health_eff": 1.0, "env_eff": 1.0, "extra_spend": 0.0, "growth_bonus": 0.0,
 	"unemp_base": 0.0, "sec_bonus": 0.0, "corr_shift": 0.0, "equal_shift": 0.0, "threshold": 0.05,
 	"parl_term": 48, "pres_term": 60, "impeach_seats": 316, "constr": 1, "crisis_limit": 6, "pres_rule": 0,
 	"seat_bonus": 0.0, "capital_bonus": 0.0, "mood_shift": 0.0, "auto_shift": 0.0, "dem_shift": 0.0, "cb_bias": 0.0, "dip_bonus": 0.0, "brake_room": 0.0,

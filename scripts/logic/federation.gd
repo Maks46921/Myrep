@@ -63,7 +63,8 @@ func fed_cfg() -> Dictionary:
 func fed_reset_world() -> void:
 	ate_reset()
 	for ui in fed_u0:
-		WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
+		if int(ui) < WORLD_UNITS.size():          # единицы, созданные реформой АТЕ, ate_reset уже убрал
+			WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
 	for cc in fed_w0:
 		WORLD[cc]["regions"] = (fed_w0[cc] as Array).duplicate(true)
 	fed_u0.clear()
@@ -710,7 +711,7 @@ func fed_adjacent_units() -> Array:
 func fed_rel(cc: String) -> float:
 	if dip.has(cc):
 		return float(dip[cc]["rel"])
-	return 45.0 + float((fst["rel_x"] as Dictionary).get(cc, 0.0))
+	return clampf(45.0 + float((fst["rel_x"] as Dictionary).get(cc, 0.0)) + fa_rel_term(cc), 0.0, 100.0)
 
 
 func fed_court(cc: String) -> bool:

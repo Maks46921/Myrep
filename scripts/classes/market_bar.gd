@@ -53,6 +53,10 @@ func _draw() -> void:
 	fb.set_corner_radius_all(4)
 	if fw > 1.0:
 		draw_style_box(fb, Rect2(0.0, by, maxf(fw, bh), bh))
+		var hl := StyleBoxFlat.new()
+		hl.bg_color = Color(1, 1, 1, 0.14)
+		hl.set_corner_radius_all(4)
+		draw_style_box(hl, Rect2(1.0, by + 1.0, maxf(fw, bh) - 2.0, bh * 0.42))
 	if dd > k:
 		var ob := StyleBoxFlat.new()
 		ob.bg_color = Color(0.933, 0.420, 0.420)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Единый запуск тестов PolitGame.
+"""Единый запуск тестов Symphony.
 
   tools/test.py quick                 быстрая проверка (~1 мин)
   tools/test.py full                  все тесты по всем странам (34)
@@ -12,7 +12,7 @@ import argparse, os, re, subprocess, sys, time, concurrent.futures as cf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOGS = os.path.join(ROOT, '.testlogs')
-ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT'.split()
+ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT MD BY UA RU'.split()
 
 # имя: (скрипт, доп.аргументы, таймаут, нужен ли seed-эталон)
 TESTS = {
@@ -36,6 +36,8 @@ TESTS = {
     'ai':     ('t_ai.gd', [], 600),
     'budget': ('t_budget.gd', [], 90),
     'council': ('t_council.gd', [], 90),
+    'coal':   ('t_coal.gd', ['coal=1'], 150),
+    'world':  ('t_world.gd', [], 200),
     'far':    ('t_far.gd', [], 120),
     'fed':    ('t_fed.gd', [], 240),
     'adm':    ('t_adm.gd', [], 240),
@@ -44,17 +46,26 @@ TESTS = {
     'warpol': ('t_warpol.gd', [], 300),
     'fleet':  ('t_fleet.gd', [], 200),
     'soc':    ('t_soc.gd', [], 300),
-    'menu':   ('shot_menu.gd', [], 60),     # меню выбора страны (карта + карточка), нужен xvfb-run
+    'tech':   ('t_tech.gd', [], 300),
+    'techbal': ('t_techbal.gd', [], 240),
+    'revolt': ('t_revolt.gd', [], 400),
+    'realism': ('t_realism.gd', [], 400),
+    'diplo2': ('t_diplo2.gd', [], 400),
+    'events': ('t_events.gd', [], 400),
+    'army':   ('t_army.gd', [], 400),
+    'fpai': ('t_fpai.gd', [], 400),
+    'agents2': ('t_agents2.gd', [], 400),
+    'menu':   ('shot_menu.gd', [], 150),    # меню выбора страны (карта + карточка), нужен xvfb-run
     'width':  ('audit_width.gd', [], 120),  # элементы шире окна при 1366x768, нужен xvfb-run
     'click':  ('shot_click.gd', [], 120),
     'socclick': ('shot_socclick.gd', [], 120),
     'fedclick': ('shot_fedclick.gd', [], 120),
     'warclick': ('shot_warclick.gd', [], 150),   # реальные щелчки мышью, нужен xvfb-run
-    'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0'], 200),
+    'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0', 'revev=0', 'rlev=0'], 200),
     'long':   ('t_long.gd', [], 400),
 }
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('coal', ['DE', 'PL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fpai', ['DE', 'PL']), ('world', ['RU', 'BY', 'DE']), ('agents2', ['LU', 'DE']), ('army', ['DE', 'LU', 'FI']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')
@@ -77,10 +88,14 @@ def run_stubs():
     return 'stubs', '-', errs, time.time() - t0, p.stdout + p.stderr
 
 
+SLOW = {"RU": 3.0, "UA": 1.3}
+
+
 def run_one(test, cc, update):
     if test == 'stubs':
         return run_stubs()
     script, extra, tmo = TESTS[test]
+    tmo = tmo * SLOW.get(cc, 1.0)       # v50: у России 89 субъектов — прогон заметно дольше
     gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick')
     cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', 'tests/' + script, '--', 'country=' + cc] + extra
     if gui:

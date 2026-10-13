@@ -5,7 +5,7 @@ static var pending_code := ""
 static var pending_party := 0
 
 # Настройки новой игры (задаются в меню перед стартом и не меняются во время игры; переживают перезагрузку сцены)
-static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "observer": false, "music": 0.45, "sfx": 0.6}
+static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "tut": 1, "coal": 1, "observer": false, "music": 0.45, "sfx": 0.6}
 
 var ccode := "DE"
 var map_reg_pick: OptionButton = null   # список регионов в окне карты
@@ -55,6 +55,15 @@ var mods: Dictionary = BASE_MODS.duplicate()
 var cooldown := {}
 
 var capital := 40.0
+var ev_hist := {}             # v46_1: id события -> {"t": последний месяц, "n": сколько раз было, "o": выбранный вариант}
+var ev_queue: Array = []      # v46_1: продолжения цепочек [{"id", "due", "rid"}]
+var ev_later: Array = []      # v46_1: отложенные последствия [{"due", "fx", "t", "rid"}]
+var ev_log: Array = []        # v46_1: последние решения
+var noc_constr := false       # v44_1: конструктивный вотум недоверия (нужен преемник)
+var tech_adj := 1.0           # v44_1: множитель скорости исследований (договоры, этика, утечка умов)
+var tech_pas_mult := 1.0      # v44_1: множитель пассивного изучения (совместные проекты)
+var nato_ovr := -1            # v44_1: членство игрока в НАТО (-1 по данным мира, 0 вышел/не член, 1 член)
+var free_adj := 0.0           # v44_1: поправка свободы слова от состояния СМИ
 
 var seats: Array[int] = []
 
@@ -68,6 +77,8 @@ var h12 := {}                 # v35: помесячная история пок�
 var observer := false         # v35: режим наблюдателя — вашей партией управляет ИИ
 var deadlock := 0             # v35: досрочных выборов подряд из-за несформированного правительства
 var minority_gov := false     # v35: правительство меньшинства на терпимости (выход из кризиса)
+var coal_talks := false       # v53: после выборов идут коалиционные переговоры (коалицию собирает игрок)
+var coal_tried: Array = []    # v53: партии, с которыми уже говорили в этом раунде переговоров
 var pm_lead := false          # v38: глава правительства — игрок, хотя его партия в коалиции не крупнейшая (до первых выборов)
 var techno_until := -1        # v35: техническое правительство до этого месяца
 var extra_mins := {}          # v35: p -> обещанные министерства сверх квоты
@@ -300,6 +311,8 @@ var log_box: RichTextLabel
 
 var event_label: RichTextLabel
 
+var ev_art: Control = null      # v46_1: иллюстрированная шапка события
+var ev_adv: RichTextLabel = null # v46_1: совет и память о прошлых решениях
 var ev_banner: PanelContainer
 
 var ev_glyph: Label
@@ -355,6 +368,10 @@ var reg_action_rows := {}
 var reg_table := {}
 
 var hemi_ctl: Control
+var upper_ctl: Control = null
+var upper_pos: Array = []
+var upper_rad := 0.04
+var upper_lay_n := -1
 
 var hemi_legend: RichTextLabel
 
@@ -532,6 +549,13 @@ var map_zoom := 1.0
 
 var map_center := Vector2(300.0, 250.0)
 
+# v49: плавная камера карты — цель, к которой масштаб и центр подтягиваются каждый кадр
+var map_zoom_t := 1.0
+
+var top_flag: TextureRect = null      # v49: флаг своей страны на кнопке смены страны
+
+var map_center_t := Vector2(300.0, 250.0)
+
 var map_inited := false
 
 var map_drag := false
@@ -640,6 +664,8 @@ var log_filter_btns: Array = []
 #  ПОМОЩНИК И АВТОПИЛОТ
 # ============================================================
 var auto_floor_on := false
+var bld_pick := ""               # v50: выбранное в окне «Строительство» сооружение (щелчок по карте ставит его)
+var floor_keys := {}            # v50: авто-подъём отдельных статей расходов
 var floor_check: CheckButton
 var ap := {"bal": false, "target": 0.5, "events": false, "style": 0, "repair": false, "build": false}
 

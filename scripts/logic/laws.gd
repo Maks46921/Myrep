@@ -4,6 +4,10 @@ extends "res://scripts/logic/policy.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func democracy_index() -> float:
+	return 0.0
+
+
 func hold_parliament(reason: String) -> void:
 	pass
 
@@ -14,14 +18,6 @@ func junior_info() -> Dictionary:
 
 func law_locked(tid: String) -> String:
 	return ""
-
-
-func log_line(s: String) -> void:
-	pass
-
-
-func log_tag(tag: String, col: String, text: String) -> void:
-	pass
 
 
 func national_shares(pres: bool, only: Array = []) -> Array[float]:
@@ -65,10 +61,15 @@ func sfx(name: String) -> void:
 	pass
 
 
+func vote_show() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
 func do_measure(id: String) -> void:
+	if pl_deny(): return
 	if game_over or int(cooldown.get(id, 0)) > 0:
 		return
 	var m := find_by_id(MEASURES, id)
@@ -79,6 +80,7 @@ func do_measure(id: String) -> void:
 
 
 func do_action(id: String) -> void:
+	if pl_deny(): return
 	if game_over or int(cooldown.get(id, 0)) > 0:
 		return
 	var a := find_by_id(ACTIONS, id)
@@ -199,6 +201,8 @@ func fx_items(fx: Dictionary, rid: int = -1) -> Array:
 			out.append(["зоны региона сворачиваются", 0])
 	if fx.has("coal_sat"):
 		out.append(["довольство партнёров %s" % sg(fx["coal_sat"], 0), 1 if float(fx["coal_sat"]) > 0.0 else -1])
+	if fx.has("dip_all") and absf(float(fx["dip_all"])) > 0.001:
+		out.append(["отношения с другими странами %s" % sg(fx["dip_all"], 1), 1 if float(fx["dip_all"]) > 0.0 else -1])
 	if fx.get("coal_demands", false):
 		out.append(["выполнить требования партнёров", -1])
 	if fx.has("psat") and event_party > 0:
@@ -365,6 +369,9 @@ func variant_stance(p: int, tid: String, idx: int) -> float:
 	return s
 
 
+var last_vote := {}    # v51: итог последнего голосования (для окна с анимацией)
+
+
 func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 	var yes := 0
 	var per: Array = []
@@ -375,15 +382,80 @@ func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 				var s0 := variant_stance(p, tid, idx)
 				per.append([p, s0, p == vote_sponsor or s0 >= 0.0])
 		return {"yes": SEATS, "no": 0, "per": per, "bypass": true}
+	# v51: фракции голосуют не единогласно: часть депутатов идёт против линии партии (зависит от того, насколько
+	# партии близок вариант, от дисциплины и характера лидера). per: [партия, позиция, линия «за», за, против, воздержались]
+	var no := 0
+	var ab := 0
 	for p in PARTY_NAMES.size():
 		if seats[p] == 0:
 			continue
 		var s := variant_stance(p, tid, idx)
 		var ok: bool = p == vote_sponsor or s >= 0.0 or (in_coalition[p] and s >= -1.0) or (p in forced) or (s >= -3.0 and pact_has(p, "votes"))
-		per.append([p, s, ok])
-		if ok:
-			yes += seats[p]
-	return {"yes": yes, "no": SEATS - yes, "per": per}
+		var cnt := party_vote_split(p, s, ok)
+		per.append([p, s, ok, cnt[0], cnt[1], cnt[2]])
+		yes += cnt[0]
+		no += cnt[1]
+		ab += cnt[2]
+	return {"yes": yes, "no": no, "abst": ab, "per": per}
+
+
+# доля депутатов партии p, голосующих против линии партии
+func party_dissent(p: int, s: float, line_yes: bool) -> float:
+	var r := 0.02
+	if line_yes:
+		r += clampf(0.10 - 0.04 * s, 0.0, 0.22)
+	else:
+		r += clampf(0.08 + 0.03 * s, 0.0, 0.16)
+	var m := 1.0
+	if p == vote_sponsor:
+		m *= 0.3
+	elif p < in_coalition.size() and in_coalition[p]:
+		m *= 0.6
+	if p == 0:
+		m *= 0.6
+	var tr: String = String((PARTY_TRAITS[p] as Dictionary).get("trait", "")) if p < PARTY_TRAITS.size() else ""
+	if tr == "идеолог":
+		m *= 0.75
+	elif tr == "прагматик":
+		m *= 1.25
+	# несвободные режимы: «партийная дисциплина» почти полная
+	m *= clampf(democracy_index() * 1.6, 0.15, 1.0)
+	return clampf(r * m, 0.0, 0.35)
+
+
+# [за, против, воздержались] у партии; vote_live — настоящее голосование (случайные отступники и редкие случайные голоса)
+var vote_live := false
+
+
+func party_vote_split(p: int, s: float, line_yes: bool) -> Array:
+	var n: int = seats[p]
+	var fr := party_dissent(p, s, line_yes)
+	var reb: int
+	if vote_live:
+		reb = clampi(int(round(randfn(float(n) * fr, sqrt(maxf(0.0, float(n) * fr * (1.0 - fr)))))), 0, n)
+	else:
+		reb = int(round(float(n) * fr))
+	var loyal: int = n - reb
+	var reb_no: int = int(ceil(float(reb) * 0.6))
+	var reb_ab: int = reb - reb_no
+	var yes: int
+	var no: int
+	if line_yes:
+		yes = loyal
+		no = reb_no
+	else:
+		yes = reb_no
+		no = loyal
+	var ab: int = reb_ab
+	# редко — единичный случайный голос (ошибка, личные мотивы)
+	if vote_live and n >= 3 and randf() < 0.10:
+		if line_yes and yes > 0:
+			yes -= 1
+			no += 1
+		elif not line_yes and no > 0:
+			no -= 1
+			yes += 1
+	return [yes, no, ab]
 
 
 func upper_check(tid: String, idx: int, forced: Array = []) -> Dictionary:
@@ -449,6 +521,7 @@ func upper_text(up: Dictionary) -> String:
 
 
 func negotiate_variant(tid: String, idx: int) -> void:
+	if pl_deny("parl"): return
 	if game_over or idx == cur_idx(tid):
 		return
 	var sw := variant_swing(tid, idx)
@@ -487,6 +560,18 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	var v := variant_votes(tid, idx, forced)
 	if int(v["yes"]) < law_need(tid):
 		log_line("[color=%s]Закон «%s» не вынесен на голосование: нужно %d голосов, есть %d.[/color]" % [COL_BAD, topic["name"], law_need(tid), v["yes"]])
+		refresh()
+		return
+	# v51: само голосование — с отступниками и случайными голосами; итог может разойтись с прогнозом
+	vote_live = true
+	var live := variant_votes(tid, idx, forced)
+	vote_live = false
+	last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(live["yes"]), "no": int(live.get("no", 0)), "abst": int(live.get("abst", 0)),
+		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false))}
+	if not bool(live.get("bypass", false)) and int(live["yes"]) < law_need(tid):
+		capital -= cost * 0.5
+		log_line("[color=%s]Закон «%s» провален при голосовании: за %d, против %d, воздержались %d — нужно %d. Часть депутатов нарушила дисциплину (политкапитал -%.0f).[/color]" % [COL_BAD, topic["name"], int(live["yes"]), int(live["no"]), int(live["abst"]), law_need(tid), cost * 0.5])
+		vote_show()
 		refresh()
 		return
 	var upc := upper_check(tid, idx, forced)
@@ -538,8 +623,10 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	recompute_mods()
 	if vote_sponsor == 0:
 		sfx("good")
-	log_tag("ЗАКОН", COL_GOOD, "%s%s — «%s»: %s → [b]%s[/b] [color=%s](за %d, против %d; политкапитал -%.0f)[/color]. %s" % [
-		date_text(), "" if vote_sponsor == 0 else " (правительство «%s»)" % PARTY_NAMES[vote_sponsor], topic["name"], old_v["n"], new_v["n"], COL_DIM, v["yes"], v["no"], cost, new_v["d"]])
+	var lv: Dictionary = last_vote if (not last_vote.is_empty() and String(last_vote.get("tid", "")) == tid and int(last_vote.get("turn", -1)) == turn) else {"yes": v["yes"], "no": v["no"], "abst": int(v.get("abst", 0))}
+	log_tag("ЗАКОН", COL_GOOD, "%s%s — «%s»: %s → [b]%s[/b] [color=%s](за %d, против %d, воздержались %d; политкапитал -%.0f)[/color]. %s" % [
+		date_text(), "" if vote_sponsor == 0 else " (правительство «%s»)" % PARTY_NAMES[vote_sponsor], topic["name"], old_v["n"], new_v["n"], COL_DIM, int(lv["yes"]), int(lv["no"]), int(lv.get("abst", 0)), cost, new_v["d"]])
+	vote_show()
 	refresh()
 
 
@@ -981,7 +1068,7 @@ func brake_step(deficit_pct: float) -> void:
 		else:
 			risk_prem = maxf(0.0, risk_prem - 0.05)
 		if brake_over == 3:
-			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else "Еврокомиссия предупреждает правительство, инвесторы требуют премию за риск."])
+			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else ("Еврокомиссия предупреждает" if bool(MACRO.get("eu", false)) else "Рейтинговые агентства предупреждают") + " правительство, инвесторы требуют премию за риск."])
 		elif brake_over >= 6:
 			capital = maxf(0.0, capital - (0.8 if strict else 0.15))
 			if brake_over % 6 == 0:

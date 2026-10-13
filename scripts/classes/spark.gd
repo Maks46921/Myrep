@@ -13,7 +13,12 @@ func _init() -> void:
 
 func _draw() -> void:
 	var f := ThemeDB.fallback_font
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.06, 0.07, 0.11, 0.8))
+	var bgs := StyleBoxFlat.new()
+	bgs.bg_color = Color(0.055, 0.066, 0.10, 0.85)
+	bgs.border_color = Color(1, 1, 1, 0.05)
+	bgs.set_border_width_all(1)
+	bgs.set_corner_radius_all(6)
+	draw_style_box(bgs, Rect2(Vector2.ZERO, size))
 	draw_string(f, Vector2(5.0, 12.0), title, HORIZONTAL_ALIGNMENT_LEFT, size.x - 10.0, 11, Color(0.7, 0.76, 0.9))
 	var lo := 1e18
 	var hi := -1e18
@@ -38,8 +43,25 @@ func _draw() -> void:
 		for i in vs.size():
 			pts.append(Vector2(r.position.x + r.size.x * float(i) / float(maxi(1, vs.size() - 1)), r.end.y - r.size.y * (float(vs[i]) - lo) / (hi - lo)))
 		if pts.size() >= 2:
-			draw_polyline(pts, s["c"], 1.8, true)
-			draw_circle(pts[pts.size() - 1], 2.6, s["c"])
+			# v45_1: заливка под линией (градиент к низу), свечение последней точки
+			var col0: Color = s["c"]
+			if series.size() == 1:
+				var poly := pts.duplicate()
+				poly.append(Vector2(pts[pts.size() - 1].x, r.end.y))
+				poly.append(Vector2(pts[0].x, r.end.y))
+				var cols := PackedColorArray()
+				for k in pts.size():
+					var tt: float = clampf((r.end.y - pts[k].y) / maxf(1.0, r.size.y), 0.0, 1.0)
+					cols.append(Color(col0.r, col0.g, col0.b, 0.05 + 0.20 * tt))
+				cols.append(Color(col0.r, col0.g, col0.b, 0.0))
+				cols.append(Color(col0.r, col0.g, col0.b, 0.0))
+				if Geometry2D.triangulate_polygon(poly).size() > 0:
+					draw_polygon(poly, cols)
+			draw_polyline(pts, Color(col0.r, col0.g, col0.b, 0.25), 4.0, true)
+			draw_polyline(pts, col0, 1.8, true)
+			var lp: Vector2 = pts[pts.size() - 1]
+			draw_circle(lp, 5.0, Color(col0.r, col0.g, col0.b, 0.25))
+			draw_circle(lp, 2.6, col0)
 	var tx := size.x - 5.0
 	for s in series:
 		var vs2: Array = s["v"]

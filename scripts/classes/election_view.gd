@@ -162,9 +162,13 @@ func _draw() -> void:
 			var so: Dictionary = seat_o[i]
 			var scol: Color = so["col"]
 			var inc: bool = bool(so.get("gov", false))
-			draw_circle(pos, dot, scol if inc else scol.darkened(0.4))
+			# v45_1: объём (блик) у кресел; коалиция ярче и с тонким светлым кантом
+			var dc: Color = scol if inc else scol.darkened(0.38).lerp(Color(0.3, 0.32, 0.38), 0.15)
+			draw_circle(pos + Vector2(0.4, 0.8), dot, Color(0, 0, 0, 0.35))
+			draw_circle(pos, dot, dc)
+			draw_circle(pos + Vector2(-dot * 0.3, -dot * 0.32), dot * 0.4, Color(1, 1, 1, 0.30 if inc else 0.10))
 			if inc:
-				draw_arc(pos, dot + 0.5, 0.0, TAU, 12, Color(1, 1, 1, 0.85), 1.2)
+				draw_arc(pos, dot + 0.4, 0.0, TAU, 12, Color(1, 1, 1, 0.45), 1.0, true)
 		else:
 			draw_circle(pos, dot * 0.55, Color(1, 1, 1, 0.08))
 	if ctr_big != "":

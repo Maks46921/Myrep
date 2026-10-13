@@ -154,7 +154,7 @@ func struct_step(wear_now: bool = true) -> void:
 	ec["struct_up"] = up
 
 
-func complete_struct(i: int, id: String) -> void:
+func complete_struct(i: int, id: String, ate: int = -1) -> void:
 	var bt: Dictionary = regions[i]["built"]
 	if bt.has(id):
 		var e: Dictionary = bt[id]
@@ -162,6 +162,11 @@ func complete_struct(i: int, id: String) -> void:
 		e["cond"] = (float(e["cond"]) * float(int(e["n"]) - 1) + 100.0) / float(e["n"])
 	else:
 		bt[id] = {"n": 1, "cond": 100.0}
+	# v50: сооружение стоит в конкретной АТЕ (значок на карте)
+	if ate >= 0:
+		if not (bt[id] as Dictionary).has("ate"):
+			bt[id]["ate"] = []
+		(bt[id]["ate"] as Array).append(ate)
 	if not ec.is_empty():
 		struct_step(false)
 

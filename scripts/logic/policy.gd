@@ -20,6 +20,30 @@ func apply_psat(p: int, v: float) -> void:
 	pass
 
 
+func ar_apply_mods() -> void:
+	pass
+
+
+func au_fx(d: Dictionary) -> void:
+	pass
+
+
+func coal_members() -> Array:
+	return []
+
+
+func coal_share(p: int) -> float:
+	return 0.0
+
+
+func council_on() -> bool:
+	return false
+
+
+func demand_score(p: int) -> float:
+	return 0.0
+
+
 func dip_all(delta: float, eu_only: bool) -> void:
 	pass
 
@@ -54,6 +78,14 @@ func good_name(id: String) -> String:
 
 func goods_support_term(group: String) -> float:
 	return 0.0
+
+
+func ideo_stance(p: int, k: String) -> float:
+	return 0.0
+
+
+func log_tag(tag: String, col: String, text: String) -> void:
+	pass
 
 
 func ministry_fx(m: int, p: int, skill: float = 65.0) -> Dictionary:
@@ -106,6 +138,14 @@ func soc_tax() -> float:
 
 func sync_ministers() -> void:
 	pass
+
+
+func tech_apply_mods() -> void:
+	pass
+
+
+func tech_edu_upkeep() -> float:
+	return 0.0
 
 
 func transfer_avg() -> float:
@@ -318,6 +358,8 @@ func describe_fx(fx: Dictionary, rid: int = -1) -> String:
 			parts.append("%s %s" % [g, sg(fx["support"][g], 0)])
 	if fx.has("capital"):
 		parts.append("политкапитал %s" % sg(fx["capital"], 0))
+	if fx.has("dip_all") and absf(float(fx["dip_all"])) > 0.001:
+		parts.append("отношения с другими странами %s" % sg(fx["dip_all"], 1))
 	if rid >= REGIONS.size():
 		rid = -1
 	if fx.has("reg") and rid >= 0:
@@ -437,6 +479,8 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 		fulfill_coalition_demands()
 	if fx.has("dip_all"):
 		dip_all(float(fx["dip_all"]), bool(fx.get("dip_eu_only", false)))
+	if fx.has("au"):
+		au_fx(fx["au"])
 	if fx.has("risk_mul"):
 		regime_risk = maxf(0.0, regime_risk * float(fx["risk_mul"]))
 	if fx.has("rev_roll"):
@@ -481,7 +525,7 @@ func compute_budget() -> Dictionary:
 	var sp := {
 		"Пенсии": gdp * pol["pensions"] * mods["pension_mult"] / 100.0,
 		"Пособия и соцпомощь": gdp * pol["benefits"] / 100.0,
-		"Образование": gdp * pol["edu"] / 100.0,
+		"Образование": gdp * (float(pol["edu"]) + tech_edu_upkeep()) / 100.0,
 		"Здравоохранение": gdp * pol["health"] / 100.0,
 		tm("army"): gdp * pol["army"] / 100.0,
 		"Полиция и суды": gdp * pol["police"] / 100.0,
@@ -934,6 +978,8 @@ func recompute_mods() -> void:
 	mods = compute_mods(law_state, true)
 	radical_dyn()
 	dip_apply_mods()
+	tech_apply_mods()
+	ar_apply_mods()
 	sync_emit()
 
 
@@ -1000,3 +1046,170 @@ func debt_rate() -> float:
 	if not ec.is_empty():
 		rate += (float(ec["rate"]) - RATE0) / 100.0 * 0.35
 	return maxf(rate, 0.005)
+
+
+# ============================================================
+#  v50: черновик бюджета. Ползунки меняют план, а в силу он вступает только после «Принять бюджет»;
+#  в коалиции план проходит совет: несогласных партнёров можно убедить уступкой или убрать спорные пункты.
+# ============================================================
+var bud_base := {}          # ключ -> [доля ВВП до правки, сумма в млрд или -1.0]
+var bud_persuaded := {}     # партнёры, которых убедили уступкой в этом раунде
+
+
+func bud_mark(key: String, old_share: float, old_abs: float) -> void:
+	if not bud_base.has(key):
+		bud_base[key] = [old_share, old_abs]
+	elif absf(float(pol[key]) - float(bud_base[key][0])) < 0.001:
+		bud_base.erase(key)
+	bud_persuaded.clear()
+
+
+func bud_pending() -> bool:
+	return not bud_base.is_empty()
+
+
+func bud_changes() -> Array:
+	var out: Array = []
+	for k in bud_base:
+		var o: float = float(bud_base[k][0])
+		var n: float = float(pol[k])
+		if absf(n - o) >= 0.05:
+			out.append([k, o, n])
+	return out
+
+
+# на время месячного расчёта действуют утверждённые значения, а не черновик
+func bud_hold_begin() -> Dictionary:
+	var h := {}
+	for k in bud_base:
+		h[k] = [float(pol[k]), float(pol_abs.get(k, -1.0)) if is_abs(k) else -1.0]
+		pol[k] = float(bud_base[k][0])
+		if float(bud_base[k][1]) >= 0.0:
+			pol_abs[k] = float(bud_base[k][1])
+	return h
+
+
+func bud_hold_end(h: Dictionary) -> void:
+	for k in h:
+		if not bud_base.has(k):
+			continue
+		# утверждённая доля в режиме «млрд» за месяц сдвинулась вместе с ВВП — черновик сдвигаем так же
+		bud_base[k][0] = float(pol[k])
+		if float(bud_base[k][1]) >= 0.0:
+			bud_base[k][1] = float(pol_abs.get(k, bud_base[k][1]))
+		pol[k] = float(h[k][0])
+		if float(h[k][1]) >= 0.0:
+			pol_abs[k] = float(h[k][1])
+			pol[k] = float(pol_abs[k]) / gdp * 100.0
+		if sliders.has(k):
+			(sliders[k]["slider"] as HSlider).set_value_no_signal(slider_value_for(k))
+			update_slider_label(k)
+
+
+# позиция партнёра q по черновику: [согласен?, баллы, спорные статьи]
+func bud_partner_view(q: int) -> Dictionary:
+	var score := 0.0
+	var bad: PackedStringArray = []
+	for c in bud_changes():
+		var k: String = c[0]
+		var dv: float = float(c[2]) - float(c[1])
+		var s: float = ideo_stance(q, k) * clampf(dv, -3.0, 3.0)
+		score += s
+		if s < -0.15:
+			bad.append(policy_title(k))
+	# требования партии: стал ли план ближе или дальше от них
+	var ds_new := demand_score(q)
+	var h := bud_hold_begin()
+	var ds_old := demand_score(q)
+	bud_hold_end_quiet(h)
+	score += 2.0 * (ds_new - ds_old)
+	if ds_new < ds_old - 0.05:
+		bad.append("требования партии")
+	var ok: bool = score > -0.25 or bool(bud_persuaded.get(q, false))
+	return {"ok": ok, "score": score, "bad": bad, "persuaded": bool(bud_persuaded.get(q, false))}
+
+
+func bud_hold_end_quiet(h: Dictionary) -> void:
+	for k in h:
+		pol[k] = float(h[k][0])
+		if float(h[k][1]) >= 0.0:
+			pol_abs[k] = float(h[k][1])
+
+
+# итог совета: доля влияния «за» (ваша партия всегда за свой план)
+func bud_council() -> Dictionary:
+	var yes := 0.0
+	var tot := 0.0
+	var views := {}
+	for q in coal_members():
+		var w: float = coal_share(q)
+		tot += w
+		if q == 0:
+			yes += w
+			continue
+		var v := bud_partner_view(q)
+		views[q] = v
+		if bool(v["ok"]):
+			yes += w
+	var sh: float = yes / maxf(tot, 1e-6)
+	return {"yes": sh, "pass": sh > 0.5, "views": views}
+
+
+func bud_needs_council() -> bool:
+	return council_on() and coal_members().size() >= 2
+
+
+func bud_apply(forced: bool) -> void:
+	var ch := bud_changes()
+	var parts: PackedStringArray = []
+	for c in ch:
+		parts.append("«%s» %.1f → %.1f%% ВВП" % [policy_title(String(c[0])), float(c[1]), float(c[2])])
+	if forced and bud_needs_council():
+		var cv := bud_council()
+		for q in cv["views"]:
+			if not bool(cv["views"][q]["ok"]):
+				satis[q] = clampf(float(satis.get(q, 50.0)) - 6.0, 0.0, 100.0)
+				conc[q] = float(conc.get(q, 0.0)) - 4.0
+	bud_base.clear()
+	bud_persuaded.clear()
+	if parts.size() > 0:
+		log_tag("БЮДЖЕТ", COL_GOOD, "бюджет принят: %s." % "; ".join(parts))
+
+
+func bud_cancel() -> void:
+	for k in bud_base:
+		if float(bud_base[k][1]) >= 0.0:
+			pol_abs[k] = float(bud_base[k][1])
+		set_policy(k, float(bud_base[k][0]))
+	bud_base.clear()
+	bud_persuaded.clear()
+
+
+# убрать пункты, против которых хоть один несогласный партнёр
+func bud_drop_disputed() -> int:
+	var cv := bud_council()
+	var drop := {}
+	for q in cv["views"]:
+		var v: Dictionary = cv["views"][q]
+		if bool(v["ok"]):
+			continue
+		for c in bud_changes():
+			var k: String = c[0]
+			if ideo_stance(q, k) * (float(c[2]) - float(c[1])) < -0.15:
+				drop[k] = true
+	for k in drop:
+		if float(bud_base[k][1]) >= 0.0:
+			pol_abs[k] = float(bud_base[k][1])
+		set_policy(k, float(bud_base[k][0]))
+		bud_base.erase(k)
+	return drop.size()
+
+
+func bud_persuade(q: int) -> bool:
+	if capital < 12.0 or not in_coalition[q]:
+		return false
+	capital -= 12.0
+	conc[q] = float(conc.get(q, 0.0)) + 10.0
+	bud_persuaded[q] = true
+	log_tag("ПЕРЕГОВОРЫ", COL_PURPLE, "«%s» согласилась поддержать бюджет в обмен на уступку (политкапитал -12)." % PARTY_NAMES[q])
+	return true

@@ -16,7 +16,7 @@ func build_pop_windows() -> void:
 	ag_ui["table"] = make_rt(w1.body)
 	ag_ui["bask"] = make_fold(w1.body, "На что тратят группы и что для них дорожает")
 
-	var w2: FloatWindow = new_window("pop_hist", "Оценка власти: распределение агентов", 6, Rect2(0.0, 0.46, 0.34, 0.54))
+	var w2: FloatWindow = new_window("pop_hist", "Оценка власти: распределение агентов", 6, Rect2(0.0, 0.46, 0.34, 0.27))
 	var hb := HBoxContainer.new()
 	w2.body.add_child(hb)
 	var hl := Label.new()
@@ -33,6 +33,28 @@ func build_pop_windows() -> void:
 	w2.body.add_child(hv)
 	ag_ui["hist"] = hv
 	ag_ui["hnote"] = make_rt(w2.body)
+
+	# v52: национальный характер и историческая память
+	var wn: FloatWindow = new_window("nat_char", "Национальный характер и история", 6, Rect2(0.0, 0.73, 0.34, 0.27))
+	nat_traits_box = VBoxContainer.new()
+	nat_traits_box.add_theme_constant_override("separation", 4)
+	wn.body.add_child(nat_traits_box)
+	for t in hist_traits():
+		var d: Dictionary = HIST_TRAITS.get(String(t), {})
+		var hb2 := HBoxContainer.new()
+		hb2.add_theme_constant_override("separation", 6)
+		nat_traits_box.add_child(hb2)
+		var ic: Control = Ico.make(String(d.get("ico", "flag")), C_WARN.lightened(0.2), 16.0)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		hb2.add_child(ic)
+		var rt := make_rt(hb2)
+		rt.text = "[b]%s[/b] — %s [color=%s]%s[/color]" % [String(d.get("n", t)), String(d.get("d", "")), COL_DIM, nat_fx_text(d)]
+	add_title(wn.body, "Историческая память")
+	nat_rel_ctl = Control.new()
+	nat_rel_ctl.custom_minimum_size = Vector2(0.0, 22.0 * float((HIST_REL.get(ccode, []) as Array).size()) + 4.0)
+	nat_rel_ctl.draw.connect(draw_nat_rel)
+	wn.body.add_child(nat_rel_ctl)
+	add_note(wn.body, "С давними друзьями добрые дела ценятся больше, а обиды прощаются легче; с давними соперниками — наоборот. История немного сдвигает и долгий уровень отношений, и шанс договоров.")
 
 	var w3: FloatWindow = new_window("pop_map", "Идеологическая карта", 6, Rect2(0.34, 0.0, 0.36, 0.64))
 	var mb := HBoxContainer.new()
@@ -88,6 +110,30 @@ func build_pop_windows() -> void:
 	w3.body.add_child(mv)
 	ag_ui["map"] = mv
 	ag_ui["mnote"] = make_fold(w3.body, "Как читать карту")
+	# v50: сдвинуть свою партию по осям, показанным на карте
+	var sh := HFlowContainer.new()
+	sh.add_theme_constant_override("h_separation", 4)
+	sh.add_theme_constant_override("v_separation", 4)
+	w3.body.add_child(sh)
+	var shl := Label.new()
+	shl.text = "Сдвинуть свою партию (капитал 4):"
+	shl.add_theme_font_size_override("font_size", 12)
+	shl.add_theme_color_override("font_color", C_DIM)
+	sh.add_child(shl)
+	for dd in [["←", 0, -1], ["→", 0, 1], ["↓", 1, -1], ["↑", 1, 1]]:
+		var sb := Button.new()
+		sb.theme_type_variation = "SmallButton"
+		sb.text = String(dd[0])
+		sb.focus_mode = Control.FOCUS_NONE
+		sb.custom_minimum_size = Vector2(30.0, 0.0)
+		var which: int = int(dd[1])
+		var dir: int = int(dd[2])
+		sb.pressed.connect(func() -> void:
+			var axis: int = (ag_ui["ax"] as OptionButton).selected if which == 0 else (ag_ui["ay"] as OptionButton).selected
+			if ag_party_shift(axis, dir):
+				ag_reset_ui())
+		sh.add_child(sb)
+		ag_ui["shift%d" % ag_ui.size()] = sb
 
 	var w4: FloatWindow = new_window("pop_agent", "Карточка агента", 6, Rect2(0.34, 0.64, 0.18, 0.36))
 	var ab := HFlowContainer.new()
@@ -107,6 +153,116 @@ func build_pop_windows() -> void:
 
 	var w5: FloatWindow = new_window("pop_regions", "Протестные настроения по регионам", 6, Rect2(0.52, 0.64, 0.18, 0.36))
 	ag_ui["reg"] = make_rt(w5.body)
+
+	# v50: демография — пирамида возрастов, рождаемость и смертность (карточка агента — в меню «Окна»)
+	var w6: FloatWindow = new_window("pop_demo", "Демография: пирамида возрастов", 6, Rect2(0.34, 0.64, 0.18, 0.36))
+	demo_rt = make_rt(w6.body)
+	demo_ctl = Control.new()
+	demo_ctl.custom_minimum_size = Vector2(0.0, 190.0)
+	demo_ctl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	demo_ctl.draw.connect(draw_pyramid)
+	w6.body.add_child(demo_ctl)
+
+
+var demo_rt: RichTextLabel = null
+var demo_ctl: Control = null
+
+
+# пирамида: 18 пятилетних когорт (0–4 … 85+), мужчины слева, женщины справа. Строится из доли 65+ и рождаемости (модель «Реализма»)
+func demo_cohorts() -> Array:
+	var age65: float = 20.0
+	var tfr: float = 1.5
+	if not rl.is_empty() and (rl as Dictionary).has("d"):
+		age65 = float(rl["d"]["age"])
+		tfr = float(rl["d"]["tfr"])
+	var m: Array = []
+	var f: Array = []
+	for i in 18:
+		var a: float = float(i) * 5.0 + 2.5
+		var surv: float = exp(-pow(a / 86.0, 7.5))
+		var survf: float = exp(-pow(a / 90.0, 7.5))
+		# поколения: моложе 40 тем малочисленнее, чем ниже рождаемость; «бэби-бум» 1955–1970 г. р.
+		var gen: float = pow(clampf(tfr / 2.1, 0.4, 1.6), clampf((45.0 - a) / 30.0, 0.0, 1.5))
+		var boom: float = 1.0 + 0.22 * exp(-pow((a - 62.0) / 9.0, 2.0))
+		m.append(surv * gen * boom)
+		f.append(survf * gen * boom)
+	# доля 65+ подгоняется под модель
+	var young := 0.0
+	var old := 0.0
+	for i in 18:
+		if i >= 13:
+			old += float(m[i]) + float(f[i])
+		else:
+			young += float(m[i]) + float(f[i])
+	var k: float = (age65 / 100.0) * young / maxf(1e-6, (1.0 - age65 / 100.0) * old)
+	var tot := 0.0
+	for i in 18:
+		if i >= 13:
+			m[i] = float(m[i]) * k
+			f[i] = float(f[i]) * k
+		tot += float(m[i]) + float(f[i])
+	for i in 18:
+		m[i] = float(m[i]) / tot
+		f[i] = float(f[i]) / tot
+	return [m, f, tfr, age65]
+
+
+func demo_rates() -> Dictionary:
+	var c := demo_cohorts()
+	var m: Array = c[0]
+	var f: Array = c[1]
+	var wf := 0.0
+	for i in range(3, 10):
+		wf += float(f[i])
+	var cbr: float = float(c[2]) / 35.0 * wf * 1000.0
+	var cdr := 0.0
+	for i in 18:
+		var a: float = float(i) * 5.0 + 2.5
+		var q: float = minf(0.35, 0.00002 * exp(0.1 * a))
+		cdr += (float(m[i]) * q * 1.15 + float(f[i]) * q * 0.85)
+	return {"cbr": cbr, "cdr": cdr * 1000.0}
+
+
+func draw_pyramid() -> void:
+	var c := demo_ctl
+	if c == null:
+		return
+	var co := demo_cohorts()
+	var m: Array = co[0]
+	var f: Array = co[1]
+	var mx := 0.0
+	for i in 18:
+		mx = maxf(mx, maxf(float(m[i]), float(f[i])))
+	var w: float = c.size.x
+	var h: float = c.size.y
+	var cx: float = w * 0.5
+	var bh: float = h / 18.0
+	var font := c.get_theme_default_font()
+	for i in 18:
+		var y: float = h - float(i + 1) * bh
+		var lm: float = (cx - 22.0) * float(m[i]) / maxf(mx, 1e-6)
+		var lf: float = (cx - 22.0) * float(f[i]) / maxf(mx, 1e-6)
+		var old: bool = i >= 13
+		c.draw_rect(Rect2(cx - 18.0 - lm, y + 1.0, lm, bh - 2.0), Color(0.36, 0.60, 0.95, 0.95 if not old else 0.6))
+		c.draw_rect(Rect2(cx + 18.0, y + 1.0, lf, bh - 2.0), Color(0.93, 0.50, 0.62, 0.95 if not old else 0.6))
+		if i % 3 == 0:
+			c.draw_string(font, Vector2(cx - 16.0, y + bh - 1.0), "%d" % (i * 5), HORIZONTAL_ALIGNMENT_CENTER, 32.0, 10, C_DIM)
+	c.draw_string(font, Vector2(2.0, 11.0), "мужчины", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.55, 0.75, 1.0))
+	c.draw_string(font, Vector2(w - 2.0 - 52.0, 11.0), "женщины", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.65, 0.75))
+
+
+func update_demo_window() -> void:
+	if demo_rt == null or not demo_rt.is_visible_in_tree():
+		return
+	var r := demo_rates()
+	var pop := 0.0
+	for rg in regions:
+		pop += float(rg["popm"])
+	var co := demo_cohorts()
+	var nat: float = float(r["cbr"]) - float(r["cdr"])
+	demo_rt.text = "[font_size=13]Население [b]%.1f млн[/b] · старше 65 — [b]%.1f%%[/b]\nРождаемость [b]%.1f‰[/b] (детей на женщину %.2f) · смертность [b]%.1f‰[/b]\nЕстественный прирост: [color=%s]%s‰[/color] в год[/font_size]" % [
+		pop, float(co[3]), float(r["cbr"]), float(co[2]), float(r["cdr"]), COL_GOOD if nat >= 0.0 else COL_BAD, sg(nat, 1)]
+	demo_ctl.queue_redraw()
 
 
 const AG_GROUP_COLS := [Color("e8825a"), Color("5aa9e8"), Color("b5a1e8"), Color("f2d94d"), Color("5ae8c0"), Color("8cc152"), Color("9aa4b8"), Color("4fd16b")]
@@ -148,8 +304,22 @@ func ag_agent_text(i: int) -> String:
 	idx.sort_custom(func(p, q): return float(v[p]) > float(v[q]))
 	var t := "[b]Агент №%d[/b] — «%s», %s\n" % [i, GROUPS[g], String(REGIONS[r]["name"])]
 	t += "Представляет [b]%d чел.[/b]\n" % AG.k
-	t += "Возраст: %d, отрасль: %s, %s\n" % [int(AG.age[i]), AgentPop.SEC_NAMES[AG.sec[i]], "[color=#ff8a80]безработный[/color]" if AG.emp[i] == 0 and g != 2 else ("пенсионер" if g == 2 else "работает")]
+	var jt: String = "пенсионер" if g == 2 else "работает"
+	if AG.emp[i] == 0 and g != 2:
+		jt = "[color=#ff8a80]безработный[/color]" + (" уже %d мес." % int(AG.unm[i]) if AG.unm.size() > i and AG.unm[i] > 0 else "")
+	t += "Возраст: %d, образование: %s\nОтрасль: %s, %s\n" % [int(AG.age[i]), AgentPop.EDU_NAMES[AG.edu[i]] if AG.edu.size() > i else "—", AgentPop.SEC_NAMES[AG.sec[i]], jt]
 	t += "Доход: ×%.2f от среднего по группе-эталону\n" % AG.inc[i]
+	if AG.pb.size() > i:
+		var pbv: float = AG.pb[i]
+		t += "Кошелёк: [color=%s]%s[/color] (%s)\n" % ["#8be08b" if pbv >= 0.5 else ("#ff8a80" if pbv <= -1.5 else "#e8d27a"), "живёт лучше" if pbv >= 0.5 else ("живёт хуже" if pbv <= -1.5 else "без перемен"), sg(pbv, 1)]
+		t += "Доверие к институтам: %.0f%%, придёт на выборы: %.0f%%%s\n" % [AG.trust[i] * 100.0, AG.tp[i] * 100.0, "  [color=#ffb74d]активист[/color]" if AG.act[i] == 1 else ""]
+		var pp := 0
+		for q in AgentPop.NPEER:
+			var j: int = AG.peers[i * AgentPop.NPEER + q]
+			if j >= 0 and j != i and AG.prot[j] == 1:
+				pp += 1
+		if pp > 0:
+			t += "Знакомых, готовых протестовать: %d из %d\n" % [pp, AgentPop.NPEER]
 	t += "Вера: [color=%s][b]%s[/b][/color]%s\n" % [SOC_FCOL[AG.faith[i]], SOC_FAITH[AG.faith[i]], " (практикующий)" if AG.devout[i] == 1 else ""]
 	t += "Оценка власти: [b]%.0f[/b] (группа: %.0f)%s\n\n" % [a, sup_g, "  [color=#ff8a80]готов протестовать[/color]" if AG.prot[i] == 1 else ""]
 	t += "[b]Взгляды[/b]\n"
@@ -180,6 +350,8 @@ func ag_agent_text(i: int) -> String:
 
 
 func update_pop_windows() -> void:
+	update_demo_window()
+	update_nat_window()
 	if ag_ui.is_empty():
 		return
 	var head: RichTextLabel = ag_ui["head"]
@@ -327,3 +499,52 @@ func update_pop_windows() -> void:
 		mv2.sel = Vector2(INF, INF)
 		(ag_ui["card"] as RichTextLabel).text = "Выберите агента на карте или нажмите «Случайный агент»."
 	mv2.queue_redraw()
+
+
+var nat_traits_box: VBoxContainer = null
+var nat_rel_ctl: Control = null
+
+
+func nat_fx_text(d: Dictionary) -> String:
+	var names := {"growth_bonus": "рост", "unemp_base": "безработица", "mood_shift": "настроение", "gb_Бизнес": "бизнес", "reg_unrest_shift": "недовольство регионов",
+		"gb_Молодёжь": "молодёжь", "dem_shift": "демократия", "corr_shift": "коррупция", "eff_bonus": "эффективность госрасходов", "capital_bonus": "политкапитал",
+		"gb_Силовики": "силовики", "sec_bonus": "безопасность", "gb_Село": "село", "dip_bonus": "дипломатия", "gb_Экологи": "экологи", "equal_shift": "равенство",
+		"gb_Рабочие": "рабочие", "army_q": "армия", "env_eff": "экология", "edu_eff": "образование"}
+	var parts: PackedStringArray = []
+	var ad: Dictionary = d.get("a", {})
+	for k in ad:
+		var v: float = float(ad[k])
+		parts.append("%s %s%s" % [names.get(k, k), "+" if v > 0.0 else "−", ("%.2f" % absf(v)).trim_suffix("0").trim_suffix("0").trim_suffix(".")])
+	var xs: Dictionary = d.get("x", {})
+	for k in xs:
+		parts.append("%s ×%.2f" % [names.get(k, k), float(xs[k])])
+	return "(" + ", ".join(parts) + ")"
+
+
+func update_nat_window() -> void:
+	if nat_rel_ctl != null:
+		nat_rel_ctl.queue_redraw()
+
+
+# строки исторической памяти: флаг, страна, шкала −3..+3, причина
+func draw_nat_rel() -> void:
+	var c := nat_rel_ctl
+	var f: Font = c.get_theme_default_font()
+	var y := 2.0
+	var w: float = c.size.x
+	for r in HIST_REL.get(ccode, []):
+		var cc: String = String(r[0])
+		var v: int = int(r[1])
+		var nm: String = String(WORLD[cc]["name"]) if WORLD.has(cc) else cc
+		Flags.draw(c, cc, Rect2(0.0, y + 3.0, 21.0, 14.0))
+		c.draw_string(f, Vector2(26.0, y + 15.0), nm, HORIZONTAL_ALIGNMENT_LEFT, 100.0, 12, Color(0.90, 0.92, 0.96))
+		var bx := 130.0
+		var bw := 84.0
+		var mid: float = bx + bw * 0.5
+		c.draw_rect(Rect2(bx, y + 6.0, bw, 8.0), Color(1, 1, 1, 0.06))
+		var col: Color = Color(0.40, 0.82, 0.52) if v > 0 else Color(0.92, 0.40, 0.38)
+		var ww: float = bw * 0.5 * float(absi(v)) / 3.0
+		c.draw_rect(Rect2(mid if v > 0 else mid - ww, y + 6.0, ww, 8.0), col)
+		c.draw_line(Vector2(mid, y + 3.0), Vector2(mid, y + 17.0), Color(1, 1, 1, 0.4), 1.0)
+		c.draw_string(f, Vector2(bx + bw + 6.0, y + 15.0), String(r[2]), HORIZONTAL_ALIGNMENT_LEFT, w - bx - bw - 8.0, 11, Color(0.70, 0.73, 0.82))
+		y += 22.0
