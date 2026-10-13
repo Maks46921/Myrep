@@ -336,11 +336,15 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 #regimes .shot { border-color: var(--reg-line); box-shadow: 0 30px 80px -30px color-mix(in srgb, var(--reg-accent) 35%, transparent); }
 .splash { display: inline-block; margin-bottom: 18px; font-family: var(--f-display); font-weight: 800; letter-spacing: .3em; font-size: .78rem; color: var(--reg-accent); border-block: 2px solid var(--reg-accent); padding: 6px 2px; }
 
-.itch { display: flex; gap: 16px; align-items: center; margin: 0 0 22px; padding: 14px 18px; border-radius: 16px; border: 1px solid color-mix(in oklab, #fa5c5c 45%, var(--line)); background: color-mix(in oklab, #fa5c5c 9%, var(--panel)); }
-.itch-d { flex: none; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 12px; background: #fa5c5c; color: #fff; font-family: var(--f-mono); font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; line-height: 1.1; text-align: center; }
-.itch-d b { font-family: var(--f-display); font-size: 1.5rem; letter-spacing: 0; }
-.itch > div > b { display: block; font-family: var(--f-display); font-size: 1.05rem; }
-.itch > div > span { display: block; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+.release { display: flex; gap: clamp(20px, 4vw, 44px); align-items: center; padding: clamp(22px, 4vw, 44px); border-radius: 24px; border: 1px solid color-mix(in oklab, #fa5c5c 45%, var(--line)); background: radial-gradient(70% 120% at 0% 0%, color-mix(in oklab, #fa5c5c 16%, transparent), transparent 70%), var(--panel); box-shadow: var(--shadow); }
+.release .eyebrow { color: #fa5c5c; }
+.release h2 { margin: 6px 0 10px; }
+.release .lede { margin: 0; }
+.rel-date { flex: none; display: grid; place-items: center; align-content: center; width: clamp(110px, 16vw, 150px); aspect-ratio: 1; border-radius: 22px; background: #fa5c5c; color: #fff; text-align: center; box-shadow: 0 20px 50px -20px #fa5c5c; }
+.rel-date b { font-family: var(--f-display); font-size: clamp(2.8rem, 6vw, 3.8rem); line-height: 1; }
+.rel-date span { font-weight: 600; font-size: 1rem; margin-top: 4px; }
+.rel-date small { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; opacity: .85; margin-top: 2px; }
+@media (max-width: 560px) { .release { flex-direction: column; align-items: flex-start; } }
 /* режимы: палитра берётся из игры (REG_SKIN) и меняется вместе с вкладкой */
 #regimes { --ra: #8fa8d1; --rt: #38404f; --reg-accent: var(--ra); --reg-ink: color-mix(in oklab, var(--ra) 70%, var(--fg));
   --reg-bg: color-mix(in oklab, var(--rt) 22%, var(--bg)); --reg-panel: color-mix(in oklab, var(--ra) 7%, var(--panel)); --reg-line: color-mix(in oklab, var(--ra) 32%, var(--line));
@@ -408,11 +412,6 @@ section { padding-block: clamp(56px, 9vw, 112px); }
 .gallery span { padding: 10px 14px; font-size: .88rem; color: var(--muted); }
 
 /* ── запуск ── */
-.run { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
-@media (max-width: 860px) { .run { grid-template-columns: minmax(0, 1fr); } }
-.term { background: #0b1120; color: #d9dde8; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; font-family: var(--f-mono); font-size: .88rem; line-height: 1.9; overflow-x: auto; box-shadow: var(--shadow); }
-.term .c { color: #7f8aa3; }
-.term .k { color: #e2ae55; }
 
 footer { border-top: 1px solid var(--line); padding-block: 36px; color: var(--muted); font-size: .88rem; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; justify-content: space-between; }
@@ -436,7 +435,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
       <li><a href="#mechanics">Механики</a></li>
       <li><a href="#updates">Обновления</a></li>
       <li><a href="#gallery">Скриншоты</a></li>
-      <li><a href="#run">Как запустить</a></li>
+      <li><a href="#run">Релиз</a></li>
     </ul>
     <span class="ver" data-ver>v52_1</span>
   </div>
@@ -653,23 +652,15 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
 </section>
 
 <section id="run" style="padding-top:0">
-  <div class="wrap run">
-    <div>
-      <div class="sec-head" style="margin-bottom:18px"><p class="eyebrow">Как запустить</p><h2>Как начать играть</h2></div>
-      <div class="itch"><span class="itch-d"><b>14</b>окт · ср</span><div><b>Скоро на itch.io</b><span>В среду, 14 октября, Symphony выйдет на itch.io. Скачать её можно будет прямо оттуда.</span></div></div>
-      <p class="lede">А пока игру можно запустить в бесплатном движке Godot. Скачайте Godot 4.3, распакуйте архив с игрой и импортируйте проект. При первом запуске откроется карта выбора страны.</p>
-      <div class="cta" style="margin-top:26px">
-        <a class="btn primary" href="https://godotengine.org/download/archive/4.3-stable/" target="_blank" rel="noopener">Скачать Godot 4.3</a>
-        <a class="btn" href="https://github.com/Maks46921/Myrep" target="_blank" rel="noopener">Код на GitHub</a>
+  <div class="wrap">
+    <div class="release">
+      <div class="rel-date"><b>14</b><span>октября</span><small>среда</small></div>
+      <div>
+        <p class="eyebrow">Релиз</p>
+        <h2>Symphony выходит на itch.io</h2>
+        <p class="lede">В среду, 14 октября, игра станет доступна на itch.io.</p>
       </div>
     </div>
-    <pre class="term"><span class="c"># 1. откройте Godot 4.3</span>
-<span class="k">Import</span> → выберите project.godot
-<span class="c"># 2. запустите</span>
-<span class="k">F5</span>
-<span class="c"># 3. щёлкните по стране на карте,</span>
-<span class="c">#    выберите партию и нажмите</span>
-<span class="k">«Играть»</span></pre>
   </div>
 </section>
 </main>
@@ -677,7 +668,7 @@ dialog button { all: unset; cursor: pointer; color: #e2ae55; }
 <footer>
   <div class="wrap">
     <span><b style="font-family:var(--f-display);letter-spacing:.16em;color:var(--fg)">SYMPHONY</b> · раньше называлась PolitGame</span>
-    <span>Godot 4.3 · GDScript · версия <span data-ver>v52_1</span></span>
+    <span>версия <span data-ver>v52_1</span></span>
   </div>
 </footer>
 
