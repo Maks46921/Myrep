@@ -15,8 +15,8 @@
   - вложенный пункт
 ```
 
-После пуша в основную ветку GitHub Actions (`.github/workflows/site.yml`) пересоберёт раздел и выложит сайт на GitHub Pages.
-Включить один раз: Settings → Pages → Source: **GitHub Actions**.
+После пуша в основную ветку GitHub Actions (`.github/workflows/site.yml`) пересоберёт раздел и выложит сайт на Netlify: https://symphony-game.netlify.app.
+Нужно один раз добавить секрет репозитория `NETLIFY_AUTH_TOKEN` (Netlify → User settings → Applications → Personal access tokens).
 
 Собрать вручную: `python3 website/build_updates.py` (из корня репозитория).
 
