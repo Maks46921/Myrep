@@ -111,7 +111,7 @@ func ev_de_only(t: String) -> bool:
 # v53_1: события про международную организацию — только её членам
 const EV_ORG_WORDS := {
 	"НАТО": ["nato"], "ОДКБ": ["csto"], "ЕАЭС": ["eaeu"], "СНГ": ["cis"], "Еврокомисс": ["eu"],
-	"Брюссель выделяет": ["eu"], "фонды ЕС": ["eu"], "Фонды ЕС": ["eu"], "Саммит ЕС": ["eu"], "еврозон": ["euro"],
+	"Брюссель выделяет": ["eu"], "фонды ЕС": ["eu"], "Саммит ЕС": ["eu"], "еврозон": ["euro"],
 	"Шенген": ["schengen"], "Совет Европы": ["coe"], "ОБСЕ": ["osce"],
 }
 
@@ -120,7 +120,7 @@ func ev_org_blocked(t: String) -> bool:
 	if not io_ready():
 		return false
 	for w in EV_ORG_WORDS:
-		if t.find(String(w)) >= 0:
+		if t.findn(String(w)) >= 0:  # v54_1: без учёта регистра («Фонды ЕС», «фонды ЕС»; так же в английской версии)
 			var ok := false
 			for o in EV_ORG_WORDS[w]:
 				if io_member(String(o)):

@@ -2,16 +2,17 @@
 """Единый запуск тестов Symphony.
 
   tools/test.py quick                 быстрая проверка (~1 мин)
-  tools/test.py full                  все тесты по всем странам (34)
+  tools/test.py full                  все тесты по всем странам (38)
   tools/test.py agents head -c DE,FR  выбранные тесты и страны
   tools/test.py golden --update       пересоздать эталоны (после ОСОЗНАННОГО изменения поведения)
   tools/test.py --list                список тестов
-Флаги: -c CC,CC  страны; -j N  параллельность; -v  показать вывод упавших.
+Флаги: -c CC,CC  страны; -j N  параллельность; -v  показать вывод упавших; --en  английская версия (en/).
 """
 import argparse, os, re, subprocess, sys, time, concurrent.futures as cf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOGS = os.path.join(ROOT, '.testlogs')
+TEST_DIR = 'tests/'      # v54_1: --en -> en/tests/ (английская версия, собирается tools/i18n.py build)
 ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT MD BY UA RU'.split()
 
 # имя: (скрипт, доп.аргументы, таймаут, нужен ли seed-эталон)
@@ -97,7 +98,7 @@ def run_one(test, cc, update):
     script, extra, tmo = TESTS[test]
     tmo = tmo * SLOW.get(cc, 1.0)       # v50: у России 89 субъектов — прогон заметно дольше
     gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick')
-    cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', 'tests/' + script, '--', 'country=' + cc] + extra
+    cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', TEST_DIR + script, '--', 'country=' + cc] + extra
     if gui:
         cmd = ['xvfb-run', '-a', '-s', '-screen 0 %s' % ('1366x768x24' if test == 'width' else '1700x900x24')] + cmd
     t0 = time.time()
@@ -157,7 +158,7 @@ def run_one(test, cc, update):
                 else:
                     errs.append('эталон: разное число строк')
     os.makedirs(LOGS, exist_ok=True)
-    open(os.path.join(LOGS, '%s_%s.log' % (test, cc)), 'w', encoding='utf-8').write(out)
+    open(os.path.join(LOGS, '%s%s_%s.log' % ('en_' if TEST_DIR != 'tests/' else '', test, cc)), 'w', encoding='utf-8').write(out)
     return test, cc, errs, time.time() - t0, out
 
 
@@ -169,8 +170,12 @@ def main():
     ap.add_argument('-v', action='store_true')
     ap.add_argument('--update', action='store_true')
     ap.add_argument('--list', action='store_true')
+    ap.add_argument('--en', action='store_true')
     ap.add_argument('-h', '--help', action='store_true')
     a = ap.parse_args()
+    if a.en:
+        global TEST_DIR
+        TEST_DIR = 'en/tests/'
     if a.help or (not a.what and not a.list):
         print(__doc__)
         return 0

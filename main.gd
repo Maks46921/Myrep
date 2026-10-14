@@ -631,6 +631,25 @@ func show_country_menu(in_game: bool) -> void:
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_color_override("font_color", C_DIM)
 	root_v.add_child(sub)
+	# v54_1: язык игры (русская и английская версии — разные деревья скриптов, смена перезапускает меню)
+	var boot = load("res://boot.gd")
+	var lang_row := HBoxContainer.new()
+	lang_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	root_v.add_child(lang_row)
+	var lang_lb := Label.new()
+	lang_lb.text = "🌐"
+	lang_row.add_child(lang_lb)
+	var lang_pick := OptionButton.new()
+	lang_pick.name = "LangPick"
+	var cur_lang: String = boot.lang()
+	for i in boot.LANGS.size():
+		lang_pick.add_item(String(boot.LANGS[i][1]), i)
+		if String(boot.LANGS[i][0]) == cur_lang:
+			lang_pick.select(i)
+	lang_pick.item_selected.connect(func(i: int):
+		boot.set_lang(String(boot.LANGS[i][0]))
+		get_tree().reload_current_scene())
+	lang_row.add_child(lang_pick)
 	var hs := HBoxContainer.new()
 	hs.add_theme_constant_override("separation", 12)
 	hs.size_flags_vertical = Control.SIZE_EXPAND_FILL

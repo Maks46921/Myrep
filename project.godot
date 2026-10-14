@@ -2,9 +2,11 @@ config_version=5
 
 [application]
 
-config/name="Symphony v53_1"
-run/main_scene="res://main.tscn"
+config/name="Symphony v54_1"
+run/main_scene="res://boot.tscn"
 config/features=PackedStringArray("4.3")
+config/icon="res://icon.svg"
+config/windows_native_icon="res://icon.ico"
 
 [display]
 
