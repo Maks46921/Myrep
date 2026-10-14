@@ -109,7 +109,7 @@ def load_tr():
     return tr
 
 
-FMT = re.compile(r"%[-+ 0#]*\d*(?:\.\d+)?[sdfxXcoeEgG%]")
+FMT = re.compile(r"%[-+0#]*\d*(?:\.\d+)?[sdfxXcoeEgG%]")
 BRACE = re.compile(r"\{[a-z_0-9]+\}")
 TAG = re.compile(r"\[/?(?:b|i|u|s|color|url|font_size|center|right|indent|code|img|cell|table|bgcolor|outline_color|outline_size)(?:=[^\]]*)?\]")
 
@@ -175,6 +175,28 @@ def cmd_check(verbose=True):
     return bad
 
 
+def translate(text, is_gd, tr, bad):
+    """-> (текст с переведёнными литералами и путями в en/, число непереведённых русских литералов)"""
+    parts, last, miss = [], 0, 0
+    for a, b, raw in scan(text, is_gd):
+        if not CYR.search(raw):
+            if "«" in raw or "»" in raw:  # кавычки-«ёлочки» в шаблонах без русских букв («%s») — английские
+                parts.append(text[last:a]); parts.append('"' + raw.replace("«", "“").replace("»", "”") + '"'); last = b
+            continue
+        k = sid(unescape(raw))
+        en = tr.get(k)
+        if en is None or k in bad:
+            miss += 1
+            continue
+        en = en.replace("%\u00a0", "% ")  # обход старой проверки «% o» переводчиками — вернуть обычный пробел
+        parts.append(text[last:a]); parts.append('"' + escape(en) + '"'); last = b
+    parts.append(text[last:])
+    out = "".join(parts)
+    if is_gd:
+        out = out.replace('"res://scripts/', '"res://en/scripts/').replace('"res://data/', '"res://en/data/').replace('"res://main.gd"', '"res://en/main.gd"')
+    return out, miss
+
+
 def cmd_build():
     tr = load_tr()
     strs, _ = collect()
@@ -182,36 +204,19 @@ def cmd_build():
     shutil.rmtree(EN_TREE, ignore_errors=True)
     miss = 0
     for f in sources():
-        rel = os.path.relpath(f, ROOT)
-        text = open(f, encoding="utf-8").read()
-        is_gd = f.endswith(".gd")
-        parts, last = [], 0
-        for a, b, raw in scan(text, is_gd):
-            if not CYR.search(raw):
-                continue
-            s = unescape(raw)
-            k = sid(s)
-            en = tr.get(k)
-            if en is None or k in bad:
-                miss += 1
-                continue
-            parts.append(text[last:a]); parts.append('"' + escape(en) + '"'); last = b
-        parts.append(text[last:])
-        out = "".join(parts)
-        if is_gd:
-            out = out.replace('"res://scripts/', '"res://en/scripts/').replace('"res://data/', '"res://en/data/').replace('"res://main.gd"', '"res://en/main.gd"')
-        dst = os.path.join(EN_TREE, rel)
+        out, m = translate(open(f, encoding="utf-8").read(), f.endswith(".gd"), tr, bad)
+        miss += m
+        dst = os.path.join(EN_TREE, os.path.relpath(f, ROOT))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         open(dst, "w", encoding="utf-8").write(out)
     shutil.copy(os.path.join(ROOT, "scripts", "CHAIN.txt"), os.path.join(EN_TREE, "scripts", "CHAIN.txt"))
-    # тесты для английского дерева: те же сценарии, пути в en/
+    # тесты для английского дерева: те же сценарии, пути в en/; строки, совпадающие с игровыми, переведены так же
+    # (тесты обращаются к данным по русским ключам — «Село», «Образование»…)
     for f in glob.glob(os.path.join(ROOT, "tests", "*.gd")):
-        t = open(f, encoding="utf-8").read()
-        t = t.replace('"res://scripts/', '"res://en/scripts/').replace('"res://main.gd"', '"res://en/main.gd"').replace('"res://data/', '"res://en/data/')
+        out, _ = translate(open(f, encoding="utf-8").read(), True, tr, bad)
         dst = os.path.join(EN_TREE, "tests", os.path.basename(f))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        open(dst, "w", encoding="utf-8").write(t)
-    # Godot не должен видеть en/ как отдельный проект; .gdignore не ставим — скрипты должны грузиться
+        open(dst, "w", encoding="utf-8").write(out)
     print("en/ собрано; русских строк осталось (нет перевода или ошибка): %d из %d" % (miss, len(strs)))
 
 

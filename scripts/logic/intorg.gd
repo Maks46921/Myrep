@@ -266,7 +266,8 @@ func io_stance(it: Dictionary, c: String) -> int:
 		return 1
 	if c in (it.get("con", []) as Array):
 		return -1
-	return 1 if (hash(c + String(it["t"])) % 4) != 0 else 0
+	# v54_1: позиция «по умолчанию» — от состава сторонников и противников, а не от текста вопроса (одинаково на обоих языках)
+	return 1 if (hash(c + str(it.get("pro", [])) + str(it.get("con", [])) + String(it.get("rule", ""))) % 4) != 0 else 0
 
 
 # голос ИИ-советника: с большинством союзников

@@ -457,7 +457,12 @@ func reg_draw_head() -> void:
 	Gfx.hgrad(c, Rect2(Vector2.ZERO, sz), Color(acc.r, acc.g, acc.b, 0.28), Color(acc.r, acc.g, acc.b, 0.0))
 	reg_emblem(c, ui_reg_cls, Vector2(32.0, sz.y * 0.5), 26.0, acc)
 	var f: Font = c.get_theme_default_font()
-	c.draw_string(f, Vector2(68.0, 26.0), au_class_name().to_upper(), HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, 18, sk["gold"])
+	# v54_1: длинное название режима (особенно по-английски) уменьшает шрифт, а не обрезается
+	var cnm: String = au_class_name().to_upper()
+	var cfs := 18
+	while cfs > 11 and f.get_string_size(cnm, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs).x > sz.x - 72.0:
+		cfs -= 1
+	c.draw_string(f, Vector2(68.0, 26.0), cnm, HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, cfs, sk["gold"])
 	c.draw_string(f, Vector2(68.0, 46.0), String(AU_CLASS_MOTTO.get(ui_reg_cls, "")), HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, 11, Color(0.80, 0.82, 0.88))
 
 

@@ -107,17 +107,26 @@ func tech_lane(id: String) -> int:
 
 func tech_lanes_build() -> void:
 	tech_lane_cache.clear()
+	# v54_1: подветки ищутся по русским названиям и в английской версии (путь собран из частей,
+	# чтобы tools/i18n.py не перенаправил его в en/) — раскладка технологий одинакова на обоих языках
+	var subs: Array = TECH_SUBS
+	var techs: Array = TECHS
+	var ru_logic = load("res://" + "scripts/logic/tech.gd")
+	var ru_data = load("res://" + "scripts/data/data_tech.gd")
+	if ru_logic != null and ru_data != null:
+		subs = ru_logic.get_script_constant_map().get("TECH_SUBS", subs)
+		techs = ru_data.get_script_constant_map().get("TECHS", techs)
 	var rx := []
-	for b in TECH_SUBS.size():
+	for b in subs.size():
 		var row := []
-		for sub in TECH_SUBS[b]:
+		for sub in subs[b]:
 			var re := RegEx.new()
 			re.compile(String(sub[1]))
 			row.append(re)
 		rx.append(row)
 	# по уровням: альтернативы одного уровня — в разных подветках
 	var by_bt := {}
-	for d in TECHS:
+	for d in techs:
 		var k := "%d_%d" % [int(d["b"]), int(d["t"])]
 		if not by_bt.has(k):
 			by_bt[k] = []

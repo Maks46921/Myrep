@@ -109,20 +109,21 @@ func ev_de_only(t: String) -> bool:
 
 
 # v53_1: события про международную организацию — только её членам
-const EV_ORG_WORDS := {
-	"НАТО": ["nato"], "ОДКБ": ["csto"], "ЕАЭС": ["eaeu"], "СНГ": ["cis"], "Еврокомисс": ["eu"],
-	"Брюссель выделяет": ["eu"], "фонды ЕС": ["eu"], "Саммит ЕС": ["eu"], "еврозон": ["euro"],
-	"Шенген": ["schengen"], "Совет Европы": ["coe"], "ОБСЕ": ["osce"],
-}
+# v54_1: список пар [слово, организации], а не словарь — в английской версии «фонды ЕС» и «Фонды ЕС» переводятся одинаково
+const EV_ORG_WORDS := [
+	["НАТО", ["nato"]], ["ОДКБ", ["csto"]], ["ЕАЭС", ["eaeu"]], ["СНГ", ["cis"]], ["Еврокомисс", ["eu"]],
+	["Брюссель выделяет", ["eu"]], ["фонды ЕС", ["eu"]], ["Фонды ЕС", ["eu"]], ["Саммит ЕС", ["eu"]], ["еврозон", ["euro"]],
+	["Шенген", ["schengen"]], ["Совет Европы", ["coe"]], ["ОБСЕ", ["osce"]],
+]
 
 
 func ev_org_blocked(t: String) -> bool:
 	if not io_ready():
 		return false
-	for w in EV_ORG_WORDS:
-		if t.findn(String(w)) >= 0:  # v54_1: без учёта регистра («Фонды ЕС», «фонды ЕС»; так же в английской версии)
+	for wo in EV_ORG_WORDS:
+		if t.find(String(wo[0])) >= 0:
 			var ok := false
-			for o in EV_ORG_WORDS[w]:
+			for o in wo[1]:
 				if io_member(String(o)):
 					ok = true
 			if not ok:
