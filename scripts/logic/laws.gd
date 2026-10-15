@@ -4,6 +4,10 @@ extends "res://scripts/logic/policy.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func ch_law_label(vs: Array) -> void:
+	pass
+
+
 func democracy_index() -> float:
 	return 0.0
 
@@ -976,6 +980,81 @@ func variant_swing(tid: String, idx: int) -> Dictionary:
 
 
 # --- слияние с базовыми законами ---
+# v55_3: общие темы «Срок парламента» и «Избирательный барьер» написаны под Германию (4 года, 5 %);
+# у страны с другим сроком или барьером действующий вариант подписывается её значением, а совпадающий с ним — заменяется немецким
+func law_years(n: int) -> String:
+	return "%d %s" % [n, "год" if n % 10 == 1 and n % 100 != 11 else ("года" if n % 10 in [2, 3, 4] and not (n % 100 in [12, 13, 14]) else "лет")]
+
+
+func law_scaled(v: Dictionary, k: float) -> Dictionary:
+	var o := {}
+	for key in ["s", "ps", "a"]:
+		if not v.has(key):
+			continue
+		var d := {}
+		for x in v[key]:
+			d[x] = float(v[key][x]) * k
+		o[key] = d
+	return o
+
+
+func law_fit_generic() -> void:
+	for t in LAW_TOPICS:
+		var vs: Array = t["v"]
+		if String(t["id"]) == "parl_term_law" and String(vs[0]["n"]) == "4 года":
+			var n: int = int(round(float(BASE_MODS["parl_term"]) / 12.0))
+			if n == 4:
+				continue
+			vs[0]["n"] = law_years(n)
+			for i in range(1, vs.size()):
+				if int((vs[i].get("set", {}) as Dictionary).get("parl_term", -1)) == n * 12:
+					var src: Dictionary = vs[1] if n > 4 else vs[vs.size() - 1]
+					var nv := law_scaled(src, 0.6)
+					nv["n"] = "4 года"
+					nv["d"] = "Выборы чаще: власть ближе к избирателям, но предвыборная гонка почти не прекращается." if n > 4 else "Выборы реже: больше стабильности, меньше подотчётности."
+					nv["c"] = 14.0
+					nv["set"] = {"parl_term": 48}
+					vs[i] = nv
+		elif String(t["id"]) == "elect_threshold" and String(vs[0]["n"]) == "Барьер 5%":
+			var thr: float = float(BASE_MODS["threshold"])
+			if absf(thr - 0.05) < 0.001:
+				continue
+			vs[0]["n"] = ("Барьер %s%%" % str(snappedf(thr * 100.0, 0.1)).trim_suffix(".0").replace(".", ",")) if thr >= 0.005 else "Без барьера"
+			for i in range(1, vs.size()):
+				if absf(float((vs[i].get("set", {}) as Dictionary).get("threshold", -1.0)) - thr) < 0.001:
+					var nv2 := law_scaled(vs[1] if thr > 0.05 else vs[2], 0.6)
+					nv2["n"] = "Барьер 5%"
+					nv2["d"] = "Барьер ниже нынешнего: мелким партиям проще пройти в парламент." if thr > 0.05 else "Барьер выше нынешнего: мелкие партии отсеиваются, у крупных больше мест."
+					nv2["c"] = 14.0
+					nv2["set"] = {"threshold": 0.05}
+					vs[i] = nv2
+		elif String(t["id"]) == "state_church" and String(vs[0]["n"]).begins_with("Светское государство"):
+			ch_law_label(vs)
+
+
+# v55_3: правки текстов и вариантов общих законов под страну (LAW_TEXT из данных страны)
+func law_text_apply() -> void:
+	law_fit_generic()
+	if LAW_TEXT.is_empty():
+		return
+	for t in LAW_TOPICS:
+		var id: String = String(t["id"])
+		if not LAW_TEXT.has(id):
+			continue
+		var o: Dictionary = LAW_TEXT[id]
+		for k in ["name", "desc"]:
+			if o.has(k):
+				t[k] = o[k]
+		var vs: Dictionary = o.get("v", {})
+		for vi in vs:
+			var i: int = int(vi)
+			if i < 0 or i >= (t["v"] as Array).size():
+				continue
+			var nv: Dictionary = vs[vi]
+			for k in nv:
+				t["v"][i][k] = nv[k]
+
+
 func de_law_params() -> Array:
 	var out: Array = []
 	for p in LAW_PARAMS_V11:

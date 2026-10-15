@@ -4,9 +4,11 @@
 extends "res://scripts/logic/log.gd"
 
 const SV_DIR := "user://saves"
-const SV_SKIP := ["CU", "PROJECTS", "cs_rng", "ind_rng", "ch_rng", "cu_rng", "sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix", "map_pin_cache", "map_pin_key", "map_lab_pts"]
+# v55_3: неизменные данные (все страны, сетка АТЕ, треугольники и хэш карты) в снимок не пишутся: сохранение было 35 МБ и 3,5 с
+const SV_SKIP := ["CDATA", "ATE", "map_ate_tris", "map_hash", "map_seg_cache", "wrap_pass", "law_index_pre", "CU", "PROJECTS", "cs_rng", "ind_rng", "ch_rng", "cu_rng", "sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix", "map_pin_cache", "map_pin_key", "map_lab_pts"]
 const SV_KEEP := 4
 
+var sv_clean_cache := {}  # имя переменной -> можно ли её сохранять (проверяется один раз)
 var sv_hist: Array = []   # автоснимки: [{"turn": int, "date": String, "bytes": PackedByteArray}]
 
 
@@ -38,7 +40,10 @@ func sv_collect() -> Dictionary:
 		var v: Variant = get(nm)
 		if v == null:
 			continue
-		if sv_clean(v):
+		# v55_3: глубокая проверка (нет ли внутри объектов) — один раз на переменную: по WORLD_UNITS она шла секунду
+		if not sv_clean_cache.has(nm):
+			sv_clean_cache[nm] = sv_clean(v)
+		if bool(sv_clean_cache[nm]):
 			out[nm] = v
 	return out
 
@@ -55,6 +60,8 @@ func sv_apply(bytes: PackedByteArray) -> bool:
 	if String(d.get("ccode", "")) != ccode:
 		return false
 	var vars: Dictionary = d["vars"]
+	# v55_3: если снимок сделан при другой карте (война, федерация, распад), окна регионов и карту надо пересобрать
+	var geo0: int = hash([regions.size(), WORLD_UNITS.size(), ate_unit])
 	for nm in vars:
 		var cur: Variant = get(String(nm))
 		var nv: Variant = vars[nm]
@@ -86,6 +93,8 @@ func sv_apply(bytes: PackedByteArray) -> bool:
 	if ag_on:
 		ag_build()
 	recompute_mods()
+	if hash([regions.size(), WORLD_UNITS.size(), ate_unit]) != geo0:
+		map_rebuild()
 	return true
 
 

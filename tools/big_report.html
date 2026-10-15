@@ -1,0 +1,318 @@
+<title>Symphony: большой тест</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f4f5f8; --panel: #ffffff; --panel2: #eef0f5; --line: #d9dde6; --fg: #1a2030; --dim: #5d6679; --faint: #8a92a3;
+  --accent: #0f8a80; --accent-soft: #d8f0ed; --blue: #2f6fd0; --warn: #b8730a; --warn-soft: #fbefd9; --bad: #c23b3b; --bad-soft: #f9e1e1;
+  --ok: #2a8a4a; --ok-soft: #dff2e5; --violet: #7350c8; --violet-soft: #ece6fa; --shadow: 0 1px 2px rgba(20,30,50,.06), 0 4px 16px rgba(20,30,50,.05);
+  --c0: #2f6fd0; --c1: #c2410c; --c2: #0f8a80; --c3: #b8257a; --c4: #a68a00; --c5: #6b4fc8;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1420; --panel: #161d2c; --panel2: #1c2436; --line: #2a3448; --fg: #e4e8f1; --dim: #9aa4b8; --faint: #6c768b;
+  --accent: #3cc6b8; --accent-soft: #143a3a; --blue: #6fa1f0; --warn: #f0b04a; --warn-soft: #3a2e16; --bad: #f07272; --bad-soft: #3c1e22;
+  --ok: #5fcf85; --ok-soft: #173424; --violet: #a993f0; --violet-soft: #2a2348; --shadow: none;
+  --c0: #6fa1f0; --c1: #f08a4b; --c2: #3cc6b8; --c3: #f07ab8; --c4: #e3c84a; --c5: #a993f0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1420; --panel: #161d2c; --panel2: #1c2436; --line: #2a3448; --fg: #e4e8f1; --dim: #9aa4b8; --faint: #6c768b;
+  --accent: #3cc6b8; --accent-soft: #143a3a; --blue: #6fa1f0; --warn: #f0b04a; --warn-soft: #3a2e16; --bad: #f07272; --bad-soft: #3c1e22;
+  --ok: #5fcf85; --ok-soft: #173424; --violet: #a993f0; --violet-soft: #2a2348; --shadow: none;
+  --c0: #6fa1f0; --c1: #f08a4b; --c2: #3cc6b8; --c3: #f07ab8; --c4: #e3c84a; --c5: #a993f0; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel) }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { padding-block: 36px 20px }
+.kicker { font: 600 12px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--accent) }
+h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 10px 0 8px; text-wrap: balance; font-weight: 700 }
+h2 { font-size: 24px; margin: 0 0 6px; text-wrap: balance }
+h3 { font-size: 17px; margin: 18px 0 8px }
+p { margin: 0 0 10px; max-width: 72ch }
+.lead { color: var(--dim); font-size: 16px }
+nav.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line) }
+nav.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; padding-block: 8px; scrollbar-width: none }
+nav.tabs a { flex: none; color: var(--dim); text-decoration: none; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 14px }
+nav.tabs a:hover, nav.tabs a.on { background: var(--panel2); color: var(--fg) }
+section { padding-block: 34px 6px; scroll-margin-top: 56px }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow) }
+.sc { overflow-x: auto; -webkit-overflow-scrolling: touch }
+table { border-collapse: collapse; width: 100%; font-size: 14px }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-size: 12px; color: var(--dim); font-weight: 600; letter-spacing: .03em; background: var(--panel2); position: sticky; top: 0 }
+td.n, th.n { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; white-space: nowrap }
+tr:last-child td { border-bottom: none }
+code { font: 12.5px "JetBrains Mono", ui-monospace, monospace; background: var(--panel2); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere }
+a { color: var(--blue) }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--panel2); color: var(--dim) }
+.chip.ok { background: var(--ok-soft); color: var(--ok) } .chip.bad { background: var(--bad-soft); color: var(--bad) }
+.chip.warn { background: var(--warn-soft); color: var(--warn) } .chip.acc { background: var(--accent-soft); color: var(--accent) }
+.chip.vio { background: var(--violet-soft); color: var(--violet) }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px }
+.card { padding: 14px 16px; min-width: 0 }
+.card .big { font: 600 28px/1.1 "JetBrains Mono", ui-monospace, monospace }
+.card .lbl { color: var(--dim); font-size: 13px }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 }
+select, input[type=search] { font: inherit; font-size: 14px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0 }
+input[type=search] { flex: 1 1 220px }
+.list { margin: 0; padding-left: 20px } .list li { margin: 4px 0; max-width: 90ch }
+.gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px }
+figure { margin: 0; cursor: zoom-in; overflow: hidden; min-width: 0 }
+figure img { display: block; width: 100%; aspect-ratio: 1564/792; object-fit: cover; background: var(--panel2) }
+figcaption { padding: 8px 10px; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; align-items: center }
+.lb { position: fixed; inset: 0; z-index: 20; background: rgba(5,8,14,.86); display: flex; flex-direction: column; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); gap: 10px }
+.lb img { max-width: 100%; max-height: 72vh; object-fit: contain; align-self: center; border-radius: 6px }
+.lb .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #e4e8f1 }
+.lb button { font: inherit; background: #2a3448; color: #e4e8f1; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer }
+.lb .fx { color: #c9d0de; font-size: 13px; overflow: auto; max-height: 18vh; margin: 0; padding-left: 18px }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px }
+.chart { padding: 12px 14px 8px; min-width: 0 } .chart h4 { margin: 0 0 4px; font-size: 14px }
+.chart svg { width: 100%; height: auto; display: block }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--dim); margin: 10px 0 }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px }
+.ctabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 }
+.ctabs button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; padding: 6px 12px; cursor: pointer }
+.ctabs button.on { background: var(--accent); border-color: var(--accent); color: #fff }
+.real td:nth-child(1) { min-width: 150px; font-weight: 500 } .real td:nth-child(2), .real td:nth-child(3) { min-width: 220px }
+.real td:nth-child(4) { min-width: 120px; font-size: 13px } .real td:nth-child(5) { min-width: 130px }
+.real .ty { display: block; color: var(--faint); font-size: 12px; margin-top: 4px }
+.props { display: grid; gap: 10px }
+.prop { padding: 12px 16px } .prop b { display: block; margin-bottom: 4px }
+.muted { color: var(--dim) } .sm { font-size: 13px }
+details summary { cursor: pointer; color: var(--dim); font-weight: 500; margin: 10px 0 }
+pre { background: var(--panel2); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font: 13px/1.5 "JetBrains Mono", ui-monospace, monospace }
+footer { padding-block: 40px; color: var(--faint); font-size: 13px }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px }
+.grid2 > * { min-width: 0 }
+</style>
+
+<header class="top wrap">
+  <div class="kicker">Symphony {{VERSION}} · большой тест</div>
+  <h1>Шесть стран, два языка: что проверено и что найдено</h1>
+  <p class="lead" id="lead"></p>
+</header>
+<nav class="tabs"><div class="wrap">
+  <a href="#itog">Итог</a><a href="#fixed">Исправлено</a><a href="#finds">Находки</a><a href="#shots">Скриншоты</a>
+  <a href="#bal">Баланс 20 лет</a><a href="#real">Сверка с реальностью</a><a href="#props">Предложения</a><a href="#run">Как запустить</a>
+</div></nav>
+
+<main class="wrap">
+<section id="itog">
+  <h2>Итог</h2>
+  <p class="muted">Ошибки — то, что ломает игру: NaN, исключения скрипта, пустое окно, потеря данных при сохранении. Находки — графика, перевод, баланс.</p>
+  <div class="cards" id="cards"></div>
+  <h3>По странам</h3>
+  <div class="panel sc"><table id="matrix"></table></div>
+</section>
+
+<section id="fixed">
+  <h2>Исправлено в этой версии</h2>
+  <ul class="list" id="fixedList"></ul>
+</section>
+
+<section id="finds">
+  <h2>Находки последнего прогона</h2>
+  <div class="filters">
+    <select id="fC"></select><select id="fL"></select><select id="fK"></select>
+    <input type="search" id="fQ" placeholder="Поиск по тексту">
+  </div>
+  <div class="panel sc"><table id="findT"></table></div>
+  <details><summary id="trimSum"></summary><div class="panel sc"><table id="trimT"></table></div></details>
+</section>
+
+<section id="shots">
+  <h2>Скриншоты</h2>
+  <p class="muted">Все рамки и вкладки, окна по запросу, слои карты, окна события, выборов, кризиса и войны. Число на карточке — находки этого экрана. Нажмите на снимок, чтобы открыть его крупно.</p>
+  <div class="filters"><select id="sC"></select><select id="sL"></select><select id="sK"></select></div>
+  <div class="gal" id="gal"></div>
+</section>
+
+<section id="bal">
+  <h2>Баланс за 20 лет</h2>
+  <p class="muted" id="balNote"></p>
+  <div class="legend" id="balLeg"></div>
+  <div class="charts" id="charts"></div>
+</section>
+
+<section id="real">
+  <h2>Сверка с реальностью на 1 января 2026</h2>
+  <p class="muted">Право и политология: устройство власти, парламент, законы на старте, партии и места, тип режима, экономика, народы и религии, события. Источники — официальные сайты и Википедия.</p>
+  <div class="ctabs" id="rTabs"></div>
+  <div id="rSum" class="filters"></div>
+  <div class="panel sc"><table class="real" id="rT"></table></div>
+  <details><summary>Что совпадает с реальностью</summary><div class="panel card" id="rOk"></div></details>
+</section>
+
+<section id="props">
+  <h2>Предложения по механикам</h2>
+  <p class="muted">Это упрощения, которые сверка нашла в механике. Сам я их не менял: решать вам, какие делать.</p>
+  <div id="doneProps"></div>
+  <div class="props" id="propList"></div>
+</section>
+
+<section id="run">
+  <h2>Как запустить тест</h2>
+  <p>Тест остаётся в игре: <code>tests/t_big.gd</code>. Части запускаются по отдельности или все сразу. Скриншоты и находки пишутся в <code>.testlogs/big/</code>, отчёт собирается одной командой.</p>
+<pre>xvfb-run -a -s "-screen 0 1700x900x24" python3 tools/test.py big_ui -c DE,FR   # экраны, окна, слои карты, кнопки
+python3 tools/test.py big_mech -c DE        # события и варианты, законы, меры, сохранения
+python3 tools/test.py big_bal -c DE         # 20 лет под управлением ИИ
+python3 tools/test.py big [--en]            # всё по 6 странам + войны, революции, федерации, распад
+python3 tools/big_report.py                 # этот отчёт → .testlogs/big_report/</pre>
+</section>
+</main>
+<footer class="wrap" id="foot"></footer>
+
+<script>
+const D = /*DATA*/null;
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const CN = D.countries, ORDER = Object.keys(CN);
+const LANG = {ru: "русский", en: "английский"};
+const COLORS = ORDER.map((_, i) => `var(--c${i})`);
+const run = (cc, l) => D.runs.find(r => r.cc === cc && r.lang === l);
+const fmt = n => n == null ? "—" : Number(n).toLocaleString("ru-RU");
+
+// ---- итог ----
+(function () {
+  let bad = 0, nf = 0, btn = 0, ev = 0, opt = 0, laws = 0, saves = 0;
+  for (const r of D.runs) for (const p of Object.values(r.parts)) {
+    bad += p.bad; nf += p.finds; const s = p.stats || {};
+    btn += s.buttons || 0; ev += s.events || 0; opt += s.options || 0; laws += s.laws || 0; saves += s.saves || 0;
+  }
+  const langs = [...new Set(D.runs.map(r => r.lang))];
+  $("#lead").textContent = `${ORDER.length} стран (${ORDER.map(c => CN[c]).join(", ")}) на ${langs.map(l => LANG[l]).join(" и ")}. Прогонов: ${D.runs.length}. ${D.date ? "Отчёт от " + D.date + "." : ""}`;
+  const card = (big, lbl, cls = "") => `<div class="panel card"><div class="big ${cls}">${big}</div><div class="lbl">${lbl}</div></div>`;
+  $("#cards").innerHTML = card(bad, "ошибок в последнем прогоне", bad ? "" : "") + card(fmt(nf), "находок (графика, перевод, баланс)") +
+    card(fmt(btn), "кнопок нажато") + card(fmt(ev) + " / " + fmt(opt), "событий / вариантов ответа выбрано") +
+    card(fmt(laws), "вариантов законов принято или проверено") + card(fmt(saves), "циклов сохранения и загрузки");
+  let h = "<tr><th>Страна</th><th>Язык</th><th class='n'>Ошибки</th><th class='n'>Находки</th><th class='n'>Кнопки</th><th class='n'>События</th><th class='n'>Варианты</th><th class='n'>Законы</th><th class='n'>Сохранения</th><th class='n'>Рост ВВП за 20 лет, % в год</th></tr>";
+  for (const cc of ORDER) for (const l of ["ru", "en"]) {
+    const r = run(cc, l); if (!r) continue;
+    let b = 0, f = 0; const st = {};
+    for (const p of Object.values(r.parts)) { b += p.bad; f += p.finds; Object.assign(st, p.stats || {}) }
+    const lawCell = st.laws != null ? `${fmt(st.laws_ok)} из ${fmt(st.laws)}` : "—";
+    h += `<tr><td>${CN[cc]}</td><td>${LANG[l]}</td><td class="n">${b ? `<span class="chip bad">${b}</span>` : `<span class="chip ok">0</span>`}</td><td class="n">${f}</td>
+      <td class="n">${fmt(st.buttons)}</td><td class="n">${fmt(st.events)}</td><td class="n">${fmt(st.options)}</td><td class="n">${lawCell}</td><td class="n">${fmt(st.saves)}</td><td class="n">${st.cagr != null ? st.cagr.toFixed(1) : "—"}</td></tr>`;
+  }
+  $("#matrix").innerHTML = h;
+  $("#fixedList").innerHTML = D.fixed.map(x => `<li>${x}</li>`).join("") || "<li class='muted'>—</li>";
+})();
+
+// ---- находки ----
+(function () {
+  const cats = [...new Set(D.finds.map(f => f.cat))];
+  const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
+  $("#fC").innerHTML = opt("", "Все страны") + ORDER.map(c => opt(c, CN[c])).join("");
+  $("#fL").innerHTML = opt("", "Оба языка") + opt("ru", "Русский") + opt("en", "Английский");
+  $("#fK").innerHTML = opt("", "Все категории") + cats.map(c => opt(c, c)).join("");
+  const kcls = {"ошибка": "bad", "графика": "warn", "перевод": "vio", "баланс": "acc", "шаблон": "vio", "текст": "warn"};
+  function draw() {
+    const c = $("#fC").value, l = $("#fL").value, k = $("#fK").value, q = $("#fQ").value.toLowerCase();
+    const rows = D.finds.filter(f => (!c || f.cc === c) && (!l || f.lang === l) && (!k || f.cat === k) && (!q || (f.t + f.where).toLowerCase().includes(q)));
+    $("#findT").innerHTML = "<tr><th>Страна</th><th>Язык</th><th>Категория</th><th>Где</th><th>Что</th></tr>" +
+      (rows.slice(0, 600).map(f => `<tr><td>${f.cc}</td><td>${f.lang}</td><td><span class="chip ${kcls[f.cat] || ""}">${esc(f.cat)}</span></td><td class="sm muted">${esc(f.where)}</td><td>${esc(f.t)}</td></tr>`).join("") ||
+       "<tr><td colspan='5' class='muted'>Ничего не найдено.</td></tr>") + (rows.length > 600 ? `<tr><td colspan='5' class='muted'>…и ещё ${rows.length - 600}</td></tr>` : "");
+  }
+  ["#fC", "#fL", "#fK"].forEach(s => $(s).addEventListener("change", draw)); $("#fQ").addEventListener("input", draw); draw();
+  $("#trimSum").textContent = `Сокращено многоточием: ${D.trims.length} подписей и кнопок (не ошибка: текст виден частично, полностью — в подсказке или по нажатию)`;
+  $("#trimT").innerHTML = "<tr><th>Страна</th><th>Язык</th><th>Где</th><th>Что</th></tr>" + D.trims.slice(0, 400).map(f => `<tr><td>${f.cc}</td><td>${f.lang}</td><td class="sm muted">${esc(f.where)}</td><td>${esc(f.t)}</td></tr>`).join("");
+})();
+
+// ---- скриншоты ----
+(function () {
+  const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
+  const cs = ORDER.filter(c => D.shots.some(s => s.cc === c));
+  $("#sC").innerHTML = cs.map(c => opt(c, CN[c])).join("");
+  $("#sL").innerHTML = opt("ru", "Русский") + opt("en", "Английский");
+  $("#sK").innerHTML = opt("", "Все экраны") + opt("d", "Рамки и вкладки") + opt("w", "Окна по запросу") + opt("map", "Слои карты") + opt("x", "События, выборы, кризис, война");
+  const kind = f => { const b = f.split("_").slice(2).join("_").replace(".jpg", ""); return /^d\d+$/.test(b) ? "d" : b.startsWith("w_") ? "w" : b.startsWith("map") ? "map" : "x" };
+  const nFind = s => D.finds.filter(f => f.cc === s.cc && f.lang === s.lang && f.part === "ui" && s.where && f.where === s.where).length;
+  let cur = [];
+  function draw() {
+    const c = $("#sC").value, l = $("#sL").value, k = $("#sK").value;
+    cur = D.shots.filter(s => s.cc === c && s.lang === l && (!k || kind(s.f) === k));
+    $("#gal").innerHTML = cur.map((s, i) => { const n = nFind(s);
+      return `<figure class="panel" data-i="${i}"><img loading="lazy" src="${s.f}" alt="${esc(s.title)}"><figcaption><span>${esc(s.title)}</span>${n ? `<span class="chip warn">${n}</span>` : `<span class="chip ok">0</span>`}</figcaption></figure>` }).join("") ||
+      "<p class='muted'>Для этого языка в отчёт взяты только ключевые экраны.</p>";
+  }
+  ["#sC", "#sL", "#sK"].forEach(s => $(s).addEventListener("change", draw)); draw();
+  let lb = null, at = 0;
+  function show(i) {
+    at = (i + cur.length) % cur.length; const s = cur[at];
+    const fx = D.finds.filter(f => f.cc === s.cc && f.lang === s.lang && f.part === "ui" && s.where && f.where === s.where);
+    lb.querySelector("img").src = s.f; lb.querySelector(".t").textContent = `${CN[s.cc]} · ${s.lang} · ${s.title} (${at + 1} из ${cur.length})`;
+    lb.querySelector(".fx").innerHTML = fx.map(f => `<li>${esc(f.t)}</li>`).join("") || "<li>Находок на этом экране нет.</li>";
+  }
+  $("#gal").addEventListener("click", e => {
+    const fg = e.target.closest("figure"); if (!fg) return;
+    if (!lb) {
+      lb = document.createElement("div"); lb.className = "lb";
+      lb.innerHTML = `<div class="bar"><span class="t"></span><span><button data-a="-1">←</button> <button data-a="1">→</button> <button data-a="x">Закрыть</button></span></div><img alt=""><ul class="fx"></ul>`;
+      lb.addEventListener("click", ev => { const a = ev.target.dataset && ev.target.dataset.a; if (a === "x" || ev.target === lb) lb.hidden = true; else if (a) show(at + Number(a)) });
+      document.addEventListener("keydown", ev => { if (lb.hidden) return; if (ev.key === "Escape") lb.hidden = true; if (ev.key === "ArrowRight") show(at + 1); if (ev.key === "ArrowLeft") show(at - 1) });
+      document.body.appendChild(lb);
+    }
+    lb.hidden = false; show(Number(fg.dataset.i));
+  });
+})();
+
+// ---- баланс ----
+(function () {
+  const M = [["gdp", "ВВП, % от старта"], ["growth", "Рост ВВП, %"], ["infl", "Инфляция, %"], ["unemp", "Безработица, %"], ["debt", "Долг, % ВВП"], ["appr", "Рейтинг власти, %"]];
+  const ser = ORDER.map(cc => ({cc, rows: D.bal["ru_" + cc] || []})).filter(s => s.rows.length);
+  if (!ser.length) { $("#balNote").textContent = "Нет данных прогона баланса."; return }
+  let same = 0, cmp = 0;
+  for (const cc of ORDER) { const a = D.bal["ru_" + cc], b = D.bal["en_" + cc]; if (a && b) { cmp++; if (JSON.stringify(a) === JSON.stringify(b)) same++ } }
+  $("#balNote").textContent = "Каждая страна 20 лет под управлением ИИ (наблюдатель), значения на конец года. " +
+    (cmp ? `Английская версия дала те же числа, что русская, в ${same} из ${cmp} стран: перевод не влияет на механику.` : "");
+  $("#balLeg").innerHTML = ser.map(s => `<span><i style="background:${COLORS[ORDER.indexOf(s.cc)]}"></i>${CN[s.cc]}</span>`).join("");
+  const W = 340, H = 190, L = 38, R = 8, T = 10, B = 24;
+  $("#charts").innerHTML = M.map(([k, name]) => {
+    let lo = Infinity, hi = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const s of ser) for (const r of s.rows) { lo = Math.min(lo, r[k]); hi = Math.max(hi, r[k]); y0 = Math.min(y0, r.y); y1 = Math.max(y1, r.y) }
+    if (k !== "gdp" && lo > 0) lo = 0; if (hi === lo) hi = lo + 1;
+    const pad = (hi - lo) * .06; lo -= pad; hi += pad;
+    const X = y => L + (y - y0) / Math.max(1, y1 - y0) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+    const step = Math.pow(10, Math.floor(Math.log10((hi - lo) / 4))); const st = [1, 2, 2.5, 5, 10].map(m => m * step).find(s => (hi - lo) / s <= 5) || step * 10;
+    let g = "";
+    for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L - 5}" y="${Y(v) + 4}" text-anchor="end" font-size="10" fill="var(--faint)">${+v.toFixed(1)}</text>`;
+    for (let y = y0; y <= y1; y += 5) g += `<text x="${X(y)}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--faint)">${y}</text>`;
+    const lines = ser.map(s => `<polyline fill="none" stroke="${COLORS[ORDER.indexOf(s.cc)]}" stroke-width="2" stroke-linejoin="round" points="${s.rows.map(r => X(r.y).toFixed(1) + "," + Y(r[k]).toFixed(1)).join(" ")}"><title>${CN[s.cc]}</title></polyline>`).join("");
+    return `<div class="panel chart"><h4>${name}</h4><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${name}">${g}${lines}</svg></div>`;
+  }).join("");
+})();
+
+// ---- реальность ----
+(function () {
+  const ST = {fixed: ["исправлено", "ok"], partial: ["частично", "acc"], proposal: ["в предложениях", "vio"], kept: ["оставлено", ""], design: ["дизайн", ""]};
+  const R = D.reality; if (!R.length) return;
+  let cur = R[0].cc;
+  $("#rTabs").innerHTML = R.map(r => `<button data-c="${r.cc}">${CN[r.cc]} <span class="muted sm">${r.rows.length}</span></button>`).join("");
+  function draw() {
+    const r = R.find(x => x.cc === cur);
+    $("#rTabs").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.c === cur));
+    const cnt = {}; r.rows.forEach(x => cnt[x.st] = (cnt[x.st] || 0) + 1);
+    $("#rSum").innerHTML = Object.keys(ST).filter(k => cnt[k]).map(k => `<span class="chip ${ST[k][1]}">${ST[k][0]}: ${cnt[k]}</span>`).join("");
+    $("#rT").innerHTML = "<tr><th>Что</th><th>В игре (до правки)</th><th>В жизни</th><th>Источник</th><th>Статус</th></tr>" +
+      r.rows.map(x => `<tr><td>${x.area}</td><td>${x.game}</td><td>${x.life}</td><td>${x.src}</td><td><span class="chip ${ST[x.st][1]}">${ST[x.st][0]}</span>${x.note ? `<span class="ty">${x.note}</span>` : ""}<span class="ty">${x.type}${x.imp && x.imp !== "—" ? " · " + x.imp : ""}</span></td></tr>`).join("");
+    $("#rOk").innerHTML = r.ok || "<p class='muted'>—</p>";
+  }
+  $("#rTabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { cur = b.dataset.c; draw() } });
+  draw();
+})();
+
+// ---- предложения ----
+(function () {
+  if (D.done_props.length) $("#doneProps").innerHTML = `<h3>Уже сделано в этой версии</h3><ul class="list">${D.done_props.map(x => `<li>${x}</li>`).join("")}</ul><h3>На ваше решение</h3>`;
+  $("#propList").innerHTML = D.proposals.map((p, i) => `<div class="panel prop"><b>${i + 1}. ${p.t}${p.cc ? ` <span class="chip acc">${esc(p.cc)}</span>` : ""}</b><span class="muted">${p.d}</span></div>`).join("");
+  $("#foot").textContent = `Symphony ${D.version} · отчёт собран tools/big_report.py из результатов tests/t_big.gd и сверки docs/reality/`;
+})();
+
+// подсветка раздела в навигации
+(function () {
+  const links = [...document.querySelectorAll("nav.tabs a")];
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id)) }), {rootMargin: "-40% 0px -55% 0px"});
+  document.querySelectorAll("main section").forEach(s => io.observe(s));
+})();
+</script>

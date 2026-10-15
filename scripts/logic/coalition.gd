@@ -120,7 +120,10 @@ func check_impeachment() -> void:
 	if opp >= impeach_seats() and approval() < 42.0 and crisis_months >= 2:
 		if not impeach_warned:
 			impeach_warned = true
-			log_line("[color=%s][b]Угроза вотума недоверия![/b] Оппозиция (без АдГ) может собрать %d мест (нужно %d) и избрать нового канцлера, а ваш рейтинг ниже 42%%.[/color]" % [COL_BAD, opp, impeach_seats()])
+			if ccode == "DE":
+				log_line("[color=%s][b]Угроза вотума недоверия![/b] Оппозиция (без АдГ) может собрать %d мест (нужно %d) и избрать нового канцлера, а ваш рейтинг ниже 42%%.[/color]" % [COL_BAD, opp, impeach_seats()])
+			else:
+				log_line("[color=%s][b]Угроза вотума недоверия![/b] Оппозиция может собрать %d мест (нужно %d) и отправить правительство в отставку, а ваш рейтинг ниже 42%%.[/color]" % [COL_BAD, opp, impeach_seats()])
 		if randf() < 0.05:
 			end_game(("Бундестаг выразил недоверие и избрал нового канцлера (конструктивный вотум). Оппозиция собрала %d мест из %d." if ccode == "DE" else "Парламент выразил недоверие правительству: оппозиция собрала %d мест из %d, и вы вынуждены уйти в отставку.") % [opp, SEATS])
 	elif opp < impeach_seats() - 5 or approval() >= 48.0:

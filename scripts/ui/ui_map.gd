@@ -1941,7 +1941,7 @@ func ate_click(a: int, whole: bool) -> void:
 func build_adm_window() -> void:
 	var w: FloatWindow = new_window("adm", "Административная реформа (АТЕ)", 2, Rect2(0.25, 0.0, 0.21, 0.66))
 	var cb := CheckButton.new()
-	cb.text = "Режим АТЕ: щелчок по карте выделяет АТЕ"
+	cb.text = "Режим АТЕ (выделение на карте)"
 	cb.focus_mode = Control.FOCUS_NONE
 	cb.tooltip_text = "АТЕ — административно-территориальная единица (~600 км²), из которых состоят регионы. В этом режиме щелчок выделяет АТЕ (с Shift — весь регион), повторный щелчок снимает выделение."
 	cb.toggled.connect(func(on: bool) -> void:

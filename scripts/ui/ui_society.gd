@@ -112,6 +112,18 @@ func build_society_windows() -> void:
 	gdw_all_rt = make_rt(w.body)
 	w = new_window("gd_ind", "Промышленность, цепочки и санкции", 7, Rect2(0.37, 0.58, 0.335, 0.42))
 	gdw_ind_rt = make_rt(w.body)
+	# v55_3: «Все товары» и «Промышленность» лежали под «Энергией» и «Историей показателей».
+	# «Товары и цены» (7): цены, корзины, что двигает, все товары, история; «Промышленная политика» (16):
+	# пульт, энергия (создаётся в ui_realm), панель показателей, промышленность и цепочки, как устроена модель
+	var lay := {"gd_list": [7, Rect2(0.0, 0.0, 0.30, 0.5)], "gd_groups": [7, Rect2(0.30, 0.0, 0.405, 0.2)], "gd_drv": [7, Rect2(0.30, 0.2, 0.405, 0.3)],
+		"gd_all": [7, Rect2(0.0, 0.5, 0.35, 0.5)], "es_main": [16, Rect2(0.0, 0.0, 0.30, 0.42)], "es_dash": [16, Rect2(0.30, 0.0, 0.405, 0.36)],
+		"gd_ind": [16, Rect2(0.30, 0.36, 0.405, 0.40)], "es_info": [16, Rect2(0.30, 0.76, 0.405, 0.24)]}
+	for wid in lay:
+		if wins.has(wid):
+			var gw: FloatWindow = wins[wid]
+			gw.desk = int(lay[wid][0])
+			gw.frac = lay[wid][1]
+			gw.default_frac = gw.frac
 
 
 func on_cult_meta(meta: Variant) -> void:

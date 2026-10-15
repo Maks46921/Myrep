@@ -43,6 +43,10 @@ func build_build_window() -> void:
 			var b := Button.new()
 			b.theme_type_variation = "SmallButton"
 			b.text = String(pd["name"])
+			# v55_3: длинное название (мегапроекты) переносится на 2 строки и не раздвигает окно
+			if b.text.length() > 30:
+				b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				b.custom_minimum_size.x = 240.0
 			b.toggle_mode = true
 			b.button_group = grp
 			b.focus_mode = Control.FOCUS_NONE

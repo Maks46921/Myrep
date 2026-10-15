@@ -234,6 +234,10 @@ func update_law_windows() -> void:
 	if law_list_box == null:
 		return
 	update_bill_window()
+	# v55_3: тема по умолчанию («Барьер») может быть убрана у страны (DE_REMOVE у Франции)
+	if not law_index.has(sel_topic) and not LAW_TOPICS.is_empty():
+		sel_topic = String(LAW_TOPICS[0]["id"])
+		sel_variant = first_other_variant(sel_topic)
 	var topic: Dictionary = law_index[sel_topic]
 	if int(topic["cat"]) != law_cat:
 		for t in LAW_TOPICS:

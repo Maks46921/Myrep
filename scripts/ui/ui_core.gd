@@ -1262,6 +1262,7 @@ func refresh() -> void:
 		update_io_windows()
 	elif current_desk == 16:
 		update_es_windows()
+		update_goods_detail()
 	elif current_desk == 17:
 		update_corp_windows()
 	elif current_desk == 6:

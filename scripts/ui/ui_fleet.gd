@@ -162,6 +162,7 @@ func update_fleet_windows() -> void:
 			var lb := Label.new()
 			lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			lb.clip_text = true
+			lb.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			lb.custom_minimum_size = Vector2(40.0, 0.0)
 			row.add_child(lb)
 			var b := make_button("Расширить", row)

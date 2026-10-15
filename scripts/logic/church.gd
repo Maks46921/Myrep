@@ -43,6 +43,18 @@ func ch_on() -> bool:
 	return ch.has("faith")
 
 
+# v55_3: подпись действующего варианта закона «Религия и государство» у стран с государственной
+# или народной церковью (Дания, Финляндия, Греция…): вызывается из law_fit_generic до church_init
+func ch_law_label(vs: Array) -> void:
+	if CU.is_empty():
+		var d = ext_load("res://data/cult.dat")
+		CU = d if d != null else {}
+	var chc: Dictionary = cu_cfg().get("church", {})
+	if not chc.is_empty() and int(chc.get("state", -1)) >= 0:
+		vs[0]["n"] = "Государственная (народная) церковь"
+		vs[0]["d"] = "Действующий порядок: «%s» закреплена в конституции; другие религии свободны." % String(chc["name"])
+
+
 func church_init() -> void:
 	ch_rng.seed = hash(ccode) + 173
 	var c: Dictionary = cu_cfg()["church"]

@@ -360,7 +360,9 @@ func update_pop_windows() -> void:
 		head.text = "Модель агентов выключена: голосуют укрупнённые группы."
 		table.text = ""
 		(ag_ui["card"] as RichTextLabel).text = ""
-		(ag_ui["reg"] as RichTextLabel).text = ""
+		# v55_3: без агентов окна не пустые — объясняют, где смотреть
+		(ag_ui["reg"] as RichTextLabel).text = "Модель агентов выключена в настройках новой игры. Недовольство регионов видно на карте и в окне «Регионы: сводка»."
+		(ag_ui["hnote"] as RichTextLabel).text = "Распределение оценок строится по агентам; без них голосуют укрупнённые группы (окно «Группы интересов»)."
 		return
 	var sup := ag_support_arr()
 	if ag_ui_ver != ag_ver:

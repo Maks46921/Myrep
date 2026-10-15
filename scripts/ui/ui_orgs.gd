@@ -17,10 +17,112 @@ var io_hist_rt: RichTextLabel = null
 var io_built_for := ""
 
 
+var io_row_mem: HFlowContainer = null
+var io_row_oth: HFlowContainer = null
+var io_lbl_cand: Label = null
+var io_lbl_oth: Label = null
+var io_other_opt: OptionButton = null
+var io_groups_key := ""
+var io_bar_hh := 76.0
+
+
 func io_bar_h() -> float:
 	if io_bar == null:
 		return 40.0
-	return maxf(70.0, io_bar.size.y + 8.0)
+	return io_bar_hh
+
+
+func io_bar_row(parent: Control, title: String) -> HFlowContainer:
+	var fl := HFlowContainer.new()
+	fl.add_theme_constant_override("h_separation", 4)
+	fl.add_theme_constant_override("v_separation", 4)
+	var l := Label.new()
+	l.text = title
+	l.custom_minimum_size = Vector2(130.0, 0.0)
+	l.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	l.add_theme_font_size_override("font_size", 13)
+	fl.add_child(l)
+	parent.add_child(fl)
+	return fl
+
+
+# группа организации: 0 — член, 1 — заявка или кандидат, 2 — остальные
+func io_group(o: String) -> int:
+	if io_member(o):
+		return 0
+	if (io["cand"] as Dictionary).has(o):
+		return 1
+	var d: Dictionary = ORGS[o]
+	if d.has("rl") and rl_on() and (rl["acc"] as Dictionary).has(String(d["rl"])):
+		return 1
+	return 2
+
+
+# высота строки организаций считается сама (по ширине кнопок), чтобы окна под ней не перекрывались
+func io_bar_layout() -> void:
+	if io_bar == null:
+		return
+	var w: float = maxf(600.0, size.x - 28.0)
+	var hh := 0.0
+	for row in [io_row_mem, io_row_oth]:
+		var x := 0.0
+		var lines := 1
+		var lh := 0.0
+		for ch in (row as HFlowContainer).get_children():
+			var c: Control = ch
+			if not c.visible:
+				continue
+			var ms: Vector2 = c.get_combined_minimum_size()
+			lh = maxf(lh, ms.y)
+			if x > 0.0 and x + ms.x > w:
+				lines += 1
+				x = 0.0
+			x += ms.x + 4.0
+		hh += float(lines) * (maxf(lh, 26.0) + 4.0)
+	io_bar.size = Vector2(w + 12.0, hh + 6.0)
+	(io_row_mem as Control).custom_minimum_size = Vector2(w, 0.0)
+	(io_row_oth as Control).custom_minimum_size = Vector2(w, 0.0)
+	io_bar_hh = hh + 14.0
+	if io_bar.visible and workspace != null:
+		workspace.offset_top = 64.0 + io_bar_hh
+
+
+# раскладка кнопок по группам; пересобирается, только когда членство или заявки изменились
+func io_bar_groups() -> void:
+	var key := ""
+	for o in ORG_ORDER:
+		key += str(io_group(o))
+	if key == io_groups_key:
+		return
+	io_groups_key = key
+	var n_c := 0
+	for o in ORG_ORDER:
+		var b: Button = io_tabs[o]
+		var g := io_group(o)
+		var want: Control = io_row_mem if g == 0 else io_row_oth
+		if b.get_parent() != want:
+			b.get_parent().remove_child(b)
+			want.add_child(b)
+		b.visible = g != 2
+		if g == 1:
+			n_c += 1
+	# порядок во второй строке: подпись «Заявка», кнопки заявок, подпись «Остальные», список
+	for o in ORG_ORDER:
+		if io_group(o) == 1:
+			io_row_oth.move_child(io_tabs[o], -1)
+	io_row_oth.move_child(io_lbl_oth, -1)
+	io_row_oth.move_child(io_other_opt, -1)
+	io_lbl_cand.visible = n_c > 0
+	io_other_opt.clear()
+	io_other_opt.add_item("— выбрать —")
+	io_other_opt.set_item_metadata(0, "")
+	for o in ORG_ORDER:
+		if io_group(o) == 2:
+			io_other_opt.add_item(String(ORGS[o]["sh"]) + " — " + String(ORGS[o]["n"]))
+			io_other_opt.set_item_metadata(io_other_opt.item_count - 1, String(o))
+	io_lbl_oth.visible = io_other_opt.item_count > 1
+	io_other_opt.visible = io_other_opt.item_count > 1
+	io_bar_layout()
 
 
 func io_col(o: String) -> Color:
@@ -28,13 +130,25 @@ func io_col(o: String) -> Color:
 
 
 func build_io_windows() -> void:
-	var fl := HFlowContainer.new()
-	fl.add_theme_constant_override("h_separation", 4)
-	fl.add_theme_constant_override("v_separation", 4)
-	add_child(fl)
-	fl.position = Vector2(8.0, 64.0)
-	fl.size = Vector2(1200.0, 30.0)
-	io_bar = fl
+	# v55_3: организации в три группы — «Вы состоите» (кнопки), «Заявка / кандидат» (кнопки), «Остальные» (выпадающий список)
+	var bar := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.07, 0.09, 0.13, 0.92)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 6.0
+	sb.content_margin_right = 6.0
+	sb.content_margin_top = 3.0
+	sb.content_margin_bottom = 3.0
+	bar.add_theme_stylebox_override("panel", sb)
+	add_child(bar)
+	bar.position = Vector2(8.0, 66.0)
+	io_bar = bar
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 4)
+	bar.add_child(rows)
+	io_row_mem = io_bar_row(rows, "Вы состоите:")
+	io_row_oth = io_bar_row(rows, "Заявка / кандидат:")
+	io_lbl_cand = io_row_oth.get_child(0)
 	var grp := ButtonGroup.new()
 	for o in ORG_ORDER:
 		var b := Button.new()
@@ -50,14 +164,30 @@ func build_io_windows() -> void:
 			io["sel"] = oid
 			sfx("click")
 			refresh())
-		fl.add_child(b)
+		io_row_mem.add_child(b)
 		io_tabs[o] = b
-	fl.visible = false
+	io_lbl_oth = Label.new()
+	io_lbl_oth.text = "Остальные:"
+	io_lbl_oth.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	io_lbl_oth.add_theme_font_size_override("font_size", 13)
+	io_row_oth.add_child(io_lbl_oth)
+	io_other_opt = OptionButton.new()
+	io_other_opt.focus_mode = Control.FOCUS_NONE
+	io_other_opt.theme_type_variation = "SmallButton"
+	io_other_opt.fit_to_longest_item = false
+	io_other_opt.custom_minimum_size = Vector2(260.0, 0.0)
+	io_other_opt.item_selected.connect(func(idx: int) -> void:
+		var oid2: String = String(io_other_opt.get_item_metadata(idx))
+		if oid2 != "":
+			io["sel"] = oid2
+			sfx("click")
+			refresh())
+	io_row_oth.add_child(io_other_opt)
+	bar.visible = false
 	resized.connect(func() -> void:
 		if io_bar != null:
-			io_bar.size = Vector2(size.x - 16.0, 0.0)
-			io_bar.reset_size())
-	io_bar.size = Vector2(maxf(800.0, size.x - 16.0), 0.0)
+			io_bar_layout())
+	io_bar_layout()
 
 	var w: FloatWindow = new_window("io_head", "Организация", 18, Rect2(0.0, 0.0, 0.70, 0.21), false)
 	io_head_ctl = Control.new()
@@ -112,11 +242,15 @@ func update_io_windows() -> void:
 	var o: String = String(io.get("sel", "un"))
 	if not ORGS.has(o):
 		o = "un"
+	io_bar_groups()
 	for k in io_tabs:
 		var b: Button = io_tabs[k]
 		b.set_pressed_no_signal(k == o)
-		var star: String = "● " if io_member(String(k)) else ("◌ " if (io["cand"] as Dictionary).has(k) else "")
-		b.text = star + String(ORGS[k]["sh"])
+	var sel_i := 0
+	for i in io_other_opt.item_count:
+		if String(io_other_opt.get_item_metadata(i)) == o:
+			sel_i = i
+	io_other_opt.select(sel_i)
 	var d: Dictionary = ORGS[o]
 	(wins["io_head"] as FloatWindow).set_title(String(d["n"]))
 	io_head_ctl.queue_redraw()
@@ -180,6 +314,8 @@ func update_io_windows() -> void:
 		bi += 1
 	if lst.is_empty() and io_act_box.get_child_count() == 0:
 		add_note(io_act_box, "Особых действий нет.")
+	# v55_3: текст кнопок меняется (цена, причина запрета) — пересчитать высоту переносимых строк
+	(wins["io_act"] as FloatWindow).refresh_wraps.call_deferred()
 	# сессия
 	var it := io_item(o)
 	var s := ""

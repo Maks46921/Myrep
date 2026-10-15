@@ -27,7 +27,7 @@ func build_hemicycle() -> void:
 
 
 func build_politics_windows() -> void:
-	var w: FloatWindow = new_window("parliament", "Парламент и глава государства", 1, Rect2(0.0, 0.0, 0.28, 0.50), false)
+	var w: FloatWindow = new_window("parliament", "Парламент и глава государства", 1, Rect2(0.0, 0.0, 0.28, 0.50))
 	pol_header = add_wrap_label(w.body, "")
 	# v52: две палаты рядом — нижняя (слева) и верхняя (справа, меньше)
 	var hrow := HBoxContainer.new()
@@ -176,6 +176,13 @@ func update_parliament() -> void:
 		imp = " Оппозиция без «%s» близка к большинству (%d из %d): возможен конструктивный вотум недоверия при рейтинге ниже 42%%." % [party_abbr(9), opp_only, impeach_seats()]
 	pol_header.text = loc("Коалиция: %d из %d (%s). Оппозиция: %d.%s" % [gs, SEATS, status, SEATS - gs, imp])
 	pol_header.tooltip_text = "Яркие кружки с белым ободком — партии коалиции. Наведите на кружок или щёлкните, чтобы выбрать партию."
+	# v55_3: окно прокручивается (длинный текст о палатах и главе государства не обрезается),
+	# полукруг мест занимает около 40% высоты окна
+	if wins.has("parliament"):
+		var ph: float = maxf(110.0, (wins["parliament"] as FloatWindow).size.y * 0.40)
+		hemi_ctl.custom_minimum_size.y = ph
+		if upper_ctl != null:
+			upper_ctl.custom_minimum_size.y = ph
 	hemi_ctl.queue_redraw()
 	if upper_ctl != null:
 		upper_ctl.visible = upper_on()

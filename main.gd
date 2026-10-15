@@ -86,6 +86,7 @@ func apply_country(code: String) -> void:
 		remap_base_ps()
 	radical_inject()
 	regecon_inject()
+	law_text_apply()
 	build_loc()
 	apply_player_party(party_arg())
 	if not get_window() == null:

@@ -66,15 +66,23 @@ TESTS = {
     'warclick': ('shot_warclick.gd', [], 150),   # реальные щелчки мышью, нужен xvfb-run
     'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0', 'revev=0', 'rlev=0', 'bldev=0'], 200),
     'long':   ('t_long.gd', [], 400),
+    # v55_3: большой тест (скриншоты и находки — .testlogs/big/, отчёт — tools/big_report.py)
+    'big_ui':   ('t_big.gd', ['part=ui'], 1500),    # все экраны, окна, слои карты, кнопки; нужен xvfb-run
+    'big_mech': ('t_big.gd', ['part=mech'], 1500),  # все события и варианты, законы, меры, сохранения
+    'big_bal':  ('t_big.gd', ['part=bal'], 900),    # 20 лет под управлением ИИ
 }
+BIG6 = ['DE', 'FR', 'GB', 'PL', 'UA', 'RU']
 PROFILES = {
     'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('coal', ['DE', 'PL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('cult', ['DE', 'UA']), ('build2', ['DE', 'FI']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fpai', ['DE', 'PL']), ('world', ['RU', 'BY', 'DE']), ('agents2', ['LU', 'DE']), ('army', ['DE', 'LU', 'FI']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
-    'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
+    # v55_3: перед выпуском версии — большой тест на 6 странах (и ещё раз с --en)
+    'big':   [('big_ui', BIG6), ('big_mech', BIG6), ('big_bal', BIG6), ('war', BIG6), ('revolt', BIG6), ('fed', BIG6), ('quit', BIG6), ('cult', BIG6), ('build2', BIG6), ('events', BIG6), ('golden', BIG6)],
+    'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs') and not t.startswith('big_')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')
 RULES = [  # (regex, функция-проверка значения -> текст ошибки или None)
     (r'проблем (\d+)', lambda v: 'проблем %s' % v if int(v) > 0 else None),
     (r'\bbad (\d+)', lambda v: 'bad %s' % v if int(v) > 0 else None),
+    (r'находок (\d+)', lambda v: None),
     (r'NaN (\d+)', lambda v: 'NaN %s' % v if int(v) > 0 else None),
     (r'^NAN ', lambda v: 'NaN в состоянии'),
     (r'расхождение с прежней моделью: макс ([\d.]+)', lambda v: 'агенты расходятся с моделью групп на %s п.п.' % v if float(v) > 1.0 else None),
@@ -99,7 +107,7 @@ def run_one(test, cc, update):
         return run_stubs()
     script, extra, tmo = TESTS[test]
     tmo = tmo * SLOW.get(cc, 1.0)       # v50: у России 89 субъектов — прогон заметно дольше
-    gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick')
+    gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick', 'big_ui')
     cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', TEST_DIR + script, '--', 'country=' + cc] + extra
     if gui:
         cmd = ['xvfb-run', '-a', '-s', '-screen 0 %s' % ('1366x768x24' if test == 'width' else '1700x900x24')] + cmd

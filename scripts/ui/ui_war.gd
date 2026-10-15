@@ -318,6 +318,7 @@ func update_war_windows() -> void:
 			b2.toggle_mode = true
 			b2.focus_mode = Control.FOCUS_NONE
 			b2.clip_text = true
+			b2.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			b2.custom_minimum_size = Vector2(40.0, 0.0)
 			b2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			b2.set_meta("id", int(f["id"]))
@@ -331,6 +332,7 @@ func update_war_windows() -> void:
 		var where := "в море" if int(f2["a"]) < 0 else ate_name(int(f2["a"]))
 		var st := "бой" if int(f2["fight"]) >= 0 else ("идёт" if not (f2["path"] as Array).is_empty() else ("наступает" if String(f2["mode"]) == "auto" else ("обороняет" if String(f2["mode"]) == "def" else "стоит")))
 		(b3 as Button).text = "%s · %.1f тыс. · %s · %s" % [String(f2["nm"]), float(f2["str"]), where, st]
+		(b3 as Button).tooltip_text = (b3 as Button).text
 		(b3 as Button).set_pressed_no_signal(int(f2["id"]) == sel)
 	var fs := mil_unit(sel)
 	if fs.is_empty() or String(fs["cc"]) != ccode:
