@@ -266,8 +266,25 @@ func io_stance(it: Dictionary, c: String) -> int:
 		return 1
 	if c in (it.get("con", []) as Array):
 		return -1
-	# v54_1: позиция «по умолчанию» — от состава сторонников и противников, а не от текста вопроса (одинаково на обоих языках)
-	return 1 if (hash(c + str(it.get("pro", [])) + str(it.get("con", [])) + String(it.get("rule", ""))) % 4) != 0 else 0
+	return 1 if (hash(c + io_ru_title(String(it["t"]))) % 4) != 0 else 0
+
+
+# v54_1: позиция «по умолчанию» считается от русской формулировки вопроса и в английской версии
+# (путь собран из частей, чтобы tools/i18n.py не перенаправил его в en/) — игра на обоих языках идёт одинаково
+var io_ru_titles := {}
+
+
+func io_ru_title(t: String) -> String:
+	if io_ru_titles.is_empty():
+		io_ru_titles[""] = ""
+		var ru = load("res://" + "scripts/data/data_orgs.gd")
+		var rorgs: Dictionary = ru.get_script_constant_map().get("ORGS", {}) if ru != null else {}
+		for o in ORGS:
+			var a: Array = (ORGS[o] as Dictionary).get("agenda", [])
+			var b: Array = (rorgs.get(o, {}) as Dictionary).get("agenda", [])
+			for i in mini(a.size(), b.size()):
+				io_ru_titles[String(a[i]["t"])] = String(b[i]["t"])
+	return String(io_ru_titles.get(t, t))
 
 
 # голос ИИ-советника: с большинством союзников
