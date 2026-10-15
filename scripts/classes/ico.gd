@@ -153,6 +153,23 @@ static func draw_icon(k: String, o: Vector2, u: float, w: float, c: Color, d: Ca
 				var an: float = -PI / 2.0 + float(i) * PI / 5.0
 				pts.append(P(o, u, 0.5 + cos(an) * r, 0.52 + sin(an) * r))
 			d.draw_colored_polygon(pts, c)
+		# v55_1: значки сооружений: культура, образование, здравоохранение, госуправление
+		"masks":
+			d.draw_arc(P(o, u, 0.5, 0.48), u * 0.38, 0.0, TAU, 24, c, w * 0.8)
+			d.draw_circle(P(o, u, 0.36, 0.4), u * 0.06, c)
+			d.draw_circle(P(o, u, 0.64, 0.4), u * 0.06, c)
+			d.draw_arc(P(o, u, 0.5, 0.52), u * 0.2, 0.35, PI - 0.35, 12, c, w * 0.8)
+		"book":
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.5, 0.28), P(o, u, 0.12, 0.2), P(o, u, 0.12, 0.8), P(o, u, 0.5, 0.88), P(o, u, 0.88, 0.8), P(o, u, 0.88, 0.2), P(o, u, 0.5, 0.28), P(o, u, 0.5, 0.88)]), c, w * 0.8)
+		"medcross":
+			d.draw_rect(Rect2(P(o, u, 0.4, 0.14), Vector2(0.2, 0.72) * u), c)
+			d.draw_rect(Rect2(P(o, u, 0.14, 0.4), Vector2(0.72, 0.2) * u), c)
+		"scales":
+			d.draw_line(P(o, u, 0.5, 0.12), P(o, u, 0.5, 0.86), c, w)
+			d.draw_line(P(o, u, 0.3, 0.86), P(o, u, 0.7, 0.86), c, w)
+			d.draw_line(P(o, u, 0.14, 0.26), P(o, u, 0.86, 0.26), c, w)
+			d.draw_arc(P(o, u, 0.2, 0.5), u * 0.14, 0.0, PI, 10, c, w * 0.8)
+			d.draw_arc(P(o, u, 0.8, 0.5), u * 0.14, 0.0, PI, 10, c, w * 0.8)
 		# v49: новые значки (верхняя панель, паспорт страны, разделы)
 		"calendar":
 			d.draw_rect(Rect2(P(o, u, 0.14, 0.2), Vector2(u * 0.72, u * 0.66)), c, false, w * 0.8)

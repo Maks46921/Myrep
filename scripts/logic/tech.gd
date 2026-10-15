@@ -2,7 +2,7 @@
 # Скорость = базовая × (расходы на образование) × (сооружения и технологии). Выше потолка прирост скорости убывает
 # (предел — 1,6 потолка). Потолок растёт со временем, с ВВП и со свободой слова.
 # Готовые технологии добавляют прибавки к модификаторам страны (tech_apply_mods), сооружения усиливают их (tech_power).
-extends "res://scripts/logic/society.gd"
+extends "res://scripts/logic/industry.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
@@ -13,10 +13,6 @@ func ex_dep(cc: String) -> Dictionary:
 
 func ex_partners() -> Array:
 	return []
-
-
-func mil_at_war() -> bool:
-	return false
 
 
 func mil_land_neighbor(cc: String) -> bool:

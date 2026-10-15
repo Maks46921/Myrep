@@ -7,10 +7,6 @@ extends "res://scripts/logic/history.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
-func fa_ws_lvl() -> int:
-	return 0
-
-
 func rl_acts(page: String) -> Array:
 	return []
 

@@ -4,6 +4,10 @@ extends "res://scripts/logic/turn.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func con_ai_g(c: String) -> float:
+	return 0.0
+
+
 func ex_bot_g(c: String) -> float:
 	return 0.0
 
@@ -649,7 +653,7 @@ func wsim_step() -> void:
 		gt -= maxf(0.0, float(w["def"]) - float(WORLD[c]["def"]) - 1.0) * 0.0
 		if not ck.is_empty():
 			gt += float(ck["g"])
-		gt += w_shock_g(c) + ex_bot_g(c)
+		gt += w_shock_g(c) + ex_bot_g(c) + con_ai_g(c)
 		gt -= w_stress * (0.30 if float(w["debt"]) > 90.0 else 0.10)
 		var consol: bool = float(w["debt"]) > 100.0 and float(w["def"]) > 3.5 and ck.is_empty()
 		if consol:

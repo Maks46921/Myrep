@@ -33,6 +33,10 @@ func au_on() -> bool:
 	return false
 
 
+func church_vote_mult(ri: int, p: int) -> float:
+	return 0.0
+
+
 func coal_feasible() -> bool:
 	return false
 
@@ -47,6 +51,10 @@ func coal_talks_start() -> void:
 
 func coalition_names() -> String:
 	return ""
+
+
+func cult_vote_mult(ri: int, p: int) -> float:
+	return 0.0
 
 
 func decree_power() -> bool:
@@ -180,6 +188,7 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 		elif p == REGIONAL_P:
 			v *= (1.0 + float(r["unrest"]) / 40.0) * lerpf(0.6, 1.5, float(REGIONS[ri]["reg"]))
 		v *= float(REG_BIAS[ri][p]) * funding_mult(p) * pact_mult(p)
+		v *= cult_vote_mult(ri, p) * church_vote_mult(ri, p)
 		if p > 0:
 			v *= issue_multiplier(p)
 		if pres and p > 0:

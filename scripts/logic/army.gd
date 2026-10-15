@@ -10,6 +10,10 @@ extends "res://scripts/logic/military.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func con_mil(k: String) -> float:
+	return 0.0
+
+
 func dx_has_treaty(c: String, id: String) -> bool:
 	return false
 
@@ -220,7 +224,7 @@ func ar_cap_mult() -> float:
 		return 1.0
 	var sv: Dictionary = AR_SVC[String(ar["svc"])]
 	var sv0: Dictionary = AR_SVC[String(ar["svc0"])]
-	return pow(ar_bs("pers") / 0.5, 0.7) * float(sv["c"]) / float(sv0["c"])
+	return pow(ar_bs("pers") / 0.5, 0.7) * float(sv["c"]) / float(sv0["c"]) * (1.0 + con_mil("cap"))
 
 
 # военные в миротворческой миссии (тыс.): их нет дома
@@ -354,7 +358,7 @@ func ar_air(cc: String) -> float:
 
 func ar_ad(cc: String) -> float:
 	if cc == ccode:
-		return 0.0 if ar.is_empty() else float(ar["ad"]) * (1.15 if tech_done("m3") else 1.0)
+		return 0.0 if ar.is_empty() else float(ar["ad"]) * (1.15 if tech_done("m3") else 1.0) * (1.0 + con_mil("ad"))
 	return float(ar_data(cc)[7]) * ar_wm(cc)
 
 
@@ -741,7 +745,7 @@ func ar_td_form() -> bool:
 
 func ar_ammo_price(amt: float) -> float:
 	# ≈10 млн € за месяц боёв на тысячу бойцов
-	return amt * maxf(2.0, mil_cap()) * 0.01
+	return amt * maxf(2.0, mil_cap()) * 0.01 * ind_arms_price()
 
 
 func ar_buy_check() -> String:

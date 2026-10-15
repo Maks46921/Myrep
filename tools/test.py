@@ -47,6 +47,8 @@ TESTS = {
     'warpol': ('t_warpol.gd', [], 300),
     'fleet':  ('t_fleet.gd', [], 200),
     'soc':    ('t_soc.gd', [], 300),
+    'cult':   ('t_cult.gd', [], 240),
+    'build2': ('t_build2.gd', [], 240),
     'tech':   ('t_tech.gd', [], 300),
     'techbal': ('t_techbal.gd', [], 240),
     'revolt': ('t_revolt.gd', [], 400),
@@ -62,11 +64,11 @@ TESTS = {
     'socclick': ('shot_socclick.gd', [], 120),
     'fedclick': ('shot_fedclick.gd', [], 120),
     'warclick': ('shot_warclick.gd', [], 150),   # реальные щелчки мышью, нужен xvfb-run
-    'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0', 'revev=0', 'rlev=0'], 200),
+    'golden': ('t_golden.gd', ['seed=7', 'fedev=0', 'socev=0', 'exev=0', 'milev=0', 'revev=0', 'rlev=0', 'bldev=0'], 200),
     'long':   ('t_long.gd', [], 400),
 }
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('coal', ['DE', 'PL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fpai', ['DE', 'PL']), ('world', ['RU', 'BY', 'DE']), ('agents2', ['LU', 'DE']), ('army', ['DE', 'LU', 'FI']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('coal', ['DE', 'PL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('cult', ['DE', 'UA']), ('build2', ['DE', 'FI']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fpai', ['DE', 'PL']), ('world', ['RU', 'BY', 'DE']), ('agents2', ['LU', 'DE']), ('army', ['DE', 'LU', 'FI']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('golden', ['LU', 'FR'])],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs')],
 }
 BAD = re.compile(r'SCRIPT ERROR|Parse Error|^ERROR:|FAIL|Invalid (call|access|get|set)|Nonexistent|Cannot (call|infer|get)')

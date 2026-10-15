@@ -80,6 +80,17 @@ func revolt_init() -> void:
 		rv_reg(i)
 
 
+# v55_1: культурные и религиозные конфликты добавляют ненависть (i = −1 — по стране)
+func rv_add_hate(i: int, v: float) -> void:
+	if not rv.has("nat"):
+		return
+	if i < 0:
+		rv["nat"]["hate"] = rv_clamp(float(rv["nat"]["hate"]) + v)
+	elif i < regions.size():
+		var rg := rv_reg(i)
+		rg["hate"] = rv_clamp(float(rg["hate"]) + v)
+
+
 func rv_uid(i: int) -> String:
 	return String(REGIONS[i].get("uid", REGIONS[i].get("code", str(i))))
 
@@ -262,6 +273,7 @@ func rv_sep_target(i: int) -> float:
 	var ident: float = float(REGIONS[i].get("reg", 0.3))
 	var t: float = ident * 45.0 + (50.0 - float(r["loy"])) * 0.55 + maxf(0.0, 35.0 - float(r["auto"])) * 0.5 - maxf(0.0, float(r["auto"]) - 60.0) * 0.25
 	t += float(rg["hate"]) * 0.35 + rv_identity_gap(i) * 0.25
+	t += cult_sep_term(i)
 	t += clampf(float(r["dev"]) - reg_avg("dev"), -20.0, 30.0) * 0.15
 	t -= float(r.get("status", 0)) * 3.0
 	t += float((rv["states"] as Array).size()) * 4.0 * ident

@@ -1041,6 +1041,23 @@ func layer_info(i: int) -> Array:
 			if not r.has("relt"):
 				return [0.5, "", 0]
 			return [1.0 - clampf(float(r["relt"]) / 60.0, 0.0, 1.0), "%.0f" % float(r["relt"]), 0]
+		29:
+			if not r.has("cul"):
+				return [0.5, "", 2]
+			return [0.5, cu_name(cu_dominant(i)), 2]
+		30:
+			if not r.has("cul"):
+				return [0.0, "", 1]
+			var ms: float = cu_minority_share(i)
+			return [clampf(ms / 0.5, 0.0, 1.0), "%.0f%%" % (ms * 100.0), 1]
+		31:
+			if not r.has("cut"):
+				return [0.5, "", 0]
+			return [1.0 - clampf(float(r["cut"]) / 60.0, 0.0, 1.0), "%.0f" % float(r["cut"]), 0]
+		32:
+			if not r.has("pie"):
+				return [0.0, "", 1]
+			return [clampf(float(r["pie"]) / 60.0, 0.0, 1.0), "%.0f" % float(r["pie"]), 1]
 		0: return [float(r["loy"]) / 100.0, "%.0f" % float(r["loy"]), 0]
 		1: return [1.0 - float(r["unrest"]) / 100.0, "%.0f" % float(r["unrest"]), 0]
 		2:
@@ -1098,6 +1115,8 @@ func layer_color(i: int) -> Color:
 		return (PARTY_COLORS[layer_leader(i)] as Color).darkened(0.1)
 	if map_layer == 27 and regions[i].has("rel"):
 		return Color(String(SOC_FCOL[soc_dominant(i)])).darkened(0.15)
+	if map_layer == 29 and regions[i].has("cul"):
+		return cu_col(cu_dominant(i)).darkened(0.1)
 	var info := layer_info(i)
 	var good: float = clampf(float(info[0]), 0.0, 1.0)
 	var mode: int = info[2]

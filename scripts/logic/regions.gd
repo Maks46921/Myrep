@@ -16,6 +16,38 @@ func ate_name(a: int) -> String:
 	return ""
 
 
+func church_loy_term(i: int) -> float:
+	return 0.0
+
+
+func church_unr_term(i: int) -> float:
+	return 0.0
+
+
+func con_mega_done(i: int, id: String) -> void:
+	pass
+
+
+func con_start_check(i: int, pd: Dictionary) -> String:
+	return ""
+
+
+func con_unr_term(i: int) -> float:
+	return 0.0
+
+
+func con_upgrade_done(i: int, id: String) -> void:
+	pass
+
+
+func cult_loy_term(i: int) -> float:
+	return 0.0
+
+
+func cult_unr_term(i: int) -> float:
+	return 0.0
+
+
 func fed_auto_term(i: int) -> float:
 	return 0.0
 
@@ -128,14 +160,14 @@ func update_regions() -> void:
 			gl = 4.0 * gs
 		elif gk == 3:
 			gl = -2.0
-		var lt: float = region_support(i) + gl - (ud[i] - 20.0) * 0.15 + tr * 3.0 + (float(r["infra"]) - float(d["infra"])) * 0.03 + float(loy_off[i]) + fed_loy_term(i) + soc_loy_term(i)
+		var lt: float = region_support(i) + gl - (ud[i] - 20.0) * 0.15 + tr * 3.0 + (float(r["infra"]) - float(d["infra"])) * 0.03 + float(loy_off[i]) + fed_loy_term(i) + soc_loy_term(i) + cult_loy_term(i) + church_loy_term(i)
 		r["loy"] = clampf(float(r["loy"]) + (lt - float(r["loy"])) * mrate(0.35), 0.0, 100.0)
 		var ur: float = clampf(unemployment * (1.7 - 0.9 * float(r["dev"]) / 100.0) + (50.0 - float(r["infra"])) * 0.02 - (sec_idx(i) - 1.0) * 20.0, 1.0, 40.0)
 		r["unemp"] = ur
 		var ut: float = (20.0 + (50.0 - float(r["loy"])) * 0.45 + (ur - 6.5) * 1.8 + (inflation - 4.0) * 0.8
 			+ lvl_unrest + float(mods["reg_unrest_shift"]) - (float(r["dev"]) - float(d["dev"])) * 0.12
 			- float(r["auto"]) * 0.15 + float(d["reg"]) * 8.0 - tr * 2.0 + maxf(0.0, nb_u - 40.0) * 0.12 + float(unr_off[i]) + ag_unrest_term(i))
-		ut += fed_unr_term(i) + soc_unr_term(i)
+		ut += fed_unr_term(i) + soc_unr_term(i) + cult_unr_term(i) + church_unr_term(i) + con_unr_term(i)
 		if gk == 2:
 			ut -= 3.0 * gs
 		elif gk == 3:
@@ -191,12 +223,16 @@ func complete_project(i: int) -> void:
 	regions[i]["proj"] = {}
 	if pd.is_empty():
 		return
+	if bool(pr.get("upg", false)):
+		con_upgrade_done(i, String(pd["id"]))
+		return
 	var eff := effective_reg(i, pd["reg"])
 	complete_struct(i, String(pd["id"]), int(pr.get("ate", -1)))
 	apply_reg_delta(i, pd["reg"], true)
 	var nat := apply_fx(pd["nat"])
 	log_tag("ПРОЕКТ", COL_GOOD, "завершён «%s» в регионе «%s». Регион: %s%s." % [
 		pd["name"], REGIONS[i]["name"], describe_reg(eff), (", страна: " + nat) if nat != "" else ""])
+	con_mega_done(i, String(pd["id"]))
 
 
 # v50: стройка не стоит политкапитала, зато на неё реагируют группы интересов (экологи против угля и газа и т. п.)
@@ -213,8 +249,14 @@ const PROJ_GROUP_FX := {
 }
 
 
+func proj_group_fx(pid: String) -> Dictionary:
+	if PROJ_GROUP_FX.has(pid):
+		return PROJ_GROUP_FX[pid]
+	return find_by_id(PROJECTS, pid).get("grp", {})
+
+
 func proj_group_text(pid: String) -> String:
-	var fx: Dictionary = PROJ_GROUP_FX.get(pid, {})
+	var fx: Dictionary = proj_group_fx(pid)
 	var parts: PackedStringArray = []
 	for g in fx:
 		var v: float = float(fx[g])
@@ -235,11 +277,14 @@ func project_start_at(i: int, pid: String, ate: int = -1) -> String:
 	var pd := find_by_id(PROJECTS, pid)
 	if pd.is_empty():
 		return "нет такого сооружения"
+	var why_c := con_start_check(i, pd)
+	if why_c != "":
+		return why_c
 	if ate < 0:
 		ate = region_main_ate(i)
 	var cost_pct := project_cost_pct(i, pd)
 	regions[i]["proj"] = {"id": pd["id"], "left": int(pd["months"]), "months": int(pd["months"]), "cost": cost_pct, "ate": ate}
-	var fx: Dictionary = PROJ_GROUP_FX.get(pid, {})
+	var fx: Dictionary = proj_group_fx(pid)
 	for g in fx:
 		add_support(String(g), float(fx[g]))
 	var where: String = ("«%s», %s" % [REGIONS[i]["name"], ate_name(ate)]) if ate >= 0 else "«%s»" % REGIONS[i]["name"]

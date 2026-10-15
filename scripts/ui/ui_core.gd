@@ -96,6 +96,10 @@ func build_soc_windows() -> void:
 	pass
 
 
+func build_society_windows() -> void:
+	pass
+
+
 func build_tech_windows() -> void:
 	pass
 
@@ -204,6 +208,10 @@ func update_fleet_windows() -> void:
 	pass
 
 
+func update_goods_detail() -> void:
+	pass
+
+
 func update_goods_windows() -> void:
 	pass
 
@@ -241,6 +249,10 @@ func update_regions_ui() -> void:
 
 
 func update_soc_windows() -> void:
+	pass
+
+
+func update_society_windows() -> void:
 	pass
 
 
@@ -379,12 +391,29 @@ func reset_layout() -> void:
 		w.apply_frac()
 
 
+# рамка (верхняя кнопка) для вкладки: 0 Бюджет, 1 Экономика, 2 Политика, 3 Карта, 4 Организации, 5 Общество
+func desk_tab(i: int) -> int:
+	if i == 0:
+		return 0
+	if i in [5, 7, 10, 16, 17]:
+		return 1
+	if i in [2, 8, 9, 13, 14, 15]:
+		return 3
+	if i == 18:
+		return 4
+	if i in [11, 19, 20]:
+		return 5
+	return 2
+
+
 func show_desk(i: int) -> void:
 	if current_desk != i:
 		sfx("click")
 	current_desk = i
-	if i == 1 or i == 3 or i == 4 or i == 6 or i == 11 or i == 12:
+	if i == 1 or i == 3 or i == 4 or i == 6 or i == 12:
 		politics_page = i
+	if i == 11 or i == 19 or i == 20:
+		society_page = i
 	if i == 5 or i == 7 or i == 10 or i == 16 or i == 17:
 		econ_page = i
 	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15:
@@ -400,7 +429,7 @@ func show_desk(i: int) -> void:
 			# v49: окна нового раздела проявляются с небольшой задержкой друг за другом
 			win_fade_in(w, 0.18 + 0.04 * float(mini(k_fade, 5)))
 			k_fade += 1
-	var tab: int = 0 if i == 0 else (1 if (i == 5 or i == 7 or i == 10 or i == 16 or i == 17) else (3 if (i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15) else (4 if i == 18 else 2)))
+	var tab: int = desk_tab(i)
 	if i == 2:
 		map_apply_mode()
 	for kb in desk_buttons.size():
@@ -457,8 +486,8 @@ func build_ui() -> void:
 	tabs.add_theme_constant_override("separation", 4)
 	hb.add_child(tabs)
 	var grp := ButtonGroup.new()
-	var desk_names := ["Бюджет", "Экономика", "Политика", "Карта", "Организации"]
-	for i in 5:
+	var desk_names := ["Бюджет", "Экономика", "Политика", "Карта", "Организации", "Общество"]
+	for i in 6:
 		var b := Button.new()
 		b.theme_type_variation = "TabButton"
 		b.text = desk_names[i]
@@ -467,7 +496,7 @@ func build_ui() -> void:
 		b.custom_minimum_size = Vector2(0.0, 40.0)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(show_tab.bind(i))
-		btn_icon(b, ["coin", "chart", "hall", "pin", "globe"][i])
+		btn_icon(b, ["coin", "chart", "hall", "pin", "globe", "people"][i])
 		tabs.add_child(b)
 		desk_buttons.append(b)
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
@@ -570,6 +599,7 @@ func build_ui() -> void:
 	build_goods_windows()
 	build_fed_windows()
 	build_soc_windows()
+	build_society_windows()
 	build_tech_windows()
 	build_crisis_windows()
 	build_opp_windows()
@@ -1227,6 +1257,7 @@ func refresh() -> void:
 		update_auto_window()
 	elif current_desk == 7:
 		update_goods_windows()
+		update_goods_detail()
 	elif current_desk == 18:
 		update_io_windows()
 	elif current_desk == 16:
@@ -1239,6 +1270,8 @@ func refresh() -> void:
 		update_fed_windows()
 	elif current_desk == 10 or current_desk == 11:
 		update_soc_windows()
+	elif current_desk == 19 or current_desk == 20:
+		update_society_windows()
 	elif current_desk == 12:
 		update_opp_windows()
 		update_regime_windows()
@@ -1664,7 +1697,7 @@ func on_log_detail(on: bool) -> void:
 # а нажатие на любую вкладку раздела закрывает их
 func overlay_tabs_sync() -> void:
 	var ov_on: bool = tech_is_open() or crisis_is_open()
-	var tab: int = 0 if current_desk == 0 else (1 if (current_desk == 5 or current_desk == 7 or current_desk == 10 or current_desk == 16 or current_desk == 17) else (3 if (current_desk == 2 or current_desk == 8 or current_desk == 9 or current_desk == 13 or current_desk == 14 or current_desk == 15) else (4 if current_desk == 18 else 2)))
+	var tab: int = desk_tab(current_desk)
 	for kb in desk_buttons.size():
 		(desk_buttons[kb] as Button).set_pressed_no_signal(kb == tab and not ov_on)
 
@@ -1674,13 +1707,21 @@ func show_tab(t: int) -> void:
 		set_tech_open(false)
 	if crisis_is_open():
 		set_crisis_open(false)
-	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else map_page))))
+	if politics_page == 11:
+		politics_page = 1
+	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else (society_page if t == 5 else map_page)))))
 
 
 func update_subbar(i: int) -> void:
 	if subbar == null:
 		return
-	var on: bool = i == 1 or i == 3 or i == 4 or i == 6 or i == 11 or i == 12
+	var on: bool = i == 1 or i == 3 or i == 4 or i == 6 or i == 12
+	var on5: bool = i == 11 or i == 19 or i == 20
+	if subbar4 != null:
+		subbar4.visible = on5
+		var pg4 := [11, 20, 19]
+		for k4 in sub4_buttons.size():
+			(sub4_buttons[k4] as Button).set_pressed_no_signal(i == pg4[k4])
 	var on2: bool = i == 5 or i == 7 or i == 10 or i == 16 or i == 17
 	subbar.visible = on
 	if subbar2 != null:
@@ -1697,9 +1738,9 @@ func update_subbar(i: int) -> void:
 	var on4: bool = i == 18
 	if io_bar != null:
 		io_bar.visible = on4
-	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3) else 0.0) + (io_bar_h() if on4 else 0.0)
-	var pages := [1, 3, 4, 6, 11, 12]
-	for k in 6:
+	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3 or on5) else 0.0) + (io_bar_h() if on4 else 0.0)
+	var pages := [1, 3, 4, 6, 12]
+	for k in 5:
 		(sub_buttons[k] as Button).set_pressed_no_signal(i == pages[k])
 
 
@@ -1720,10 +1761,10 @@ func build_subbar() -> void:
 	subbar.add_theme_constant_override("separation", 6)
 	add_child(subbar)
 	subbar.position = Vector2(8.0, 64.0)
-	var names := ["Парламент", "Законы", "Правительство", "Население", "Религия и миграция", "Оппозиция и сделки"]
-	var pages := [1, 3, 4, 6, 11, 12]
+	var names := ["Парламент", "Законы", "Правительство", "Население", "Оппозиция и сделки"]
+	var pages := [1, 3, 4, 6, 12]
 	sub_buttons.clear()
-	for k in 6:
+	for k in 5:
 		var b := Button.new()
 		b.theme_type_variation = "TabButton"
 		b.text = names[k]
@@ -1731,7 +1772,7 @@ func build_subbar() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.custom_minimum_size = Vector2(168.0 if k < 4 else 210.0, 32.0)
 		b.pressed.connect(show_desk.bind(pages[k]))
-		btn_icon(b, ["hall", "scroll", "bank", "people", "faith", "person"][k])
+		btn_icon(b, ["hall", "scroll", "bank", "people", "person"][k])
 		subbar.add_child(b)
 		sub_buttons.append(b)
 	subbar.visible = false
@@ -1773,6 +1814,26 @@ func build_subbar() -> void:
 		subbar3.add_child(b3)
 		sub3_buttons.append(b3)
 	subbar3.visible = false
+	# v55_1: рамка «Общество»
+	subbar4 = HBoxContainer.new()
+	subbar4.add_theme_constant_override("separation", 6)
+	add_child(subbar4)
+	subbar4.position = Vector2(8.0, 64.0)
+	sub4_buttons.clear()
+	var n4 := ["Религия и миграция", "Церковь и государство", "Культура"]
+	var p4 := [11, 20, 19]
+	for k in 3:
+		var b4 := Button.new()
+		b4.theme_type_variation = "TabButton"
+		b4.text = n4[k]
+		b4.toggle_mode = true
+		b4.focus_mode = Control.FOCUS_NONE
+		b4.custom_minimum_size = Vector2([210.0, 230.0, 150.0][k], 32.0)
+		b4.pressed.connect(show_desk.bind(p4[k]))
+		btn_icon(b4, ["faith", "cath", "flag"][k])
+		subbar4.add_child(b4)
+		sub4_buttons.append(b4)
+	subbar4.visible = false
 
 
 func build_auto_window() -> void:

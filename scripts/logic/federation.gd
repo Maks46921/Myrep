@@ -8,6 +8,14 @@ func ate_unit_has_capital(cc: String, ui: int) -> bool:
 	return false
 
 
+func church_init_region(i: int, pie: float = -1.0) -> void:
+	pass
+
+
+func cult_init_region(i: int, cc: String, code: String, at_start: bool = false) -> void:
+	pass
+
+
 func map_rebuild() -> void:
 	pass
 
@@ -807,6 +815,8 @@ func fed_take_unit(ui: int, how: String, k0: float, status: int = 0) -> int:
 	loy_off.append(0.0)
 	unr_off.append(0.0)
 	soc_init_region(i, cc, String(nd["code"]))
+	cult_init_region(i, cc, String(nd["code"]))
+	church_init_region(i)
 	fed_region_init(i, how == "territory", status)
 	regions[i]["since"] = 0
 	if status > 0:

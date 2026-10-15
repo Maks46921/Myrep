@@ -28,6 +28,10 @@ func au_fx(d: Dictionary) -> void:
 	pass
 
 
+func church_fx(d: Dictionary) -> void:
+	pass
+
+
 func coal_members() -> Array:
 	return []
 
@@ -36,8 +40,16 @@ func coal_share(p: int) -> float:
 	return 0.0
 
 
+func con_fx(d: Dictionary) -> void:
+	pass
+
+
 func council_on() -> bool:
 	return false
+
+
+func cult_fx(d: Dictionary) -> void:
+	pass
 
 
 func demand_score(p: int) -> float:
@@ -82,6 +94,10 @@ func goods_support_term(group: String) -> float:
 
 func ideo_stance(p: int, k: String) -> float:
 	return 0.0
+
+
+func ind_fx(d: Dictionary) -> void:
+	pass
 
 
 func log_tag(tag: String, col: String, text: String) -> void:
@@ -409,6 +425,14 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 		world_help(String(fx["wc_help"]))
 	if fx.has("soc"):
 		soc_fx(fx["soc"])
+	if fx.has("cult"):
+		cult_fx(fx["cult"])
+	if fx.has("church"):
+		church_fx(fx["church"])
+	if fx.has("ind"):
+		ind_fx(fx["ind"])
+	if fx.has("con"):
+		con_fx(fx["con"])
 	if fx.has("dip"):
 		dip_fx_apply(fx["dip"])
 	if fx.has("debt"):
@@ -783,7 +807,9 @@ func tax_ratio() -> float:
 
 
 func project_cost_pct(i: int, pd: Dictionary) -> float:
-	# крупные регионы стоят дороже
+	# крупные регионы стоят дороже; у мегапроекта стоимость задана в % ВВП страны
+	if bool(pd.get("fixed", false)):
+		return float(pd["cost"])
 	return float(pd["cost"]) * (0.6 + 4.5 * gdp_w[i])
 
 

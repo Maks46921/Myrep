@@ -1,6 +1,16 @@
 # Товары: потребительская корзина (18 видов), их цены и спрос, корзины групп населения.
 extends "res://scripts/logic/laws.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func ind_cat_term(cat: String) -> float:
+	return 0.0
+
+
+# --- конец заглушек ---
+
+
 func good_def(id: String) -> Dictionary:
 	for g in GOODS:
 		if g["id"] == id:
@@ -89,7 +99,7 @@ func goods_prices() -> void:
 		t += 0.25 * float(g["vat"]) * vat_r
 		if id == "housing":
 			t += 0.5 * (float((mk["con"] as Dictionary)["p"]) - float((mk["srv"] as Dictionary)["p"])) - 0.02 * gap
-		t += float(ec["gsh"][id]) + float(g["dr"]) * years_passed()
+		t += float(ec["gsh"][id]) + float(g["dr"]) * years_passed() + ind_cat_term(id)
 		ec["gsh"][id] = float(ec["gsh"][id]) + randf_range(-0.005, 0.005) * float(game_opts["volat"])
 		t -= float(ec["cpi_s"]) * 0.4
 		gp[id] = clampf(float(gp[id]) + (t - float(gp[id])) * 0.2, 0.5, 2.5)

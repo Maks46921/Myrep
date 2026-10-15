@@ -1,7 +1,7 @@
 # v52_1: исторические предпосылки. Черты национального характера (HIST_TRAITS, COUNTRY_TRAITS) дают постоянные
 # модификаторы; историческая память (HIST_REL) усиливает добрые дела с давними друзьями и обиды с давними
 # соперниками, сдвигает долгосрочный уровень отношений и шанс договоров.
-extends "res://scripts/logic/econsys.gd"
+extends "res://scripts/logic/construct.gd"
 
 func hist_traits(cc: String = "") -> Array:
 	return COUNTRY_TRAITS.get(ccode if cc == "" else cc, [])

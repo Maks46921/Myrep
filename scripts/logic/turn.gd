@@ -40,7 +40,35 @@ func bills_step() -> void:
 	pass
 
 
+func church_init() -> void:
+	pass
+
+
+func church_month() -> void:
+	pass
+
+
+func con_init() -> void:
+	pass
+
+
+func con_month() -> void:
+	pass
+
+
 func council_budget() -> void:
+	pass
+
+
+func cult_g() -> float:
+	return 0.0
+
+
+func cult_init() -> void:
+	pass
+
+
+func cult_month() -> void:
 	pass
 
 
@@ -125,6 +153,18 @@ func idl_mult() -> float:
 
 
 func idl_step() -> void:
+	pass
+
+
+func ind_g() -> float:
+	return 0.0
+
+
+func ind_init() -> void:
+	pass
+
+
+func ind_month() -> void:
 	pass
 
 
@@ -412,6 +452,8 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		- maxf(0.0, reg_avg("unrest") - 30.0) * 0.015
 		+ world_spill_g()
 		+ soc_g()
+		+ cult_g()
+		+ ind_g()
 		+ ex_g()
 		+ fleet_g()
 		+ mil_g()
@@ -575,11 +617,15 @@ func next_turn_core() -> void:
 	fleet_month()
 	mil_month()
 	soc_month()
+	cult_month()
+	church_month()
+	ind_month()
 	tech_month()
 	realism_month()
 	diplo_month()
 	fa_month()
 	ex_month()
+	con_month()
 
 	# --- экономика ---
 	var ecf := economy_step()
@@ -798,10 +844,13 @@ func init_state() -> void:
 	world_init()
 	fed_init()
 	soc_init()
+	cult_init()
+	church_init()
 	tech_init()
 	revolt_init()
 	au_init()
 	es_init()
+	con_init()
 	rl_init()
 	io_init()
 	dx_init()
@@ -810,6 +859,7 @@ func init_state() -> void:
 	fleet_init()
 	mil_init()
 	mil_start_ongoing()
+	ind_init()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}

@@ -1,5 +1,5 @@
 # Интерфейс: окно «Технологии» (v42_1) — отдельное окно поверх игры: схема технологий, сводка, сооружения.
-extends "res://scripts/ui/ui_soc.gd"
+extends "res://scripts/ui/ui_society.gd"
 
 var tech_ov: PanelContainer = null
 var tech_btn: Button = null

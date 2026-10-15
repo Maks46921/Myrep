@@ -4,6 +4,10 @@ extends "res://scripts/logic/goods.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func con_struct_extra() -> void:
+	pass
+
+
 func world_ea_update() -> void:
 	pass
 
@@ -114,6 +118,11 @@ func struct_cond_factor(cond: float) -> float:
 	return 0.4 + 0.6 * cond / 100.0
 
 
+# v55_1: уровень сооружения усиливает его эффекты: 1 — ×1, 2 — ×1.6, 3 — ×2.1
+func struct_lvl_k(e: Dictionary) -> float:
+	return [1.0, 1.0, 1.6, 2.1][clampi(int(e.get("lvl", 1)), 0, 3)]
+
+
 func struct_step(wear_now: bool = true) -> void:
 	var sk := {}
 	for m in MARKETS:
@@ -136,7 +145,7 @@ func struct_step(wear_now: bool = true) -> void:
 				continue
 			if wear_now:
 				e["cond"] = clampf(float(e["cond"]) - wear, 0.0, 100.0)
-			var f: float = struct_cond_factor(float(e["cond"])) * float(n)
+			var f: float = struct_cond_factor(float(e["cond"])) * float(n) * struct_lvl_k(e)
 			var kd: Dictionary = pd.get("k", {})
 			for mid in kd:
 				sk[mid] = float(sk[mid]) + float(kd[mid]) * f
@@ -144,7 +153,7 @@ func struct_step(wear_now: bool = true) -> void:
 			xg += float(pd.get("xg", 0.0)) * f
 			cpi += float(pd.get("cpi", 0.0)) * f
 			pr += float(pd.get("pr", 0.0)) * f
-			up += project_cost_pct(i, pd) * float(pd.get("up", 0.05)) * float(n)
+			up += project_cost_pct(i, pd) * float(pd.get("up", 0.05)) * float(n) * struct_lvl_k(e)
 	for m in MARKETS:
 		(ec["mk"][m["id"]] as Dictionary)["sk"] = float(sk[m["id"]])
 	ec["bc_struct"] = minf(bc, 12.0)
@@ -152,6 +161,7 @@ func struct_step(wear_now: bool = true) -> void:
 	ec["cpi_s"] = minf(cpi, 0.06)
 	ec["pr"] = minf(pr, 1.2)
 	ec["struct_up"] = up
+	con_struct_extra()
 
 
 func complete_struct(i: int, id: String, ate: int = -1) -> void:

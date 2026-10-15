@@ -3,6 +3,6 @@
 .testlogs/
 tools/__pycache__/
 __pycache__/
-en/
+/en/
 i18n/todo/
 i18n/src.json

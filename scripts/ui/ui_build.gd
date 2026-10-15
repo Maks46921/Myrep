@@ -3,13 +3,17 @@
 # Политкапитал на стройку не тратится; построенное рисуется значком на своей АТЕ.
 extends "res://scripts/ui/ui_budget.gd"
 
-const PROJ_CATS := ["Энергетика", "Транспорт", "Промышленность", "Сельское хозяйство", "Социальная сфера", "Технологии", "Жильё", "Экология"]
-const PROJ_CAT_ICO := ["energy", "grid", "work", "box", "people", "flask", "hall", "globe"]
+const PROJ_CATS := ["Энергетика", "Транспорт", "Промышленность", "Сельское хозяйство", "Социальная сфера", "Технологии", "Жильё", "Экология",
+	"Культура", "Религия", "Образование", "Здравоохранение", "Оборона", "Госуправление"]
+const PROJ_CAT_ICO := ["energy", "grid", "work", "box", "people", "flask", "hall", "globe", "masks", "faith", "book", "medcross", "shield", "scales"]
 
 var bld_btns := {}
 var bld_info_rt: RichTextLabel = null
 var bld_list_rt: RichTextLabel = null
 var bld_hint: Label = null
+var bld_reg_rt: RichTextLabel = null    # v55_1: сооружения выбранного региона (улучшение, ремонт)
+var bld_mega_rt: RichTextLabel = null
+var bld_corp_rt: RichTextLabel = null
 
 
 func build_build_window() -> void:
@@ -52,6 +56,25 @@ func build_build_window() -> void:
 	bld_info_rt = make_rt(w.body)
 	add_title(w.body, "Идёт стройка")
 	bld_list_rt = make_rt(w.body)
+	add_title(w.body, "Сооружения выбранного региона")
+	bld_reg_rt = make_rt(w.body)
+	bld_reg_rt.meta_clicked.connect(on_bld_meta)
+	add_title(w.body, "Мегапроект страны")
+	bld_mega_rt = make_rt(w.body)
+	add_title(w.body, "Стройка корпораций и других стран")
+	bld_corp_rt = make_rt(w.body)
+
+
+func on_bld_meta(meta: Variant) -> void:
+	var s := String(meta)
+	var why := ""
+	if s.begins_with("upg:"):
+		why = con_upgrade_start(selected_region, s.substr(4))
+	elif s.begins_with("rep:"):
+		con_repair(selected_region, s.substr(4))
+	if why != "":
+		log_line("[color=%s]Улучшение не начато: %s.[/color]" % [COL_WARN, why])
+	update_build_window()
 
 
 func update_build_window() -> void:
@@ -85,6 +108,69 @@ func update_build_window() -> void:
 		var a: int = int(pr.get("ate", -1))
 		rows.append("• %s — «%s»%s: ещё %d мес." % [pd2.get("name", "?"), REGIONS[i]["name"], (", " + ate_name(a)) if a >= 0 else "", int(pr["left"])])
 	bld_list_rt.text = "[font_size=13]%s[/font_size]" % ("\n".join(rows) if rows.size() > 0 else "[color=%s]Сейчас ничего не строится.[/color]" % COL_DIM)
+	update_build_extra()
+
+
+func update_build_extra() -> void:
+	if bld_reg_rt == null:
+		return
+	var si := selected_region
+	var t := ""
+	if si < 0 or si >= regions.size():
+		t = "[color=%s]Выберите регион на карте.[/color]" % COL_DIM
+	else:
+		var bt: Dictionary = regions[si]["built"]
+		if bt.is_empty():
+			t = "[color=%s]В регионе «%s» пока нет сооружений.[/color]" % [COL_DIM, REGIONS[si]["name"]]
+		else:
+			t = "Регион «%s»:\n" % REGIONS[si]["name"]
+			for id in bt:
+				var e: Dictionary = bt[id]
+				var pd := find_by_id(PROJECTS, String(id))
+				var cond: float = float(e["cond"])
+				var lv: int = int(e.get("lvl", 1))
+				var cc: String = COL_GOOD if cond >= 60.0 else (COL_WARN if cond >= 30.0 else COL_BAD)
+				var links: PackedStringArray = []
+				if lv < CS_LVL_MAX and not bool(pd.get("mega", false)):
+					links.append("[url=upg:%s]улучшить до %d (%.1f млрд)[/url]" % [id, lv + 1, gdp * con_upgrade_cost(si, String(id)) / 100.0])
+				var rc := con_repair_cost(si, String(id))
+				if rc >= 0.0005:
+					links.append("[url=rep:%s]ремонт (%.2f млрд)[/url]" % [id, gdp * rc / 100.0])
+				t += "• %s%s · уровень %d · состояние [color=%s]%.0f%%[/color]%s\n" % [pd.get("name", id), (" ×%d" % int(e["n"])) if int(e["n"]) > 1 else "", lv, cc, cond,
+					(" — " + " · ".join(links)) if links.size() > 0 else ""]
+			t += "[color=%s]Уровень 2 даёт эффекты ×1,6, уровень 3 — ×2,1 (и столько же содержание). Сооружения в состоянии ниже 30%% могут попасть в аварию.[/color]" % COL_DIM
+	bld_reg_rt.text = "[font_size=13]%s[/font_size]" % t
+	var m := con_mega()
+	if m.is_empty():
+		bld_mega_rt.text = ""
+	else:
+		var mr := con_mega_region()
+		var st := "не начат"
+		if struct_total(String(m["id"])) > 0:
+			st = "[color=%s]построен[/color]" % COL_GOOD
+		elif mr >= 0 and String((regions[mr]["proj"] as Dictionary).get("id", "")) == String(m["id"]):
+			st = "строится, ещё %d мес." % int(regions[mr]["proj"]["left"])
+		bld_mega_rt.text = "[font_size=13][b]%s[/b] — %s\n%s\nГде: «%s» · %.1f%% ВВП (%.0f млрд) · %d мес. Чтобы начать, выберите его в списке выше и щёлкните по региону.\n%s[/font_size]" % [
+			m["name"], st, m.get("desc", ""), String(REGIONS[mr]["name"]) if mr >= 0 else "?", float(m["cost"]), gdp * float(m["cost"]) / 100.0, int(m["months"]), struct_effect_text(m)]
+	var ct := ""
+	if not con_dyn():
+		ct = "[color=%s]Выключено в настройках новой игры («Стройка корпораций и других стран»).[/color]" % COL_DIM
+	else:
+		var q: Array = cs.get("cq", [])
+		for it in q:
+			ct += "• «%s» строит «%s» в регионе «%s»: ещё %d мес.\n" % [it["corp"], find_by_id(PROJECTS, String(it["id"])).get("name", it["id"]), REGIONS[int(it["i"])]["name"] if int(it["i"]) < REGIONS.size() else "?", int(it["left"])]
+		var lg: Array = cs.get("log", [])
+		for k in range(lg.size() - 1, maxi(-1, lg.size() - 6), -1):
+			ct += "[color=%s]%s[/color]\n" % [COL_DIM, String(lg[k])]
+		var done: PackedStringArray = []
+		for r in con_ai_rows():
+			if int(r[3]) == 2:
+				done.append(String(WORLD[r[0]]["name"]) if WORLD.has(r[0]) else String(r[0]))
+		if done.size() > 0:
+			ct += "Мегапроекты завершили: %s." % ", ".join(done)
+		if ct == "":
+			ct = "[color=%s]Пока никто не строит.[/color]" % COL_DIM
+	bld_corp_rt.text = "[font_size=13]%s[/font_size]" % ct
 
 
 # спрос на продукцию рынка, который расширяет сооружение

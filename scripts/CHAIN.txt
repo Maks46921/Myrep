@@ -22,6 +22,9 @@ scripts/logic/world.gd
 scripts/logic/federation.gd
 scripts/logic/admin.gd
 scripts/logic/society.gd
+scripts/logic/culture.gd
+scripts/logic/church.gd
+scripts/logic/industry.gd
 scripts/logic/tech.gd
 scripts/logic/influence.gd
 scripts/logic/fleet.gd
@@ -35,6 +38,7 @@ scripts/logic/radical.gd
 scripts/logic/revolt.gd
 scripts/logic/regime.gd
 scripts/logic/econsys.gd
+scripts/logic/construct.gd
 scripts/logic/history.gd
 scripts/logic/intorg.gd
 scripts/logic/realism.gd
@@ -55,6 +59,7 @@ scripts/ui/ui_pop.gd
 scripts/ui/ui_events.gd
 scripts/ui/ui_fed.gd
 scripts/ui/ui_soc.gd
+scripts/ui/ui_society.gd
 scripts/ui/ui_tech.gd
 scripts/ui/ui_crisis.gd
 scripts/ui/ui_realm.gd
