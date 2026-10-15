@@ -2,11 +2,15 @@ config_version=5
 
 [application]
 
-config/name="Symphony v54_1"
+config/name="Symphony v55_2"
 run/main_scene="res://boot.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://icon.svg"
 config/windows_native_icon="res://icon.ico"
+boot_splash/bg_color=Color(0.067, 0.082, 0.118, 1)
+boot_splash/image="res://splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
 
 [display]
 
