@@ -125,7 +125,7 @@ func text_check(g, t: String, ctx: String) -> void:
 			find("перевод", "%s: русский текст в английской версии: …%s…" % [ctx, plain.substr(maxi(0, c.get_start() - 30), 80)])
 	if cc != "DE" and cc != "AT":
 		var ws: Array = DE_WORDS_EN if en else DE_WORDS_RU
-		var own := (JSON.stringify(g.TERMS) + JSON.stringify(g.UPPER) + " ".join(g.PARTY_NAMES)).to_lower()
+		var own := (JSON.stringify(g.TERMS) + JSON.stringify(g.UPPER) + JSON.stringify(g.MINISTRIES) + " ".join(g.PARTY_NAMES)).to_lower()
 		for w in ws:
 			if plain.contains(w) and not own.contains(String(w).to_lower()):
 				var k := plain.find(w)
@@ -388,7 +388,7 @@ func run_ui(g) -> void:
 		g.choose(0)
 	# 4) выборы
 	where = "выборы"
-	g.hold_parliament("досрочные выборы (тест)")
+	g.hold_parliament("досрочные выборы по вашему решению")
 	if g.election_open:
 		g.show_desk(1)
 		await audit_screen(g, "election")
@@ -641,7 +641,7 @@ func run_mech(g) -> void:
 			settle(g)
 			g.advance_day()
 		await save_cycle(g, "во время войны")
-	g.hold_parliament("тест сохранения")
+	g.hold_parliament("досрочные выборы по вашему решению")
 	await save_cycle(g, "во время выборов")
 	settle(g)
 
