@@ -396,7 +396,7 @@ func talk_propose() -> Dictionary:
 		return mil_peace("annex" if t.has("land") or t.has("border") else "white", t)
 	var w: Dictionary = mil["war"]
 	w["prop_cd"] = 15
-	capital = maxf(0.0, capital - 2.0)
+	capital -= 2.0
 	# встречное предложение: требования по порядку, пока помещаются в готовность противника
 	var b := talk_budget()
 	var cnt: Array = []
@@ -481,7 +481,7 @@ func talk_mediator() -> Dictionary:
 	var w: Dictionary = mil["war"]
 	if String(w.get("med", "")) != "":
 		return {"done": false, "msg": "Посредник уже работает: %s." % String(w["med"])}
-	if capital < 3.0:
+	if cap_spendable() < 3.0:
 		return {"done": false, "msg": "Нужно 3 политического капитала."}
 	capital -= 3.0
 	w["med"] = talk_mediator_name()

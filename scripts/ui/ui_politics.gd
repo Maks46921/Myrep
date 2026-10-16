@@ -366,7 +366,7 @@ func update_party_detail() -> void:
 		b0.text = "Исключить из коалиции" if in_coalition[p] else "Пригласить в коалицию"
 		b0.disabled = game_over or seats[p] == 0 or opp_mode
 		b1.text = "Уступки партии (политкапитал 12)"
-		b1.disabled = game_over or opp_mode or not in_coalition[p] or capital < 12.0
+		b1.disabled = game_over or opp_mode or not in_coalition[p] or cap_spendable() < 12.0
 		b2.text = "Выполнить бюджетные требования"
 		var unmet := false
 		for d in PARTY_DEMANDS[p]:

@@ -274,7 +274,7 @@ func fed_cd_get(k: String) -> int:
 func fed_cap_ok(cost: float) -> bool:
 	if game_over:
 		return false
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Не хватает политического капитала (нужно %.0f).[/color]" % [COL_BAD, cost])
 		return false
 	return true
@@ -927,7 +927,7 @@ func terr_buy_quote(ui: int, mult: float, how: String = "subject") -> Dictionary
 	var cap: float = 12.0 + mult * 6.0
 	q.merge({"price": price, "gdp_r": g_r, "p_gov": p_gov, "p_loc": p_loc, "p_dom": p_dom, "p": p_gov * p_loc * p_dom, "cap": cap, "pop": float(wr["popm"]),
 		"name": String(wr["name"]), "country": String(WORLD[cc]["name"]), "admit_blocked": admit_blocked, "rel": rel, "need_dom": dm, "gdp_pct": gdp_pct}, true)
-	if capital < cap:
+	if cap_spendable() < cap:
 		q["afford"] = false
 	else:
 		q["afford"] = true

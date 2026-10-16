@@ -1783,7 +1783,7 @@ func update_region_info() -> void:
 		var kind: int = k + 1
 		var bb: Button = gov_buttons[k]
 		bb.text = "%s (капитал 8)%s" % [gnames[kind], (" — ещё %d мес." % gleft) if gleft > 0 else ""]
-		bb.disabled = game_over or gleft > 0 or capital < 8.0
+		bb.disabled = game_over or gleft > 0 or cap_spendable() < 8.0
 		bb.tooltip_text = GOV_DESC[kind].capitalize()
 	for k in PROJECTS.size():
 		var pdk: Dictionary = PROJECTS[k]
@@ -1819,7 +1819,7 @@ func update_region_info() -> void:
 		if left > 0:
 			txt += " (ещё %d мес.)" % left
 		bt.text = txt
-		bt.disabled = left > 0 or game_over or capital < float(a["cap"])
+		bt.disabled = left > 0 or game_over or cap_spendable() < float(a["cap"])
 		var tip: String = "Эффект: " + describe_reg(effective_reg(i, a["reg"]))
 		if a["reg"].has("dev"):
 			tip += ". " + roi_text(i, a["reg"], float(a["money"]))
@@ -1923,7 +1923,7 @@ func update_regecon() -> void:
 	elif zl.size() >= 3 and int(tool["months"]) > 0:
 		txt += "\nУже три программы — больше нельзя."
 	re_tool_label.text = loc(txt)
-	re_tool_btn.disabled = game_over or req != "" or active or left > 0 or capital < float(tool["cap"]) or (zl.size() >= 3 and int(tool["months"]) > 0)
+	re_tool_btn.disabled = game_over or req != "" or active or left > 0 or cap_spendable() < float(tool["cap"]) or (zl.size() >= 3 and int(tool["months"]) > 0)
 
 
 func regecon_inject() -> void:

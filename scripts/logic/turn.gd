@@ -491,7 +491,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	# --- поддержка групп и политический капитал ---
 	for g in GROUPS:
 		support[g] = clampf(lerpf(float(support[g]), target_support(g), rt(mrate(0.5), dt)), 0.0, 100.0)
-	capital = clampf(capital + cap_rate() * dt, 0.0, 100.0)
+	capital = minf(100.0, capital + cap_rate() * dt)
 
 
 # прирост политического капитала в месяц (v35: показывается рядом с капиталом в верхней панели)

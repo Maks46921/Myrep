@@ -402,18 +402,18 @@ func head_outcome(w: int) -> Array:
 	var t := ""
 	if w == 0:
 		vt = "Ваш кандидат избран"
-		capital = clampf(capital + 8.0, 0.0, 100.0)
+		capital = minf(100.0, capital + 8.0)
 		add_all_support(1.5)
 		t = "%s: [b]%s[/b] — человек вашего лагеря. У вас союзник на посту главы государства. Политкапитал +8." % [tt, nm]
 	elif in_coalition[w]:
 		vt = "Избран кандидат партнёра по коалиции"
-		capital = clampf(capital + 4.0, 0.0, 100.0)
+		capital = minf(100.0, capital + 4.0)
 		add_all_support(0.5)
 		t = "%s: [b]%s[/b] («%s»), партнёр по вашей коалиции. Отношения с главой государства дружественные. Политкапитал +4." % [tt, nm, PARTY_NAMES[w]]
 	else:
 		vt = "Избран оппонент: придётся сотрудничать"
 		vc = C_WARN
-		capital = clampf(capital - 8.0, 0.0, 100.0)
+		capital = minf(100.0, capital - 8.0)
 		add_all_support(-1.0)
 		t = "%s: [b]%s[/b] («%s»), политический оппонент. Правительству придётся работать с неприязненным главой государства. Политкапитал -8." % [tt, nm, PARTY_NAMES[w]]
 	if String(UPPER.get("kind", "")) == "veto":
@@ -629,7 +629,7 @@ func hold_head_council(reason: String) -> void:
 				pm = p
 	if got[0] >= 1:
 		vt = "Вы сохранили место в правительстве" if not opp_mode else "Вы снова в правительстве"
-		capital = clampf(capital + 5.0, 0.0, 100.0)
+		capital = minf(100.0, capital + 5.0)
 		vtx = "Федеральное собрание подтвердило состав Федерального совета: у вашей партии %d из %d мест. Политкапитал +5." % [got[0], cn]
 		if opp_mode:
 			opp_to_gov(members, 0, "Федеральное собрание избрало представителей вашей партии в Федеральный совет.")

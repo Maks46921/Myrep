@@ -207,6 +207,17 @@ func add_all_support(v: float) -> void:
 		add_support(g, v)
 
 
+# 0.55.5: политкапитал может уходить в минус — игрок тратит сколько угодно (в минусе растёт риск отставки правительства).
+# Поэтому проверки «хватает ли капитала» сравнивают цену не с capital, а с этим запасом. ИИ-партии в минус не уходят.
+func cap_spendable() -> float:
+	return capital if cap_ai else INF
+
+
+# риск отставки в месяц при отрицательном капитале: −10 → 6%, −50 и ниже → 30%
+func cap_neg_risk() -> float:
+	return minf(0.30, maxf(0.0, -capital) * 0.006)
+
+
 func set_policy(key: String, v: float) -> void:
 	var d: Dictionary = policy_by_key[key]
 	if is_abs(key):
@@ -467,7 +478,7 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 		for g in fx["support"]:
 			add_support(g, float(fx["support"][g]))
 	if fx.has("capital"):
-		capital = clampf(capital + float(fx["capital"]), 0.0, 100.0)
+		capital = minf(100.0, capital + float(fx["capital"]))
 	if fx.has("pcamp"):
 		pres_camp += float(fx["pcamp"])
 	if rid >= REGIONS.size():
@@ -1271,7 +1282,7 @@ func bud_drop_disputed() -> int:
 
 
 func bud_persuade(q: int) -> bool:
-	if capital < 12.0 or not in_coalition[q]:
+	if cap_spendable() < 12.0 or not in_coalition[q]:
 		return false
 	capital -= 12.0
 	conc[q] = float(conc.get(q, 0.0)) + 10.0

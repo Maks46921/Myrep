@@ -665,17 +665,17 @@ func fa_ws_acts() -> Array:
 		var st: Array = fa_ws_step_ok()
 		out.append({"id": "ws_talks", "name": "Переговоры о снятии санкций", "cap": 5.0, "arg": "",
 			"desc": "Запад рассмотрит смягчение на одну ступень (сейчас: %s). %s" % [FA_WS_NAMES[lvl], "Условия для этой ступени выполнены." if bool(st[0]) else "Не хватает: " + String(st[1]) + "."],
-			"ok": capital >= 5.0 and fa_cd("ws_talks"), "why": ("перерыв %d мес." % int(cd["ws_talks"])) if not fa_cd("ws_talks") else ("нужно 5 капитала" if capital < 5.0 else "")})
+			"ok": cap_spendable() >= 5.0 and fa_cd("ws_talks"), "why": ("перерыв %d мес." % int(cd["ws_talks"])) if not fa_cd("ws_talks") else ("нужно 5 капитала" if cap_spendable() < 5.0 else "")})
 		if bool(ws["comp_need"]) and not bool(ws["comp"]):
 			out.append({"id": "ws_comp", "name": "Фонд компенсаций (долг +1,5% ВВП)", "cap": 3.0, "arg": "",
 				"desc": "Выплаты пострадавшей стране за разрушения: условие снятия санкций. Силовики недовольны, пострадавшая страна и Европа оценят.",
-				"ok": capital >= 3.0, "why": "" if capital >= 3.0 else "нужно 3 капитала"})
+				"ok": cap_spendable() >= 3.0, "why": "" if cap_spendable() >= 3.0 else "нужно 3 капитала"})
 		out.append({"id": "ws_evade", "name": "Обход санкций через третьи страны", "cap": 3.0, "arg": "",
 			"desc": "Серый импорт и посредники: на год потери от санкций меньше на 40%. Если схему раскроют (30%), отношения с Западом ухудшатся, а переговоры отложат на год.",
-			"ok": capital >= 3.0 and fa_cd("ws_evade"), "why": ("перерыв %d мес." % int(cd["ws_evade"])) if not fa_cd("ws_evade") else ("" if capital >= 3.0 else "нужно 3 капитала")})
+			"ok": cap_spendable() >= 3.0 and fa_cd("ws_evade"), "why": ("перерыв %d мес." % int(cd["ws_evade"])) if not fa_cd("ws_evade") else ("" if cap_spendable() >= 3.0 else "нужно 3 капитала")})
 	out.append({"id": "ws_diplo", "name": "Дипломатическое наступление", "cap": 4.0, "arg": "",
 		"desc": "Визиты, форумы, гуманитарные жесты: отношения со всеми странами чуть лучше. Под санкциями Запад верит слабо — сильнее отзываются нейтральные и далёкие от «ценностей».",
-		"ok": capital >= 4.0 and fa_cd("ws_diplo"), "why": ("перерыв %d мес." % int(cd["ws_diplo"])) if not fa_cd("ws_diplo") else ("" if capital >= 4.0 else "нужно 4 капитала")})
+		"ok": cap_spendable() >= 4.0 and fa_cd("ws_diplo"), "why": ("перерыв %d мес." % int(cd["ws_diplo"])) if not fa_cd("ws_diplo") else ("" if cap_spendable() >= 4.0 else "нужно 4 капитала")})
 	return out
 
 
@@ -686,7 +686,7 @@ func fa_ws_do(id: String) -> bool:
 	var cd: Dictionary = fa["cd"]
 	match id:
 		"ws_talks":
-			if int(ws["lvl"]) <= 0 or capital < 5.0 or not fa_cd("ws_talks"):
+			if int(ws["lvl"]) <= 0 or cap_spendable() < 5.0 or not fa_cd("ws_talks"):
 				return false
 			capital -= 5.0
 			var st: Array = fa_ws_step_ok()
@@ -708,7 +708,7 @@ func fa_ws_do(id: String) -> bool:
 				fa_log("переговоры о санкциях без результата. Не хватает: %s." % String(st[1]), COL_WARN)
 			return true
 		"ws_comp":
-			if capital < 3.0 or bool(ws["comp"]):
+			if cap_spendable() < 3.0 or bool(ws["comp"]):
 				return false
 			capital -= 3.0
 			debt += gdp * 0.015
@@ -723,7 +723,7 @@ func fa_ws_do(id: String) -> bool:
 			fa_log("создан фонд компенсаций пострадавшей стране (%.1f млрд €)." % (gdp * 0.015), COL_GOOD)
 			return true
 		"ws_evade":
-			if capital < 3.0 or not fa_cd("ws_evade"):
+			if cap_spendable() < 3.0 or not fa_cd("ws_evade"):
 				return false
 			capital -= 3.0
 			cd["ws_evade"] = 24
@@ -738,7 +738,7 @@ func fa_ws_do(id: String) -> bool:
 				fa_log("налажен серый импорт через третьи страны: потери от санкций меньше.", COL_WARN)
 			return true
 		"ws_diplo":
-			if capital < 4.0 or not fa_cd("ws_diplo"):
+			if cap_spendable() < 4.0 or not fa_cd("ws_diplo"):
 				return false
 			capital -= 4.0
 			cd["ws_diplo"] = 12

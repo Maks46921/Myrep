@@ -338,7 +338,7 @@ func appoint_governor(kind: int) -> void:
 		return
 	var ri := selected_region
 	var cd: Dictionary = reg_cd[ri]
-	if int(cd.get("gov", 0)) > 0 or capital < 8.0:
+	if int(cd.get("gov", 0)) > 0 or cap_spendable() < 8.0:
 		return
 	capital -= 8.0
 	cd["gov"] = 18
@@ -397,7 +397,7 @@ func do_region_action(id: String) -> void:
 	var cd: Dictionary = reg_cd[ri]
 	if int(cd.get(id, 0)) > 0:
 		return
-	if capital < float(a["cap"]):
+	if cap_spendable() < float(a["cap"]):
 		log_line("[color=%s]Не хватает политического капитала для действия «%s».[/color]" % [COL_BAD, a["name"]])
 		return
 	capital -= float(a["cap"])
@@ -728,7 +728,7 @@ func reg_tool_buy() -> void:
 	var r: Dictionary = regions[i]
 	var cd: Dictionary = reg_cd[i]
 	var key := "tool_" + String(t["id"])
-	if int(cd.get(key, 0)) > 0 or capital < float(t["cap"]) or tool_req(t, i) != "":
+	if int(cd.get(key, 0)) > 0 or cap_spendable() < float(t["cap"]) or tool_req(t, i) != "":
 		return
 	if int(t["months"]) > 0:
 		if (r["zones"] as Array).size() >= 3:

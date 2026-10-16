@@ -328,7 +328,7 @@ func rv_region_step(i: int) -> void:
 	# последствия стадии
 	var k: float = float(rv_lvl())
 	if st >= 1:
-		capital = maxf(0.0, capital - [0.0, 0.15, 0.4, 0.8, 1.2][st] * k * gdp_w[i] * 4.0)
+		capital -= [0.0, 0.15, 0.4, 0.8, 1.2][st] * k * gdp_w[i] * 4.0
 	if st >= 2:
 		r["infra"] = maxf(0.0, float(r["infra"]) - 0.35 * float(st - 1))
 		r["dev"] = maxf(0.0, float(r["dev"]) - 0.12 * float(st - 1))
@@ -399,7 +399,7 @@ func rv_reg_act_check(id: String, i: int) -> String:
 		return "нужна стадия «%s» или выше" % RV_STAGE_NAMES[int(a["min"])]
 	if int((rg["cd"] as Dictionary).get(id, 0)) > 0:
 		return "ещё %d мес." % int(rg["cd"][id])
-	if capital < float(a["cap"]):
+	if cap_spendable() < float(a["cap"]):
 		return "нужно %.0f политкапитала" % float(a["cap"])
 	if rv_conf_of(rv_uid(i)) >= 0 and id in ["talk", "police", "invest"]:
 		return "идёт война: используйте действия конфликта"
@@ -632,7 +632,7 @@ func rv_secede(i: int, how: String) -> bool:
 	add_support("Силовики", -4.0 if how == "war" else -2.0)
 	rv["nat"]["hate"] = rv_clamp(float(rv["nat"]["hate"]) + 6.0)
 	dip_all(-2.0 if how == "war" else -0.5, false)
-	capital = maxf(0.0, capital - 4.0)
+	capital -= 4.0
 	var txt := "[b]Независимость.[/b] Регион «%s» (%.1f%% ВВП) вышел из состава страны" % [short, share * 100.0]
 	txt += " в результате войны." if how == "war" else (" после референдума." if how == "referendum" else " мирно, долг поделён.")
 	rv_log(txt, COL_BAD)
@@ -765,7 +765,7 @@ func rv_conf_step(k: int) -> void:
 		add_support("Молодёжь", -0.05)
 	if i >= 0 and (rv["nat"] as Dictionary).has("hate"):
 		rv["nat"]["hate"] = rv_clamp(float(rv["nat"]["hate"]) + 0.15 * float(mob))
-	capital = maxf(0.0, capital - 0.6)
+	capital -= 0.6
 	# исходы
 	var ctl: float = float(c["ctl"])
 	var months: int = turn - int(c["start"])
@@ -898,7 +898,7 @@ func rv_conf_act_check(id: String, k: int) -> String:
 			a = x
 	if a.is_empty():
 		return "нет такого действия"
-	if capital < float(a["cap"]):
+	if cap_spendable() < float(a["cap"]):
 		return "нужно %.0f политкапитала" % float(a["cap"])
 	if String(c["side"]) == "rebel" and id in ["ally", "autonomy", "recognize"]:
 		return "недоступно для повстанцев"
@@ -1316,7 +1316,7 @@ func rv_selfcoup_check() -> String:
 		return "у вас уже власть указами"
 	if not current_event.is_empty() or election_open:
 		return "сначала решите текущее событие"
-	if capital < 12.0:
+	if cap_spendable() < 12.0:
 		return "нужно 12 политкапитала"
 	if float(support["Силовики"]) < 38.0:
 		return "нужна поддержка силовиков не ниже 38"
@@ -1350,7 +1350,7 @@ func rv_selfcoup() -> bool:
 		nat["rev"] = rv_clamp(float(nat["rev"]) + 25.0)
 		nat["hate"] = rv_clamp(float(nat["hate"]) + 20.0)
 		if randf() < 0.45:
-			capital = maxf(0.0, capital - 10.0)
+			capital -= 10.0
 			add_support("Силовики", -12.0)
 			add_all_support(-8.0)
 			rv_log("[b]Попытка захвата власти провалилась[/b] (шанс был %.0f%%), но вы остались у власти: доверие подорвано, в армии чистка." % (p * 100.0), COL_BAD)
@@ -1381,7 +1381,7 @@ func rv_oppcoup_check() -> String:
 		return "доступно только в оппозиции"
 	if game_over:
 		return "игра окончена"
-	if capital < 15.0:
+	if cap_spendable() < 15.0:
 		return "нужно 15 политкапитала"
 	if float(support["Силовики"]) < 35.0:
 		return "нужна симпатия силовиков не ниже 35"
@@ -1416,7 +1416,7 @@ func rv_uprising_check() -> String:
 		return "доступно только в оппозиции"
 	if game_over:
 		return "игра окончена"
-	if capital < 10.0:
+	if cap_spendable() < 10.0:
 		return "нужно 10 политкапитала"
 	if float((rv["nat"] as Dictionary)["wave"]) < 25.0:
 		return "нужна волна протестов не ниже 25"
@@ -1457,7 +1457,7 @@ func rv_coup_measure_check(id: String) -> String:
 		return "недоступно"
 	if rv_cd("cm_" + id) > 0:
 		return "ещё %d мес." % rv_cd("cm_" + id)
-	if capital < float(a["cap"]):
+	if cap_spendable() < float(a["cap"]):
 		return "нужно %.0f политкапитала" % float(a["cap"])
 	return ""
 

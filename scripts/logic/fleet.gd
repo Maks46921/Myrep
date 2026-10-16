@@ -454,7 +454,7 @@ func fleet_port_invest(pid: String, auto: bool = false) -> bool:
 	var p: Dictionary = flt["ports"][pid]
 	if int(p["build"]) > 0:
 		return false
-	if not auto and capital < 2.0:
+	if not auto and cap_spendable() < 2.0:
 		return false
 	var cost := fleet_port_cost(pid)
 	debt += cost
@@ -474,7 +474,7 @@ func fleet_can_build(id: String) -> bool:
 
 
 func fleet_order(id: String) -> bool:
-	if not fleet_can_build(id) or capital < 2.0:
+	if not fleet_can_build(id) or cap_spendable() < 2.0:
 		return false
 	var cl: Dictionary = fleet_class(id)
 	if cl.is_empty() or (flt["queue"] as Array).size() >= 8:
@@ -497,7 +497,7 @@ func fleet_merch(d: int) -> bool:
 	var nv: int = clampi(int(flt["merch"]) + d, 0, 4)
 	if nv == int(flt["merch"]):
 		return false
-	if d > 0 and capital < 2.0:
+	if d > 0 and cap_spendable() < 2.0:
 		return false
 	if d > 0:
 		capital -= 2.0

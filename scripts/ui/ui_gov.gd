@@ -281,7 +281,7 @@ func update_min_detail() -> void:
 		btn.text = "Сейчас" if p == holder else "Назначить"
 		btn.disabled = game_over or p == holder
 	min_replace_btn.text = "Сменить министра (политкапитал 5)"
-	min_replace_btn.disabled = game_over or capital < 5.0
+	min_replace_btn.disabled = game_over or cap_spendable() < 5.0
 	call_deferred("refit_gov")
 
 
@@ -347,7 +347,7 @@ func update_neg() -> void:
 		neg_main_btn.disabled = game_over
 		neg_conc_btn.visible = true
 		neg_conc_btn.text = "Уступки партии (политкапитал 12)"
-		neg_conc_btn.disabled = game_over or capital < 12.0
+		neg_conc_btn.disabled = game_over or cap_spendable() < 12.0
 		neg_dem_btn.visible = true
 		neg_dem_btn.text = "Выполнить бюджетные требования партии"
 		var unmet := false
@@ -362,7 +362,7 @@ func update_neg() -> void:
 			neg_main_btn.disabled = game_over or seats[p] == 0
 		elif w2 >= COALITION_JOIN_PAID:
 			neg_main_btn.text = "Пригласить с уступками (политкапитал %.0f)" % CONCESSION_COST
-			neg_main_btn.disabled = game_over or capital < CONCESSION_COST or seats[p] == 0
+			neg_main_btn.disabled = game_over or cap_spendable() < CONCESSION_COST or seats[p] == 0
 		else:
 			neg_main_btn.text = "Откажется войти: слишком низкая готовность"
 			neg_main_btn.disabled = true

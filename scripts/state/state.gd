@@ -55,6 +55,7 @@ var mods: Dictionary = BASE_MODS.duplicate()
 var cooldown := {}
 
 var capital := 40.0
+var cap_ai := false   # 0.55.5: капитал сейчас «одолжен» ИИ-партии (cap_swap) — ей в минус нельзя
 var ev_hist := {}             # v46_1: id события -> {"t": последний месяц, "n": сколько раз было, "o": выбранный вариант}
 var ev_queue: Array = []      # v46_1: продолжения цепочек [{"id", "due", "rid"}]
 var ev_later: Array = []      # v46_1: отложенные последствия [{"due", "fx", "t", "rid"}]

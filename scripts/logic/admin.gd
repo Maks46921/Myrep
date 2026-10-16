@@ -487,7 +487,7 @@ func adm_common_check(cost: float) -> String:
 		var up := fed_upper()
 		if bool(up["on"]) and not bool(up["ok"]):
 			return "%s не даёт согласия: у коалиции %d из %d голосов (нужно %d)." % [up["name"], up["yes"], up["total"], up["need"]]
-	if capital < cost:
+	if cap_spendable() < cost:
 		return "Нужно %.1f политического капитала (есть %.1f)." % [cost, capital]
 	return ""
 
@@ -821,7 +821,7 @@ func ate_buy_quote(sel: Array, mult: float, dst: int) -> Dictionary:
 	var cap: float = snappedf(clampf(5.0 + mult * 3.0 + pop * 4.0, 6.0, 24.0), 0.5)
 	q.merge({"price": price, "gdp_r": g_sel, "pop": pop, "p_gov": p_gov, "p_loc": p_loc, "p_dom": p_dom, "p": p_gov * p_loc * p_dom, "cap": cap,
 		"country": String(WORLD[cc]["name"]), "rel": rel, "parts": parts, "whole": whole, "gdp_pct": gdp_pct, "km": adm_sel_km(sel)}, true)
-	q["afford"] = capital >= cap
+	q["afford"] = cap_spendable() >= cap
 	return q
 
 

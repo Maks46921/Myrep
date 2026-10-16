@@ -92,7 +92,7 @@ func do_action(id: String) -> void:
 	if game_over or int(cooldown.get(id, 0)) > 0:
 		return
 	var a := find_by_id(ACTIONS, id)
-	if capital < float(a["cost"]):
+	if cap_spendable() < float(a["cost"]):
 		log_line("[color=%s]Не хватает политического капитала для действия «%s».[/color]" % [COL_BAD, a["name"]])
 		return
 	if id == "snap":
@@ -535,7 +535,7 @@ func negotiate_variant(tid: String, idx: int) -> void:
 	if game_over or idx == cur_idx(tid):
 		return
 	var sw := variant_swing(tid, idx)
-	if sw.is_empty() or capital < float(sw["cost"]) + law_cost(tid, idx):
+	if sw.is_empty() or cap_spendable() < float(sw["cost"]) + law_cost(tid, idx):
 		return
 	capital -= float(sw["cost"])
 	var names: PackedStringArray = []
@@ -560,7 +560,7 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		log_line("[color=%s]Закон «%s» не принят: %s[/color]" % [COL_BAD, topic["name"], rq])
 		return
 	var cost := law_cost(tid, idx) * cost_mult
-	if capital < cost:
+	if cap_spendable() < cost:
 		return
 	var jn: Dictionary = junior_info()
 	if bool(jn["junior"]) and vote_sponsor == 0 and not (int(jn["pm"]) in forced) and variant_stance(int(jn["pm"]), tid, idx) < -0.8:
@@ -590,7 +590,7 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		refresh()
 		return
 	cost += float(upc["extra"])
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Для закона «%s» не хватает капитала: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
 		refresh()
 		return
@@ -1155,7 +1155,7 @@ func brake_step(deficit_pct: float) -> void:
 		if brake_over == 3:
 			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else ("Еврокомиссия предупреждает" if bool(MACRO.get("eu", false)) else "Рейтинговые агентства предупреждают") + " правительство, инвесторы требуют премию за риск."])
 		elif brake_over >= 6:
-			capital = maxf(0.0, capital - (0.8 if strict else 0.15))
+			capital -= (0.8 if strict else 0.15)
 			if brake_over % 6 == 0:
 				log_line("[color=%s][b]Нарушение бюджетного правила (%s).[/b] Рынки и партнёры давят на правительство (политкапитал -%s в месяц, ставка по долгу выше).[/color]" % [COL_BAD, fname, "0.8" if strict else "0.15"])
 			apply_fx({"support": {"Бизнес": -0.3 if not strict else -0.4}})
@@ -1163,7 +1163,7 @@ func brake_step(deficit_pct: float) -> void:
 	if brake_over == 3:
 		log_line("[color=%s][b]Долговой тормоз:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. Федеральное министерство финансов и Конституционный суд предупреждают правительство.[/color]" % [COL_WARN, deficit_pct, brake_allowed()])
 	elif brake_over >= 6:
-		capital = maxf(0.0, capital - 0.8)
+		capital -= 0.8
 		if brake_over % 6 == 0:
 			log_line("[color=%s][b]Нарушение долгового тормоза.[/b] Суд требует сократить дефицит (политкапитал -0.8 в месяц, доверие рынков падает).[/color]" % COL_BAD)
 		apply_fx({"support": {"Бизнес": -0.4, "Пенсионеры": -0.2}})

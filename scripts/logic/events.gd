@@ -339,7 +339,7 @@ func ev_title(e: Dictionary, text: String) -> String:
 func ev_opt_block(opt: Dictionary) -> String:
 	var fx: Dictionary = opt.get("fx", {})
 	var cost: float = -float(fx.get("capital", 0.0))
-	if cost > 0.0 and capital < cost:
+	if cost > 0.0 and cap_spendable() < cost:
 		return "не хватает политкапитала (нужно %.0f)" % cost
 	return ""
 

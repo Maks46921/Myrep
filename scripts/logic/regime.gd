@@ -210,6 +210,7 @@ func au_clan_target(id: String) -> float:
 			t += fear * 0.08 + float(au["prop"]) * 0.05 - lib * 10.0
 		"ideo_r":
 			t += -fear * 0.10 + lib * 12.0 - float(au["cult"]) * 2.0 + (6.0 if turn - int(au.get("reform_t", -999)) < 24 else 0.0)
+	t -= maxf(0.0, -capital) * 0.25   # 0.55.5: капитал в минусе — кланы теряют лояльность (растёт риск переворота)
 	return clampf(t, 5.0, 95.0)
 
 
@@ -445,7 +446,7 @@ func au_check(id: String) -> String:
 		if not (au["cl"] as Dictionary).has(cid):
 			return "нет такого клана"
 		var cost: float = 6.0 if base == "reward" else 8.0
-		if capital < cost:
+		if cap_spendable() < cost:
 			return "нужно %.0f капитала" % cost
 		if int(au["cd"].get(id, -99)) > turn:
 			return "ещё %d мес." % (int(au["cd"][id]) - turn)
@@ -458,7 +459,7 @@ func au_check(id: String) -> String:
 	var cls_req: String = String(a[4])
 	if cls_req != "" and not (String(au["cls"]) in cls_req.split(",")):
 		return "только для режима: %s" % ", ".join(Array(cls_req.split(",")).map(func(x: String) -> String: return au_class_name(x)))
-	if capital < float(a[2]):
+	if cap_spendable() < float(a[2]):
 		return "нужно %.0f капитала" % float(a[2])
 	if int(au["cd"].get(base, -99)) > turn:
 		return "ещё %d мес." % (int(au["cd"][base]) - turn)

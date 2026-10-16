@@ -264,7 +264,7 @@ func update_war_talk() -> void:
 	(war_btn["cf"] as Button).disabled = talk_ceasefire_check() != ""
 	(war_btn["cf"] as Button).tooltip_text = String((war_btn["cf"] as Button).tooltip_text).split("\n")[0] + ("\n" + talk_ceasefire_check() if talk_ceasefire_check() != "" else "")
 	(war_btn["cf_break"] as Button).visible = cf_on
-	(war_btn["med"] as Button).disabled = String(w.get("med", "")) != "" or capital < 3.0
+	(war_btn["med"] as Button).disabled = String(w.get("med", "")) != "" or cap_spendable() < 3.0
 	war_intl_rt.text = war_intl_text()
 
 

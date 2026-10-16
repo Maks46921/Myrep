@@ -351,7 +351,7 @@ func select_party(p: int) -> void:
 
 func do_concession(p: int) -> void:
 	if pl_deny(): return
-	if game_over or not in_coalition[p] or capital < 12.0:
+	if game_over or not in_coalition[p] or cap_spendable() < 12.0:
 		return
 	capital -= 12.0
 	conc[p] = float(conc.get(p, 0.0)) + 18.0
@@ -478,6 +478,11 @@ func check_government() -> void:
 				crisis_offered = false
 				hold_parliament("правительство не получило поддержки парламента")
 				return
+	# 0.55.5: капитал в минусе — оппозиция и недовольные партнёры могут потребовать отставки
+	if cap_neg_risk() > 0.0 and turn - last_nocon >= 6 and current_event.is_empty() and randf() < cap_neg_risk():
+		log_line("[color=%s]Политический капитал правительства в минусе (%.0f): в парламенте заговорили об отставке.[/color]" % [COL_BAD, capital])
+		show_no_confidence()
+		return
 	var avg_sat: float = sum_sat / float(members) if members > 0 else 60.0
 	var risky: bool = gov_margin() < seat_pad() or (members > 0 and avg_sat < 45.0) or crisis_months > 0
 	if risky and turn - last_nocon >= 18 and current_event.is_empty() and randf() < 0.05:
@@ -503,7 +508,7 @@ func resolve_no_confidence() -> void:
 		if not in_coalition[p]:
 			if not tolerates(p):
 				against += seats[p]
-		elif float(satis.get(p, 50.0)) < 34.0:
+		elif float(satis.get(p, 50.0)) < 34.0 + maxf(0.0, -capital) * 0.4:   # 0.55.5: при капитале в минусе партнёры бунтуют охотнее
 			against += seats[p]
 			rebels.append(PARTY_NAMES[p])
 	var txt := "Голосование о недоверии: против правительства %d, нужно %d." % [against, MAJORITY]
@@ -514,7 +519,7 @@ func resolve_no_confidence() -> void:
 		log_line("[color=%s]Конструктивный вотум: оппозиция набрала голоса против правительства, но не смогла договориться о преемнике. Правительство остаётся.[/color]" % COL_GOOD)
 		add_all_support(1.0)
 	elif against >= MAJORITY:
-		capital = maxf(0.0, capital - 10.0)
+		capital -= 10.0
 		log_line("[color=%s][b]Парламент выразил недоверие правительству.[/b] Назначены досрочные выборы.[/color]" % COL_BAD)
 		hold_parliament("вотум недоверия")
 	else:
@@ -648,7 +653,7 @@ func assign_ministry(m: int, p: int) -> void:
 
 func replace_minister(m: int) -> void:
 	if pl_deny(): return
-	if game_over or capital < 5.0:
+	if game_over or cap_spendable() < 5.0:
 		return
 	var p: int = ministries[m]
 	if council_on() and p > 0:
@@ -774,7 +779,7 @@ func invite_party(p: int, promise: bool = false, mins: int = 0) -> void:
 	var w := invite_offer_w(p, promise, mins)
 	var paid := false
 	if w < COALITION_JOIN:
-		if w >= COALITION_JOIN_PAID and capital >= CONCESSION_COST:
+		if w >= COALITION_JOIN_PAID and cap_spendable() >= CONCESSION_COST:
 			paid = true
 			capital -= CONCESSION_COST
 		else:

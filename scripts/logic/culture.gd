@@ -702,7 +702,7 @@ func cu_cd_get(k: String) -> int:
 func cu_spend(cost: float) -> bool:
 	if game_over:
 		return false
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Не хватает политического капитала (нужно %.0f).[/color]" % [COL_BAD, cost])
 		return false
 	capital -= cost

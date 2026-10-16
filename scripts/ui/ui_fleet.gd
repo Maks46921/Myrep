@@ -94,7 +94,7 @@ func update_fleet_windows() -> void:
 	t += "Торговый флот под своим флагом: [b]%d[/b]/4" % int(flt["merch"])
 	fw_info_rt.text = t
 	(fw_btn["m-"] as Button).disabled = int(flt["merch"]) <= 0
-	(fw_btn["m+"] as Button).disabled = int(flt["merch"]) >= 4 or capital < 2.0
+	(fw_btn["m+"] as Button).disabled = int(flt["merch"]) >= 4 or cap_spendable() < 2.0
 	fw_spk.title = "Пропускная способность путей (по неделям)"
 	fw_spk.series = [{"v": flt["hist_f"], "c": Color("#58c8c0"), "n": "пути"}, {"v": flt["hist_u"], "c": Color("#e8b84a"), "n": "порты"}]
 	# флот
@@ -106,7 +106,7 @@ func update_fleet_windows() -> void:
 			if String(it["cls"]) == cid:
 				q += 1
 		n += "%s: [b]%d[/b]%s\n" % [String(cl["name"]), int(flt["navy"][cid]), (" (строится %d)" % q) if q > 0 else ""]
-		(fw_btn["o_" + cid] as Button).disabled = (not fleet_can_build(cid)) or capital < 2.0 or (flt["queue"] as Array).size() >= 8
+		(fw_btn["o_" + cid] as Button).disabled = (not fleet_can_build(cid)) or cap_spendable() < 2.0 or (flt["queue"] as Array).size() >= 8
 		(fw_btn["o_" + cid] as Button).visible = not land
 	fw_navy_rt.text = n
 	for ms in FLT_MISSIONS:
@@ -177,7 +177,7 @@ func update_fleet_windows() -> void:
 		(pr[0] as Label).text = "%.0f%% · %s %s" % [float(p["util"]) * 100.0, String(p["name"]), stt]
 		(pr[0] as Label).tooltip_text = "Загрузка порта «%s»: %.0f%%" % [String(p["name"]), float(p["util"]) * 100.0]
 		(pr[1] as Button).text = "+ (%.1f)" % fleet_port_cost(String(p["id"]))
-		(pr[1] as Button).disabled = int(p["build"]) > 0 or capital < 2.0
+		(pr[1] as Button).disabled = int(p["build"]) > 0 or cap_spendable() < 2.0
 	# происшествия
 	var it := ""
 	if (flt["inc"] as Dictionary).is_empty():

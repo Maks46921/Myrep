@@ -208,13 +208,13 @@ func es_check(id: String) -> String:
 		var sec: String = parts[1]
 		if not (sec in es["prio"]) and (es["prio"] as Array).size() >= 2:
 			return "приоритетов не больше двух — сначала снимите один"
-		if capital < 3.0:
+		if cap_spendable() < 3.0:
 			return "нужно 3 капитала"
 		return ""
 	if base == "credit":
 		if cls != "statecap":
 			return "только при госкапитализме"
-		if capital < 5.0:
+		if cap_spendable() < 5.0:
 			return "нужно 5 капитала"
 		if int(es["cd"].get("credit", -99)) > turn:
 			return "ещё %d мес." % (int(es["cd"]["credit"]) - turn)
@@ -225,7 +225,7 @@ func es_check(id: String) -> String:
 		var v: int = int(es["plan"].get(parts[1], 1)) + (1 if parts[2] == "+" else -1)
 		if v < 0 or v > 2:
 			return "предел"
-		if capital < 2.0:
+		if cap_spendable() < 2.0:
 			return "нужно 2 капитала"
 		return ""
 	var a := es_act_def(base)
@@ -233,7 +233,7 @@ func es_check(id: String) -> String:
 		return "неизвестное действие"
 	if not (cls in String(a[4]).split(",")):
 		return "не при этой модели"
-	if capital < float(a[2]):
+	if cap_spendable() < float(a[2]):
 		return "нужно %.0f капитала" % float(a[2])
 	if int(es["cd"].get(base, -99)) > turn:
 		return "ещё %d мес." % (int(es["cd"][base]) - turn)
@@ -489,7 +489,7 @@ func co_check(id: String, i: int) -> String:
 	var c: Dictionary = corp["list"][i]
 	if int(c["cd"]) > turn:
 		return "с компанией недавно уже работали (ещё %d мес.)" % (int(c["cd"]) - turn)
-	if capital < 4.0:
+	if cap_spendable() < 4.0:
 		return "нужно 4 капитала"
 	match id:
 		"privatize":
@@ -627,7 +627,7 @@ func co_foreign_check(id: String) -> String:
 	var why := pl_why("gov")
 	if why != "":
 		return why
-	if capital < 6.0:
+	if cap_spendable() < 6.0:
 		return "нужно 6 капитала"
 	if int(es["cd"].get("for_" + id, -99)) > turn:
 		return "ещё %d мес." % (int(es["cd"]["for_" + id]) - turn)

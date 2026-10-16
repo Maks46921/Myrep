@@ -403,7 +403,7 @@ func update_law_votes() -> void:
 		for p in sw["parties"]:
 			names.append(PARTY_NAMES[p])
 		lv_neg.text = "Договориться: %s (капитал %.0f + закон %.0f)" % [", ".join(names), sw["cost"], law_cost(tid, idx)]
-		lv_neg.disabled = game_over or int(law_cd.get(tid, 0)) > 0 or capital < float(sw["cost"]) + law_cost(tid, idx)
+		lv_neg.disabled = game_over or int(law_cd.get(tid, 0)) > 0 or cap_spendable() < float(sw["cost"]) + law_cost(tid, idx)
 
 
 func build_law_slider(parent: Control) -> void:
@@ -678,5 +678,5 @@ func update_law_detail() -> void:
 			btn.text = ("Внести законопроект (политкапитал %.0f)" if vi > 0 else "Вернуть действующий порядок (политкапитал %.0f)") % cost
 			if tweak:
 				btn.text = "Изменить силу действия до %.1f× (политкапитал %.0f)" % [pw_of(tid, true), cost]
-			btn.disabled = game_over or capital < cost + float(upc["extra"])
+			btn.disabled = game_over or cap_spendable() < cost + float(upc["extra"])
 	call_deferred("refit_law_cards")

@@ -477,7 +477,7 @@ func io_check(o: String, id: String) -> String:
 				return "беспорядков нет"
 			if id == "union_cur" and bool(io["bon"].get("union_cur", false)):
 				return "переговоры уже идут"
-	if capital < cost:
+	if cap_spendable() < cost:
 		return "нужно %.0f капитала" % cost
 	if int(io["cd"].get(o + ":" + id, -99)) > turn:
 		return "ещё %d мес." % (int(io["cd"][o + ":" + id]) - turn)

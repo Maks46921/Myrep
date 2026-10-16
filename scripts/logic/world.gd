@@ -205,7 +205,7 @@ func dip_do_action(id: String) -> void:
 		return
 	var a: Dictionary = find_by_id(DIP_ACTIONS, id)
 	var cd: Dictionary = dip[dip_sel]["cd"]
-	if int(cd.get(id, 0)) > 0 or capital < float(a["cap"]):
+	if int(cd.get(id, 0)) > 0 or cap_spendable() < float(a["cap"]):
 		return
 	capital -= float(a["cap"])
 	if float(a["money"]) > 0.0:
@@ -231,7 +231,7 @@ func dip_upgrade(tid: String) -> void:
 		return
 	var cost := dip_track_cost(dip_sel, tid)
 	var cd: Dictionary = dip[dip_sel]["cd"]
-	if capital < float(cost[0]) or float(dip[dip_sel]["rel"]) < float(cost[2]) or int(cd.get("t_" + tid, 0)) > 0:
+	if cap_spendable() < float(cost[0]) or float(dip[dip_sel]["rel"]) < float(cost[2]) or int(cd.get("t_" + tid, 0)) > 0:
 		return
 	capital -= float(cost[0])
 	debt += gdp * float(cost[1]) / 100.0
@@ -574,7 +574,7 @@ func w_fund_check(c: String, pi: int) -> String:
 	var f: Dictionary = wsim[c].get("fund", {})
 	if not f.is_empty():
 		return "вы уже финансируете «%s» (ещё %d мес.)" % [w_party_name(c, int(f["p"])), int(f["left"])]
-	if capital < W_FUND_CAP:
+	if cap_spendable() < W_FUND_CAP:
 		return "нужно %.0f политкапитала" % W_FUND_CAP
 	return ""
 

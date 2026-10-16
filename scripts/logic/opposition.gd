@@ -474,7 +474,7 @@ func opp_act(id: String) -> bool:
 	for x in OPP_ACTS:
 		if String(x["id"]) == id:
 			a = x
-	if a.is_empty() or cd_left(id) > 0 or capital < float(a["cap"]):
+	if a.is_empty() or cd_left(id) > 0 or cap_spendable() < float(a["cap"]):
 		return false
 	if bool(a["seats"]) and seats[0] <= 0:
 		return false
@@ -566,7 +566,7 @@ func pact_can(p: int, kind: String) -> String:
 			pk = x
 	if pk.is_empty():
 		return "нельзя"
-	if capital < float(pk["cap"]):
+	if cap_spendable() < float(pk["cap"]):
 		return "не хватает политкапитала"
 	if cd_left("p%d_%s" % [p, kind]) > 0:
 		return "ещё %d мес." % cd_left("p%d_%s" % [p, kind])

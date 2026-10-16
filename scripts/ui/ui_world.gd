@@ -211,7 +211,7 @@ func update_dip_windows() -> void:
 		if left > 0:
 			txt += " — ещё %d мес." % left
 		b.text = txt
-		b.disabled = left > 0 or game_over or capital < float(a["cap"])
+		b.disabled = left > 0 or game_over or cap_spendable() < float(a["cap"])
 	for tr in DIP_TRACKS:
 		var tid: String = tr["id"]
 		var L: int = int(lv[tid])
@@ -228,7 +228,7 @@ func update_dip_windows() -> void:
 			up.text = "Углубить: капитал %.0f, %.2f%% ВВП (отношения от %.0f)" % [cost[0], cost[1], cost[2]]
 			if tl > 0:
 				up.text = "Углубить через %d мес." % tl
-			up.disabled = game_over or capital < float(cost[0]) or rel < float(cost[2]) or tl > 0
+			up.disabled = game_over or cap_spendable() < float(cost[0]) or rel < float(cost[2]) or tl > 0
 		dn.disabled = game_over or L <= 0
 	# таблица
 	var tb := "[b]Страны на карте[/b]\n[table=7]"

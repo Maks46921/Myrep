@@ -413,12 +413,14 @@ func cap_swap(p: int) -> float:
 	var old := capital
 	if pcap.size() > p:
 		capital = float(pcap[p])
+		cap_ai = true
 	return old
 
 
 func cap_unswap(p: int, old: float) -> void:
 	if pcap.size() > p:
 		pcap[p] = clampf(capital, 0.0, 100.0)
+	cap_ai = false
 	capital = old
 
 
@@ -768,7 +770,7 @@ func propose_variant(tid: String, idx: int, forced: Array = []) -> void:
 		log_line("[color=%s]В работе уже три ваших законопроекта: дождитесь решения.[/color]" % COL_WARN)
 		return
 	var cost := law_cost(tid, idx)
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Для законопроекта «%s» не хватает политкапитала: нужно %.0f.[/color]" % [COL_BAD, topic["name"], cost])
 		return
 	var up := cost * 0.35
@@ -833,7 +835,7 @@ func bill_request(bid: int, ri: int, accept: bool) -> bool:
 	var r: Dictionary = reqs[ri]
 	var p: int = int(r["p"])
 	if accept:
-		if capital < float(r["cost"]):
+		if cap_spendable() < float(r["cost"]):
 			return false
 		capital -= float(r["cost"])
 		r["state"] = 1
@@ -884,7 +886,7 @@ func bill_amend(bid: int, kind: String) -> bool:
 			var y1: int = int(bill_preview(b)["yes"])
 			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s» %s: сила действия %.1f×; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], "смягчён" if kind == "soft" else "ужесточён", float(b["pow"]), y0, y1, law_need(tid)])
 		"sweet":
-			if bool(did.get("sweet", false)) or capital < 4.0:
+			if bool(did.get("sweet", false)) or cap_spendable() < 4.0:
 				return false
 			var added: PackedStringArray = []
 			for p in range(1, PARTY_NAMES.size()):
@@ -943,7 +945,7 @@ func bill_rider_check(b: Dictionary, kind: String, arg: String) -> String:
 		if String(r["k"]) == kind and String(r["a"]) == arg:
 			return "такая оговорка уже есть"
 	var cost: float = 4.0 if kind == "party" else 3.0
-	if capital < cost:
+	if cap_spendable() < cost:
 		return "нужно %.0f политкапитала" % cost
 	if kind == "party":
 		var p := int(arg)

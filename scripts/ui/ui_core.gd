@@ -1248,7 +1248,7 @@ func refresh() -> void:
 			if cd > 0:
 				txt += " — ещё %d мес." % cd
 			b.text = txt
-			b.disabled = cd > 0 or game_over or capital < float(a["cost"]) or (a["id"] == "snap" and (turn - last_parl < 12 or not bool(snap_info()["ok"]) or opp_mode))
+			b.disabled = cd > 0 or game_over or cap_spendable() < float(a["cost"]) or (a["id"] == "snap" and (turn - last_parl < 12 or not bool(snap_info()["ok"]) or opp_mode))
 		update_parliament()
 		update_polls()
 		update_regime_windows()
@@ -1647,7 +1647,8 @@ func update_chips() -> void:
 	set_chip_num("unemp", unemployment, func(x: float) -> String: return "%.1f%%" % x, scale_color(1.0 - unemployment / 14.0), arrow_text(dun, 2), delta_col(dun, false))
 	set_chip_num("debt", dr, func(x: float) -> String: return "%.0f%%" % x, scale_color(1.0 - dr / 110.0), arrow_text(ddebt, 1), delta_col(ddebt, false))
 	var cr: float = cap_rate()
-	set_chip_num("cap", capital, func(x: float) -> String: return "%.1f" % x, C_WARN if capital < 15.0 else C_TEXT, "%s%.1f/мес" % ["+" if cr >= 0.0 else "", cr], C_GOOD if cr >= 0.7 else C_DIM)
+	(chips["cap"]["pc"] as Control).tooltip_text = "Политический капитал: расходуется на законы, действия и переговоры. Тратить можно и в минус." + ("\nСейчас капитал в минусе: риск отставки правительства %.0f%% в месяц (при авторитарном строе — падает лояльность кланов)." % (cap_neg_risk() * 100.0) if capital < 0.0 else "")
+	set_chip_num("cap", capital, func(x: float) -> String: return "%.1f" % x, C_BAD if capital < 0.0 else (C_WARN if capital < 15.0 else C_TEXT), "%s%.1f/мес" % ["+" if cr >= 0.0 else "", cr], C_GOOD if cr >= 0.7 else C_DIM)
 	set_chip("coal", "%d/%d" % [gs, SEATS], C_GOOD if gov_ok() else C_BAD, "кризис" if not gov_ok() else "", C_BAD)
 	var el_d: int = days_until_months(parl_in)
 	set_chip("elec", ("%d дн." % el_d) if el_d < 90 else months_short(parl_in), C_TEXT)

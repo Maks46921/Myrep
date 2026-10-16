@@ -241,7 +241,7 @@ func dx_conf_acts(k: int) -> Array:
 	for a in out:
 		a["ok"] = true
 		a["why"] = ""
-		if capital < float(a["cap"]):
+		if cap_spendable() < float(a["cap"]):
 			a["ok"] = false
 			a["why"] = "нужно %.0f капитала" % float(a["cap"])
 		elif dx_cd_get(String(a["id"]) + str(int(c["id"]))) > 0:
@@ -361,10 +361,10 @@ func dx_rec_acts() -> Array:
 		var r: Dictionary = (dx["rec"] as Dictionary).get(code, {"blk": 0, "us": false})
 		out.append({"id": "rec_lobby", "arg": code, "name": "Дипломатическая кампания против признания: %s" % st["name"], "cap": 6.0,
 			"desc": "Убедить партнёров не признавать: на год вероятность признания падает более чем вдвое.",
-			"ok": capital >= 6.0 and dx_cd_get("lobby" + code) == 0, "why": "" if capital >= 6.0 and dx_cd_get("lobby" + code) == 0 else "капитал/перерыв"})
+			"ok": cap_spendable() >= 6.0 and dx_cd_get("lobby" + code) == 0, "why": "" if cap_spendable() >= 6.0 and dx_cd_get("lobby" + code) == 0 else "капитал/перерыв"})
 		out.append({"id": "rec_us", "arg": code, "name": "Признать самим: %s" % st["name"], "cap": 2.0,
 			"desc": "Отношения с новым государством улучшаются, но партнёры по ЕС недовольны.",
-			"ok": capital >= 2.0 and not bool(r["us"]), "why": "" if capital >= 2.0 and not bool(r["us"]) else "уже признали/нет капитала"})
+			"ok": cap_spendable() >= 2.0 and not bool(r["us"]), "why": "" if cap_spendable() >= 2.0 and not bool(r["us"]) else "уже признали/нет капитала"})
 	return out
 
 
@@ -373,7 +373,7 @@ func dx_rec_do(id: String, code: String) -> bool:
 		return false
 	var r: Dictionary = dx["rec"][code]
 	if id == "rec_lobby":
-		if capital < 6.0 or dx_cd_get("lobby" + code) > 0:
+		if cap_spendable() < 6.0 or dx_cd_get("lobby" + code) > 0:
 			return false
 		capital -= 6.0
 		r["blk"] = 12
@@ -381,7 +381,7 @@ func dx_rec_do(id: String, code: String) -> bool:
 		dx_log("дипломатическая кампания против признания «%s» запущена." % code, COL_DIM)
 		return true
 	if id == "rec_us":
-		if capital < 2.0 or bool(r["us"]):
+		if cap_spendable() < 2.0 or bool(r["us"]):
 			return false
 		capital -= 2.0
 		r["us"] = true
@@ -437,7 +437,7 @@ func dx_army_acts() -> Array:
 		"desc": "Лояльность +7, амбиции +2."})
 	for a in out:
 		var cdk: int = dx_cd_get(String(a["id"]))
-		a["ok"] = cdk == 0 and capital >= float(a["cap"])
+		a["ok"] = cdk == 0 and cap_spendable() >= float(a["cap"])
 		a["why"] = "" if bool(a["ok"]) else ("перерыв %d мес." % cdk if cdk > 0 else "нужно %.0f капитала" % float(a["cap"]))
 	return out
 
@@ -602,7 +602,7 @@ func dx_treaty_acts(c: String) -> Array:
 		if not have and rel < float(d["rel"]):
 			a["ok"] = false
 			a["why"] = "нужны отношения %.0f (сейчас %.0f)" % [float(d["rel"]), rel]
-		elif not have and capital < float(d["cap"]):
+		elif not have and cap_spendable() < float(d["cap"]):
 			a["ok"] = false
 			a["why"] = "нужно %.0f капитала" % float(d["cap"])
 		elif not have and id == "tech" and int(dx.get("n_tech", 0)) >= 3:
@@ -616,7 +616,7 @@ func dx_treaty_acts(c: String) -> Array:
 	if rel < 50.0:
 		pa["ok"] = false
 		pa["why"] = "нужны отношения 50"
-	elif capital < 6.0:
+	elif cap_spendable() < 6.0:
 		pa["ok"] = false
 		pa["why"] = "нужно 6 капитала"
 	elif (dx["proj"] as Array).size() >= 3:
@@ -629,7 +629,7 @@ func dx_treaty_acts(c: String) -> Array:
 				pa["why"] = "с этой страной проект уже идёт"
 	out.append(pa)
 	var sm := {"id": "summit", "name": "Двусторонний саммит (отношения +4)", "cap": 2.0, "arg": c, "desc": "Встреча лидеров: отношения растут."}
-	sm["ok"] = capital >= 2.0 and dx_cd_get("summit" + c) == 0
+	sm["ok"] = cap_spendable() >= 2.0 and dx_cd_get("summit" + c) == 0
 	sm["why"] = "" if bool(sm["ok"]) else ("перерыв %d мес." % dx_cd_get("summit" + c) if dx_cd_get("summit" + c) > 0 else "нужно 2 капитала")
 	out.append(sm)
 	return out
@@ -720,7 +720,7 @@ func dx_draft_eval(c: String, ids: Array) -> Dictionary:
 	var p: float = clampf(0.5 + score / 40.0, 0.03, 0.97)
 	if ids.is_empty():
 		why.append("добавьте хотя бы один пункт")
-	if capital < cap:
+	if cap_spendable() < cap:
 		why.append("нужно %.0f капитала" % cap)
 	if rel < 25.0:
 		why.append("отношения слишком плохие (%.0f)" % rel)
@@ -799,12 +799,12 @@ func dx_spy_acts(c: String) -> Array:
 		for d in DX_SPY:
 			var a := {"id": "spy_" + String(d["id"]), "name": d["name"], "cap": d["cap"], "desc": d["desc"], "arg": c}
 			var cdk: int = dx_cd_get("spy" + String(d["id"]) + c)
-			a["ok"] = cdk == 0 and capital >= float(d["cap"])
+			a["ok"] = cdk == 0 and cap_spendable() >= float(d["cap"])
 			a["why"] = "" if bool(a["ok"]) else ("перерыв %d мес." % cdk if cdk > 0 else "нужно %.0f капитала" % float(d["cap"]))
 			out.append(a)
 	var ci: int = int(dx["ci"])
 	var ca := {"id": "ci_up", "name": "Контрразведка +1 (расход %.2f%% ВВП/год)" % float(DX_CI_COST[mini(3, ci + 1)]), "cap": 5.0, "desc": "Меньше шансов у иностранных операций, больше шансов раскрыть их. Сейчас уровень %d из 3." % ci, "arg": ""}
-	ca["ok"] = ci < 3 and capital >= 5.0
+	ca["ok"] = ci < 3 and cap_spendable() >= 5.0
 	ca["why"] = "" if bool(ca["ok"]) else ("предел" if ci >= 3 else "нужно 5 капитала")
 	out.append(ca)
 	var cb := {"id": "ci_dn", "name": "Контрразведка −1", "cap": 0.0, "desc": "Экономия за счёт защиты.", "arg": ""}
@@ -882,7 +882,7 @@ func dx_eth_acts() -> Array:
 	var eth: int = int(dx["eth"])
 	var a := {"id": "eth_up", "name": "Этика технологий +1 (скорость исследований −5%)", "cap": 5.0,
 		"desc": "Законы о данных, слежке и ИИ: доверие к государству растёт, Молодёжь и Экологи довольны, шпионам труднее, но исследования идут медленнее. Уровень %d из 3." % eth, "arg": ""}
-	a["ok"] = eth < 3 and capital >= 5.0
+	a["ok"] = eth < 3 and cap_spendable() >= 5.0
 	a["why"] = "" if bool(a["ok"]) else ("предел" if eth >= 3 else "нужно 5 капитала")
 	out.append(a)
 	var b := {"id": "eth_dn", "name": "Этика технологий −1", "cap": 0.0, "desc": "Ослабить ограничения.", "arg": ""}
@@ -896,7 +896,7 @@ func dx_eth_do(id: String) -> bool:
 	if not dx_on() or observer or not current_event.is_empty():
 		return false
 	var eth: int = int(dx["eth"])
-	if id == "eth_up" and eth < 3 and capital >= 5.0:
+	if id == "eth_up" and eth < 3 and cap_spendable() >= 5.0:
 		capital -= 5.0
 		dx["eth"] = eth + 1
 		rl["m"]["trust"] = minf(95.0, float(rl["m"]["trust"]) + 4.0)

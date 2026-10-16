@@ -693,7 +693,7 @@ func mil_recruit_check() -> String:
 		return "Армии нет."
 	if opp_mode:
 		return "В оппозиции армией командует правительство."
-	if capital < 2.0:
+	if cap_spendable() < 2.0:
 		return "Нужно 2 политического капитала."
 	if (mil["rec"] as Array).size() >= 4:
 		return "Уже формируются 4 соединения."
@@ -728,7 +728,7 @@ func mil_mob_check(level: int) -> String:
 		return "Уже действует."
 	if level > int(mil["mob"]):
 		var cost := 3.0 if level == 1 else 6.0
-		if capital < cost:
+		if cap_spendable() < cost:
 			return "Нужно %.0f политического капитала." % cost
 		if level == 2 and not mil_at_war():
 			var dm := fed_dom(false)
@@ -895,7 +895,7 @@ func mil_declare_check(cc: String) -> String:
 		return "Нет общей границы и морского пути."
 	if int((mil["truce"] as Dictionary).get(cc, 0)) > 0:
 		return "Действует мирный договор: ещё %d мес." % int(mil["truce"][cc])
-	if capital < 15.0:
+	if cap_spendable() < 15.0:
 		return "Нужно 15 политического капитала."
 	var vt := war_vote(cc)
 	if not bool(vt["ok"]):
@@ -1954,7 +1954,7 @@ func mil_peace_propose(kind: String) -> Dictionary:
 	if not bool(q["ok"]):
 		if mil_at_war() and String(q["why"]).begins_with("Военный счёт"):
 			mil["war"]["prop_cd"] = 20
-			capital = maxf(0.0, capital - 2.0)
+			capital -= 2.0
 			mil_log("противник отверг мирное предложение. " + String(q["why"]), COL_BAD)
 		return {"done": false, "msg": String(q["why"])}
 	return mil_peace(kind)
@@ -2312,7 +2312,7 @@ func martial_check(on: bool) -> String:
 		return "Уже действует." if on else "Военного положения нет."
 	if on and not mil_at_war() and int(mil.get("mob", 0)) < 2:
 		return "Военное положение вводится только во время войны или всеобщей мобилизации."
-	if on and capital < 4.0:
+	if on and cap_spendable() < 4.0:
 		return "Нужно 4 политического капитала."
 	return ""
 

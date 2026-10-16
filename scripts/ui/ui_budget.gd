@@ -136,7 +136,7 @@ func bud_neg_fill() -> void:
 			var b := Button.new()
 			b.text = "Убедить уступкой (12 капитала)"
 			b.focus_mode = Control.FOCUS_NONE
-			b.disabled = capital < 12.0
+			b.disabled = cap_spendable() < 12.0
 			b.tooltip_text = "Партия получит уступку (её довольство вырастет) и поддержит план."
 			var qq: int = q
 			b.pressed.connect(func() -> void:

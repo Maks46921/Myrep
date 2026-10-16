@@ -417,7 +417,7 @@ func rl_parl_step() -> void:
 		rl["cohab"] = 0
 		return
 	rl["cohab"] = int(rl.get("cohab", 0)) + 1
-	capital = maxf(0.0, capital - 0.15)
+	capital -= 0.15
 	if rl_cd_get("cohab") == 0 and current_event.is_empty() and not observer and randf() < 0.05:
 		rl_cd_set("cohab", 18)
 		rl_event("cohab", "Сожительство: президент из оппозиции отказался подписать назначения и вернул закон на доработку. Страна смотрит, кто уступит.", [
@@ -648,7 +648,7 @@ func rl_acts(page: String) -> Array:
 		if rl_cd_get(cdk) > 0:
 			a["ok"] = false
 			a["why"] = "перерыв %d мес." % rl_cd_get(cdk)
-		elif capital < float(a["cap"]):
+		elif cap_spendable() < float(a["cap"]):
 			a["ok"] = false
 			a["why"] = "не хватает капитала (нужно %.0f)" % float(a["cap"])
 		elif a.has("lv"):

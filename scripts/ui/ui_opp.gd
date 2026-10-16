@@ -233,7 +233,7 @@ func update_opp_windows() -> void:
 		if cd > 0:
 			txt += " — ещё %d мес." % cd
 		b.text = loc(txt)
-		b.disabled = (not opp_mode) or game_over or cd > 0 or capital < float(a["cap"]) or (bool(a["seats"]) and seats[0] <= 0)
+		b.disabled = (not opp_mode) or game_over or cd > 0 or cap_spendable() < float(a["cap"]) or (bool(a["seats"]) and seats[0] <= 0)
 	# список партий для переговоров
 	var want: Array = []
 	for p in range(1, PARTY_NAMES.size()):

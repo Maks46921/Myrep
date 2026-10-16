@@ -304,7 +304,7 @@ func ag_party_shift_check() -> String:
 		return "модель агентов выключена"
 	if game_over:
 		return "игра окончена"
-	if capital < 4.0:
+	if cap_spendable() < 4.0:
 		return "нужно 4 политкапитала"
 	if int(ag_shift_cd) > turn:
 		return "следующий шаг через %d мес." % (int(ag_shift_cd) - turn)

@@ -692,7 +692,7 @@ func ar_svc_check(m: String) -> String:
 		return "Уже действует."
 	if int(ar["svc_cd"]) > 0:
 		return "Модель комплектования меняли недавно: ещё %d мес." % int(ar["svc_cd"])
-	if capital < 8.0:
+	if cap_spendable() < 8.0:
 		return "Нужно 8 политического капитала."
 	var dm := fed_dom(false)
 	if not bool(dm["ok"]):
@@ -721,7 +721,7 @@ func ar_td_check() -> String:
 		return "Армии нет."
 	if opp_mode:
 		return "В оппозиции армией командует правительство."
-	if capital < 2.0:
+	if cap_spendable() < 2.0:
 		return "Нужно 2 политического капитала."
 	if float(ar["td"]) >= total_pop() * 1000.0 * 0.004:
 		return "Добровольцев больше нет: все желающие уже в территориальной обороне."
@@ -755,7 +755,7 @@ func ar_buy_check() -> String:
 		return "В оппозиции закупками занимается правительство."
 	if ar_cd("buy") > 0:
 		return "Поставщики заняты прошлым заказом: ещё %d мес." % ar_cd("buy")
-	if capital < 2.0:
+	if cap_spendable() < 2.0:
 		return "Нужно 2 политического капитала."
 	if fa_eu_sanc():
 		return "Под санкциями ЕС никто не продаёт вам боеприпасы."
@@ -784,7 +784,7 @@ func ar_wecon_check() -> String:
 		return ""
 	if not mil_at_war() and int(mil["mob"]) < 2:
 		return "Военная экономика — только во время войны или всеобщей мобилизации."
-	if capital < 4.0:
+	if cap_spendable() < 4.0:
 		return "Нужно 4 политического капитала."
 	return ""
 
@@ -849,7 +849,7 @@ func ar_prog_check(id: String) -> String:
 		return "Нужна технология «%s»." % String(tech_def(String(p["tech"])).get("name", p["tech"]))
 	if String(p["fx"].get("conv", "")) != "" and ar_inf_units().is_empty():
 		return "Нет мотопехотных соединений для перевооружения."
-	if capital < 2.0:
+	if cap_spendable() < 2.0:
 		return "Нужно 2 политического капитала."
 	if fa_eu_sanc() and id in ["fighter5", "sam_l"]:
 		return "Под санкциями ЕС такие системы вам не продадут."
@@ -924,7 +924,7 @@ func ar_ex_check(kind: String, target: String = "") -> String:
 	if ar_cd("ex") > 0:
 		return "Войска ещё не отдохнули после прошлых учений: %d мес." % ar_cd("ex")
 	var need := {"plan": 2.0, "border": 3.0, "allied": 3.0}
-	if capital < float(need.get(kind, 2.0)):
+	if cap_spendable() < float(need.get(kind, 2.0)):
 		return "Нужно %.0f политического капитала." % float(need.get(kind, 2.0))
 	if kind == "border" and (target == "" or not (target in mil_targets())):
 		return "Выберите соседа."
@@ -1012,7 +1012,7 @@ func ar_mis_check(id: String) -> String:
 		return "Только для членов НАТО."
 	if mil_cap() < float(m["k"]) * 4.0:
 		return "Армия слишком мала для такой миссии."
-	if capital < 2.0:
+	if cap_spendable() < 2.0:
 		return "Нужно 2 политического капитала."
 	return ""
 
@@ -1068,7 +1068,7 @@ func ar_exp_check(lv: int) -> String:
 		return "Уже действует."
 	if ar_cd("exp") > 0:
 		return "Правила экспорта меняли недавно: ещё %d мес." % ar_cd("exp")
-	if capital < 3.0:
+	if cap_spendable() < 3.0:
 		return "Нужно 3 политического капитала."
 	return ""
 
