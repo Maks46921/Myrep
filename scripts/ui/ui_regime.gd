@@ -335,7 +335,7 @@ func reg_build_rows() -> void:
 		hb.add_child(ic)
 		var l := Label.new()
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		l.clip_text = true
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # v55_3: «Олигархи и госкорпорации — 55%» не обрезается
 		l.add_theme_font_size_override("font_size", 13)
 		hb.add_child(l)
 		var br := Button.new()

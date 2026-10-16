@@ -162,13 +162,25 @@ def pick_shot(name, lang, cc, full_maps_cc):
     return True
 
 
-def convert(src, dst, width=1280):
+def convert(src, dst, width=1100):
     if os.path.exists(dst) and os.path.getmtime(dst) >= os.path.getmtime(src):
         return
     im = Image.open(src).convert("RGB")
     if im.width > width:
         im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
-    im.save(dst, "JPEG", quality=64, optimize=True, progressive=True)
+    im.save(dst, "JPEG", quality=56, optimize=True, progressive=True)
+
+
+DESK = {0: "Бюджет", 1: "Политика → Парламент", 2: "Карта → Карта", 3: "Политика → Законы", 4: "Политика → Правительство",
+        5: "Экономика → Рынки и финансы", 6: "Политика → Население", 7: "Экономика → Товары и цены", 8: "Карта → Регионы и автономия",
+        9: "Карта → Территории", 10: "Экономика → Влияние и зависимость", 11: "Общество → Религия и миграция",
+        12: "Политика → Оппозиция и сделки", 13: "Карта → Армия и война", 14: "Карта → Флот", 15: "Карта → Вооружённые силы",
+        16: "Экономика → пульт экономической модели", 17: "Экономика → Корпорации", 18: "Организации",
+        19: "Общество → Культура", 20: "Общество → Церковь и государство"}
+
+
+def desk_name(s):
+    return re.sub(r"экран (\d+)", lambda m: DESK.get(int(m.group(1)), m.group(0)), s)
 
 
 SHOT_NAMES = {"tech": "Технологии", "crisis": "Кризисы", "crisis2": "Кризис: волнения в 5 регионах", "election": "Окно выборов",
@@ -179,13 +191,13 @@ def shot_title(base, where):
     if base in SHOT_NAMES:
         return SHOT_NAMES[base]
     if base.startswith("war_d"):
-        return "Война, экран %d" % int(base[5:])
+        return "Война: " + DESK.get(int(base[5:]), base)
     if base.startswith("w_"):
         return "Окно по запросу: " + base[2:]
     if base.startswith("map"):
         return "Слой карты %d" % int(base[3:])
     if base.startswith("d") and base[1:].isdigit():
-        return "Экран %d" % int(base[1:])
+        return DESK.get(int(base[1:]), base)
     return where or base
 
 
@@ -218,9 +230,9 @@ def main():
                 run["parts"][part] = {"bad": j.get("bad", 0), "finds": len(j.get("finds", [])),
                                       "stats": {k: v for k, v in (j.get("stats") or {}).items() if k != "rows"}}
                 for f in j.get("finds", []):
-                    finds.append({"cc": cc, "lang": lang, "part": part, "cat": f.get("cat", ""), "where": f.get("where", ""), "t": f.get("t", "")})
+                    finds.append({"cc": cc, "lang": lang, "part": part, "cat": f.get("cat", ""), "where": desk_name(f.get("where", "")), "t": f.get("t", "")})
                 for t in j.get("trims", []):
-                    trims.append({"cc": cc, "lang": lang, "where": t.get("where", ""), "t": t.get("t", "")})
+                    trims.append({"cc": cc, "lang": lang, "where": desk_name(t.get("where", "")), "t": t.get("t", "")})
                 if part == "bal":
                     bal["%s_%s" % (lang, cc)] = (j.get("stats") or {}).get("rows") or load(os.path.join(d, "bal_rows.json"), [])
                 for s in j.get("shots", []):
@@ -232,7 +244,7 @@ def main():
                         continue
                     out_nm = "%s_%s_%s.jpg" % (lang, cc, nm[:-4])
                     convert(src, os.path.join(a.out, "img", out_nm))
-                    shots.append({"cc": cc, "lang": lang, "f": "img/" + out_nm, "title": shot_title(nm[:-4], s.get("where", "")), "where": s.get("where", "")})
+                    shots.append({"cc": cc, "lang": lang, "f": "img/" + out_nm, "title": shot_title(nm[:-4], s.get("where", "")), "where": desk_name(s.get("where", ""))})
             runs.append(run)
     if not runs:
         print("нет результатов в", a.logs)

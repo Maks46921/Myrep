@@ -255,7 +255,10 @@ func _audit_walk(g, n: Node, w, wr: Rect2, id: String, n_vis: Array, texts: Arra
 			var fs: int = b.get_theme_font_size("font_size")
 			if b.autowrap_mode != TextServer.AUTOWRAP_OFF:
 				# перенос строк: текст должен помещаться по высоте
-				var th: float = fnt.get_multiline_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, b.size.x - 16.0, fs).y
+				var sb: StyleBox = b.get_theme_stylebox("normal")
+				var padx: float = (sb.get_margin(SIDE_LEFT) + sb.get_margin(SIDE_RIGHT)) if sb != null else 16.0
+				var pady: float = (sb.get_margin(SIDE_TOP) + sb.get_margin(SIDE_BOTTOM)) if sb != null else 0.0
+				var th: float = fnt.get_multiline_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, b.size.x - padx, fs).y + pady
 				if th > b.size.y + 2.0:
 					find("графика", "окно «%s»: текст кнопки %s не помещается по высоте (%.0f из %.0f px)" % [win_title(w), label, b.size.y, th])
 			elif b.clip_text:
