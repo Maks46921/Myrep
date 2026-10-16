@@ -188,6 +188,10 @@ func map_cam_step(delta: float) -> void:
 	pass
 
 
+func martial_step() -> void:
+	pass
+
+
 func mil_day() -> void:
 	pass
 
@@ -672,7 +676,8 @@ func next_turn_core() -> void:
 	radical_step()
 	if game_over:
 		return
-	if turn - last_parl >= parl_term():
+	martial_step()
+	if turn - last_parl >= parl_term() and not martial_on():
 		hold_parliament("плановые выборы")
 	elif opp_mode:
 		opp_step()
@@ -687,7 +692,7 @@ func next_turn_core() -> void:
 	if game_over:
 		return
 
-	if pres_due >= 0 and turn >= pres_due and not election_open and current_event.is_empty():
+	if pres_due >= 0 and turn >= pres_due and not martial_on() and not election_open and current_event.is_empty():
 		hold_head("плановые выборы")
 	if game_over:
 		return

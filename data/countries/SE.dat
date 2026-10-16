@@ -1206,6 +1206,11 @@
 	"I_TGT": 2.0,
 	"U_NEU": 7.6,
 	"RATE0": 1.75,
+	"LAW_START": {
+		"military_state": 1,
+		"social_model": 1,
+		"judiciary": 1
+	},
 	"OTHER0": 5.143,
 	"UPPER": {
 		"name": "",
@@ -4211,6 +4216,11 @@
 		}
 	],
 	"DE_PARAM": {
+		"paid_leave": {
+			"ref": 25,
+			"unit": "рабочих дней в году",
+			"fmt": "%d рабочих дней в году"
+		},
 		"min_wage": {
 			"unit": "% от медианной зарплаты",
 			"fmt": "%d%% от медианной зарплаты",

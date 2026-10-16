@@ -5053,6 +5053,11 @@
 		}
 	],
 	"DE_PARAM": {
+		"paid_leave": {
+			"ref": 26,
+			"unit": "рабочих дней в году",
+			"fmt": "%d рабочих дней в году"
+		},
 		"min_wage": {
 			"unit": "% от медианной зарплаты",
 			"fmt": "%d%% от медианной зарплаты",
@@ -5162,6 +5167,8 @@
 		"referendum_law",
 		"debt_brake",
 		"auto_policy",
+		"elect_threshold",
+		"regional_policy",
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [

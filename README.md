@@ -32,7 +32,7 @@ python3 tools/styles.py -j 4 # стили игры × партии × стран
 python3 tools/gen_ate.py   # пересобрать АТЕ (data/ate.dat) после правки границ регионов
 python3 tools/gen_fleet.py # пересобрать морские районы и порты (data/fleet.dat)
 python3 tools/gen_cult.py  # пересобрать народы, церкви, товары и мегапроекты (data/cult.dat, см. docs/CULTURE_PLAN.md)
-python3 tools/i18n.py build # собрать английскую версию en/ (см. docs/RULES.md, v54_1)
+python3 tools/i18n.py build # собрать английскую версию en/ (см. docs/RULES.md, 0.54.1)
 tools/test.py quick --en   # тесты английской версии
 tools/export.sh            # сборки Symphony.exe и Symphony.x86_64 в ../build
 ```

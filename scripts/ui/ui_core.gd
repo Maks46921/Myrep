@@ -1116,6 +1116,9 @@ func update_forecast() -> void:
 	var tax_sum: float = float(pol["income"]) + float(pol["social"]) + float(pol["corp"]) + float(pol["vat"])
 	if tax_total_label != null:
 		tax_total_label.text = "Налоги всего: %.1f%% ВВП" % tax_sum
+		var aid: float = aid_now()
+		if aid > 0.0:
+			tax_total_label.text += "\nПомощь партнёров: %.1f%% ВВП (%s млрд в год)%s.\nДефицит до помощи: %.1f%% ВВП, после помощи: %.1f%% ВВП." % [aid, fmt_n(gdp * aid / 100.0, 0), (" — " + AID_NOTE) if AID_NOTE != "" else "", -bal / gdp * 100.0 + aid, -bal / gdp * 100.0]
 	if spend_total_label != null:
 		var sp_sum := 0.0
 		var sp_amt := 0.0

@@ -34,6 +34,12 @@ func seed_arg() -> int:
 func apply_country(code: String) -> void:
 	ccode = code
 	var d: Dictionary = CDATA[code]
+	# 0.55.4: необязательные ключи пакета страны — сброс, чтобы не остались от прошлой страны
+	MAJ_BASE = 0
+	LAW_START = {}
+	AID0 = 0.0
+	AID_NOTE = ""
+	REG_INDEX = ""
 	for k in d:
 		var v = d[k]
 		if v is Array or v is Dictionary:
@@ -44,8 +50,9 @@ func apply_country(code: String) -> void:
 	SEATS = int(SEATS)
 	if code == "DE":
 		SEATS = 630
-	MAJORITY = SEATS / 2 + 1
-	SUPER = int(ceil(float(SEATS) * 2.0 / 3.0))
+	var mb: int = int(MAJ_BASE) if int(MAJ_BASE) > SEATS else SEATS
+	MAJORITY = mb / 2 + 1
+	SUPER = int(ceil(float(mb) * 2.0 / 3.0))
 	if code != "DE":
 		gdp = GDP0
 		debt = float(mc["debt"])
@@ -87,10 +94,20 @@ func apply_country(code: String) -> void:
 	radical_inject()
 	regecon_inject()
 	law_text_apply()
+	# 0.55.4: страна с темой «Режим военного положения» (Украина) начинает при военном положении
+	martial = false
+	for t in LAW_TOPICS:
+		if String(t["id"]) == "martial_law":
+			martial = true
 	build_loc()
 	apply_player_party(party_arg())
 	if not get_window() == null:
-		get_window().title = "Symphony: %s" % String(WORLD[code]["name"])
+		get_window().title = "Symphony %s: %s" % [game_version(), String(WORLD[code]["name"])]
+
+
+# 0.55.4: номер версии вида 0.55.4 — из project.godot (application/config/version)
+func game_version() -> String:
+	return String(ProjectSettings.get_setting("application/config/version", ""))
 
 
 func apply_markets() -> void:
@@ -619,7 +636,7 @@ func show_country_menu(in_game: bool) -> void:
 	root_v.add_theme_constant_override("separation", 8)
 	mg.add_child(root_v)
 	var title := Label.new()
-	title.text = "Symphony — выберите страну на карте"
+	title.text = "Symphony %s — выберите страну на карте" % game_version()
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0))
 	title.add_theme_constant_override("outline_size", 6)

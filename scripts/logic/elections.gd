@@ -77,6 +77,10 @@ func log_header(text: String, col: String) -> void:
 	pass
 
 
+func martial_blocks(reason: String) -> bool:
+	return false
+
+
 func opp_after_election() -> String:
 	return ""
 
@@ -690,6 +694,8 @@ func head_campaign_check() -> void:
 
 
 func hold_parliament(reason: String) -> void:
+	if martial_blocks(reason):
+		return
 	ag_exact = true
 	hold_parliament_core(reason)
 	ag_exit_report(false, -1)

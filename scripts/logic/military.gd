@@ -2297,3 +2297,67 @@ func mil_status_text() -> String:
 	if int(mil["mob"]) > 0:
 		t += " · мобилизация: [b]%s[/b]" % ("частичная" if int(mil["mob"]) == 1 else "всеобщая")
 	return t
+
+
+# 0.55.4: военное положение. Пока оно действует, плановые и досрочные выборы не проводятся, роспуск парламента
+# и фундаментальные законы (поправки к конституции) запрещены. После отмены выборы — не раньше чем через 6 месяцев.
+func martial_on() -> bool:
+	return martial
+
+
+func martial_check(on: bool) -> String:
+	if opp_mode:
+		return "Военное положение вводит и отменяет правительство."
+	if on == martial:
+		return "Уже действует." if on else "Военного положения нет."
+	if on and not mil_at_war() and int(mil.get("mob", 0)) < 2:
+		return "Военное положение вводится только во время войны или всеобщей мобилизации."
+	if on and capital < 4.0:
+		return "Нужно 4 политического капитала."
+	return ""
+
+
+func martial_set(on: bool, by_ai: bool = false) -> bool:
+	if not by_ai and martial_check(on) != "":
+		return false
+	martial = on
+	martial_calm = 0
+	if on:
+		if not by_ai:
+			capital -= 4.0
+		add_support("Силовики", 2.0)
+		add_support("Молодёжь", -1.5)
+		add_support("Бизнес", -1.0)
+		log_tag("ВОЕННОЕ ПОЛОЖЕНИЕ", COL_WARN, "%s Введено военное положение%s: выборы откладываются, роспуск парламента и поправки к конституции запрещены." % [date_text(), " (решение правительства)" if by_ai else ""])
+	else:
+		var due: int = turn + 6
+		if turn - last_parl > parl_term() - 6:
+			last_parl = due - parl_term()
+		if pres_due >= 0 and pres_due < due:
+			pres_due = due
+		add_support("Бизнес", 1.0)
+		add_support("Молодёжь", 1.0)
+		log_tag("ВОЕННОЕ ПОЛОЖЕНИЕ", COL_GOOD, "%s Военное положение отменено%s. Отложенные выборы пройдут не раньше чем через 6 месяцев (%s)." % [date_text(), " (решение правительства)" if by_ai else "", turn_date(due)])
+	return true
+
+
+# раз в месяц: правительство ИИ (когда вы в оппозиции) вводит военное положение при всеобщей мобилизации на войне и снимает его через 6 месяцев мира
+func martial_step() -> void:
+	if martial and not mil_at_war():
+		martial_calm += 1
+	elif mil_at_war():
+		martial_calm = 0
+	if not opp_mode:
+		return
+	if not martial and mil_at_war() and int(mil.get("mob", 0)) >= 2:
+		martial_set(true, true)
+	elif martial and martial_calm >= 6:
+		martial_set(false, true)
+
+
+func martial_blocks(reason: String) -> bool:
+	if not martial or reason in ["роспуск парламента режимом", "выборы после мирного соглашения"]:
+		return false
+	log_line("[color=%s]Выборы не проводятся (%s): действует военное положение. Правительство продолжает работу.[/color]" % [COL_WARN, reason])
+	crisis_months = 0
+	return true

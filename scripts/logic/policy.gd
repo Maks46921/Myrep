@@ -534,6 +534,11 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 # ============================================================
 
 
+# 0.55.4: внешняя помощь в доходах бюджета (% ВВП), не больше прочих доходов
+func aid_now() -> float:
+	return clampf(float(AID0), 0.0, maxf(0.0, other_rev))
+
+
 func compute_budget() -> Dictionary:
 	var rate: float = debt_rate()
 	var eff: float = 1.0 + lvl_sum("tax_eff") + float(mods["eff_bonus"]) - (reg_avg("auto") - auto0) * 0.0005 - fed_tax_leak() + soc_tax()
@@ -544,6 +549,10 @@ func compute_budget() -> Dictionary:
 		"НДС и акцизы": gdp * pol["vat"] / 100.0 * mods["vat_mult"] * eff,
 		"Прочие доходы": gdp * other_rev / 100.0,
 	}
+	var aid: float = aid_now()
+	if aid > 0.0:
+		rev["Прочие доходы"] = gdp * (other_rev - aid) / 100.0
+		rev["Помощь партнёров"] = gdp * aid / 100.0
 	if float(pol["emit"]) > 0.0:
 		rev["Эмиссия (печать денег)"] = gdp * float(pol["emit"]) / 100.0
 	var sp := {
@@ -935,9 +944,17 @@ func init_laws() -> void:
 	law_pow_sel.clear()
 	for t in LAW_TOPICS:
 		law_index[t["id"]] = t
-		law_state[t["id"]] = 0
+		law_state[t["id"]] = law_start_idx(t["id"])
 		law_cd[t["id"]] = 0
 	recompute_mods()
+
+
+# 0.55.4: стартовый вариант темы (LAW_START из данных страны, иначе 0)
+func law_start_idx(tid: String) -> int:
+	if not LAW_START.has(tid) or not law_index.has(tid):
+		return 0
+	var i: int = int(LAW_START[tid])
+	return i if i >= 0 and i < (law_index[tid]["v"] as Array).size() else 0
 
 
 func parl_term() -> int:
@@ -974,9 +991,11 @@ func compute_mods(state: Dictionary, include_cabinet: bool = true, cand_tid: Str
 			m[k] = st[k]
 	# v35: калибровка — эффекты действующего порядка уже заложены в стартовые показатели страны,
 	# поэтому снимаем их: пока закон не менялся, итог нулевой; отмена порядка лишает его эффектов.
+	# 0.55.4: если страна начинает не с варианта 0 (LAW_START), калибруется стартовый вариант.
 	for tid in state:
-		var v0 := variant_of(tid, 0)
-		if not bool(v0.get("sq", false)):
+		var s0 := law_start_idx(tid)
+		var v0 := variant_of(tid, s0)
+		if s0 == 0 and not bool(v0.get("sq", false)):
 			continue
 		var x0: Dictionary = v0.get("x", {})
 		for k in x0:

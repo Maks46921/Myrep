@@ -115,6 +115,8 @@ func radical_req(tid: String, idx: int) -> String:
 
 
 func law_locked(tid: String) -> String:
+	if martial_on() and is_fund(tid):
+		return "при военном положении конституцию менять нельзя"
 	if decree_power() and tid in RAD_AUTH_TOPICS and tid != "gov_form":
 		return "заморожен режимом «%s»" % String(variant_of("gov_form", cur_idx("gov_form"))["n"]) if rid_of("gov_form") in RAD_AUTH else "заморожен религиозным режимом"
 	for rt in ["gov_form", "econ_model", "civil_rights", "trade_policy", "state_church", "military_state"]:

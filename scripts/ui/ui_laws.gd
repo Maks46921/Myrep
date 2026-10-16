@@ -207,7 +207,7 @@ func first_other_variant(tid: String) -> int:
 		return cur_idx(tid)
 	var n: int = (law_index[tid]["v"] as Array).size()
 	var cur := cur_idx(tid)
-	for i in range(1, n):
+	for i in range(0, n):
 		if i != cur:
 			return i
 	return 0
@@ -268,7 +268,7 @@ func update_law_windows() -> void:
 		var vis: bool = int(t["cat"]) == law_cat or law_query != ""
 		if law_query != "" and String(t["name"]).to_lower().find(law_query) < 0:
 			vis = false
-		if law_filter == 1 and cur == 0:
+		if law_filter == 1 and cur == law_start_idx(id):
 			vis = false
 		elif law_filter == 2 and not bool(t.get("fund", false)):
 			vis = false

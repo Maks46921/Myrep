@@ -2,7 +2,8 @@ config_version=5
 
 [application]
 
-config/name="Symphony v55_3"
+config/name="Symphony"
+config/version="0.55.4"
 run/main_scene="res://boot.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://icon.svg"

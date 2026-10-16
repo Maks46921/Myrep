@@ -47,6 +47,9 @@ func io_init() -> void:
 		var m: bool = ccode in (d["mem"] as Array)
 		io["mem"][o] = m
 		io["next"][o] = 2 + (k * 5) % maxi(1, int(d["per"]))
+		# 0.55.4: страна уже кандидат (переговоры о вступлении идут с прошлых лет)
+		if not m and (d.get("cand0", {}) as Dictionary).has(ccode):
+			io["cand"][o] = {"p": float(d["cand0"][ccode]), "m": 0, "met": 0, "need": 1, "start": true}
 		k += 1
 	io["mem0"] = (io["mem"] as Dictionary).duplicate()
 

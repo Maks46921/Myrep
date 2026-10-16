@@ -364,6 +364,7 @@ func update_regime_windows() -> void:
 	if ui_reg_cls == "" or ui_reg_cls == "dem" or au.is_empty():
 		return
 	reg_build_rows()
+	rg_head.tooltip_text = "Режим в игре: %s." % au_class_name() + ("\nВ реальности: %s." % REG_INDEX if String(REG_INDEX) != "" else "")
 	rg_head.queue_redraw()
 	rg_map.queue_redraw()
 	rg_meters.queue_redraw()

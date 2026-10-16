@@ -47,6 +47,14 @@ func build_war_windows() -> void:
 			mil_mobilize(lv)
 			refresh())
 		war_btn["mob%d" % lv] = b
+	# 0.55.4: военное положение
+	var rm := HBoxContainer.new()
+	w.body.add_child(rm)
+	war_btn["martial"] = fed_btn("Ввести военное положение (4)", rm, "Только на войне или при всеобщей мобилизации. Пока оно действует, выборы не проводятся, роспуск парламента и поправки к конституции запрещены. После отмены отложенные выборы пройдут через 6 месяцев.")
+	war_btn["martial"].pressed.connect(func() -> void:
+		war_msg = martial_check(not martial)
+		martial_set(not martial)
+		refresh())
 	add_title(w.body, "Соединения (щелчок — выбрать)")
 	war_list = VBoxContainer.new()
 	war_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -302,6 +310,9 @@ func update_war_windows() -> void:
 		var b: Button = war_btn["mob%d" % lv]
 		b.set_pressed_no_signal(int(mil["mob"]) == lv)
 		b.disabled = lv != int(mil["mob"]) and mil_mob_check(lv) != ""
+	var mb: Button = war_btn["martial"]
+	mb.text = "Отменить военное положение" if martial else "Ввести военное положение (4)"
+	mb.disabled = martial_check(not martial) != ""
 	# список соединений
 	var mine := mil_units_of(ccode)
 	var key := ""

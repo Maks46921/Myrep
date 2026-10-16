@@ -24,6 +24,10 @@ func law_locked(tid: String) -> String:
 	return ""
 
 
+func martial_on() -> bool:
+	return false
+
+
 func national_shares(pres: bool, only: Array = []) -> Array[float]:
 	var r: Array[float] = []
 	return r
@@ -337,7 +341,7 @@ func cur_idx(tid: String) -> int:
 
 
 func law_cost(tid: String, idx: int) -> float:
-	if idx == 0:
+	if idx == law_start_idx(tid):
 		return 6.0
 	var k := 0.6 + 0.4 * pw_of(tid, true)
 	return float(variant_of(tid, idx)["c"]) * (1.3 if is_fund(tid) else 1.0) * k
@@ -718,7 +722,7 @@ func pres_needs_runoff(s1: Array[float], order: Array) -> bool:
 func law_reform_count(cat: int) -> int:
 	var n := 0
 	for t in LAW_TOPICS:
-		if int(t["cat"]) == cat and cur_idx(t["id"]) > 0:
+		if int(t["cat"]) == cat and cur_idx(t["id"]) != law_start_idx(t["id"]):
 			n += 1
 	return n
 
@@ -1219,6 +1223,8 @@ const SNAP_RULES := {
 
 
 func snap_info() -> Dictionary:
+	if martial_on():
+		return {"name": "Досрочные выборы невозможны", "desc": "Действует военное положение: роспуск парламента запрещён.", "need": 0.0, "vote": "", "ok": false, "why": "Действует военное положение: роспуск парламента и выборы запрещены."}
 	var r: Array = SNAP_RULES.get(ccode, SNAP_RULES["DE"])
 	var ok: bool = float(r[2]) >= 0.0
 	return {"name": String(r[0]) if ok else "Досрочные выборы невозможны", "desc": String(r[1]), "need": maxf(0.0, float(r[2])), "vote": String(r[3]), "ok": ok,
