@@ -71,12 +71,13 @@ func _init():
 	check(g.ev_cond_ok({"cor_gt": -1.0}) and not g.ev_cond_ok({"cor_gt": 999.0}), "внешнее условие (коррупция)")
 	# --- доступность вариантов ---
 	var ev: Dictionary = g.ev_by_id("x_referendum_call")
+	# 0.55.5: капитал может уйти в минус — вариант с затратами капитала доступен и при нуле
 	g.capital = 0.0
-	check(g.ev_opt_block(ev["o"][0]) != "" and g.ev_opt_block(ev["o"][2]) == "", "вариант с капиталом должен блокироваться при нехватке")
+	check(g.ev_opt_block(ev["o"][0]) == "" and g.ev_opt_block(ev["o"][2]) == "", "вариант с капиталом доступен и при нехватке (капитал уходит в минус)")
 	g.current_event = ev
 	g.choose(0)
-	check(g.capital >= 0.0 and g.ev_hist.has("x_referendum_call"), "выбор недоступного варианта должен перейти на доступный")
-	check(int(g.ev_hist["x_referendum_call"]["o"]) != 0, "должен быть выбран другой вариант")
+	check(g.ev_hist.has("x_referendum_call") and int(g.ev_hist["x_referendum_call"]["o"]) == 0, "должен быть выбран вариант 0")
+	check(g.capital < 0.0, "капитал должен уйти в минус: %.1f" % g.capital)
 	# --- память и повтор ---
 	check(g.ev_weight(ev) == 0.0, "событие не должно повторяться сразу")
 	# --- цепочки и отложенные последствия ---
