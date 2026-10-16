@@ -1670,6 +1670,9 @@ func update_region_info() -> void:
 		if float(sec[k]) >= 0.05:
 			sp.append("%s %.0f%%" % [SECTOR_NAMES[k], float(sec[k]) * 100.0])
 	t += "[color=%s]Отрасли:[/color] %s\n" % [COL_DIM, " · ".join(sp)]
+	var rpg := region_goods(i, 5)
+	if rpg.size() > 0:
+		t += "[color=%s]Производит:[/color] %s\n" % [COL_DIM, ", ".join(rpg)]
 	var nb: PackedStringArray = []
 	for j in (neighbors[i] as Array):
 		nb.append("%s [color=%s](%.0f)[/color]" % [REGIONS[j]["name"], stat_color(float(regions[j]["unrest"]), true).insert(0, "#"), regions[j]["unrest"]])

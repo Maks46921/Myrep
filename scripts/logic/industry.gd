@@ -273,6 +273,47 @@ func ind_exports() -> Array:
 	return out
 
 
+# 0.55.5: главные товары региона — по его отраслям (сырьё, сельское хозяйство, промышленность), самообеспеченности страны
+# и сооружениям в регионе. Это оценка для подсказки, на экономику не влияет.
+func region_goods(i: int, n: int) -> Array:
+	if not ind_on() or i < 0 or i >= REGIONS.size():
+		return []
+	var sec: Dictionary = REGIONS[i].get("sec", {})
+	var sc := {}
+	for id in gi_ids():
+		var g: Dictionary = gi_def(String(id))
+		var s0: float = float(sec.get(String(g.get("mk", "ind")), 0.0))
+		var ss: float = ind_ss(String(id))
+		if ss < 0.3 or s0 < 0.05:
+			continue
+		sc[id] = s0 * minf(ss, 2.5)
+	var ci: Dictionary = cu_cfg()["ind"]
+	for id in ci:
+		if not (ind["x"] as Dictionary).has(id) or float(ci[id]) < 1.15:
+			continue
+		var cat: String = String(gx_def(String(id)).get("cat", ""))
+		var mk: String = String(good_def(cat).get("mk", "ind")) if cat != "" else "ind"
+		var s1: float = float(sec.get(mk if mk in ["agr", "ind", "res"] else "srv", 0.0))
+		sc[id] = s1 * minf(float(ci[id]), 2.5)
+	if i < regions.size():
+		var bt: Dictionary = regions[i].get("built", {})
+		for bid in bt:
+			var pd := find_by_id(PROJECTS, String(bid))
+			for k in (pd.get("ind", {}) as Dictionary):
+				sc[k] = float(sc.get(k, 0.0)) + 0.5 * float(int((bt[bid] as Dictionary).get("n", 0)))
+	var arr: Array = []
+	for id in sc:
+		arr.append([String(id), float(sc[id])])
+	arr.sort_custom(func(a, b): return float(a[1]) > float(b[1]))
+	var out: Array = []
+	for it in arr:
+		if out.size() >= n:
+			break
+		var nm: String = gi_name(String(it[0])) if gi_def(String(it[0])).size() > 0 else gx_name(String(it[0]))
+		out.append(nm.to_lower())
+	return out
+
+
 func ind_imports() -> Array:
 	var out: Array = []
 	if not ind_on():

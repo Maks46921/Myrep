@@ -25,6 +25,14 @@ func _init():
 				if not g.current_event.is_empty(): g.choose(0)
 				g.advance_day()
 	g.show_desk(desk)
+	# 0.55.5: gdopen=food,fuel — раскрыть подробные товары; region=N — выбрать регион на карте
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("gdopen="):
+			for k in String(a).substr(7).split(","):
+				g.gd_open[k] = true
+			g.update_goods_windows()
+		if String(a).begins_with("region="):
+			g.on_region_picked(int(String(a).substr(7)))
 	if desk == 6: g.ag_random_agent()
 	for i in 12: await process_frame
 	await create_timer(0.8).timeout

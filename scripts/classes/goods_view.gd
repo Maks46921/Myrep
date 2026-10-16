@@ -1,6 +1,8 @@
 # Список строк с расходящейся полосой: цветной квадрат, название, полоса «ниже ↔ выше», значение, подсказка по наведению.
 extends Control
 
+signal row_clicked(i: int)   # 0.55.5: щелчок по строке (раскрыть подробные товары)
+
 const ROW_H := 27.0
 var rows: Array = []          # {label, col, v (в %), vt (текст значения), tip}
 var span := 25.0              # ± процентов на полную полосу
@@ -20,6 +22,12 @@ func set_rows(r: Array) -> void:
 	custom_minimum_size = Vector2(120.0, ROW_H * float(rows.size()) + 2.0)
 	queue_redraw()
 
+func _gui_input(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var i := int((ev as InputEventMouseButton).position.y / ROW_H)
+		if i >= 0 and i < rows.size():
+			row_clicked.emit(i)
+
 func _get_tooltip(at_position: Vector2) -> String:
 	var i := int(at_position.y / ROW_H)
 	if i >= 0 and i < rows.size():
@@ -35,12 +43,18 @@ func _draw() -> void:
 	for i in rows.size():
 		var r: Dictionary = rows[i]
 		var y: float = float(i) * ROW_H
-		draw_rect(Rect2(2.0, y + 9.0, 8.0, 8.0), r.get("col", c_dim))
+		# 0.55.5: подстрока (подробный товар внутри вида расходов) — с отступом, мельче и тусклее
+		var sub: bool = bool(r.get("sub", false))
+		var ind: float = 14.0 if sub else 0.0
+		if sub:
+			draw_rect(Rect2(2.0 + ind, y + 11.0, 5.0, 5.0), r.get("col", c_dim))
+		else:
+			draw_rect(Rect2(2.0, y + 9.0, 8.0, 8.0), r.get("col", c_dim))
 		var txt := String(r.get("label", ""))
-		var fs := 14
-		while fs > 10 and font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > lw:
+		var fs := 13 if sub else 14
+		while fs > 10 and font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > lw - ind:
 			fs -= 1
-		draw_string(font, Vector2(16.0, y + 18.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, c_text)
+		draw_string(font, Vector2(16.0 + ind, y + 18.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, c_dim.lerp(c_text, 0.55) if sub else c_text)
 		var bar := Rect2(bx, y + 8.0, bw, 11.0)
 		draw_rect(bar, c_bg)
 		var mid: float = bx + bw * 0.5
