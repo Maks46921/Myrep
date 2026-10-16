@@ -16,5 +16,5 @@ func _init():
 		if not g.current_event.is_empty(): g.choose(0)
 		g.next_turn()
 		if g.election_open: g.election_continue()
-		if m % 24 == 0 or m == months - 1: print("m%d gdp %.0f g %.2f infl %.2f u %.1f debt %.0f def %.1f floor %s" % [m, g.gdp, g.growth, g.inflation, g.unemployment, g.debt / g.gdp * 100.0, g.last_deficit_pct, g.auto_floor_on])
+		if m % 6 == 0 or m == months - 1: print("m%d gdp %.0f g %.2f infl %.2f u %.1f debt %.0f def %.1f floor %s" % [m, g.gdp, g.growth, g.inflation, g.unemployment, g.debt / g.gdp * 100.0, g.last_deficit_pct, g.auto_floor_on])
 	quit()

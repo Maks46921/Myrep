@@ -239,9 +239,10 @@ func region_shares_legacy(ri: int, pres: bool, only: Array = []) -> Array[float]
 func parl_shares() -> Array[float]:
 	var raw := national_shares(false)
 	var thr: float = mods["threshold"]
+	var exempt: Array = MACRO.get("thr_exempt", [])   # 0.55.5: списки меньшинств без барьера (Косово: гарантированные места общин)
 	var keep := 0.0
 	for p in raw.size():
-		if raw[p] < thr:
+		if raw[p] < thr and not (p in exempt):
 			raw[p] = 0.0
 		keep += raw[p]
 	for p in raw.size():
