@@ -344,7 +344,9 @@ func law_cost(tid: String, idx: int) -> float:
 	if idx == law_start_idx(tid):
 		return 6.0
 	var k := 0.6 + 0.4 * pw_of(tid, true)
-	return float(variant_of(tid, idx)["c"]) * (1.3 if is_fund(tid) else 1.0) * k
+	# 0.55.4: у прежнего «нынешнего порядка» (вариант 0 при LAW_START) нет цены — берём цену стартового варианта
+	var c0: float = float(variant_of(tid, law_start_idx(tid)).get("c", 6.0))
+	return float(variant_of(tid, idx).get("c", c0)) * (1.3 if is_fund(tid) else 1.0) * k
 
 
 func dict_diff(a: Dictionary, b: Dictionary) -> Dictionary:
