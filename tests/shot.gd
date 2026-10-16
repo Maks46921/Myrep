@@ -31,6 +31,8 @@ func _init():
 			for k in String(a).substr(7).split(","):
 				g.gd_open[k] = true
 			g.update_goods_windows()
+		if String(a).begins_with("call="):
+			g.call(String(a).substr(5))
 		if String(a).begins_with("org="):
 			g.io["sel"] = String(a).substr(4)
 			g.refresh()

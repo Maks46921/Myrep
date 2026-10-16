@@ -118,7 +118,7 @@ func fill_transfer_rows() -> void:
 		vb.add_child(tl)
 		var ts := HSlider.new()
 		ts.min_value = 0.0
-		ts.max_value = 5.0
+		ts.max_value = maxf(5.0, float(regions[i]["transfer"]) * 1.5)
 		ts.step = 0.1
 		ts.scrollable = false
 		ts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -984,27 +984,13 @@ func build_map_windows() -> void:
 		b.pressed.connect(do_region_action.bind(a["id"]))
 		var note := add_note(vb, a["desc"])
 		reg_action_rows[a["id"]] = {"btn": b, "note": note}
+	# 0.55.5: на карте трансферты только видно; меняются они в «Бюджете» (строка «Трансферты регионам» → «Подробнее»)
 	add_title(w.body, "Трансферт региону")
 	reg_transfer_label = add_wrap_label(w.body, "")
-	reg_transfer_slider = HSlider.new()
-	reg_transfer_slider.min_value = 0.0
-	reg_transfer_slider.max_value = 5.0
-	reg_transfer_slider.step = 0.1
-	reg_transfer_slider.scrollable = false
-	reg_transfer_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	reg_transfer_slider.custom_minimum_size = Vector2(60.0, 20.0)
-	reg_transfer_slider.value_changed.connect(func(v: float) -> void: set_transfer(selected_region, v))
-	w.body.add_child(reg_transfer_slider)
-	add_title(w.body, "Трансферты всем")
-	add_note(w.body, "Постоянные ежемесячные выплаты, % ВВП региона. Попадают в расходы бюджета. Больше — лояльнее и спокойнее регион, быстрее развитие.")
-	var b0 := make_button("Поровну (0.8%)", w.body)
-	b0.pressed.connect(equalize_transfers.bind(0))
-	var b1 := make_button("Больше бедным (сумма прежняя)", w.body)
-	b1.pressed.connect(equalize_transfers.bind(1))
-	var b2 := make_button("Урезать до 0.3%", w.body)
-	b2.pressed.connect(equalize_transfers.bind(2))
-	transfer_parent = w.body
-	fill_transfer_rows()
+	var bt := make_button("Изменить в бюджете…", w.body)
+	bt.tooltip_text = "Трансферты регионам — статья расходов бюджета. Откроется рамка «Бюджет» и окно распределения по регионам."
+	bt.pressed.connect(bud_tr_open)
+	build_bud_tr_window()
 	build_adm_window()
 
 
@@ -1629,14 +1615,101 @@ func update_region_table() -> void:
 
 
 func update_transfer_ui() -> void:
-	if reg_transfer_slider == null:
+	if bud_tr_slider != null:
+		var av: float = transfer_avg()
+		if av > bud_tr_slider.max_value:
+			bud_tr_slider.max_value = av * 1.5
+		bud_tr_slider.set_value_no_signal(av)
+		bud_tr_label.text = "%.2f%% ВВП · %.1f млрд" % [av, gdp * av / 100.0]
+	if reg_transfer_label == null or selected_region < 0 or selected_region >= regions.size():
 		return
 	var r: Dictionary = regions[selected_region]
-	reg_transfer_slider.set_value_no_signal(float(r["transfer"]))
 	reg_transfer_label.text = "«%s»: %.1f%% ВВП региона = %.1f млрд в год" % [REGIONS[selected_region]["name"], r["transfer"], gdp * gdp_w[selected_region] * float(r["transfer"]) / 100.0]
-	for i in regions.size():
-		(transfer_sliders[i] as HSlider).set_value_no_signal(float(regions[i]["transfer"]))
+	for i in mini(regions.size(), transfer_sliders.size()):
+		var ts: HSlider = transfer_sliders[i]
+		if float(regions[i]["transfer"]) > ts.max_value:
+			ts.max_value = float(regions[i]["transfer"]) * 1.5
+		ts.set_value_no_signal(float(regions[i]["transfer"]))
 		(transfer_labels[i] as Label).text = "%s: %.1f%% (%.1f млрд/год)" % [REGIONS[i]["name"], regions[i]["transfer"], gdp * gdp_w[i] * float(regions[i]["transfer"]) / 100.0]
+
+
+# ============================================================
+#  0.55.5: «Трансферты регионам» в бюджете — строка с ползунком (общая сумма) и окно «Подробнее» (по регионам)
+# ============================================================
+
+func build_bud_transfer(parent: Control) -> void:
+	var acc: Color = accent_for_desk(0)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 2)
+	parent.add_child(vb)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 6)
+	vb.add_child(top)
+	var tl := Label.new()
+	tl.text = "Трансферты регионам"
+	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tl.clip_text = true
+	tl.mouse_filter = Control.MOUSE_FILTER_PASS
+	tl.tooltip_text = "Постоянные выплаты регионам, % ВВП. Ползунок меняет все трансферты в одной пропорции; распределение по регионам — кнопка «Подробнее». Больше трансферт — лояльнее и спокойнее регион, быстрее развитие."
+	top.add_child(tl)
+	bud_tr_label = Label.new()
+	bud_tr_label.add_theme_color_override("font_color", acc.lightened(0.25))
+	top.add_child(bud_tr_label)
+	var mb := Button.new()
+	mb.theme_type_variation = "SmallButton"
+	mb.text = "Подробнее…"
+	mb.focus_mode = Control.FOCUS_NONE
+	mb.tooltip_text = "Открыть окно с распределением трансфертов по регионам."
+	mb.pressed.connect(bud_tr_open)
+	top.add_child(mb)
+	bud_tr_slider = HSlider.new()
+	bud_tr_slider.min_value = 0.0
+	bud_tr_slider.max_value = maxf(3.0, transfer_avg() * 2.5)
+	bud_tr_slider.step = 0.05
+	bud_tr_slider.scrollable = false
+	bud_tr_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bud_tr_slider.custom_minimum_size = Vector2(60.0, 20.0)
+	bud_tr_slider.add_theme_stylebox_override("grabber_area", sbox(acc.darkened(0.15), Color(0, 0, 0, 0), 0, 4, 0.0, 3.0))
+	bud_tr_slider.add_theme_stylebox_override("grabber_area_highlight", sbox(acc, Color(0, 0, 0, 0), 0, 4, 0.0, 3.0))
+	bud_tr_slider.value_changed.connect(on_bud_tr)
+	vb.add_child(bud_tr_slider)
+
+
+func on_bud_tr(v: float) -> void:
+	# все трансферты меняются в одной пропорции; если их не было — всем поровну
+	var av: float = transfer_avg()
+	for i in regions.size():
+		if av > 0.001:
+			regions[i]["transfer"] = maxf(0.0, float(regions[i]["transfer"]) * v / av)
+		else:
+			regions[i]["transfer"] = v
+	if v >= bud_tr_slider.max_value - bud_tr_slider.step * 0.5:
+		bud_tr_slider.max_value = bud_tr_slider.max_value * 1.5
+	update_transfer_ui()
+	update_forecast()
+	update_bud_head()
+
+
+func build_bud_tr_window() -> void:
+	var w: FloatWindow = new_window("bud_tr", "Трансферты регионам: по регионам", 0, Rect2(0.235, 0.0, 0.235, 1.0))
+	add_note(w.body, "Постоянные ежемесячные выплаты, % ВВП региона. Попадают в расходы бюджета (строка «Трансферты регионам»). Больше — лояльнее и спокойнее регион, быстрее развитие.")
+	var b0 := make_button("Поровну (0.8%)", w.body)
+	b0.pressed.connect(equalize_transfers.bind(0))
+	var b1 := make_button("Больше бедным (сумма прежняя)", w.body)
+	b1.pressed.connect(equalize_transfers.bind(1))
+	var b2 := make_button("Урезать до 0.3%", w.body)
+	b2.pressed.connect(equalize_transfers.bind(2))
+	add_title(w.body, "По регионам")
+	transfer_parent = w.body
+	fill_transfer_rows()
+
+
+func bud_tr_open() -> void:
+	var w: FloatWindow = wins["bud_tr"]
+	w.closed = false
+	show_desk(0)
+	w.move_to_front()
+	update_transfer_ui()
 
 
 func update_region_info() -> void:

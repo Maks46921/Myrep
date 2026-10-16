@@ -12,6 +12,10 @@ func build_army_windows() -> void:
 	pass
 
 
+func build_bud_transfer(parent: Control) -> void:
+	pass
+
+
 func build_build_window() -> void:
 	pass
 
@@ -285,7 +289,7 @@ func new_window(id: String, title: String, desk: int, fr: Rect2, scrolling: bool
 
 
 # окна, закрытые по умолчанию (открываются через «Окна»)
-const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm", "build", "pop_agent"]
+const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm", "build", "pop_agent", "bud_tr"]
 
 
 func win_vis(id: String, on: bool) -> void:
@@ -938,6 +942,7 @@ func build_budget_windows() -> void:
 	for d in POLICY:
 		if d["kind"] == "spend":
 			add_slider(w.body, d)
+	build_bud_transfer(w.body)
 	spend_total_label = add_wrap_label(w.body, "")
 	var fl := CheckButton.new()
 	fl.text = "Авто-подъём всех статей до ожиданий групп"

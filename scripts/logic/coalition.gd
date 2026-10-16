@@ -369,7 +369,7 @@ func fulfill_demands(p: int) -> String:
 		if key == "reg_transfer":
 			var diff: float = float(d["val"]) - transfer_avg()
 			for i in regions.size():
-				regions[i]["transfer"] = clampf(float(regions[i]["transfer"]) + diff, 0.0, 5.0)
+				regions[i]["transfer"] = maxf(0.0, float(regions[i]["transfer"]) + diff)
 			parts.append("трансферты регионам +%.1f п.п." % diff)
 		elif key == "reg_auto":
 			parts.append("рост автономии регионов (нужно действовать в регионах)")

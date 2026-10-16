@@ -358,7 +358,7 @@ func appoint_governor(kind: int) -> void:
 
 
 func set_transfer(i: int, v: float) -> void:
-	regions[i]["transfer"] = clampf(v, 0.0, 5.0)
+	regions[i]["transfer"] = maxf(0.0, v)   # 0.55.5: без верхнего предела
 	update_transfer_ui()
 	update_forecast()
 
@@ -378,7 +378,7 @@ func equalize_transfers(mode: int) -> void:
 			raw.append(rv)
 			tot += gdp_w[i] * rv
 		for i in regions.size():
-			regions[i]["transfer"] = clampf(raw[i] * 0.8 / tot, 0.0, 5.0)
+			regions[i]["transfer"] = maxf(0.0, raw[i] * 0.8 / tot)
 		log_line("%s: трансферты перераспределены в пользу бедных регионов (общая сумма прежняя)." % date_text())
 	else:
 		for i in regions.size():

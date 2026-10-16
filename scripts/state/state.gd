@@ -409,6 +409,10 @@ var transfer_sliders: Array = []
 
 var transfer_labels: Array = []
 
+var bud_tr_slider: HSlider = null   # 0.55.5: «Трансферты регионам» — строка с ползунком в бюджете
+
+var bud_tr_label: Label = null
+
 var level_fx_rt: RichTextLabel
 
 var chips := {}

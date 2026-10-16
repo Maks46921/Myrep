@@ -475,7 +475,7 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 	if fx.has("reg") and rid >= 0:
 		apply_reg_delta(rid, fx["reg"])
 	if fx.has("reg_transfer") and rid >= 0:
-		regions[rid]["transfer"] = clampf(float(regions[rid]["transfer"]) + float(fx["reg_transfer"]), 0.0, 5.0)
+		regions[rid]["transfer"] = maxf(0.0, float(regions[rid]["transfer"]) + float(fx["reg_transfer"]))
 	if fx.has("regall"):
 		for i in regions.size():
 			apply_reg_delta(i, fx["regall"])
