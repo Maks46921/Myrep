@@ -854,8 +854,8 @@ func add_slider(parent: Control, d: Dictionary) -> void:
 		top.add_child(fb)
 		floor_btns[key] = fb
 	var s := HSlider.new()
-	s.min_value = float(d["min"])
-	s.max_value = float(d["max"])
+	s.min_value = 0.0
+	s.max_value = slider_hi(key)
 	s.step = 0.1
 	s.value = float(d["def"])
 	s.scrollable = false
@@ -1334,6 +1334,10 @@ func on_slider(v: float, key: String) -> void:
 		pol[key] = v
 	if bud_draft_on():
 		bud_mark(key, old_share, old_abs)
+	# 0.55.5: пределов нет — дотянули ползунок до правого края, край отодвигается дальше
+	var sl: HSlider = sliders[key]["slider"]
+	if v >= sl.max_value - sl.step * 0.5 and key != "emit":
+		sl.max_value = sl.max_value * 1.5
 	update_slider_label(key)
 	update_forecast()
 	update_bud_head()
@@ -1341,6 +1345,15 @@ func on_slider(v: float, key: String) -> void:
 
 func slider_value_for(key: String) -> float:
 	return float(pol_abs[key]) if is_abs(key) else float(pol[key])
+
+
+# 0.55.5: пересчитать края ползунка, не трогая режим (после изменения ставки извне)
+func configure_slider_range(key: String) -> void:
+	var s: HSlider = sliders[key]["slider"]
+	var hi: float = abs_range(key).y if is_abs(key) else slider_hi(key)
+	if hi > s.max_value or key == "emit":
+		s.max_value = hi
+	s.min_value = 0.0
 
 
 func configure_slider(key: String) -> void:
@@ -1356,8 +1369,8 @@ func configure_slider(key: String) -> void:
 		s.step = 0.5
 		s.set_value_no_signal(clampf(float(pol_abs[key]), r.x, r.y))
 	else:
-		s.min_value = float(d["min"])
-		s.max_value = float(d["max"])
+		s.min_value = 0.0
+		s.max_value = slider_hi(key)
 		s.step = 0.1
 		s.set_value_no_signal(float(pol[key]))
 	slider_busy = false
@@ -1370,7 +1383,7 @@ func toggle_slider_mode(key: String) -> void:
 	var d: Dictionary = policy_by_key[key]
 	if is_abs(key):
 		pol_abs_mode[key] = false
-		pol[key] = clampf(float(pol[key]), float(d["min"]), float(d["max"]))
+		pol[key] = clampf(float(pol[key]), 0.0, pol_hi(key))
 	else:
 		pol_abs_mode[key] = true
 		var r := abs_range(key)

@@ -163,7 +163,7 @@ func auto_floor(only_selected: bool = false) -> int:
 			continue
 		if only_selected and not floor_keys.has(key):
 			continue
-		var share: float = minf(float(d["max"]), floor_share(key) + 0.005)
+		var share: float = floor_share(key) + 0.005
 		share = lock_allowed_share(key, share)
 		var old: float = pol[key]
 		if share <= old + 0.001:

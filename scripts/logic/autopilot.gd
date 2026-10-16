@@ -6,7 +6,8 @@ func ap_can_adj(key: String, d: float) -> bool:
 		return false
 	var def: Dictionary = policy_by_key[key]
 	var nv: float = float(pol[key]) + d
-	return nv >= float(def["min"]) - 0.0001 and nv <= float(def["max"]) + 0.0001
+	# 0.55.5: пределов нет; помощник не выходит за обычный диапазон сам, но может вернуть ставку в него
+	return nv >= -0.0001 and (nv <= float(def["max"]) + 0.0001 or d < 0.0)
 
 
 func ap_note_change(key: String, d: float) -> void:

@@ -44,6 +44,10 @@ func con_fx(d: Dictionary) -> void:
 	pass
 
 
+func configure_slider_range(key: String) -> void:
+	pass
+
+
 func council_on() -> bool:
 	return false
 
@@ -206,13 +210,13 @@ func add_all_support(v: float) -> void:
 func set_policy(key: String, v: float) -> void:
 	var d: Dictionary = policy_by_key[key]
 	if is_abs(key):
-		var r := abs_range(key)
-		var a := clampf(v * gdp / 100.0, r.x, r.y)
+		var a := clampf(v * gdp / 100.0, 0.0, pol_hi(key) * gdp / 100.0)
 		pol_abs[key] = a
 		pol[key] = a / gdp * 100.0
 	else:
-		pol[key] = clampf(v, float(d["min"]), float(d["max"]))
+		pol[key] = clampf(v, 0.0, pol_hi(key))
 	if sliders.has(key):
+		configure_slider_range(key)
 		(sliders[key]["slider"] as HSlider).set_value_no_signal(slider_value_for(key))
 		update_slider_label(key)
 
@@ -645,9 +649,25 @@ func is_abs(key: String) -> bool:
 	return bool(pol_abs_mode.get(key, false))
 
 
+# 0.55.5: у налогов и расходов нет пределов — любая ставка от 0. "min"/"max" в POLICY теперь лишь обычный
+# диапазон (по нему ИИ-партии меряют, насколько смело менять статью). Предел остаётся только у эмиссии (своя валюта).
+func pol_hi(key: String) -> float:
+	return emit_cap() if key == "emit" else INF
+
+
+# Правый край ползунка (% ВВП): обычный диапазон ×2,5 или текущая ставка ×1,5; дотянули до края — край отодвигается
+func slider_hi(key: String) -> float:
+	var d: Dictionary = policy_by_key[key]
+	if key == "emit":
+		return maxf(emit_cap(), 0.1)
+	return maxf(maxf(float(d["max"]) * 2.5, 5.0), float(pol[key]) * 1.5)
+
+
 func abs_range(key: String) -> Vector2:
 	var d: Dictionary = policy_by_key[key]
-	return Vector2(float(d["min"]) * GDP0 / 100.0 * 0.6, float(d["max"]) * GDP0 / 100.0 * 1.6)
+	if key == "emit":
+		return Vector2(0.0, maxf(emit_cap(), 0.1) * GDP0 / 100.0 * 1.6)
+	return Vector2(0.0, maxf(maxf(float(d["max"]) * 2.5, 5.0) * GDP0 / 100.0 * 1.6, float(pol_abs.get(key, 0.0)) * 1.5))
 
 
 func sync_abs_policies() -> void:
