@@ -230,10 +230,6 @@ func build_io_windows() -> void:
 		io_vote_btns.append(vb)
 	add_title(w.body, "Прошлые решения")
 	io_hist_rt = make_rt(w.body)
-	# окна ЕС и НАТО из «Влияния» теперь живут во вкладках организаций
-	for id in ["rm_blocs", "rm_nato"]:
-		if wins.has(id):
-			(wins[id] as FloatWindow).desk = 99
 
 
 func update_io_windows() -> void:
@@ -284,6 +280,9 @@ func update_io_windows() -> void:
 		var a2: Dictionary = rl["acc"][String(d["rl"])]
 		t += "\n[b]Заявка рассматривается:[/b] выполнено условий %d, прогресс %.0f, %s.\n" % [int(a2.get("met", 0)), float(a2.get("p", 0.0)), months_text(int(a2.get("m", 0)))]
 	t += "\nВаш статус: [b]%s[/b] · влияние в организации: [b]%.0f[/b] из 100" % ["член" if me else ("кандидат" if (io["cand"] as Dictionary).has(o) else "не член"), io_infl(o)]
+	# 0.55.5: состояние страны в ЕС и НАТО (раньше — отдельные окна во «Влиянии и зависимости»)
+	if rl_on() and String(d.get("rl", "")) in ["eu", "nato"]:
+		t += "\n\n[b]Ваша страна:[/b]\n" + (rl_eu_status() if String(d["rl"]) == "eu" else rl_nato_status())
 	io_info_rt.text = t
 	# действия
 	if io_built_for != o + str(me) + str((io["cand"] as Dictionary).has(o)):

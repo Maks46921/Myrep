@@ -51,12 +51,10 @@ func rm_attach(key: String, parent: Control, title: String, fn: Callable) -> voi
 
 
 func build_realm_windows() -> void:
-	# v50: Евросоюз и НАТО — отдельные окна
-	rm_win("blocs", "rm_blocs", "Европейский союз", 10, Rect2(0.0, 0.66, 0.13, 0.34), rm_b_blocs)
-	rm_win("nato", "rm_nato", "НАТО", 10, Rect2(0.13, 0.66, 0.12, 0.34), rm_b_nato)
-	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.25, 0.66, 0.15, 0.34), rm_b_treaty)
-	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.40, 0.66, 0.14, 0.34), rm_b_spy)
-	rm_win("world", "rm_world", "Мир и санкции", 10, Rect2(0.54, 0.66, 0.165, 0.34), rm_b_world)
+	# 0.55.5: окна «Европейский союз» и «НАТО» убраны из «Влияния» — всё это теперь в рамке «Организации» (вкладки ЕС и НАТО)
+	rm_win("treaty", "rm_treaty", "Договоры и научные проекты", 10, Rect2(0.0, 0.66, 0.235, 0.34), rm_b_treaty)
+	rm_win("spy", "rm_spy", "Разведка", 10, Rect2(0.235, 0.66, 0.235, 0.34), rm_b_spy)
+	rm_win("world", "rm_world", "Мир и санкции", 10, Rect2(0.47, 0.66, 0.235, 0.34), rm_b_world)
 	rm_win("energy", "rm_energy", "Энергия и климат", 16, Rect2(0.0, 0.42, 0.30, 0.58), rm_b_energy)
 	rm_win("hist", "rm_hist", "История показателей", 7, Rect2(0.35, 0.5, 0.355, 0.5), rm_b_hist)
 	rm_win("demo", "rm_demo", "Демография и пенсии", 11, Rect2(0.0, 0.78, 0.705, 0.22), rm_b_demo)
@@ -135,7 +133,8 @@ func rm_flags_row(box: Control, codes: Array) -> void:
 		fl.add_child(f)
 
 
-func rm_b_blocs(box: Control) -> void:
+# 0.55.5: состояние страны в ЕС — показывается во вкладке ЕС рамки «Организации»
+func rl_eu_status() -> String:
 	var b: Dictionary = rl["b"]
 	var mem: Array = []
 	for c in RL_EU:
@@ -157,17 +156,10 @@ func rm_b_blocs(box: Control) -> void:
 		var a: Dictionary = rl["acc"][k]
 		var goal: float = {"eu": 40.0, "euro": 24.0, "nato": 18.0}.get(k, 30.0)
 		s += "\nЗаявка «%s»: %.0f%%, критериев %d из 4" % [rl_bloc_name(String(k)), float(a["p"]) / goal * 100.0, int(a["met"])]
-	rm_text(box, s)
-	rm_flags_row(box, mem)
-	var acts: Array = []
-	for a2 in rl_acts("blocs"):
-		if String(a2["id"]) in ["acc_eu", "acc_euro", "ctrl"]:
-			acts.append(a2)
-	acts.append_array(rl_acts("eu"))
-	rm_acts_box(box, acts, rm_do_rl)
+	return s
 
 
-func rm_b_nato(box: Control) -> void:
+func rl_nato_status() -> String:
 	var b: Dictionary = rl["b"]
 	var mem: Array = []
 	for c in MIL_NATO:
@@ -185,14 +177,7 @@ func rm_b_nato(box: Control) -> void:
 	if (rl["acc"] as Dictionary).has("nato"):
 		var a: Dictionary = rl["acc"]["nato"]
 		s += "Заявка: %.0f%%, критериев %d из 4" % [float(a["p"]) / 18.0 * 100.0, int(a["met"])]
-	rm_text(box, s)
-	rm_flags_row(box, mem)
-	var acts: Array = []
-	for a2 in rl_acts("blocs"):
-		if String(a2["id"]) in ["acc_nato", "leave_nato"]:
-			acts.append(a2)
-	acts.append_array(rl_acts("nato"))
-	rm_acts_box(box, acts, rm_do_rl)
+	return s
 
 
 var rm_partner := ""   # v50: партнёр, выбранный прямо в окне договоров

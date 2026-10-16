@@ -31,6 +31,9 @@ func _init():
 			for k in String(a).substr(7).split(","):
 				g.gd_open[k] = true
 			g.update_goods_windows()
+		if String(a).begins_with("org="):
+			g.io["sel"] = String(a).substr(4)
+			g.refresh()
 		if String(a).begins_with("region="):
 			g.on_region_picked(int(String(a).substr(7)))
 	if desk == 6: g.ag_random_agent()

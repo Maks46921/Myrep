@@ -1300,7 +1300,7 @@ func refresh() -> void:
 # v50: окна, которыми распоряжается только правительство (и те, где нужны места в парламенте), затемняются с объяснением
 const WIN_GOV_ONLY := ["tax", "measures", "ec_st", "ec_cb", "ec_gf", "cabinet", "neg", "commit", "actions", "xw_info", "war_ops", "war_talk",
 	"regact", "ar_budget", "ar_svc", "ar_proc", "ar_act", "dact", "fw_reg", "fw_bulk", "fw_dem", "tw_buy", "tw_union", "tw_sell",
-	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "rm_blocs", "rm_nato", "reg_tools", "reg_repr", "es_main", "co_card", "co_for", "io_act"]
+	"tw_terr", "fw_navy", "sw_pol", "sw_mig", "rm_treaty", "rm_spy", "reg_tools", "reg_repr", "es_main", "co_card", "co_for", "io_act"]
 const WIN_PARL_ONLY := ["bills"]
 
 
