@@ -222,8 +222,11 @@ func build_click(pos: Vector2) -> void:
 	map_ctl.queue_redraw()
 
 
-# значки сооружений и строек на своих АТЕ (при приближении)
+# значки сооружений и строек на своих АТЕ (при приближении, на слое «Сооружения»)
 func draw_struct_icons(c: Control, s: float, off: Vector2) -> void:
+	# 0.55.5: значки только на слое карты «Сооружения» (по умолчанию выключен) или пока выбираете место для стройки
+	if map_layer != 14 and bld_pick == "":
+		return
 	if map_zoom < 1.6 or ate_c.size() == 0:
 		return
 	var al: float = clampf((map_zoom - 1.6) / 0.8, 0.0, 1.0)
