@@ -388,6 +388,68 @@ func tech_auto_pick(b: int, allow_choice: bool = false) -> String:
 	return best
 
 
+# ---------- 0.56: очередь изучения — у каждой ветки своя, без ограничения длины ----------
+# В очередь можно ставить и технологии, до которых ещё не дошли: после изучения ветка берёт первую доступную из очереди.
+func tech_rq(b: int) -> Array:
+	if not tech.has("rq"):
+		tech["rq"] = []
+	while (tech["rq"] as Array).size() < TECH_NB:
+		(tech["rq"] as Array).append([])
+	return tech["rq"][b]
+
+
+func tech_never(id: String) -> bool:
+	# изучить уже нельзя: изучена или выбрана альтернатива уровня
+	if tech_done(id):
+		return true
+	for a in tech_alts(id):
+		if tech_done(String(a)):
+			return true
+	return false
+
+
+func tech_q_add(id: String) -> bool:
+	var d := tech_def(id)
+	if d.is_empty() or tech_never(id):
+		return false
+	var b: int = int(d["b"])
+	var q := tech_rq(b)
+	if q.has(id) or String(tech["cur"][b]) == id:
+		return false
+	q.append(id)
+	return true
+
+
+func tech_q_del(b: int, k: int) -> void:
+	var q := tech_rq(b)
+	if k >= 0 and k < q.size():
+		q.remove_at(k)
+
+
+func tech_q_move(b: int, k: int, dir: int) -> void:
+	var q := tech_rq(b)
+	var j: int = k + dir
+	if k < 0 or k >= q.size() or j < 0 or j >= q.size():
+		return
+	var t: String = q[k]
+	q[k] = q[j]
+	q[j] = t
+
+
+# следующая из очереди: убирает невозможные, берёт первую доступную (недоступные пока остаются ждать)
+func tech_q_next(b: int) -> String:
+	var q := tech_rq(b)
+	for k in range(q.size() - 1, -1, -1):
+		if tech_never(String(q[k])):
+			q.remove_at(k)
+	for k in q.size():
+		var id: String = q[k]
+		if tech_avail(id):
+			q.remove_at(k)
+			return id
+	return ""
+
+
 func tech_choice_waiting(b: int) -> bool:
 	# в ветке открыт выбор, а технология не выбрана
 	if String(tech["cur"][b]) != "":
@@ -431,6 +493,8 @@ func tech_month() -> void:
 		var c: String = tech["cur"][b]
 		if c != "" and (tech_done(c) or not tech_avail(c)):
 			tech["cur"][b] = ""
+		if String(tech["cur"][b]) == "" and not opp_mode:
+			tech["cur"][b] = tech_q_next(b)
 		if String(tech["cur"][b]) == "" and (bool(tech["auto"]) or opp_mode):
 			tech["cur"][b] = tech_ai_pick(b, false)
 			if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
@@ -479,7 +543,11 @@ func tech_month() -> void:
 				tech["cur"][b] = ""
 				tech["bank"][b] = pg
 				log_tag("НАУКА", COL_GOOD, "%s: изучена технология «%s» (%s ветка). %s" % [date_text(), d["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), tech_fx_text(d)])
-				if bool(tech["auto"]) or opp_mode:
+				if not opp_mode:
+					tech["cur"][b] = tech_q_next(b)
+					if String(tech["cur"][b]) != "":
+						log_tag("НАУКА", COL_DIM, "Из очереди начато изучение «%s»." % tech_def(String(tech["cur"][b]))["name"])
+				if String(tech["cur"][b]) == "" and (bool(tech["auto"]) or opp_mode):
 					tech["cur"][b] = tech_ai_pick(b, false)
 					if String(tech["cur"][b]) == "" and tech_choice_waiting(b) and not bool(tech["ai_all"]) and not opp_mode:
 						log_tag("НАУКА", COL_WARN, "В ветке «%s» открыт выбор «или»: можно изучить только одну технологию. Выберите в окне технологий, иначе ИИ-советник выберет сам через %d мес." % [String(TECH_BRANCHES[b]["name"]).to_lower(), TECH_WAIT_MONTHS])

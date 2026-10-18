@@ -4,10 +4,6 @@ extends "res://scripts/logic/saves.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
-func bud_draft_on() -> bool:
-	return false
-
-
 func build_army_windows() -> void:
 	pass
 
@@ -840,6 +836,16 @@ func add_slider(parent: Control, d: Dictionary) -> void:
 	mb.custom_minimum_size = Vector2(54.0, 0.0)
 	mb.tooltip_text = "Единицы ползунка: доля ВВП (сумма растёт вместе с экономикой) или фиксированная сумма в млрд в год (доля ВВП при росте экономики снижается)."
 	top.add_child(mb)
+	# 0.56: точный шаг ±0,1% ВВП (с Shift — 1%)
+	for dir in [-1, 1]:
+		var pb := Button.new()
+		pb.theme_type_variation = "SmallButton"
+		pb.text = "−" if dir < 0 else "+"
+		pb.focus_mode = Control.FOCUS_NONE
+		pb.custom_minimum_size = Vector2(24.0, 0.0)
+		pb.tooltip_text = ("Уменьшить" if dir < 0 else "Увеличить") + " на 0,1% ВВП (с Shift — на 1%). Изменение идёт в план бюджета."
+		pb.pressed.connect(slider_nudge.bind(key, dir))
+		top.add_child(pb)
 	if String(d["kind"]) == "spend":
 		var fb := Button.new()
 		fb.theme_type_variation = "SmallButton"
@@ -886,6 +892,7 @@ func add_slider(parent: Control, d: Dictionary) -> void:
 		tl.tooltip_text = "Состояние страны зависит от суммы в млрд на душу населения, а не от доли ВВП. Группы интересов сравнивают сумму со своими ожиданиями."
 	sliders[key] = {"slider": s, "title_lbl": tl, "value_lbl": vl, "sub_lbl": sub, "lock_lbl": lock_lbl, "title": d["title"], "mode_btn": mb, "accent": acc, "box": vb}
 	s.value_changed.connect(on_slider.bind(key))
+	s.drag_ended.connect(func(_ch: bool) -> void: slider_shrink(key))
 	mb.pressed.connect(toggle_slider_mode.bind(key))
 
 
@@ -1346,6 +1353,36 @@ func on_slider(v: float, key: String) -> void:
 	update_slider_label(key)
 	update_forecast()
 	update_bud_head()
+
+
+# 0.56: шаг кнопок ± — 0,1% ВВП, с Shift — 1% (в режиме «млрд» — та же сумма в млрд)
+func nudge_step() -> float:
+	return 1.0 if Input.is_key_pressed(KEY_SHIFT) else 0.1
+
+
+func slider_nudge(key: String, dir: int) -> void:
+	if not sliders.has(key):
+		return
+	var sl: HSlider = sliders[key]["slider"]
+	var st: float = maxf(nudge_step() * (gdp / 100.0 if is_abs(key) else 1.0), sl.step)
+	var v: float = maxf(0.0, slider_value_for(key) + dir * st)
+	if key == "emit":
+		v = minf(v, sl.max_value)
+	elif v > sl.max_value:
+		sl.max_value = v * 1.5
+	sl.value = v
+	slider_shrink(key)
+
+
+# 0.56: край ползунка возвращается к обычному, когда ставка снова в обычном диапазоне
+# (иначе после растяжения малейший сдвиг значил бы сотни процентов)
+func slider_shrink(key: String) -> void:
+	if not sliders.has(key) or key == "emit":
+		return
+	var sl: HSlider = sliders[key]["slider"]
+	var hi: float = abs_range(key).y if is_abs(key) else slider_hi(key)
+	if sl.max_value > hi + sl.step * 0.5:
+		sl.max_value = hi
 
 
 func slider_value_for(key: String) -> float:

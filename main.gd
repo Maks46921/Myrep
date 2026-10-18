@@ -963,6 +963,10 @@ func _unhandled_input(e: InputEvent) -> void:
 			election_continue()
 			get_viewport().set_input_as_handled()
 		return
+	if k == KEY_ESCAPE and bld_pick != "":
+		bld_cancel()
+		get_viewport().set_input_as_handled()
+		return
 	if current_event.is_empty() or not wins.has("event") or not (wins["event"] as FloatWindow).visible:
 		return
 	var idx := -1

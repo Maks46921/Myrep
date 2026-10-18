@@ -107,6 +107,7 @@ def run_one(test, cc, update):
         return run_stubs()
     script, extra, tmo = TESTS[test]
     tmo = tmo * SLOW.get(cc, 1.0)       # v50: у России 89 субъектов — прогон заметно дольше
+    tmo = tmo * float(os.environ.get('SYM_TMULT', '1'))  # 0.56: медленная машина — SYM_TMULT=3
     gui = test in ('click', 'width', 'menu', 'fedclick', 'socclick', 'warclick', 'big_ui')
     cmd = [os.path.join(ROOT, 'tools', 'godot.sh')] + (['--rendering-driver', 'opengl3'] if gui else ['--headless']) + ['--path', ROOT, '--script', TEST_DIR + script, '--', 'country=' + cc] + extra
     if gui:

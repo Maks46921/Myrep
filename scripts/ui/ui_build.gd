@@ -14,11 +14,16 @@ var bld_hint: Label = null
 var bld_reg_rt: RichTextLabel = null    # v55_1: сооружения выбранного региона (улучшение, ремонт)
 var bld_mega_rt: RichTextLabel = null
 var bld_corp_rt: RichTextLabel = null
+var bld_cancel_btn: Button = null       # 0.56: выбранный тип остаётся после постройки — выйти из режима: «Отмена», Esc, правый щелчок
 
 
 func build_build_window() -> void:
 	var w: FloatWindow = new_window("build", "Строительство", 2, Rect2(0.25, 0.0, 0.21, 0.70))
 	bld_hint = add_note(w.body, "", true)
+	bld_cancel_btn = make_button("Отмена (Esc, правый щелчок)", w.body)
+	bld_cancel_btn.tooltip_text = "Снять выбор сооружения. Пока оно выбрано, каждый щелчок по своей АТЕ начинает новую стройку."
+	bld_cancel_btn.pressed.connect(bld_cancel)
+	bld_cancel_btn.visible = false
 	var grp := ButtonGroup.new()
 	grp.allow_unpress = true
 	for ci in PROJ_CATS.size():
@@ -69,6 +74,15 @@ func build_build_window() -> void:
 	bld_corp_rt = make_rt(w.body)
 
 
+func bld_cancel() -> void:
+	if bld_pick == "":
+		return
+	bld_pick = ""
+	update_build_window()
+	if map_ctl != null:
+		map_ctl.queue_redraw()
+
+
 func on_bld_meta(meta: Variant) -> void:
 	var s := String(meta)
 	var why := ""
@@ -86,12 +100,13 @@ func update_build_window() -> void:
 		return
 	for pid in bld_btns:
 		(bld_btns[pid] as Button).set_pressed_no_signal(pid == bld_pick)
+	bld_cancel_btn.visible = bld_pick != ""
 	if bld_pick == "":
 		bld_hint.text = "Выберите сооружение, затем щёлкните по своей АТЕ на карте. Политкапитал не нужен — но на стройку реагируют группы интересов."
 		bld_info_rt.text = ""
 	else:
 		var pd := find_by_id(PROJECTS, bld_pick)
-		bld_hint.text = "Щёлкните по своей АТЕ на карте, чтобы начать «%s». Ещё раз нажмите кнопку — отменить выбор." % pd["name"]
+		bld_hint.text = "Щёлкайте по своим АТЕ на карте — в каждой начнётся «%s». Выбор остаётся, пока не нажмёте «Отмена», Esc или правую кнопку мыши." % pd["name"]
 		var lo := 1e9
 		var hi := 0.0
 		for i in regions.size():
@@ -217,7 +232,6 @@ func build_click(pos: Vector2) -> void:
 		return
 	sfx("good")
 	selected_region = ri
-	bld_pick = ""
 	update_build_window()
 	map_ctl.queue_redraw()
 

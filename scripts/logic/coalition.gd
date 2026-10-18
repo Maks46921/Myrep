@@ -4,6 +4,10 @@ extends "res://scripts/logic/elections.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func bud_neg_open() -> void:
+	pass
+
+
 func council_expel_vote(p: int) -> Dictionary:
 	return {}
 
@@ -157,6 +161,8 @@ func floor_share(key: String) -> float:
 func auto_floor(only_selected: bool = false) -> int:
 	var n := 0
 	var parts: PackedStringArray = []
+	# 0.56: в коалиции подъём идёт одним пакетом в план бюджета — одно окно совета коалиции на ход, а не по статье
+	var plan: bool = bud_draft_on() and bud_needs_council()
 	for d in POLICY:
 		var key: String = d["key"]
 		if String(d["kind"]) != "spend":
@@ -168,11 +174,18 @@ func auto_floor(only_selected: bool = false) -> int:
 		var old: float = pol[key]
 		if share <= old + 0.001:
 			continue
+		var old_abs: float = float(pol_abs.get(key, -1.0)) if is_abs(key) else -1.0
 		set_policy(key, share)
-		prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
+		if plan:
+			bud_mark(key, old, old_abs)
+		else:
+			prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
 		n += 1
 		parts.append("«%s» %.1f → %.1f%% ВВП" % [policy_title(key), old, float(pol[key])])
-	if n > 0:
+	if n > 0 and plan:
+		log_tag("БЮДЖЕТ", COL_TEAL, "автоподъём расходов до ожиданий социальных групп внесён в план бюджета и передан совету коалиции: %s." % "; ".join(parts))
+		bud_neg_open()
+	elif n > 0:
 		log_tag("БЮДЖЕТ", COL_TEAL, "автоподъём расходов до ожиданий социальных групп: %s." % "; ".join(parts))
 	return n
 
@@ -369,7 +382,7 @@ func fulfill_demands(p: int) -> String:
 		if key == "reg_transfer":
 			var diff: float = float(d["val"]) - transfer_avg()
 			for i in regions.size():
-				regions[i]["transfer"] = maxf(0.0, float(regions[i]["transfer"]) + diff)
+				tr_shift(i, diff)
 			parts.append("трансферты регионам +%.1f п.п." % diff)
 		elif key == "reg_auto":
 			parts.append("рост автономии регионов (нужно действовать в регионах)")

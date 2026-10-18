@@ -28,6 +28,10 @@ func au_fx(d: Dictionary) -> void:
 	pass
 
 
+func bud_draft_on() -> bool:
+	return false
+
+
 func church_fx(d: Dictionary) -> void:
 	pass
 
@@ -486,7 +490,7 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 	if fx.has("reg") and rid >= 0:
 		apply_reg_delta(rid, fx["reg"])
 	if fx.has("reg_transfer") and rid >= 0:
-		regions[rid]["transfer"] = maxf(0.0, float(regions[rid]["transfer"]) + float(fx["reg_transfer"]))
+		tr_shift(rid, float(fx["reg_transfer"]))
 	if fx.has("regall"):
 		for i in regions.size():
 			apply_reg_delta(i, fx["regall"])
@@ -1130,6 +1134,7 @@ func debt_rate() -> float:
 # ============================================================
 var bud_base := {}          # ключ -> [доля ВВП до правки, сумма в млрд или -1.0]
 var bud_persuaded := {}     # партнёры, которых убедили уступкой в этом раунде
+var bud_tr_base := {}       # 0.56: черновик трансфертов регионам — uid региона -> утверждённый трансферт (% ВВП региона)
 
 
 func bud_mark(key: String, old_share: float, old_abs: float) -> void:
@@ -1141,7 +1146,7 @@ func bud_mark(key: String, old_share: float, old_abs: float) -> void:
 
 
 func bud_pending() -> bool:
-	return not bud_base.is_empty()
+	return not bud_base.is_empty() or not bud_tr_base.is_empty()
 
 
 func bud_changes() -> Array:
@@ -1151,7 +1156,85 @@ func bud_changes() -> Array:
 		var n: float = float(pol[k])
 		if absf(n - o) >= 0.05:
 			out.append([k, o, n])
+	if bud_tr_changed():
+		out.append(["reg_transfer", bud_tr_old_avg(), transfer_avg()])
 	return out
+
+
+# ---------- 0.56: трансферты регионам тоже идут через план бюджета ----------
+# Ползунок «Трансферты регионам», окно «Подробнее» и кнопки «Поровну / Больше бедным / Урезать» меняют черновик:
+# до «Принять бюджет» в месячный расчёт идут утверждённые трансферты (bud_hold_begin/end).
+func bud_tr_snap() -> void:
+	if not bud_draft_on() or not bud_tr_base.is_empty():
+		return
+	for i in regions.size():
+		bud_tr_base[String(REGIONS[i]["uid"])] = float(regions[i]["transfer"])
+
+
+func bud_tr_check() -> void:
+	# черновик пуст, если все трансферты вернулись к утверждённым
+	if bud_tr_base.is_empty():
+		return
+	bud_persuaded.clear()
+	for i in regions.size():
+		var u := String(REGIONS[i]["uid"])
+		if bud_tr_base.has(u) and absf(float(regions[i]["transfer"]) - float(bud_tr_base[u])) > 0.0005:
+			return
+	bud_tr_base.clear()
+
+
+func bud_tr_changed() -> bool:
+	if bud_tr_base.is_empty():
+		return false
+	for i in regions.size():
+		var u := String(REGIONS[i]["uid"])
+		if bud_tr_base.has(u) and absf(float(regions[i]["transfer"]) - float(bud_tr_base[u])) > 0.0005:
+			return true
+	return false
+
+
+func bud_tr_old(i: int) -> float:
+	return float(bud_tr_base.get(String(REGIONS[i]["uid"]), regions[i]["transfer"]))
+
+
+func bud_tr_old_avg() -> float:
+	var s := 0.0
+	for i in regions.size():
+		s += gdp_w[i] * bud_tr_old(i)
+	return s
+
+
+func bud_tr_restore() -> void:
+	for i in regions.size():
+		var u := String(REGIONS[i]["uid"])
+		if bud_tr_base.has(u):
+			regions[i]["transfer"] = float(bud_tr_base[u])
+	bud_tr_base.clear()
+
+
+func bud_change_text(c: Array) -> String:
+	if String(c[0]) == "reg_transfer":
+		return "«Трансферты регионам» %.2f → %.2f%% ВВП" % [float(c[1]), float(c[2])]
+	return "«%s» %.1f → %.1f%% ВВП" % [policy_title(String(c[0])), float(c[1]), float(c[2])]
+
+
+# сдвиг трансферта игрой (события, требования партий) — двигает и утверждённое значение, и черновик
+func tr_shift(i: int, d: float) -> void:
+	regions[i]["transfer"] = maxf(0.0, float(regions[i]["transfer"]) + d)
+	var u := String(REGIONS[i]["uid"])
+	if bud_tr_base.has(u):
+		bud_tr_base[u] = maxf(0.0, float(bud_tr_base[u]) + d)
+
+
+func bud_title(k: String) -> String:
+	return "Трансферты регионам" if k == "reg_transfer" else policy_title(k)
+
+
+# отношение партии к статье; трансферты регионам — как к пособиям и инфраструктуре вместе
+func bud_stance(q: int, k: String) -> float:
+	if k == "reg_transfer":
+		return 0.5 * (ideo_stance(q, "benefits") + ideo_stance(q, "infra"))
+	return ideo_stance(q, k)
 
 
 # на время месячного расчёта действуют утверждённые значения, а не черновик
@@ -1162,10 +1245,33 @@ func bud_hold_begin() -> Dictionary:
 		pol[k] = float(bud_base[k][0])
 		if float(bud_base[k][1]) >= 0.0:
 			pol_abs[k] = float(bud_base[k][1])
+	if not bud_tr_base.is_empty():
+		var tr := {}
+		for i in regions.size():
+			var u := String(REGIONS[i]["uid"])
+			if bud_tr_base.has(u):
+				tr[u] = float(regions[i]["transfer"])
+				regions[i]["transfer"] = float(bud_tr_base[u])
+		h["@tr"] = tr
 	return h
 
 
+# вернуть черновые трансферты; утверждённые могли сдвинуться за месяц (события, требования партий) — запоминаем их
+func bud_tr_unhold(h: Dictionary, keep_base: bool) -> void:
+	if not h.has("@tr"):
+		return
+	var tr: Dictionary = h["@tr"]
+	for i in regions.size():
+		var u := String(REGIONS[i]["uid"])
+		if tr.has(u):
+			if keep_base and bud_tr_base.has(u):
+				bud_tr_base[u] = float(regions[i]["transfer"])
+			regions[i]["transfer"] = float(tr[u])
+	h.erase("@tr")
+
+
 func bud_hold_end(h: Dictionary) -> void:
+	bud_tr_unhold(h, true)
 	for k in h:
 		if not bud_base.has(k):
 			continue
@@ -1189,10 +1295,10 @@ func bud_partner_view(q: int) -> Dictionary:
 	for c in bud_changes():
 		var k: String = c[0]
 		var dv: float = float(c[2]) - float(c[1])
-		var s: float = ideo_stance(q, k) * clampf(dv, -3.0, 3.0)
+		var s: float = bud_stance(q, k) * clampf(dv * (3.0 if k == "reg_transfer" else 1.0), -3.0, 3.0)
 		score += s
 		if s < -0.15:
-			bad.append(policy_title(k))
+			bad.append(bud_title(k))
 	# требования партии: стал ли план ближе или дальше от них
 	var ds_new := demand_score(q)
 	var h := bud_hold_begin()
@@ -1206,6 +1312,7 @@ func bud_partner_view(q: int) -> Dictionary:
 
 
 func bud_hold_end_quiet(h: Dictionary) -> void:
+	bud_tr_unhold(h, false)
 	for k in h:
 		pol[k] = float(h[k][0])
 		if float(h[k][1]) >= 0.0:
@@ -1239,7 +1346,7 @@ func bud_apply(forced: bool) -> void:
 	var ch := bud_changes()
 	var parts: PackedStringArray = []
 	for c in ch:
-		parts.append("«%s» %.1f → %.1f%% ВВП" % [policy_title(String(c[0])), float(c[1]), float(c[2])])
+		parts.append(bud_change_text(c))
 	if forced and bud_needs_council():
 		var cv := bud_council()
 		for q in cv["views"]:
@@ -1247,6 +1354,7 @@ func bud_apply(forced: bool) -> void:
 				satis[q] = clampf(float(satis.get(q, 50.0)) - 6.0, 0.0, 100.0)
 				conc[q] = float(conc.get(q, 0.0)) - 4.0
 	bud_base.clear()
+	bud_tr_base.clear()
 	bud_persuaded.clear()
 	if parts.size() > 0:
 		log_tag("БЮДЖЕТ", COL_GOOD, "бюджет принят: %s." % "; ".join(parts))
@@ -1258,6 +1366,7 @@ func bud_cancel() -> void:
 			pol_abs[k] = float(bud_base[k][1])
 		set_policy(k, float(bud_base[k][0]))
 	bud_base.clear()
+	bud_tr_restore()
 	bud_persuaded.clear()
 
 
@@ -1271,9 +1380,12 @@ func bud_drop_disputed() -> int:
 			continue
 		for c in bud_changes():
 			var k: String = c[0]
-			if ideo_stance(q, k) * (float(c[2]) - float(c[1])) < -0.15:
+			if bud_stance(q, k) * (float(c[2]) - float(c[1])) * (3.0 if k == "reg_transfer" else 1.0) < -0.15:
 				drop[k] = true
 	for k in drop:
+		if k == "reg_transfer":
+			bud_tr_restore()
+			continue
 		if float(bud_base[k][1]) >= 0.0:
 			pol_abs[k] = float(bud_base[k][1])
 		set_policy(k, float(bud_base[k][0]))

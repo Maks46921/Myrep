@@ -4,6 +4,10 @@ extends "res://scripts/ui/ui_core.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func bld_cancel() -> void:
+	pass
+
+
 func build_click(pos: Vector2) -> void:
 	pass
 
@@ -789,7 +793,9 @@ func on_map_input(ev: InputEvent) -> void:
 			map_drag_moved = false
 			map_drag_start = mb.position
 		else:
-			if map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT and (current_desk == 13 or current_desk == 14):
+			if map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_RIGHT and bld_pick != "":
+				bld_cancel()
+			elif map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT and (current_desk == 13 or current_desk == 14):
 				war_map_click(mb.position, mb.shift_pressed)
 			elif map_drag and not map_drag_moved and mb.button_index == MOUSE_BUTTON_LEFT:
 				if current_desk != 2 and current_desk != 8 and current_desk != 9:
@@ -995,7 +1001,20 @@ func build_map_windows() -> void:
 
 
 func on_transfer_slider(v: float, i: int) -> void:
+	bud_tr_snap()
 	set_transfer(i, v)
+	bud_tr_check()
+	update_bud_head()
+
+
+# 0.56: «Поровну / Больше бедным / Урезать» — тоже в план бюджета
+func bud_tr_equalize(mode: int) -> void:
+	if pl_deny():
+		return
+	bud_tr_snap()
+	equalize_transfers(mode)
+	bud_tr_check()
+	update_bud_head()
 
 
 func on_table_row(k: int) -> void:
@@ -1620,7 +1639,10 @@ func update_transfer_ui() -> void:
 		if av > bud_tr_slider.max_value:
 			bud_tr_slider.max_value = av * 1.5
 		bud_tr_slider.set_value_no_signal(av)
-		bud_tr_label.text = "%.2f%% ВВП · %.1f млрд" % [av, gdp * av / 100.0]
+		if bud_tr_changed():
+			bud_tr_label.text = "%.2f → %.2f%% ВВП · %.1f млрд (план)" % [bud_tr_old_avg(), av, gdp * av / 100.0]
+		else:
+			bud_tr_label.text = "%.2f%% ВВП · %.1f млрд" % [av, gdp * av / 100.0]
 	if reg_transfer_label == null or selected_region < 0 or selected_region >= regions.size():
 		return
 	var r: Dictionary = regions[selected_region]
@@ -1630,7 +1652,12 @@ func update_transfer_ui() -> void:
 		if float(regions[i]["transfer"]) > ts.max_value:
 			ts.max_value = float(regions[i]["transfer"]) * 1.5
 		ts.set_value_no_signal(float(regions[i]["transfer"]))
-		(transfer_labels[i] as Label).text = "%s: %.1f%% (%.1f млрд/год)" % [REGIONS[i]["name"], regions[i]["transfer"], gdp * gdp_w[i] * float(regions[i]["transfer"]) / 100.0]
+		var tr_old: float = bud_tr_old(i)
+		if absf(tr_old - float(regions[i]["transfer"])) > 0.0005:
+			# 0.56: план бюджета ещё не принят — показываем «было → станет»
+			(transfer_labels[i] as Label).text = "%s: %.1f → %.1f%% (%.1f млрд/год)" % [REGIONS[i]["name"], tr_old, regions[i]["transfer"], gdp * gdp_w[i] * float(regions[i]["transfer"]) / 100.0]
+		else:
+			(transfer_labels[i] as Label).text = "%s: %.1f%% (%.1f млрд/год)" % [REGIONS[i]["name"], regions[i]["transfer"], gdp * gdp_w[i] * float(regions[i]["transfer"]) / 100.0]
 
 
 # ============================================================
@@ -1662,6 +1689,15 @@ func build_bud_transfer(parent: Control) -> void:
 	mb.tooltip_text = "Открыть окно с распределением трансфертов по регионам."
 	mb.pressed.connect(bud_tr_open)
 	top.add_child(mb)
+	for dir in [-1, 1]:
+		var pb := Button.new()
+		pb.theme_type_variation = "SmallButton"
+		pb.text = "−" if dir < 0 else "+"
+		pb.focus_mode = Control.FOCUS_NONE
+		pb.custom_minimum_size = Vector2(24.0, 0.0)
+		pb.tooltip_text = ("Уменьшить" if dir < 0 else "Увеличить") + " на 0,1% ВВП (с Shift — на 1%). Изменение идёт в план бюджета."
+		pb.pressed.connect(bud_tr_nudge.bind(dir))
+		top.add_child(pb)
 	bud_tr_slider = HSlider.new()
 	bud_tr_slider.min_value = 0.0
 	bud_tr_slider.max_value = maxf(3.0, transfer_avg() * 2.5)
@@ -1672,17 +1708,20 @@ func build_bud_transfer(parent: Control) -> void:
 	bud_tr_slider.add_theme_stylebox_override("grabber_area", sbox(acc.darkened(0.15), Color(0, 0, 0, 0), 0, 4, 0.0, 3.0))
 	bud_tr_slider.add_theme_stylebox_override("grabber_area_highlight", sbox(acc, Color(0, 0, 0, 0), 0, 4, 0.0, 3.0))
 	bud_tr_slider.value_changed.connect(on_bud_tr)
+	bud_tr_slider.drag_ended.connect(func(_ch: bool) -> void: bud_tr_shrink())
 	vb.add_child(bud_tr_slider)
 
 
 func on_bud_tr(v: float) -> void:
 	# все трансферты меняются в одной пропорции; если их не было — всем поровну
+	bud_tr_snap()
 	var av: float = transfer_avg()
 	for i in regions.size():
 		if av > 0.001:
 			regions[i]["transfer"] = maxf(0.0, float(regions[i]["transfer"]) * v / av)
 		else:
 			regions[i]["transfer"] = v
+	bud_tr_check()
 	if v >= bud_tr_slider.max_value - bud_tr_slider.step * 0.5:
 		bud_tr_slider.max_value = bud_tr_slider.max_value * 1.5
 	update_transfer_ui()
@@ -1690,15 +1729,34 @@ func on_bud_tr(v: float) -> void:
 	update_bud_head()
 
 
+func bud_tr_hi() -> float:
+	return maxf(3.0, transfer_avg() * 1.5)
+
+
+func bud_tr_nudge(dir: int) -> void:
+	if bud_tr_slider == null:
+		return
+	var v: float = maxf(0.0, transfer_avg() + dir * nudge_step())
+	if v > bud_tr_slider.max_value:
+		bud_tr_slider.max_value = v * 1.5
+	bud_tr_slider.value = v
+	bud_tr_shrink()
+
+
+func bud_tr_shrink() -> void:
+	if bud_tr_slider != null and bud_tr_slider.max_value > bud_tr_hi() + 0.01:
+		bud_tr_slider.max_value = bud_tr_hi()
+
+
 func build_bud_tr_window() -> void:
 	var w: FloatWindow = new_window("bud_tr", "Трансферты регионам: по регионам", 0, Rect2(0.235, 0.0, 0.235, 1.0))
 	add_note(w.body, "Постоянные ежемесячные выплаты, % ВВП региона. Попадают в расходы бюджета (строка «Трансферты регионам»). Больше — лояльнее и спокойнее регион, быстрее развитие.")
 	var b0 := make_button("Поровну (0.8%)", w.body)
-	b0.pressed.connect(equalize_transfers.bind(0))
+	b0.pressed.connect(bud_tr_equalize.bind(0))
 	var b1 := make_button("Больше бедным (сумма прежняя)", w.body)
-	b1.pressed.connect(equalize_transfers.bind(1))
+	b1.pressed.connect(bud_tr_equalize.bind(1))
 	var b2 := make_button("Урезать до 0.3%", w.body)
-	b2.pressed.connect(equalize_transfers.bind(2))
+	b2.pressed.connect(bud_tr_equalize.bind(2))
 	add_title(w.body, "По регионам")
 	transfer_parent = w.body
 	fill_transfer_rows()

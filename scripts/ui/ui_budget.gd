@@ -28,7 +28,7 @@ func update_bud_head() -> void:
 	var parts: PackedStringArray = []
 	for c in ch:
 		var dv: float = float(c[2]) - float(c[1])
-		parts.append("%s [color=%s]%s[/color]" % [policy_title(String(c[0])), COL_GOOD if dv > 0.0 else COL_BAD, sg(dv, 1)])
+		parts.append("%s [color=%s]%s[/color]" % [bud_title(String(c[0])), COL_GOOD if dv > 0.0 else COL_BAD, sg(dv, 2 if String(c[0]) == "reg_transfer" else 1)])
 	var t2 := "[b]План (не принят):[/b] %s" % ", ".join(parts)
 	if bud_needs_council():
 		var cv := bud_council()
@@ -111,7 +111,7 @@ func bud_neg_fill() -> void:
 	var t := "[font_size=14]"
 	var parts: PackedStringArray = []
 	for c in bud_changes():
-		parts.append("«%s» %.1f → %.1f%% ВВП" % [policy_title(String(c[0])), float(c[1]), float(c[2])])
+		parts.append(bud_change_text(c))
 	t += "[b]План:[/b] %s\n\n" % "; ".join(parts)
 	t += "[b]За план — %.0f%% влияния[/b] (влияние — по министерским портфелям и местам; нужно больше половины).\n" % (float(cv["yes"]) * 100.0)
 	t += "[/font_size]"

@@ -19,6 +19,8 @@ var tw_filter: Array = []
 var tw_hover := ""
 var tw_sig := ""
 var tw_first := true
+var tw_q_box: VBoxContainer = null      # 0.56: очередь изучения (правая колонка)
+var tw_q_sig := ""
 
 
 func make_tech_button(parent: Control) -> void:
@@ -222,6 +224,25 @@ func build_tech_windows() -> void:
 	isc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	ip.add_child(isc)
 	tw_info_rt = make_rt(isc)
+	# 0.56: очередь изучения справа — у каждой ветки своя колонка
+	var qp := PanelContainer.new()
+	qp.custom_minimum_size = Vector2(270.0, 0.0)
+	qp.add_theme_stylebox_override("panel", sbox(C_PANEL, C_BORDER, 1, 8, 8.0, 6.0))
+	body.add_child(qp)
+	var qsc := ScrollContainer.new()
+	qsc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	qp.add_child(qsc)
+	var qv := VBoxContainer.new()
+	qv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	qv.add_theme_constant_override("separation", 4)
+	qsc.add_child(qv)
+	add_title(qv, "Очередь изучения")
+	var qn := add_note(qv, "Shift + щелчок по технологии — добавить в очередь. Щелчок по ещё недоступной — тоже в очередь. Когда ветка изучит текущую, она возьмёт первую доступную из очереди.", true)
+	qn.add_theme_font_size_override("font_size", 12)
+	tw_q_box = VBoxContainer.new()
+	tw_q_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tw_q_box.add_theme_constant_override("separation", 3)
+	qv.add_child(tw_q_box)
 
 
 func on_tech_filter(k: int) -> void:
@@ -269,6 +290,12 @@ func on_tech_pick(id: String) -> void:
 	if d.is_empty() or game_over or pl_deny():
 		return
 	var b: int = int(d["b"])
+	# 0.56: Shift + щелчок — в очередь изучения
+	if Input.is_key_pressed(KEY_SHIFT):
+		if tech_q_add(id):
+			sfx("click")
+		refresh()
+		return
 	if String(tech["cur"][b]) == id:
 		if not bool(tech["auto"]):
 			tech_select(b, "")
@@ -280,6 +307,10 @@ func on_tech_pick(id: String) -> void:
 		# v50: щелчок по невыбранной альтернативе — пересмотреть выбор «или» за те же очки
 		tech_swap(id)
 		sfx("click")
+	elif not tech_never(id) and tech_q_add(id):
+		# 0.56: недоступная пока технология встаёт в очередь
+		sfx("click")
+		refresh()
 	tech_info_update()
 
 
@@ -467,11 +498,82 @@ func update_tech_windows() -> void:
 		tw_sig = sig
 		tech_build_buildings()
 	tech_buildings_text()
+	tech_queue_ui()
 	if tech_view != null:
 		if tech_view.game == null:
 			tech_view.set_game(self)
 		tech_view.queue_redraw()
 	tech_info_update()
+
+
+func tech_queue_ui() -> void:
+	if tw_q_box == null:
+		return
+	var sig := str(tech.get("rq", [])) + "|" + str(tech["cur"]) + "|" + str(game_over)
+	if sig == tw_q_sig:
+		return
+	tw_q_sig = sig
+	tech_clear(tw_q_box)
+	for b in TECH_NB:
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 4)
+		tw_q_box.add_child(hb)
+		var sw := ColorRect.new()
+		sw.color = Color(String(TECH_BRANCHES[b]["col"]))
+		sw.custom_minimum_size = Vector2(8.0, 18.0)
+		hb.add_child(sw)
+		var nl := Label.new()
+		nl.text = String(TECH_BRANCHES[b]["name"])
+		nl.add_theme_font_size_override("font_size", 13)
+		hb.add_child(nl)
+		var cur: String = tech["cur"][b]
+		var cl := Label.new()
+		cl.text = ("▶ " + String(tech_def(cur)["name"])) if cur != "" else "▶ —"
+		cl.add_theme_font_size_override("font_size", 12)
+		cl.add_theme_color_override("font_color", C_DIM)
+		cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tw_q_box.add_child(cl)
+		var q := tech_rq(b)
+		for k in q.size():
+			var id: String = q[k]
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 2)
+			tw_q_box.add_child(row)
+			var il := Label.new()
+			il.text = "%d. %s" % [k + 1, tech_def(id).get("name", id)]
+			il.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			il.clip_text = true
+			il.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			il.add_theme_font_size_override("font_size", 12)
+			var miss := tech_missing(id)
+			il.tooltip_text = String(tech_def(id).get("name", id)) + ("" if miss == "" else "\nПока нельзя: " + miss)
+			if miss != "":
+				il.add_theme_color_override("font_color", C_DIM)
+			il.mouse_filter = Control.MOUSE_FILTER_PASS
+			row.add_child(il)
+			for e in [["↑", -1, "Выше"], ["↓", 1, "Ниже"], ["✕", 0, "Убрать из очереди"]]:
+				var bb := Button.new()
+				bb.theme_type_variation = "SmallButton"
+				bb.text = String(e[0])
+				bb.focus_mode = Control.FOCUS_NONE
+				bb.tooltip_text = String(e[2])
+				bb.disabled = game_over or (int(e[1]) < 0 and k == 0) or (int(e[1]) > 0 and k == q.size() - 1)
+				var bk: int = b
+				var kk: int = k
+				var dd: int = int(e[1])
+				bb.pressed.connect(func() -> void:
+					if dd == 0:
+						tech_q_del(bk, kk)
+					else:
+						tech_q_move(bk, kk, dd)
+					refresh())
+				row.add_child(bb)
+		if q.is_empty():
+			var el := Label.new()
+			el.text = "очередь пуста"
+			el.add_theme_font_size_override("font_size", 12)
+			el.add_theme_color_override("font_color", C_DIM)
+			tw_q_box.add_child(el)
 
 
 func tech_clear(box: Control) -> void:
