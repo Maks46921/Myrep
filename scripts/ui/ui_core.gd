@@ -1603,6 +1603,7 @@ const TIP_WIDTHS := [400.0, 460.0, 540.0]
 const TIP_DELAYS := [0.1, 0.5, 1.0]      # project.godot: gui/timers/tooltip_delay_sec = 0.1, остальное добирает tip_on_added
 const TIP_WARN_HEADS := ["Внимание:", "Сейчас нельзя:", "Сейчас недоступно:", "Пока нельзя:", "Недоступно:", "Нельзя:"]
 
+const TIP_BAD_UP := ["долг", "инфляц", "безработ", "коррупц", "дефицит", "недовольств", "цены", "цена ", "сепаратизм", "risk", "риск"]
 var tip_re_num: RegEx = null
 var tip_re_row: RegEx = null
 
@@ -1639,7 +1640,18 @@ func tip_color_nums(t: String) -> String:
 	var out := ""
 	var pos := 0
 	for m in tip_re_num.search_all(t):
-		var col: String = COL_GOOD if m.get_string(2) == "+" else COL_BAD
+		var up: bool = m.get_string(2) == "+"
+		# рост долга, инфляции, безработицы, коррупции — плохо: цвета наоборот
+		var before: String = t.substr(maxi(0, m.get_start(2) - 28), mini(28, m.get_start(2))).to_lower()
+		for sep in [",", ";", "\n", "·", "(", "."]:
+			var si: int = before.rfind(sep)
+			if si >= 0 and si < before.length() - 1:
+				before = before.substr(si + 1)
+		for bw in TIP_BAD_UP:
+			if before.contains(bw):
+				up = not up
+				break
+		var col: String = COL_GOOD if up else COL_BAD
 		out += t.substr(pos, m.get_start(2) - pos) + "[color=%s]%s%s[/color]" % [col, m.get_string(2), m.get_string(3)]
 		pos = m.get_end(3)
 	return out + t.substr(pos)
