@@ -122,7 +122,7 @@ func party_arch(p: int) -> String:
 	if ideo_c.has(ck):
 		return ideo_c[ck]
 	var res := "conserv"
-	if p == 9:
+	if p == PROTEST_P:
 		res = "populist"
 	else:
 		var avg := {}
@@ -445,7 +445,7 @@ func rel_add(a: int, b: int, d: float) -> void:
 
 func prm_base(p: int, q: int) -> float:
 	var b := 22.0 + 75.0 * clampf((party_sim(p, q) - 0.35) / 0.65, 0.0, 1.0)
-	if p == 9 or q == 9:
+	if p == PROTEST_P or q == PROTEST_P:
 		b -= 18.0
 	if in_coalition[p] and in_coalition[q]:
 		b += 6.0
@@ -536,7 +536,7 @@ func ai_parties_step() -> void:
 			continue
 		var sh: float = float(seats[p]) / float(maxi(1, SEATS))
 		var gain := 0.45 + 5.5 * sh + (0.7 if in_coalition[p] else 0.0)
-		if p == 9:
+		if p == PROTEST_P:
 			gain = 0.8
 		pcap[p] = minf(100.0, float(pcap[p]) + gain)
 	# срок штрафов от атак
@@ -561,7 +561,7 @@ func ai_parties_step() -> void:
 	for p in range(1, n):
 		if p == 6 or pcap.size() <= p:
 			continue
-		if seats[p] <= 0 and p != 9:
+		if seats[p] <= 0 and p != PROTEST_P:
 			continue
 		ai_party_act(p)
 	ai_bloc_plan()

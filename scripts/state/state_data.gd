@@ -299,6 +299,7 @@ var UPPER := {}
 var MACRO := {}
 
 var REGIONAL_P := 8
+var PROTEST_P := 9           # 0.56: слот протестной партии (игрок может играть за неё — тогда слот меняется)
 
 var MARKETS_OVR := {}
 

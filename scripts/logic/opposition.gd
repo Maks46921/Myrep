@@ -15,8 +15,17 @@ func prm_init() -> void:
 # --- конец заглушек ---
 
 
-# роли партий по слотам: 0 — ваша, 6 — «прочие», 8 — региональная, 9 — протестная
-const NO_PLAY_SLOTS := [6, 8, 9]
+# роли партий по слотам: 0 — ваша, 6 — «прочие», REGIONAL_P (обычно 8) — региональная, PROTEST_P (обычно 9) — протестная.
+# 0.56: играть можно за любую настоящую партию, в том числе региональную и протестную; не за сборные списки
+const NO_PLAY_SLOTS := [6]
+const NO_PLAY_NAMES := ["Прочие", "Прочая", "Местные списки", "Малые ", "Самовыдвиженцы", "Беспартийные", "Избирательные союзы", "Внепарламентские", "Независимые депутаты", "Внефракционные"]
+
+
+func party_name_playable(nm: String) -> bool:
+	for pre in NO_PLAY_NAMES:
+		if nm.begins_with(pre):
+			return false
+	return nm.strip_edges() != ""
 const NO_GOV_SLOTS := [6]     # v35: партии «кордона» (бывший слот 9) тоже договариваются, но неохотно
 
 const OPP_ACTS := [
@@ -80,7 +89,7 @@ func prel_base(p: int) -> float:
 	if p == 0:
 		return 100.0
 	var b := 22.0 + 75.0 * clampf((party_sim(0, p) - 0.35) / 0.65, 0.0, 1.0)
-	if p == 9:
+	if p == PROTEST_P:
 		b -= 22.0
 	if not opp_mode and in_coalition[p]:
 		b += 6.0
@@ -135,7 +144,7 @@ func cd_left(id: String) -> int:
 
 # ---------- обмен идентичностями с прежней партией власти ----------
 func player_swap_ok(k: int) -> bool:
-	return k > 0 and k < PARTY_NAMES.size() and not (k in NO_PLAY_SLOTS)
+	return k > 0 and k < PARTY_NAMES.size() and not (k in NO_PLAY_SLOTS) and party_name_playable(String(PARTY_NAMES[k]))
 
 
 func swap_idx(v: int, k: int) -> int:
@@ -195,6 +204,9 @@ func apply_player_party(k: int) -> void:
 		DE_START_MIN[m] = swap_idx(int(DE_START_MIN[m]), k)
 	for i in HEMI_ORDER.size():
 		HEMI_ORDER[i] = swap_idx(int(HEMI_ORDER[i]), k)
+	# 0.56: региональная и протестная партии остаются собой, даже если теперь это ваша партия (слот 0)
+	REGIONAL_P = swap_idx(REGIONAL_P, k)
+	PROTEST_P = swap_idx(PROTEST_P, k)
 	var ms := {}
 	for key in MIN_SPECIAL:
 		var parts: PackedStringArray = String(key).split(":")

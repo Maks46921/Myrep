@@ -41,6 +41,29 @@ func _init():
 	g.update_menu_party(g.OBSERVER_ID)
 	if not g.menu_sit_rt.text.contains("ИИ"):
 		bad += 1; print("FAIL: нет описания режима наблюдателя")
+	# 0.56: карточки партий и полукруг; можно выбрать протестную партию
+	var tabs0 = _find_cls(menu, "TabContainer")
+	tabs0.current_tab = 1
+	g.menu_fill_parties(pick, 9 if g.party_name_playable(String(g.cdat(pick, "PARTY_NAMES")[9])) else 1)
+	for i in 6: await process_frame
+	await create_timer(0.3).timeout
+	root.get_viewport().get_texture().get_image().save_png(outp.replace(".png", "_party.png"))
+	if g.menu_party_grid.get_child_count() < 4:
+		bad += 1; print("FAIL: мало карточек партий (%d)" % g.menu_party_grid.get_child_count())
+	if g.menu_party_sel == 0:
+		bad += 1; print("FAIL: карточка партии не выбирается")
+	var ccount := 0
+	for c in g.MENU_POL_COLS: ccount += 1
+	if ccount < 38:
+		bad += 1; print("FAIL: не у всех стран цвет политической карты")
+	g.menu_flt["eu"] = 2
+	g.menu_apply_filters(cm, g.CDATA.keys())
+	if not cm.dim.has("DE") or cm.dim.has("CH"):
+		bad += 1; print("FAIL: фильтр «вне ЕС» не работает")
+	g.menu_flt.clear()
+	g.menu_apply_filters(cm, g.CDATA.keys())
+	g.menu_fill_parties(pick, 0)
+	tabs0.current_tab = 0
 	# --- масштаб и перемещение карты выбора страны ---
 	var gp: Vector2 = cm.get_global_rect().get_center()
 	var z0: float = cm.zoom
@@ -84,10 +107,10 @@ func _init():
 		bad += 1; print("FAIL: ⌂ не вернул обзор Европы (%.2f, нужно %.2f)" % [cm.zoom, cm._fit_zoom(cm.home)])
 	# --- настройки новой игры ---
 	var tabs = _find_cls(menu, "TabContainer")
-	if tabs == null or tabs.get_tab_count() < 2:
+	if tabs == null or tabs.get_tab_count() < 3:
 		bad += 1; print("FAIL: нет вкладки настроек игры")
 	else:
-		tabs.current_tab = 1
+		tabs.current_tab = 2
 		var chk = _find_text(menu, "Модель агентов")
 		if chk == null:
 			bad += 1; print("FAIL: нет переключателя модели агентов в настройках")

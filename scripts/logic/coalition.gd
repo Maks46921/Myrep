@@ -764,7 +764,7 @@ func willingness(p: int, promise: bool) -> float:
 	# v35: после повторных выборов без правительства партии охотнее идут на компромисс
 	w += 4.0 * float(mini(deadlock, 4))
 	# v53: при управляемой политике «системная оппозиция» послушно идёт в правительство (кроме несистемной — слот 9)
-	if p != 9:
+	if p != PROTEST_P:
 		w += au_control() * 30.0
 	if promise and not law_demand_of(p).is_empty() and not law_demand_met(p):
 		w += 8.0

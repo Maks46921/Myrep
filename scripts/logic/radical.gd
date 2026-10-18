@@ -48,7 +48,7 @@ func arch_ps(tbl: Dictionary) -> Dictionary:
 	for p in PARTY_NAMES.size():
 		var a: String = String(ARCHS[p]) if p < ARCHS.size() else "oth"
 		var key := a
-		if p == 9:
+		if p == PROTEST_P:
 			key = "prot"
 		elif a == "none":
 			key = "oth"

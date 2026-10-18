@@ -12,6 +12,7 @@ var ctx: Array = []          # Array of Array[PackedVector2Array] — сосед
 var cols: Dictionary = {}    # код -> Color
 var names: Dictionary = {}   # код -> название
 var tips: Dictionary = {}    # код -> подсказка
+var dim: Dictionary = {}     # 0.56: код -> true — страна не подходит под фильтры меню (серая, не выбирается)
 var selected := ""
 var hover := ""
 var bounds := Rect2()
@@ -433,7 +434,7 @@ func _gui_input(e: InputEvent) -> void:
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if c != "" else Control.CURSOR_ARROW
 		if c != hover:
 			hover = c
-			tooltip_text = String(tips.get(c, names.get(c, ""))) if c != "" else ""
+			tooltip_text = (String(tips.get(c, names.get(c, ""))) + ("\nНе подходит под выбранные фильтры." if dim.has(c) else "")) if c != "" else ""
 			over.queue_redraw()
 		if c == "":
 			var v2 := _view()
@@ -453,7 +454,7 @@ func _gui_input(e: InputEvent) -> void:
 			else:
 				if drag and not drag_moved and mb.button_index == MOUSE_BUTTON_LEFT:
 					var c2 := _cc_at(mb.position)
-					if c2 != "":
+					if c2 != "" and not dim.has(c2):
 						select(c2)
 				drag = false
 				mouse_default_cursor_shape = Control.CURSOR_ARROW
@@ -522,6 +523,8 @@ func _draw_geo() -> void:
 	for u in units:
 		var cc3: String = String(u["cc"])
 		var base: Color = cols.get(cc3, Color(0.4, 0.5, 0.7))
+		if dim.has(cc3) and cc3 != selected:
+			base = Color(0.20, 0.215, 0.24)
 		var col: Color = base.lightened(0.25) if cc3 == selected else base.darkened(0.25)
 		for pts in (u[key] as Array):
 			geo.draw_colored_polygon(pts, col, Gfx.uvs(pts, Gfx.LAND_UV * 1.4), ltex)
@@ -648,3 +651,11 @@ func outline(cc: String) -> Array:
 				parts.append_array(u["parts"] as Array)
 		outlines[cc] = outline_of(parts)
 	return outlines[cc]
+
+
+# 0.56: перекрасить карту (цвета или фильтры меню изменились)
+func recolor() -> void:
+	if geo != null:
+		geo.queue_redraw()
+	if over != null:
+		over.queue_redraw()

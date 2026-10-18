@@ -179,12 +179,15 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 		effg = clampf(gb - (eff - gb) / 0.6, 5.0, 100.0)
 	for p in PARTY_NAMES.size():
 		var v: float = float(lean[p])
-		if p == 0 and own_full:
-			v *= pow(eff / 50.0, ex)
-		elif roles[p] > 0.0 and p != 9:
-			v *= pow((effg / gb) if own_full else (eff / 50.0), ex * roles[p])
-		elif p == 9:
+		# 0.56: протестная партия растёт на недовольстве властью — и тогда, когда за неё играете вы (пока она в оппозиции)
+		if p == PROTEST_P and roles[p] <= 0.0 and (p != 0 or opp_mode):
 			v *= pow(clampf((100.0 - effg) / 50.0, 0.2, 2.0), 2.0)
+			if p == 0:
+				v *= pow(eff / 50.0, ex * 0.5)
+		elif p == 0 and own_full:
+			v *= pow(eff / 50.0, ex)
+		elif roles[p] > 0.0:
+			v *= pow((effg / gb) if own_full else (eff / 50.0), ex * roles[p])
 		elif p == REGIONAL_P:
 			v *= (1.0 + float(r["unrest"]) / 40.0) * lerpf(0.6, 1.5, float(REGIONS[ri]["reg"]))
 		v *= float(REG_BIAS[ri][p]) * funding_mult(p) * pact_mult(p)
@@ -872,7 +875,7 @@ func party_attitude(p: int) -> float:
 	var att: float = num / den
 	if p == REGIONAL_P:
 		att = 0.5 * att + 0.5 * reg_avg("loy")
-	elif p == 9:
+	elif p == PROTEST_P:
 		att *= 0.7
 	return att
 
@@ -967,7 +970,7 @@ func sham_shares(raw: Array[float]) -> Array[float]:
 	out.append(s0)
 	for p in range(1, raw.size()):
 		var w: float = raw[p] / rest if rest > 0.0 else 0.0
-		if p == 9:
+		if p == PROTEST_P:
 			w *= 0.1
 		out.append((1.0 - s0) * w)
 	var tot := 0.0

@@ -294,7 +294,7 @@ func ag_agent_text(i: int) -> String:
 		var x: float = w[p] * AG.aff[i * P + p]
 		if p == 0:
 			x *= pow(ei / eff_c, 3.0)
-		elif p == 9:
+		elif p == PROTEST_P:
 			x *= pow(clampf((100.0 - ei) / maxf(100.0 - eff_c, 1.0), 0.2, 3.0), 2.0)
 		v.append(x)
 		tot += x
