@@ -363,6 +363,7 @@ var election_open := false
 var elec_end := ""
 
 var prev_vote: Array = []
+var prev_raw: Array = []      # 0.56: голоса партий (до барьера) на прошлых выборах — от них считается предел сдвига
 
 var camp_turn := -100
 

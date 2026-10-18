@@ -1232,6 +1232,16 @@ func update_polls() -> void:
 	for p in po:
 		t += "[color=#%s]%s[/color] %s  %.1f%%%s\n" % [(PARTY_COLORS[p] as Color).to_html(false), "█".repeat(maxi(1, int(round(ps[p] * 40.0)))), PARTY_NAMES[p], ps[p] * 100.0, (" = %d мест" % ss[p]) if ss[p] > 0 else " (ниже барьера)"]
 	var head_t := t
+	# 0.56: подсказка к рейтингу — почему у партии такой потолок и предел сдвига
+	var tp := "Откуда рейтинг: потолок партии и предел сдвига с прошлых выборов."
+	var shown := 0
+	for p in po:
+		if shown >= 4 or ps[p] < 0.05:
+			break
+		shown += 1
+		tp += "\n\n[b]%s[/b], сейчас %.1f%%\n%s" % [PARTY_NAMES[p], ps[p] * 100.0, er_tip(p)]
+	polls_rt.tooltip_text = tp
+	polls_rt.mouse_filter = Control.MOUSE_FILTER_PASS
 	t = ""
 	if ccode == "DE":
 		t += "[color=%s]Канцлера избирает Бундестаг; сместить его можно только конструктивным вотумом недоверия — когда оппозиция (без АдГ) сразу собирает большинство за нового канцлера.[/color]\n" % COL_DIM

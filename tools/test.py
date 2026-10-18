@@ -49,6 +49,7 @@ TESTS = {
     'soc':    ('t_soc.gd', [], 300),
     'cult':   ('t_cult.gd', [], 240),
     'build2': ('t_build2.gd', [], 240),
+    'sim30':  ('sim30.gd', [], 2400),   # 0.56: 30 лет игры под ИИ, годовые доли партий в .testlogs/sim30_XX.tsv
     'tech':   ('t_tech.gd', [], 300),
     'techbal': ('t_techbal.gd', [], 240),
     'revolt': ('t_revolt.gd', [], 400),

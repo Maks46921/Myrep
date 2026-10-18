@@ -12,10 +12,6 @@ func con_rb_nat(k: String) -> float:
 	return 0.0
 
 
-func mil_at_war() -> bool:
-	return false
-
-
 # --- конец заглушек ---
 
 
