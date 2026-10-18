@@ -1323,9 +1323,9 @@ func pa_options(p: int) -> Array:
 			out.append([1.2, "bill", lb])
 		out.append([0.6, "say", {}])
 	else:
-		var lb2 := pa_pick_bill(p)
+		var lb2 := pa_pick_bill(p) if pa_power(p) >= 0.05 else {}
 		if not lb2.is_empty():
-			out.append([0.9, "bill", lb2])
+			out.append([0.5, "bill", lb2])
 		out.append([(0.3 + aggr) * (0.5 + 4.0 * pa_power(p)), "rally", {}])
 	return out
 
@@ -1335,7 +1335,7 @@ func pa_pick_bill(p: int) -> Dictionary:
 	var ld := law_demand_of(p)
 	if not ld.is_empty() and not ld.has("val") and not law_demand_met(p):
 		var tid0: String = String(ld["tid"])
-		if law_index.has(tid0) and int(law_cd.get(tid0, 0)) <= 0 and bill_of(tid0) < 0 and law_locked(tid0) == "" and radical_req(tid0, int(ld["idx"])) == "":
+		if law_index.has(tid0) and int(law_cd.get(tid0, 0)) <= 0 and bill_of(tid0) < 0 and turn - int(pa_fail.get(tid0, -99)) >= 12 and law_locked(tid0) == "" and radical_req(tid0, int(ld["idx"])) == "":
 			return {"tid": tid0, "idx": int(ld["idx"])}
 	var best := {}
 	var bs := 1.0
@@ -1343,7 +1343,7 @@ func pa_pick_bill(p: int) -> Dictionary:
 	topics.shuffle()
 	for t in topics.slice(0, 30):
 		var tid: String = String(t["id"])
-		if not law_index.has(tid) or law_index[tid].has("param") or int(law_cd.get(tid, 0)) > 0 or law_locked(tid) != "" or bill_of(tid) >= 0:
+		if not law_index.has(tid) or law_index[tid].has("param") or int(law_cd.get(tid, 0)) > 0 or law_locked(tid) != "" or bill_of(tid) >= 0 or turn - int(pa_fail.get(tid, -99)) < 12:
 			continue
 		var cur := cur_idx(tid)
 		var vs: Array = law_index[tid]["v"]
@@ -1458,6 +1458,7 @@ func pa_bill_vote(b: Dictionary) -> void:
 		law_cd[tid] = was
 	cap_unswap(p, old)
 	if not ok:
+		pa_fail[tid] = turn
 		log_tag("ЗАКОНОПРОЕКТ", COL_NEUTRAL, "законопроект «%s» партии «%s» не принят." % [law_index[tid]["name"], party_abbr(p)])
 	pa_vote_after(b, p)
 
