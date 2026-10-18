@@ -326,6 +326,13 @@ func junior_info() -> Dictionary:
 	for p in PARTY_NAMES.size():
 		if in_coalition[p] and seats[p] > seats[pm]:
 			pm = p
+	# 0.56: глава правительства по коалиционному соглашению
+	if not coal_deal.is_empty():
+		var dp: int = int(coal_deal.get("pm", -1))
+		if dp == 0:
+			return res
+		if dp > 0 and dp < in_coalition.size() and in_coalition[dp]:
+			pm = dp
 	if pm == 0 or pm_lead:
 		return res
 	var share: float = float(seats[0]) / float(maxi(1, gov_seats()))

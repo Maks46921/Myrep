@@ -20,6 +20,10 @@ func build_build_window() -> void:
 	pass
 
 
+func build_cn_overlay() -> void:
+	pass
+
+
 func build_crisis_windows() -> void:
 	pass
 
@@ -120,6 +124,10 @@ func click_name() -> String:
 	return ""
 
 
+func cn_is_open() -> bool:
+	return false
+
+
 func crisis_is_open() -> bool:
 	return false
 
@@ -197,6 +205,10 @@ func update_bud_head() -> void:
 
 
 func update_build_window() -> void:
+	pass
+
+
+func update_cn_window() -> void:
 	pass
 
 
@@ -628,6 +640,7 @@ func build_ui() -> void:
 	build_tech_windows()
 	build_crisis_windows()
 	build_meas_overlay()
+	build_cn_overlay()
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
@@ -1345,6 +1358,7 @@ func refresh() -> void:
 	update_regions_ui()
 	update_tech_windows()
 	update_meas_window()
+	update_cn_window()
 	update_crisis_windows()
 	overlays_lock()
 	update_realm_windows()
@@ -2215,7 +2229,7 @@ func on_log_detail(on: bool) -> void:
 # v50: «Технологии» и «Кризисы» ведут себя как остальные разделы: открытие снимает подсветку с вкладки раздела,
 # а нажатие на любую вкладку раздела закрывает их
 func overlay_tabs_sync() -> void:
-	var ov_on: bool = tech_is_open() or crisis_is_open() or meas_is_open()
+	var ov_on: bool = tech_is_open() or crisis_is_open() or meas_is_open() or cn_is_open()
 	var tab: int = desk_tab(current_desk)
 	for kb in desk_buttons.size():
 		(desk_buttons[kb] as Button).set_pressed_no_signal(kb == tab and not ov_on)
@@ -2228,6 +2242,8 @@ func show_tab(t: int) -> void:
 		set_crisis_open(false)
 	if meas_is_open():
 		set_meas_open(false)
+	if cn_is_open():
+		cn_close()
 	if politics_page == 11:
 		politics_page = 1
 	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else (society_page if t == 5 else map_page)))))

@@ -286,6 +286,8 @@ func set_meas_open(on: bool) -> void:
 		set_tech_open(false)
 	if on and crisis_is_open():
 		set_crisis_open(false)
+	if on and cn_is_open():
+		cn_close()
 	var was: bool = meas_ov.visible
 	meas_ov.visible = on
 	if on and not was:

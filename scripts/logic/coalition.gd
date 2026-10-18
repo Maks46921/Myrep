@@ -8,6 +8,14 @@ func bud_neg_open() -> void:
 	pass
 
 
+func cn_auto_open() -> void:
+	pass
+
+
+func cn_close() -> void:
+	pass
+
+
 func council_expel_vote(p: int) -> Dictionary:
 	return {}
 
@@ -20,10 +28,6 @@ func council_min_vote(m: int, p: int, old: int) -> Dictionary:
 	return {}
 
 
-func crisis_tol_pick() -> int:
-	return 0
-
-
 func end_game(msg: String) -> void:
 	pass
 
@@ -32,8 +36,16 @@ func invite_offer_w(p: int, promise: bool, mins: int) -> float:
 	return 0.0
 
 
+func party_abbr(p: int) -> String:
+	return ""
+
+
 func party_lean(g: String, p: int) -> float:
 	return 0.0
+
+
+func rel_add(a: int, b: int, d: float) -> void:
+	pass
 
 
 func show_crisis_exit() -> bool:
@@ -449,6 +461,7 @@ func form_government(verbose: bool) -> bool:
 
 func check_government() -> void:
 	check_commitments()
+	cn_month()
 	if auto_floor_on or not floor_keys.is_empty():
 		auto_floor(not auto_floor_on)
 	var members := 0
@@ -482,6 +495,10 @@ func check_government() -> void:
 		crisis_months += 1
 		if crisis_months == 1:
 			log_line("[color=%s][b]Правительственный кризис![/b] В коалиции только %d мест из %d. Восстановите большинство за %d месяцев, иначе парламент будет распущен.[/color]" % [COL_BAD, gov_seats(), SEATS, crisis_limit()])
+			# 0.56: коалиция распалась — сразу открываем окно переговоров
+			if coal_manual() and cn_why() == "":
+				cn_draft.clear()
+				cn_auto_open()
 		elif crisis_months >= crisis_limit():
 			# v35: вместо автоматического роспуска — выбор пути выхода из кризиса (без штрафа капиталом)
 			if not crisis_offered and show_crisis_exit():
@@ -655,6 +672,9 @@ func assign_ministry(m: int, p: int) -> void:
 			return
 		log_tag("КАБИНЕТ", COL_DIM, "совет коалиции одобрил назначение («за» %.0f%% влияния)." % (float(cv["yes"]) * 100.0))
 	ministries[m] = p
+	var dh := cn_deal_holder(m)
+	if dh > 0 and dh != p:
+		log_tag("КАБИНЕТ", COL_BAD, "это министерство закреплено соглашением за «%s»: партия выйдет из коалиции, если не вернуть его до конца месяца." % PARTY_NAMES[dh])
 	if old > 0 and in_coalition[old]:
 		conc[old] = float(conc.get(old, 0.0)) - 5.0
 	if p > 0:
@@ -696,7 +716,12 @@ func reshuffle_cabinet() -> void:
 	if game_over:
 		return
 	assign_ministries()
-	log_tag("КАБИНЕТ", COL_PURPLE, "министерства перераспределены по квотам: каждая партия получила долю, пропорциональную числу мест, и свои профильные портфели.")
+	if not coal_deal.is_empty():
+		var dm := {}
+		for m in MINISTRIES.size():
+			dm[m] = int(ministries[m])
+		coal_deal["mins"] = dm
+	log_tag("КАБИНЕТ", COL_PURPLE, "министерства перераспределены по квотам: каждая партия получила долю, пропорциональную числу мест, и свои профильные портфели%s." % (" (коалиционное соглашение пересмотрено)" if not coal_deal.is_empty() else ""))
 	recompute_mods()
 	refresh()
 
@@ -776,6 +801,8 @@ func check_commitments() -> void:
 			conc[p] = float(conc.get(p, 0.0)) - 18.0
 			satis[p] = clampf(float(satis.get(p, 50.0)) - 8.0, 0.0, 100.0)
 			log_tag("ОБЕЩАНИЕ", COL_BAD, "нарушено перед партией «%s»: закон %s не принят в срок. Довольство резко упало." % [PARTY_NAMES[p], law_demand_text(p)])
+			if not coal_deal.is_empty() and p in (coal_deal["laws"] as Array):
+				cn_breach(p, "закон из программы соглашения не принят в срок")
 			continue
 		keep.append(c)
 	commitments = keep
@@ -974,37 +1001,15 @@ func coal_w_text(w: float) -> String:
 	return "скорее откажет"
 
 
-# окно переговоров: с кем говорить и что предложить
+# окно переговоров: 0.56 — вместо всплывающего события открывается большое окно «Коалиционные переговоры»
 func coal_talks_event() -> void:
-	if not coal_talks or game_over or election_open or not current_event.is_empty():
+	if not coal_talks or game_over or election_open:
 		return
 	if gov_ok():
 		coal_talks_done()
 		return
-	var opts: Array = []
-	var lines: PackedStringArray = []
-	for c in coal_cands():
-		var p: int = int(c[1])
-		var w: float = float(c[0])
-		lines.append("«%s» — %d мест, готовность %.0f: %s" % [PARTY_NAMES[p], seats[p], w, coal_w_text(w)])
-		if p in coal_tried or opts.size() >= 6:
-			continue
-		opts.append({"l": "Пригласить «%s» (%d мест): %s" % [PARTY_NAMES[p], seats[p], coal_w_text(w)], "fx": {}, "coal": "inv", "p": p, "promise": false, "mins": 0})
-		var w2: float = invite_offer_w(p, true, 1)
-		if w < COALITION_JOIN and w2 >= COALITION_JOIN_PAID:
-			opts.append({"l": "«%s»: предложить министерство и обещать их закон (%s)" % [PARTY_NAMES[p], coal_w_text(w2)], "fx": {}, "coal": "inv", "p": p, "promise": true, "mins": 1})
-	var tp := crisis_tol_pick()
-	if tp > 0:
-		opts.append({"l": "Правительство меньшинства: «%s» обещает не голосовать против (капитал −5)" % PARTY_NAMES[tp], "fx": {"capital": -5.0}, "coal": "tol", "p": tp})
-	opts.append({"l": "Продолжить переговоры самостоятельно (раздел «Правительство», осталось %d мес.)" % maxi(1, crisis_limit() - crisis_months + 1), "fx": {}, "coal": "self", "p": -1})
-	var t := "Коалиционные переговоры. У вашей партии «%s» %d мест из %d, у коалиции %d; для большинства нужно %d. С кем договариваться?" % [PARTY_NAMES[0], seats[0], SEATS, gov_seats(), MAJORITY]
-	if lines.size() > 0:
-		t += "\n" + "\n".join(lines)
-	current_event = {"t": t, "special": "coal", "o": opts}
-	event_region = -1
-	event_party = -1
-	event_min = -1
-	present_event()
+	cn_draft.clear()
+	cn_auto_open()
 
 
 func coal_resolve(opt: Dictionary) -> void:
@@ -1028,3 +1033,510 @@ func coal_resolve(opt: Dictionary) -> void:
 		recompute_mods()
 		return
 	coal_talks_event()
+
+
+# ============================================================
+#  0.56 (п.16): БОЛЬШИЕ КОАЛИЦИОННЫЕ ПЕРЕГОВОРЫ
+#  Проект соглашения: состав, глава правительства, министерства с весами, программа (закон-условие и бюджет),
+#  поддержка извне для правительства меньшинства. Партии отвечают по раундам; раундов сколько угодно, но у каждой
+#  партии своё терпение: кончилось — уходит из переговоров до следующего месяца. Подписанное соглашение хранится
+#  в coal_deal; нарушение злит партнёра, сильное (отобранное министерство) — партнёр уходит.
+# ============================================================
+const CN_MIN_W := [3, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 2]   # вес министерства: Финансы 3; Оборона, Внутренние, Экономика, Иностранные 2
+const CN_PAT := 4          # раундов отказа, после которых партия уходит из переговоров
+const CN_PAY := 8.0        # капитал за согласие «за уступки» (по каждой такой партии)
+
+
+func cn_min_w(m: int) -> int:
+	return int(CN_MIN_W[m]) if m < CN_MIN_W.size() else 1
+
+
+func cn_w_total() -> int:
+	var s := 0
+	for m in MINISTRIES.size():
+		s += cn_min_w(m)
+	return s
+
+
+# почему переговоры сейчас нельзя вести ("" — можно)
+func cn_why() -> String:
+	if game_over:
+		return "игра окончена"
+	if observer:
+		return "в режиме наблюдателя коалицию собирает ИИ"
+	if opp_mode:
+		return "ваша партия не в правительстве: коалицию собирает победитель"
+	if election_open:
+		return "сначала закройте окно итогов выборов"
+	return ""
+
+
+func cn_can_talk(p: int) -> bool:
+	return p > 0 and p < PARTY_NAMES.size() and seats[p] > 0 and can_govern(p) and turn > int(cn_out.get(p, -99))
+
+
+func cn_parties() -> Array:
+	return cn_draft.get("parties", [])
+
+
+# новый проект от нынешнего положения: нынешние партнёры, их министерства, нынешний глава правительства
+func cn_new_draft() -> void:
+	var parties: Array = []
+	for p in range(1, PARTY_NAMES.size()):
+		if in_coalition[p] and seats[p] > 0:
+			parties.append(p)
+	var mins := {}
+	for m in MINISTRIES.size():
+		var h: int = int(ministries[m])
+		mins[m] = h if h in parties else 0
+	var pm := 0
+	if not coal_deal.is_empty() and int(coal_deal.get("pm", 0)) in parties:
+		pm = int(coal_deal["pm"])
+	else:
+		var ji := junior_info()
+		if bool(ji["junior"]):
+			pm = int(ji["pm"])
+	var tol := -1
+	for p in pacts:
+		if int(p) > 0 and int(p) < PARTY_NAMES.size() and (pacts[p] as Dictionary).has("tol") and int(pacts[p]["tol"]) > 0 and not in_coalition[int(p)] and seats[int(p)] > 0:
+			tol = int(p)
+	cn_draft = {"parties": parties, "pm": pm, "mins": mins, "laws": [], "budget": [], "tol": tol}
+	cn_ans.clear()
+	cn_round = 0
+
+
+func cn_ensure() -> void:
+	if cn_draft.is_empty():
+		cn_new_draft()
+
+
+func cn_seats() -> int:
+	var s: int = seats[0]
+	for p in cn_parties():
+		s += int(seats[p])
+	return s
+
+
+func cn_got_w(p: int) -> int:
+	var s := 0
+	var mins: Dictionary = cn_draft.get("mins", {})
+	for m in mins:
+		if int(mins[m]) == p:
+			s += cn_min_w(int(m))
+	return s
+
+
+func cn_fair_w(p: int) -> float:
+	return float(seats[p]) / float(maxi(1, cn_seats())) * float(cn_w_total())
+
+
+# раздать министерства по весу мест: каждая партия берёт сначала профильные, потом любые свободные
+func cn_auto_mins() -> void:
+	cn_ensure()
+	var mins := {}
+	for m in MINISTRIES.size():
+		mins[m] = 0
+	cn_draft["mins"] = mins
+	var order: Array = []
+	for p in cn_parties():
+		order.append([seats[p], p])
+	order.sort_custom(func(a, b) -> bool: return int(a[0]) > int(b[0]))
+	for o in order:
+		var p: int = int(o[1])
+		var fair := cn_fair_w(p)
+		for m in (PARTY_MINISTRIES[p] as Array):
+			if float(cn_got_w(p)) + float(cn_min_w(m)) * 0.5 > fair:
+				break
+			if int(mins[m]) == 0 and m != 0:
+				mins[m] = p
+		for m in MINISTRIES.size():
+			if float(cn_got_w(p)) + float(cn_min_w(m)) * 0.5 > fair:
+				break
+			if int(mins[m]) == 0 and m != 0:
+				mins[m] = p
+	cn_ans.clear()
+
+
+func cn_toggle_party(p: int) -> void:
+	cn_ensure()
+	var parties: Array = cn_parties()
+	if p in parties:
+		parties.erase(p)
+		var mins: Dictionary = cn_draft["mins"]
+		for m in mins:
+			if int(mins[m]) == p:
+				mins[m] = 0
+		if int(cn_draft["pm"]) == p:
+			cn_draft["pm"] = 0
+		(cn_draft["laws"] as Array).erase(p)
+		(cn_draft["budget"] as Array).erase(p)
+	elif cn_can_talk(p):
+		parties.append(p)
+		if int(cn_draft["tol"]) == p:
+			cn_draft["tol"] = -1
+		# новичку — профильные свободные министерства до его доли
+		var mins: Dictionary = cn_draft["mins"]
+		var fair := cn_fair_w(p)
+		for m in (PARTY_MINISTRIES[p] as Array):
+			if float(cn_got_w(p)) + float(cn_min_w(m)) * 0.5 > fair:
+				break
+			if int(mins[m]) == 0 and m != 0:
+				mins[m] = p
+		if cn_got_w(p) == 0:
+			for m in range(MINISTRIES.size() - 1, 0, -1):
+				if int(mins[m]) == 0:
+					mins[m] = p
+					break
+	cn_ans.erase(p)
+	refresh()
+
+
+func cn_set_tol(p: int) -> void:
+	cn_ensure()
+	if int(cn_draft["tol"]) == p:
+		cn_draft["tol"] = -1
+	elif cn_can_talk(p):
+		if p in cn_parties():
+			cn_toggle_party(p)
+		cn_draft["tol"] = p
+	cn_ans.erase(p)
+	refresh()
+
+
+func cn_set_pm(p: int) -> void:
+	cn_ensure()
+	if p == 0 or p in cn_parties():
+		cn_draft["pm"] = p
+		cn_ans.clear()
+	refresh()
+
+
+func cn_set_min(m: int, p: int) -> void:
+	cn_ensure()
+	if p == 0 or p in cn_parties():
+		(cn_draft["mins"] as Dictionary)[m] = p
+		cn_ans.clear()
+	refresh()
+
+
+func cn_toggle_list(key: String, p: int) -> void:
+	cn_ensure()
+	var a: Array = cn_draft[key]
+	if p in a:
+		a.erase(p)
+	else:
+		a.append(p)
+	cn_ans.erase(p)
+	refresh()
+
+
+func cn_law_open(p: int) -> bool:
+	if law_demand_of(p).is_empty() or law_demand_met(p):
+		return false
+	for c in commitments:
+		if int(c["p"]) == p:
+			return false
+	return true
+
+
+func cn_bud_open(p: int) -> bool:
+	for d in PARTY_DEMANDS[p]:
+		if not demand_met(d):
+			return true
+	return false
+
+
+# как избиратели партии p смотрят на такой союз (0–100): средние отношения с остальными участниками
+func cn_voters(p: int) -> float:
+	var parts: Array = [0] + cn_parties()
+	var tol: int = int(cn_draft.get("tol", -1))
+	if tol > 0 and not tol in parts:
+		parts.append(tol)
+	var s := 0.0
+	var n := 0
+	for q in parts:
+		if q == p:
+			continue
+		s += rel(p, q)
+		n += 1
+	var v: float = s / float(n) if n > 0 else 60.0
+	if p > 0:
+		v = 0.75 * v + 0.25 * party_attitude(p)
+	return clampf(v, 0.0, 100.0)
+
+
+# согласие партии p с проектом: [итог, [[строка, вклад], ...]]
+func cn_score(p: int) -> Array:
+	var rows: Array = []
+	var member: bool = in_coalition[p]
+	if member:
+		rows.append(["Довольство в нынешней коалиции", COALITION_JOIN + (float(satis.get(p, 55.0)) - 55.0) * 0.5])
+	else:
+		rows.append(["Готовность: избиратели, лидер, отношения с вами", willingness(p, false)])
+	var tol_role: bool = int(cn_draft.get("tol", -1)) == p
+	if tol_role:
+		rows.append(["Только поддержка извне, без министерств", 6.0])
+	else:
+		var got := cn_got_w(p)
+		var fair := cn_fair_w(p)
+		rows.append(["Министерства: вес %d из положенных %.1f" % [got, fair], clampf((float(got) - fair) * 3.5, -20.0, 20.0)])
+		var pref := 0
+		var mins: Dictionary = cn_draft.get("mins", {})
+		for m in (PARTY_MINISTRIES[p] as Array):
+			if int(mins.get(m, 0)) == p:
+				pref += 1
+		if pref > 0:
+			rows.append(["Профильные министерства: %d" % pref, 3.0 * float(pref)])
+		if got == 0:
+			rows.append(["Ни одного министерства", -12.0])
+		var pm: int = int(cn_draft.get("pm", 0))
+		if pm == p:
+			rows.append(["Пост главы правительства", 14.0])
+		elif seats[p] > (seats[pm] if pm >= 0 else 0):
+			rows.append(["Главой правительства станет партия меньше неё", -10.0])
+	if p in (cn_draft.get("laws", []) as Array) and cn_law_open(p):
+		rows.append(["В программе её закон-условие", 8.0])
+	if p in (cn_draft.get("budget", []) as Array) and cn_bud_open(p):
+		rows.append(["В программе её бюджетные требования", 7.0])
+	for q in cn_parties():
+		if q == p:
+			continue
+		var r := rel(p, q)
+		if r < 30.0:
+			rows.append(["Не хочет в одно правительство с «%s»" % party_abbr(q), -(30.0 - r) * 0.4])
+	var vv := cn_voters(p)
+	rows.append(["Избиратели партии о таком союзе (%.0f)" % vv, (vv - 50.0) * 0.15])
+	var used: int = CN_PAT - int(cn_pat.get(p, CN_PAT))
+	if used > 0:
+		rows.append(["Затянутые переговоры", -1.5 * float(used)])
+	var tot := 0.0
+	for r in rows:
+		tot += float(r[1])
+	return [tot, rows]
+
+
+# 2 — согласна, 1 — согласна за уступки (капитал), 0 — отказ
+func cn_verdict(p: int) -> int:
+	var s: float = float(cn_score(p)[0])
+	if s >= COALITION_JOIN:
+		return 2
+	if s >= COALITION_JOIN_PAID:
+		return 1
+	return 0
+
+
+func cn_against() -> int:
+	var tol: int = int(cn_draft.get("tol", -1))
+	var a := 0
+	for q in range(1, PARTY_NAMES.size()):
+		if q == tol or q in cn_parties():
+			continue
+		if not tolerates(q):
+			a += seats[q]
+	return a
+
+
+# почему проект нельзя предложить ("" — можно)
+func cn_block() -> String:
+	var w := cn_why()
+	if w != "":
+		return w
+	var s := cn_seats()
+	var tol: int = int(cn_draft.get("tol", -1))
+	if s < MAJORITY and tol < 0:
+		return "у проекта %d мест, а для большинства нужно %d: добавьте партнёров или договоритесь о поддержке извне" % [s, MAJORITY]
+	if s < MAJORITY and cn_against() >= MAJORITY:
+		return "даже с поддержкой «%s» у противников правительства большинство (%d из %d)" % [PARTY_NAMES[tol], cn_against(), SEATS]
+	return ""
+
+
+func cn_cost() -> float:
+	var c := 0.0
+	var who: Array = cn_parties().duplicate()
+	if int(cn_draft.get("tol", -1)) > 0:
+		who.append(int(cn_draft["tol"]))
+	for p in who:
+		if cn_verdict(p) == 1:
+			c += CN_PAY
+	return c
+
+
+func cn_neg_reasons(p: int) -> String:
+	var rows: Array = (cn_score(p)[1] as Array).duplicate()
+	rows.sort_custom(func(a, b) -> bool: return float(a[1]) < float(b[1]))
+	var out: PackedStringArray = []
+	for r in rows:
+		if float(r[1]) < -0.5 and out.size() < 2:
+			out.append(String(r[0]).to_lower())
+	return ", ".join(out) if out.size() > 0 else "слишком мало получает"
+
+
+func cn_propose() -> void:
+	cn_ensure()
+	var why := cn_block()
+	if why != "":
+		log_line("[color=%s]Соглашение нельзя предложить: %s.[/color]" % [COL_WARN, why])
+		refresh()
+		return
+	cn_round += 1
+	var who: Array = cn_parties().duplicate()
+	var tol: int = int(cn_draft.get("tol", -1))
+	if tol > 0:
+		who.append(tol)
+	var no: PackedStringArray = []
+	for p in who:
+		var v := cn_verdict(p)
+		if v == 0:
+			cn_pat[p] = int(cn_pat.get(p, CN_PAT)) - 1
+			if int(cn_pat[p]) <= 0:
+				cn_out[p] = turn
+				cn_pat[p] = CN_PAT
+				if p == tol:
+					cn_draft["tol"] = -1
+				else:
+					cn_toggle_party(p)
+				cn_ans[p] = "Ушла из переговоров до следующего месяца: %s." % cn_neg_reasons(p)
+				no.append("«%s» ушла из переговоров" % party_abbr(p))
+			else:
+				cn_ans[p] = "Отказ: %s. Терпения ещё на %d раунд(а)." % [cn_neg_reasons(p), int(cn_pat[p])]
+				no.append("«%s» против" % party_abbr(p))
+		elif v == 1:
+			cn_ans[p] = "Согласна, если вы уступите (политкапитал −%.0f)." % CN_PAY
+		else:
+			cn_ans[p] = "Согласна."
+	if no.size() > 0:
+		log_tag("ПЕРЕГОВОРЫ", COL_WARN, "раунд %d: соглашение не принято (%s)." % [cn_round, ", ".join(no)])
+		sfx("bad")
+		refresh()
+		return
+	var cost := cn_cost()
+	if cost > 0.0 and cap_spendable() < cost:
+		log_line("[color=%s]Партнёры согласны за уступки, но на них нужно %.0f политкапитала, а доступно %.0f.[/color]" % [COL_WARN, cost, cap_spendable()])
+		refresh()
+		return
+	capital -= cost
+	cn_sign(cost)
+
+
+func cn_sign(cost: float) -> void:
+	var parties: Array = cn_parties().duplicate()
+	var tol: int = int(cn_draft.get("tol", -1))
+	var left: PackedStringArray = []
+	for p in range(1, PARTY_NAMES.size()):
+		if in_coalition[p] and not p in parties:
+			remove_member(p)
+			rel_add(0, p, -6.0)
+			left.append(PARTY_NAMES[p])
+	for p in parties:
+		if not in_coalition[p]:
+			add_member(p)
+		extra_mins.erase(p)
+	var mins: Dictionary = cn_draft["mins"]
+	for m in MINISTRIES.size():
+		var h: int = int(mins.get(m, 0))
+		ministries[m] = h if (h == 0 or h in parties) else 0
+	sync_ministers()
+	var prog: PackedStringArray = []
+	for p in (cn_draft["laws"] as Array):
+		if p in parties or p == tol:
+			if cn_law_open(p):
+				add_commitment(p)
+				prog.append("закон «%s»" % party_abbr(p))
+	for p in (cn_draft["budget"] as Array):
+		if p in parties or p == tol:
+			var t := fulfill_demands(p)
+			if t != "":
+				prog.append("бюджет «%s»: %s" % [party_abbr(p), t])
+	if tol > 0:
+		if not pacts.has(tol):
+			pacts[tol] = {}
+		pacts[tol]["tol"] = parl_term() - (turn - last_parl)
+		prel[tol] = clampf(float(prel[tol]) + 5.0, 0.0, 100.0)
+	minority_gov = cn_seats() < MAJORITY
+	for p in parties:
+		conc[p] = float(conc.get(p, 0.0)) + 6.0
+	var v0 := cn_voters(0)
+	add_all_support(clampf((v0 - 50.0) * 0.04, -1.5, 1.0))
+	coal_deal = {"turn": turn, "pm": int(cn_draft["pm"]), "mins": mins.duplicate(), "parties": parties, "laws": (cn_draft["laws"] as Array).duplicate(),
+		"budget": (cn_draft["budget"] as Array).duplicate(), "tol": tol, "breach": {}, "bud_bad": {}}
+	var pm: int = int(cn_draft["pm"])
+	var names: PackedStringArray = [PARTY_NAMES[0]]
+	for p in parties:
+		names.append(PARTY_NAMES[p])
+	var t := "подписано коалиционное соглашение: %s; глава правительства — «%s», %d мест из %d" % [", ".join(names), party_abbr(pm), gov_seats(), SEATS]
+	if tol > 0:
+		t += "; поддержка извне — «%s»" % party_abbr(tol)
+	if prog.size() > 0:
+		t += ". Программа: " + "; ".join(prog)
+	if cost > 0.0:
+		t += ". Уступки стоили %.0f политкапитала" % cost
+	if left.size() > 0:
+		t += ". Покинули правительство: " + ", ".join(left)
+	if v0 < 40.0:
+		t += ". Ваши избиратели недовольны таким союзом"
+	log_tag("КОАЛИЦИЯ", COL_GOOD, t + ".")
+	sfx("good")
+	cn_draft.clear()
+	cn_ans.clear()
+	if gov_ok() or (tol > 0 and cn_against() < MAJORITY):
+		if coal_talks:
+			coal_talks_done()
+		crisis_months = 0
+		crisis_offered = false
+	recompute_mods()
+	cn_close()
+	refresh()
+
+
+# ежемесячно: терпение возвращается, соглашение проверяется на нарушения
+func cn_month() -> void:
+	for p in cn_pat.keys():
+		cn_pat[p] = mini(CN_PAT, int(cn_pat[p]) + 1)
+	if coal_deal.is_empty() or opp_mode:
+		return
+	var br: Dictionary = coal_deal["breach"]
+	var bb: Dictionary = coal_deal["bud_bad"]
+	var mins: Dictionary = coal_deal["mins"]
+	for p in (coal_deal["parties"] as Array):
+		if not in_coalition[p]:
+			continue
+		var lost := ""
+		for m in mins:
+			if int(mins[m]) == p and int(ministries[int(m)]) != p:
+				lost = String(MINISTRIES[int(m)]["name"])
+		if lost != "":
+			remove_member(p)
+			rel_add(0, p, -10.0)
+			sfx("bad")
+			log_tag("КОАЛИЦИЯ", COL_BAD, "«%s» вышла из коалиции: вы нарушили соглашение — забрали министерство «%s». Её министерства вернулись вашей партии." % [PARTY_NAMES[p], lost])
+			continue
+		if p in (coal_deal["budget"] as Array) and cn_bud_open(p):
+			bb[p] = int(bb.get(p, 0)) + 1
+			if int(bb[p]) >= 3:
+				bb[p] = -6
+				cn_breach(p, "бюджетные требования из программы не выполняются")
+		else:
+			bb[p] = mini(0, int(bb.get(p, 0)))
+
+
+func cn_breach(p: int, what: String) -> void:
+	if coal_deal.is_empty() or not in_coalition[p]:
+		return
+	var br: Dictionary = coal_deal["breach"]
+	br[p] = int(br.get(p, 0)) + 1
+	conc[p] = float(conc.get(p, 0.0)) - 10.0
+	satis[p] = clampf(float(satis.get(p, 50.0)) - 6.0, 0.0, 100.0)
+	if int(br[p]) >= 2:
+		remove_member(p)
+		rel_add(0, p, -8.0)
+		log_tag("КОАЛИЦИЯ", COL_BAD, "«%s» вышла из коалиции после повторного нарушения соглашения: %s." % [PARTY_NAMES[p], what])
+	else:
+		log_tag("КОАЛИЦИЯ", COL_WARN, "«%s» обвиняет вас в нарушении соглашения: %s. Довольство падает; при следующем нарушении партия уйдёт." % [PARTY_NAMES[p], what])
+
+
+# министерство, закреплённое соглашением за партнёром (−1 — не закреплено)
+func cn_deal_holder(m: int) -> int:
+	if coal_deal.is_empty():
+		return -1
+	var h: int = int((coal_deal["mins"] as Dictionary).get(m, 0))
+	return h if h > 0 and in_coalition[h] else -1

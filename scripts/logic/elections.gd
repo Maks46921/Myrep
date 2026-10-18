@@ -710,6 +710,10 @@ func hold_parliament_core(reason: String) -> void:
 	minority_gov = false
 	techno_until = -1
 	pm_lead = false
+	coal_deal.clear()   # 0.56: после выборов прежнее коалиционное соглашение теряет силу
+	cn_draft.clear()
+	cn_pat.clear()
+	cn_out.clear()
 	extra_mins.clear()
 	impeach_warned = false
 	warned.clear()

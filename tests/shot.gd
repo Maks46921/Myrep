@@ -39,6 +39,7 @@ func _init():
 				"meas": g.set_meas_open(true)
 				"tech": g.set_tech_open(true)
 				"crisis": g.set_crisis_open(true)
+				"coal": g.cn_open(true)
 		if String(a).begins_with("org="):
 			g.io["sel"] = String(a).substr(4)
 			g.refresh()

@@ -53,6 +53,8 @@ func set_tech_open(on: bool) -> void:
 		set_crisis_open(false)
 	if on and meas_is_open():
 		set_meas_open(false)
+	if on and cn_is_open():
+		cn_close()
 	var was: bool = tech_ov.visible
 	tech_ov.visible = on
 	if on and not was:

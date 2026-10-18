@@ -49,6 +49,9 @@ func build_gov_windows() -> void:
 		coal_rows.append({"row": row, "name": nb, "bar": bar, "val": vl})
 	var rb := make_button("Распределить министерства по квотам", w.body)
 	rb.pressed.connect(reshuffle_cabinet)
+	var nb2 := make_button("Коалиционные переговоры…", w.body)
+	nb2.tooltip_text = "Большое окно переговоров: состав, глава правительства, министерства с весами, программа, поддержка извне."
+	nb2.pressed.connect(func() -> void: cn_open(true))
 	add_note(w.body, "Нажмите на партию, чтобы открыть переговоры с ней. Полоса — довольство партнёра; отметка — порог выхода из коалиции (%.0f)." % SAT_LEAVE)
 
 	w = new_window("cabinet", "Кабинет министров", 4, Rect2(0.0, 0.42, 0.25, 0.58))
@@ -422,3 +425,427 @@ func update_commit() -> void:
 	if not any:
 		t += "[color=%s]Все требования выполнены.[/color]\n" % COL_GOOD
 	commit_rt.text = t
+
+
+# ============================================================
+#  0.56 (п.16): ОКНО «КОАЛИЦИОННЫЕ ПЕРЕГОВОРЫ»
+#  Слева — партии (места, готовность, мнение избирателей о союзе, требования), в центре — проект соглашения
+#  (глава правительства, министерства с весами, программа, тип правительства, срок), справа — ответы партий.
+# ============================================================
+var cn_ov: PanelContainer = null
+var cn_left: VBoxContainer = null
+var cn_mid: VBoxContainer = null
+var cn_right: VBoxContainer = null
+var cn_head_rt: RichTextLabel = null
+var cn_sig := ""
+
+
+func cn_is_open() -> bool:
+	return cn_ov != null and cn_ov.visible
+
+
+func cn_open(on: bool) -> void:
+	if cn_ov == null:
+		return
+	if on:
+		var why := cn_why()
+		if why != "":
+			log_line("[color=%s]Переговоры о коалиции сейчас недоступны: %s.[/color]" % [COL_WARN, why])
+			return
+		cn_ensure()
+		if tech_is_open():
+			set_tech_open(false)
+		if crisis_is_open():
+			set_crisis_open(false)
+		if meas_is_open():
+			set_meas_open(false)
+	if on != cn_ov.visible:
+		sfx("click")
+	var was: bool = cn_ov.visible
+	cn_ov.visible = on
+	if on and not was:
+		win_fade_in(cn_ov, 0.18)
+	overlay_tabs_sync()
+	if on:
+		cn_sig = ""
+		update_cn_window()
+
+
+func cn_close() -> void:
+	cn_open(false)
+
+
+# открыть само (после выборов или при распаде коалиции) и поставить игру на паузу
+func cn_auto_open() -> void:
+	if cn_ov == null or cn_why() != "":
+		return
+	set_speed(0)
+	cn_open(true)
+
+
+func cn_mk_rt(parent: Control, fs: int = 13) -> RichTextLabel:
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = true
+	rt.scroll_active = false
+	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rt.add_theme_font_size_override("normal_font_size", fs)
+	rt.add_theme_font_size_override("bold_font_size", fs)
+	parent.add_child(rt)
+	return rt
+
+
+func cn_card(parent: Control, col: Color) -> VBoxContainer:
+	var pc := PanelContainer.new()
+	var sb := sbox(C_PANEL2, col, 0, 8, 10.0, 7.0)
+	sb.border_width_left = 4
+	pc.add_theme_stylebox_override("panel", sb)
+	parent.add_child(pc)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 5)
+	pc.add_child(vb)
+	return vb
+
+
+func cn_col(parent: Control, title: String, min_w: float, expand: bool) -> VBoxContainer:
+	var outer := VBoxContainer.new()
+	outer.custom_minimum_size = Vector2(min_w, 0.0)
+	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if expand:
+		outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		outer.size_flags_stretch_ratio = 1.4
+	parent.add_child(outer)
+	var l := Label.new()
+	l.text = title
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color", C_DIM)
+	outer.add_child(l)
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer.add_child(sc)
+	var vb := VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.add_theme_constant_override("separation", 8)
+	sc.add_child(vb)
+	return vb
+
+
+func build_cn_overlay() -> void:
+	cn_ov = PanelContainer.new()
+	cn_ov.add_theme_stylebox_override("panel", sbox(Color(C_BG, 0.985), C_ACCENT.darkened(0.25), 2, 12, 14.0, 10.0))
+	cn_ov.visible = false
+	add_child(cn_ov)
+	cn_ov.anchor_right = 1.0
+	cn_ov.anchor_bottom = 1.0
+	cn_ov.offset_left = 8.0
+	cn_ov.offset_top = 62.0
+	cn_ov.offset_right = -8.0
+	cn_ov.offset_bottom = -8.0
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	cn_ov.add_child(root)
+	var hd := HBoxContainer.new()
+	hd.add_theme_constant_override("separation", 10)
+	root.add_child(hd)
+	var ttl := Label.new()
+	ttl.text = "Коалиционные переговоры"
+	ttl.add_theme_font_size_override("font_size", 22)
+	hd.add_child(ttl)
+	cn_head_rt = cn_mk_rt(hd, 14)
+	cn_head_rt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var cb := Button.new()
+	cb.text = "✕"
+	cb.focus_mode = Control.FOCUS_NONE
+	cb.tooltip_text = "Закрыть окно переговоров (проект сохранится до конца месяца)"
+	cb.pressed.connect(cn_close)
+	hd.add_child(cb)
+	var cols := HBoxContainer.new()
+	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cols.add_theme_constant_override("separation", 14)
+	root.add_child(cols)
+	cn_left = cn_col(cols, "Партии", 330.0, false)
+	cn_mid = cn_col(cols, "Проект соглашения", 420.0, true)
+	cn_right = cn_col(cols, "Ответы партий", 340.0, false)
+
+
+func cn_clear(box: Control) -> void:
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+
+
+func cn_pc(p: int) -> Color:
+	return (PARTY_COLORS[p] as Color)
+
+
+func cn_pname(p: int) -> String:
+	return "[color=#%s]%s[/color]" % [cn_pc(p).lightened(0.3).to_html(false), PARTY_NAMES[p]]
+
+
+func cn_verdict_text(p: int) -> String:
+	match cn_verdict(p):
+		2:
+			return "[color=%s]согласится[/color]" % COL_GOOD
+		1:
+			return "[color=%s]согласится за уступки (капитал −%.0f)[/color]" % [COL_WARN, CN_PAY]
+	return "[color=%s]откажет[/color]" % COL_BAD
+
+
+func update_cn_window() -> void:
+	if not cn_is_open():
+		return
+	if cn_why() != "":
+		cn_close()
+		return
+	cn_ensure()
+	var sig := "%s|%s|%s|%s|%d|%d|%d" % [str(cn_draft), str(cn_ans), str(cn_pat), str(cn_out), int(capital), turn, crisis_months]
+	if sig == cn_sig:
+		return
+	cn_sig = sig
+	var s := cn_seats()
+	var hcol: String = COL_GOOD if s >= MAJORITY else COL_WARN
+	var h := "Раунд %d · у проекта [b][color=%s]%d[/color][/b] мест из %d, большинство — %d" % [cn_round + 1, hcol, s, SEATS, MAJORITY]
+	if coal_talks or crisis_months > 0:
+		h += " · [color=%s]срок: ещё %d мес., потом — кризис и новые выборы[/color]" % [COL_WARN, maxi(1, crisis_limit() - crisis_months + 1)]
+	cn_head_rt.text = h
+	cn_build_left()
+	cn_build_mid()
+	cn_build_right()
+
+
+func cn_build_left() -> void:
+	cn_clear(cn_left)
+	var sh := national_shares(false)
+	var me := cn_card(cn_left, cn_pc(0))
+	cn_mk_rt(me).text = "[b]%s[/b] — ваша партия\nМест: [b]%d[/b] · рейтинг %.1f%%\nВаши избиратели о таком союзе: [b]%.0f[/b] из 100" % [cn_pname(0), seats[0], float(sh[0]) * 100.0 if sh.size() > 0 else 0.0, cn_voters(0)]
+	var order: Array = []
+	for p in range(1, PARTY_NAMES.size()):
+		if seats[p] > 0 and can_govern(p):
+			order.append([seats[p], p])
+	order.sort_custom(func(a, b) -> bool: return int(a[0]) > int(b[0]))
+	for o in order:
+		var p: int = int(o[1])
+		var inp: bool = p in cn_parties()
+		var tolp: bool = int(cn_draft.get("tol", -1)) == p
+		var vb := cn_card(cn_left, cn_pc(p))
+		var t := "[b]%s[/b]%s\nМест: [b]%d[/b] · рейтинг %.1f%%" % [cn_pname(p), "  [color=%s]· в проекте[/color]" % COL_GOOD if inp else ("  [color=%s]· поддержка извне[/color]" % COL_TEAL if tolp else ""), seats[p], float(sh[p]) * 100.0 if sh.size() > p else 0.0]
+		if inp or tolp:
+			t += "\nОценка проекта: [b]%.0f[/b] из %.0f — %s" % [float(cn_score(p)[0]), COALITION_JOIN, cn_verdict_text(p)]
+		else:
+			var w := willingness(p, false)
+			t += "\nГотовность к союзу: [b][color=#%s]%.0f[/color][/b] (нужно %.0f)" % [scale_color(clampf((w - 30.0) / 30.0, 0.0, 1.0)).to_html(false), w, COALITION_JOIN]
+		t += "\nИзбиратели о союзе с вами: %.0f" % clampf(0.75 * rel(p, 0) + 0.25 * party_attitude(p), 0.0, 100.0)
+		var pm: PackedStringArray = []
+		for mi in (PARTY_MINISTRIES[p] as Array):
+			pm.append(String(MINISTRIES[mi]["name"]))
+		t += "\n[color=%s]Хочет: %s[/color]" % [COL_DIM, ", ".join(pm) if pm.size() > 0 else "любые министерства"]
+		if cn_law_open(p):
+			t += "\n[color=%s]Закон-условие: %s[/color]" % [COL_DIM, law_demand_text(p)]
+		var nb := 0
+		for d in PARTY_DEMANDS[p]:
+			if not demand_met(d):
+				nb += 1
+		if nb > 0:
+			t += "\n[color=%s]Бюджетных требований не выполнено: %d[/color]" % [COL_DIM, nb]
+		if is_cordon(p):
+			t += "\n[color=%s]Вокруг партии «санитарный кордон»[/color]" % COL_WARN
+		var pat: int = int(cn_pat.get(p, CN_PAT))
+		t += "\nТерпение: %s" % ("●".repeat(pat) + "○".repeat(maxi(0, CN_PAT - pat)))
+		var out: bool = not cn_can_talk(p)
+		if out:
+			t += "\n[color=%s]Ушла из переговоров до следующего месяца[/color]" % COL_BAD
+		cn_mk_rt(vb).text = t
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 6)
+		vb.add_child(hb)
+		var b1 := Button.new()
+		b1.theme_type_variation = "SmallButton"
+		b1.focus_mode = Control.FOCUS_NONE
+		b1.text = "Убрать из проекта" if inp else "В коалицию"
+		b1.disabled = out and not inp
+		b1.tooltip_text = "Партия войдёт в правительство и получит министерства." if not inp else "Партия не войдёт в правительство (если она сейчас в коалиции — выйдет после подписания)."
+		b1.pressed.connect(cn_toggle_party.bind(p))
+		hb.add_child(b1)
+		var b2 := Button.new()
+		b2.theme_type_variation = "SmallButton"
+		b2.focus_mode = Control.FOCUS_NONE
+		b2.toggle_mode = true
+		b2.set_pressed_no_signal(tolp)
+		b2.text = "Поддержка извне"
+		b2.disabled = out and not tolp
+		b2.tooltip_text = "Правительство меньшинства: партия не входит в кабинет, но обещает не голосовать за вотум недоверия до следующих выборов. Министерств не требует."
+		b2.pressed.connect(cn_set_tol.bind(p))
+		hb.add_child(b2)
+
+
+func cn_opt(parent: Control, cur: int, cb: Callable) -> OptionButton:
+	var ob := OptionButton.new()
+	ob.focus_mode = Control.FOCUS_NONE
+	ob.fit_to_longest_item = false
+	ob.clip_text = true
+	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var holders: Array = [0] + cn_parties()
+	for q in holders:
+		ob.add_item(party_abbr(q), q)
+	ob.select(maxi(0, ob.get_item_index(cur)))
+	ob.item_selected.connect(func(i: int) -> void: cb.call(ob.get_item_id(i)))
+	parent.add_child(ob)
+	return ob
+
+
+func cn_build_mid() -> void:
+	cn_clear(cn_mid)
+	var s := cn_seats()
+	var tol: int = int(cn_draft.get("tol", -1))
+	var kind := ""
+	if cn_parties().is_empty() and tol < 0:
+		kind = "Однопартийное правительство"
+	elif s >= MAJORITY:
+		kind = "Коалиция большинства"
+	else:
+		kind = "Правительство меньшинства"
+	if tol > 0:
+		kind += " с поддержкой извне: %s" % cn_pname(tol)
+	var top := cn_card(cn_mid, C_ACCENT)
+	var t := "[b][font_size=16]%s[/font_size][/b]\n" % kind
+	t += "Состав: %s" % ", ".join(PackedStringArray([cn_pname(0)] + cn_parties().map(func(q: int) -> String: return cn_pname(q))))
+	t += "\nМест: [b]%d[/b] из %d (нужно %d)" % [s, SEATS, MAJORITY]
+	if s < MAJORITY and tol > 0:
+		t += " · против правительства без поддержки: %d" % cn_against()
+	cn_mk_rt(top).text = t
+	var bar := StatBar.new()
+	bar.custom_minimum_size = Vector2(0.0, 12.0)
+	bar.marker = float(MAJORITY) / float(SEATS) * 100.0
+	top.add_child(bar)
+	bar.set_state(float(s) / float(SEATS) * 100.0, 1.0 if s >= MAJORITY else 0.3)
+	# глава правительства
+	var pmc := cn_card(cn_mid, C_BORDER)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 8)
+	pmc.add_child(hb)
+	var l := Label.new()
+	l.text = "Глава правительства"
+	l.custom_minimum_size = Vector2(200.0, 0.0)
+	hb.add_child(l)
+	cn_opt(hb, int(cn_draft.get("pm", 0)), cn_set_pm)
+	if int(cn_draft.get("pm", 0)) != 0:
+		cn_mk_rt(pmc, 12).text = "[color=%s]Пост отдаётся партнёру: вы станете младшим партнёром — меньше влияния на решения кабинета.[/color]" % COL_WARN
+	# министерства
+	var mc := cn_card(cn_mid, C_BORDER)
+	var mh := HBoxContainer.new()
+	mc.add_child(mh)
+	var ml := Label.new()
+	ml.text = "Министерства (★ — вес)"
+	ml.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mh.add_child(ml)
+	var ab := Button.new()
+	ab.theme_type_variation = "SmallButton"
+	ab.focus_mode = Control.FOCUS_NONE
+	ab.text = "Распределить по весу мест"
+	ab.tooltip_text = "Каждая партия получает министерства пропорционально местам: сначала профильные, потом остальные."
+	ab.pressed.connect(func() -> void:
+		cn_auto_mins()
+		refresh())
+	mh.add_child(ab)
+	var gr := GridContainer.new()
+	gr.columns = 2
+	gr.add_theme_constant_override("h_separation", 8)
+	gr.add_theme_constant_override("v_separation", 4)
+	mc.add_child(gr)
+	var mins: Dictionary = cn_draft.get("mins", {})
+	for m in MINISTRIES.size():
+		var nl := Label.new()
+		nl.text = "%s %s" % ["★".repeat(cn_min_w(m)), MINISTRIES[m]["name"]]
+		nl.custom_minimum_size = Vector2(240.0, 0.0)
+		nl.add_theme_font_size_override("font_size", 13)
+		gr.add_child(nl)
+		cn_opt(gr, int(mins.get(m, 0)), func(q: int) -> void: cn_set_min(m, q))
+	var wl := PackedStringArray()
+	for q in [0] + cn_parties():
+		wl.append("%s %d из %.1f" % [party_abbr(q), cn_got_w(q), cn_fair_w(q)])
+	cn_mk_rt(mc, 12).text = "[color=%s]Вес у партий (получено из положенного по местам): %s[/color]" % [COL_DIM, " · ".join(wl)]
+	# программа
+	var who: Array = cn_parties().duplicate()
+	if tol > 0:
+		who.append(tol)
+	var any := false
+	var pc := cn_card(cn_mid, C_BORDER)
+	var pl := Label.new()
+	pl.text = "Программа правительства"
+	pc.add_child(pl)
+	for p in who:
+		if cn_law_open(p):
+			any = true
+			var ck := CheckBox.new()
+			ck.focus_mode = Control.FOCUS_NONE
+			ck.text = "%s: принять закон %s за 18 мес." % [party_abbr(p), law_demand_text(p)]
+			if "autowrap_mode" in ck:
+				ck.set("autowrap_mode", TextServer.AUTOWRAP_WORD_SMART)
+			ck.set_pressed_no_signal(p in (cn_draft["laws"] as Array))
+			ck.toggled.connect(func(_on: bool) -> void: cn_toggle_list("laws", p))
+			pc.add_child(ck)
+		if cn_bud_open(p):
+			any = true
+			var ds: PackedStringArray = []
+			for d in PARTY_DEMANDS[p]:
+				if not demand_met(d):
+					ds.append(String(d["text"]))
+			var ck2 := CheckBox.new()
+			ck2.focus_mode = Control.FOCUS_NONE
+			ck2.text = "%s: бюджет — %s" % [party_abbr(p), "; ".join(ds)]
+			if "autowrap_mode" in ck2:
+				ck2.set("autowrap_mode", TextServer.AUTOWRAP_WORD_SMART)
+			ck2.set_pressed_no_signal(p in (cn_draft["budget"] as Array))
+			ck2.toggled.connect(func(_on: bool) -> void: cn_toggle_list("budget", p))
+			pc.add_child(ck2)
+	if not any:
+		cn_mk_rt(pc, 12).text = "[color=%s]Добавьте партнёров: здесь появятся их законы-условия и бюджетные требования.[/color]" % COL_DIM
+	cn_mk_rt(cn_mid, 12).text = "[color=%s]Нарушение соглашения злит партнёра: невыполненная программа — минус довольство, второе нарушение — выход. Отобранное министерство — партнёр уходит сразу.[/color]" % COL_DIM
+
+
+func cn_build_right() -> void:
+	cn_clear(cn_right)
+	var who: Array = cn_parties().duplicate()
+	var tol: int = int(cn_draft.get("tol", -1))
+	if tol > 0:
+		who.append(tol)
+	if who.is_empty():
+		cn_mk_rt(cn_right).text = "[color=%s]В проекте пока нет партнёров.%s[/color]" % [COL_DIM, " У вашей партии своё большинство — можно править одной." if seats[0] >= MAJORITY else " Добавьте партии слева."]
+	for p in who:
+		var sc: Array = cn_score(p)
+		var vb := cn_card(cn_right, cn_pc(p))
+		var t := "[b]%s[/b]\nОценка: [b]%.0f[/b] из %.0f — %s\n[table=2]" % [cn_pname(p), float(sc[0]), COALITION_JOIN, cn_verdict_text(p)]
+		for r in (sc[1] as Array):
+			var v: float = float(r[1])
+			t += "[cell][color=%s]%s  [/color][/cell][cell][color=%s]%s[/color][/cell]" % [COL_DIM, r[0], COL_GOOD if v >= 0.0 else COL_BAD, sg(v, 0) if absf(v) >= 0.5 else "0"]
+		t += "[/table]"
+		if cn_ans.has(p):
+			t += "\n[i]%s[/i]" % String(cn_ans[p])
+		cn_mk_rt(vb, 12).text = t
+	var blk := cn_block()
+	var cost := cn_cost()
+	var bot := cn_card(cn_right, C_ACCENT)
+	var bt := ""
+	if blk != "":
+		bt = "[color=%s]Сейчас нельзя: %s.[/color]" % [COL_WARN, blk]
+	else:
+		bt = "Уступки при подписании: [b]%s[/b] политкапитала (доступно %.0f)." % ["−%.0f" % cost if cost > 0.0 else "0", minf(cap_spendable(), capital)]
+	cn_mk_rt(bot).text = bt
+	var pb := Button.new()
+	pb.text = "Предложить соглашение"
+	pb.focus_mode = Control.FOCUS_NONE
+	pb.custom_minimum_size = Vector2(0.0, 38.0)
+	pb.disabled = blk != ""
+	pb.tooltip_text = "Партии ответят на проект. Все согласны — соглашение подписано. Кто-то против — его терпение уменьшается; раундов сколько угодно."
+	pb.pressed.connect(cn_propose)
+	bot.add_child(pb)
+	var rb := Button.new()
+	rb.theme_type_variation = "SmallButton"
+	rb.text = "Начать проект заново"
+	rb.focus_mode = Control.FOCUS_NONE
+	rb.pressed.connect(func() -> void:
+		cn_new_draft()
+		refresh())
+	bot.add_child(rb)
