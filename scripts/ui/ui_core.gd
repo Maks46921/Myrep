@@ -1768,9 +1768,14 @@ func tip_on_added(n: Node) -> void:
 	var extra: float = float(TIP_DELAYS[clampi(int(game_opts.get("tip_delay", 1)), 0, TIP_DELAYS.size() - 1)]) - TIP_DELAYS[0]
 	if extra > 0.01:
 		pan.call_deferred("hide")
-		get_tree().create_timer(extra).timeout.connect(func() -> void:
-			if is_instance_valid(pan) and pan.is_inside_tree():
-				pan.show())
+		# метод с id, а не лямбда: подсказка может исчезнуть раньше таймера
+		get_tree().create_timer(extra).timeout.connect(tip_show_later.bind(pan.get_instance_id()))
+
+
+func tip_show_later(id: int) -> void:
+	var pan := instance_from_id(id) as PopupPanel
+	if pan != null and pan.is_inside_tree():
+		pan.show()
 
 
 # ============================================================

@@ -18,12 +18,71 @@ var bld_cancel_btn: Button = null       # 0.56: выбранный тип ост
 
 
 func build_build_window() -> void:
-	var w: FloatWindow = new_window("build", "Строительство", 2, Rect2(0.25, 0.0, 0.21, 0.70))
+	var w: FloatWindow = new_window("build", "Строительство", 2, Rect2(0.25, 0.0, 0.45, 0.78))
 	bld_hint = add_note(w.body, "", true)
 	bld_cancel_btn = make_button("Отмена (Esc, правый щелчок)", w.body)
-	bld_cancel_btn.tooltip_text = "Снять выбор сооружения. Пока оно выбрано, каждый щелчок по своей АТЕ начинает новую стройку."
+	bld_cancel_btn.tooltip_text = "Снять выбор сооружения. Пока оно выбрано, каждый щелчок по своей АТЕ ставит новую стройку в очередь."
 	bld_cancel_btn.pressed.connect(bld_cancel)
 	bld_cancel_btn.visible = false
+	# 0.56: бюджет «Строительство» и мощность отрасли
+	var bh := HBoxContainer.new()
+	bh.add_theme_constant_override("separation", 6)
+	w.body.add_child(bh)
+	bld_sum_rt = make_rt(bh)
+	for d in [-1, 1]:
+		var b := Button.new()
+		b.text = "−" if d < 0 else "+"
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(32.0, 0.0)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		b.tooltip_text = "Линия бюджета «Строительство»: ±0,1%% ВВП (с Shift — ±1%%). Изменение идёт через план бюджета."
+		var dd: int = d
+		b.pressed.connect(func() -> void:
+			if pl_deny():
+				return
+			bld_set(bld_budget_ok() if bld_budget0 < 0.0 else bld_budget)
+			bld_set(bld_budget + float(dd) * (1.0 if Input.is_key_pressed(KEY_SHIFT) else 0.1))
+			refresh())
+		bh.add_child(b)
+	# две колонки: государство и частные инвесторы
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 10)
+	w.body.add_child(cols)
+	var lc := VBoxContainer.new()
+	lc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lc.add_theme_constant_override("separation", 4)
+	cols.add_child(lc)
+	var rc := VBoxContainer.new()
+	rc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rc.add_theme_constant_override("separation", 4)
+	cols.add_child(rc)
+	add_title(lc, "Государство строит")
+	bld_state_box = VBoxContainer.new()
+	bld_state_box.add_theme_constant_override("separation", 4)
+	lc.add_child(bld_state_box)
+	bld_auto_btn = make_button("", lc)
+	bld_auto_btn.toggle_mode = true
+	bld_auto_btn.tooltip_text = "Министерства сами составляют план строек на год (рынки с нехваткой мощностей, отстающие регионы) и ставят их в очередь, когда в бюджете «Строительство» есть свободные деньги. Лишние пункты плана можно вычеркнуть."
+	bld_auto_btn.toggled.connect(func(on: bool) -> void:
+		if pl_deny():
+			bld_auto_btn.set_pressed_no_signal(not on)
+			return
+		ap["build"] = on
+		if on:
+			bld_plan_make()
+		refresh())
+	bld_plan_box = VBoxContainer.new()
+	bld_plan_box.add_theme_constant_override("separation", 2)
+	lc.add_child(bld_plan_box)
+	add_title(rc, "Частные инвесторы")
+	bld_priv_box = VBoxContainer.new()
+	bld_priv_box.add_theme_constant_override("separation", 4)
+	rc.add_child(bld_priv_box)
+	add_title(rc, "Выгодно строить")
+	bld_prof_box = VBoxContainer.new()
+	bld_prof_box.add_theme_constant_override("separation", 2)
+	rc.add_child(bld_prof_box)
+	add_title(w.body, "Новая стройка")
 	var grp := ButtonGroup.new()
 	grp.allow_unpress = true
 	for ci in PROJ_CATS.size():
@@ -63,15 +122,240 @@ func build_build_window() -> void:
 			fl.add_child(b)
 			bld_btns[pid] = b
 	bld_info_rt = make_rt(w.body)
-	add_title(w.body, "Идёт стройка")
-	bld_list_rt = make_rt(w.body)
+	# 0.56: перенесено сюда — научные сооружения (из «Технологий»), порты (из «Флота»), сооружения страны (из «Экономики»)
+	add_title(w.body, "Наука")
+	bld_sci_rt = make_rt(w.body)
+	bld_sci_box = HFlowContainer.new()
+	bld_sci_box.add_theme_constant_override("h_separation", 4)
+	bld_sci_box.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(bld_sci_box)
+	bld_port_title = add_title(w.body, "Порты")
+	bld_port_box = VBoxContainer.new()
+	w.body.add_child(bld_port_box)
+	add_title(w.body, "Сооружения страны")
+	bld_st_rt = make_rt(w.body)
+	bld_rep_btn = make_button("Отремонтировать всё", w.body)
+	bld_rep_btn.pressed.connect(repair_all)
 	add_title(w.body, "Сооружения выбранного региона")
 	bld_reg_rt = make_rt(w.body)
 	bld_reg_rt.meta_clicked.connect(on_bld_meta)
 	add_title(w.body, "Мегапроект страны")
 	bld_mega_rt = make_rt(w.body)
-	add_title(w.body, "Стройка корпораций и других стран")
+	add_title(w.body, "Стройка других стран")
 	bld_corp_rt = make_rt(w.body)
+
+
+var bld_sum_rt: RichTextLabel = null
+var bld_state_box: VBoxContainer = null
+var bld_priv_box: VBoxContainer = null
+var bld_prof_box: VBoxContainer = null
+var bld_plan_box: VBoxContainer = null
+var bld_auto_btn: Button = null
+var bld_sci_rt: RichTextLabel = null
+var bld_sci_box: HFlowContainer = null
+var bld_port_title: Control = null
+var bld_port_box: VBoxContainer = null
+var bld_st_rt: RichTextLabel = null
+var bld_sig := ""
+var bld_rep_btn: Button = null
+
+
+# открыть окно строительства (из карточки региона, «Технологий», «Флота», «Экономики»)
+func bld_open() -> void:
+	if not wins.has("build"):
+		return
+	var fw: FloatWindow = wins["build"]
+	fw.closed = false
+	if tech_is_open():
+		set_tech_open(false)
+	if current_desk != 2:
+		show_desk(2)
+	else:
+		show_desk(current_desk)
+	fw.move_to_front()
+
+
+func bld_clear(box: Control) -> void:
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+
+
+func bld_bar(parent: Control, frac: float, col: Color) -> void:
+	var pb := ProgressBar.new()
+	pb.min_value = 0.0
+	pb.max_value = 1.0
+	pb.value = clampf(frac, 0.0, 1.0)
+	pb.show_percentage = false
+	pb.custom_minimum_size = Vector2(0.0, 8.0)
+	var fg := sbox(col, Color(0, 0, 0, 0), 0, 3, 0.0, 0.0)
+	var bg := sbox(C_PANEL2.darkened(0.2), Color(0, 0, 0, 0), 0, 3, 0.0, 0.0)
+	pb.add_theme_stylebox_override("fill", fg)
+	pb.add_theme_stylebox_override("background", bg)
+	parent.add_child(pb)
+
+
+func bld_sbtn(parent: Control, txt: String, tip: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.theme_type_variation = "SmallButton"
+	b.focus_mode = Control.FOCUS_NONE
+	b.text = txt
+	b.tooltip_text = tip
+	b.pressed.connect(cb)
+	parent.add_child(b)
+	return b
+
+
+func bld_row_card(parent: Control, col: Color) -> VBoxContainer:
+	var pc := PanelContainer.new()
+	var sb := sbox(C_PANEL2, col, 0, 6, 8.0, 4.0)
+	sb.border_width_left = 3
+	pc.add_theme_stylebox_override("panel", sb)
+	parent.add_child(pc)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 2)
+	pc.add_child(vb)
+	return vb
+
+
+func bld_lbl(parent: Control, txt: String, fs: int = 12, col: Color = C_TEXT) -> Label:
+	var l := Label.new()
+	l.text = txt
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.add_theme_font_size_override("font_size", fs)
+	l.add_theme_color_override("font_color", col)
+	parent.add_child(l)
+	return l
+
+
+func update_build_queues() -> void:
+	if bld_state_box == null:
+		return
+	var a := bq_alloc(false)
+	var t := "[b]Бюджет «Строительство»:[/b] %.1f%% ВВП — %.1f млрд в год" % [bld_budget_ok(), float(a["money"]) * 12.0]
+	if bld_budget0 >= 0.0:
+		t += " [color=%s](в плане бюджета: %.1f%%)[/color]" % [COL_WARN, bld_budget]
+	t += "
+Мощность стройотрасли: [b]%.1f[/b] млрд в месяц · занято: государство %.1f, частные %.1f" % [float(a["cap"]), float(a["state"]), float(a["priv"])]
+	if float(a["state"]) < float(a["money"]) * 0.5 and not bq.is_empty():
+		t += "
+[color=%s]Стройки упираются в мощность отрасли — жилые кварталы её расширяют.[/color]" % COL_WARN
+	bld_sum_rt.text = "[font_size=13]%s[/font_size]" % t
+	var sig := "%s|%s|%s|%s|%s|%d|%d" % [str(bq), str(bq_priv), str(bld_plan), str(bld_breaks), str(ap.get("build", false)), int(capital), turn]
+	if sig == bld_sig:
+		return
+	bld_sig = sig
+	bld_clear(bld_state_box)
+	if bq.is_empty():
+		bld_lbl(bld_state_box, "Очередь пуста. Выберите сооружение ниже и щёлкните по своей АТЕ на карте.", 12, C_DIM)
+	for k in bq.size():
+		var it: Dictionary = bq[k]
+		var pd := find_by_id(PROJECTS, String(it["id"]))
+		var vb := bld_row_card(bld_state_box, C_ACCENT if not bool(it.get("auto", false)) else C_TEAL)
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 3)
+		vb.add_child(hb)
+		var eta := bq_eta(it)
+		var st := ("ещё %d мес." % eta) if eta > 0 else ("ждёт денег или мощностей" if eta < 0 else "готово")
+		bld_lbl(hb, "%d. %s%s — «%s»" % [k + 1, "улучшение: " if bool(it.get("upg", false)) else "", pd.get("name", it["id"]), REGIONS[int(it["i"])]["name"]], 12)
+		var uid: int = int(it["uid"])
+		bld_sbtn(hb, "⤒", "В начало очереди", func() -> void: bq_move(uid, -1000)).disabled = k == 0
+		bld_sbtn(hb, "▲", "Выше в очереди", func() -> void: bq_move(uid, -1)).disabled = k == 0
+		bld_sbtn(hb, "▼", "Ниже в очереди", func() -> void: bq_move(uid, 1)).disabled = k == bq.size() - 1
+		bld_sbtn(hb, "✕", "Остановить стройку: потраченное не вернётся, жители региона недовольны", func() -> void: bq_cancel(uid))
+		bld_bar(vb, float(it["done"]) / maxf(0.001, float(it["cost"])), C_GOOD if eta >= 0 else C_WARN)
+		bld_lbl(vb, "%.1f из %.1f млрд · %s%s" % [float(it["done"]), float(it["cost"]), st, " · по плану министерств" if bool(it.get("auto", false)) else ""], 11, C_DIM)
+	var on: bool = bool(ap.get("build", false))
+	bld_auto_btn.set_pressed_no_signal(on)
+	bld_auto_btn.text = "Автостроительство министерств: %s" % ("включено" if on else "выключено")
+	bld_clear(bld_plan_box)
+	if on:
+		if bld_plan.is_empty():
+			bld_lbl(bld_plan_box, "План на год пока пуст: министерства не нашли, что строить в пределах бюджета.", 11, C_DIM)
+		for k in bld_plan.size():
+			var pl: Dictionary = bld_plan[k]
+			var ck := CheckBox.new()
+			ck.focus_mode = Control.FOCUS_NONE
+			ck.set_pressed_no_signal(not bool(pl["off"]))
+			ck.disabled = bool(pl["done"])
+			ck.text = "%s — «%s» (%s; министерство «%s»)%s" % [find_by_id(PROJECTS, String(pl["id"])).get("name", pl["id"]), REGIONS[int(pl["i"])]["name"], pl["why"],
+				MINISTRIES[int(pl["min"])]["name"] if int(pl["min"]) < MINISTRIES.size() else "?", " — начато" if bool(pl["done"]) else ""]
+			ck.add_theme_font_size_override("font_size", 12)
+			var kk: int = k
+			ck.toggled.connect(func(_on: bool) -> void: bld_plan_toggle(kk))
+			bld_plan_box.add_child(ck)
+	bld_clear(bld_priv_box)
+	if not con_dyn():
+		bld_lbl(bld_priv_box, "Выключено в настройках новой игры («Стройка корпораций и других стран»).", 12, C_DIM)
+	elif bq_priv.is_empty():
+		bld_lbl(bld_priv_box, "Сейчас частные инвесторы ничего не строят: им выгодно то, что быстро окупается. Налоговые льготы ускоряют окупаемость.", 12, C_DIM)
+	for it in bq_priv:
+		var pd2 := find_by_id(PROJECTS, String(it["id"]))
+		var vb2 := bld_row_card(bld_priv_box, C_PURPLE)
+		bld_lbl(vb2, "%s — «%s»" % [pd2.get("name", it["id"]), REGIONS[clampi(int(it["i"]), 0, REGIONS.size() - 1)]["name"]], 12)
+		var eta2 := bq_eta(it)
+		bld_bar(vb2, float(it["done"]) / maxf(0.001, float(it["cost"])), C_PURPLE.lightened(0.2))
+		bld_lbl(vb2, "Инвестор: %s · %.1f из %.1f млрд · %s%s" % [String(it["corp"]), float(it["done"]), float(it["cost"]), ("ещё %d мес." % eta2) if eta2 > 0 else "ждёт мощностей", " · льгота" if bool(it.get("brk", false)) else ""], 11, C_DIM)
+	bld_clear(bld_prof_box)
+	var pr := bld_profitable()
+	if pr.is_empty():
+		bld_lbl(bld_prof_box, "Пока ничего не окупается быстрее 40 лет.", 11, C_DIM)
+	for r in pr.slice(0, 8):
+		var pid: String = String(r[1])
+		var hb2 := HBoxContainer.new()
+		hb2.add_theme_constant_override("separation", 4)
+		bld_prof_box.add_child(hb2)
+		var yr: float = float(r[0])
+		var col: Color = C_GOOD if yr <= 8.0 else (C_WARN if yr <= 12.0 else C_DIM)
+		bld_lbl(hb2, "%s — окупится примерно за %.0f г." % [find_by_id(PROJECTS, pid).get("name", pid), yr], 12, col)
+		var lb := bld_sbtn(hb2, "Льгота ✓" if bld_breaks.has(pid) else "Льгота", "Налоговая льгота инвесторам, которые строят такое сооружение: государство возвращает им %d%% затрат (статья «Льготы инвесторам»), окупаемость короче на четверть. Инвесторы строят то, что окупается быстрее 12 лет." % int(BQ_BRK_SHARE * 100.0), func() -> void: bld_toggle_break(pid))
+		lb.toggle_mode = true
+		lb.set_pressed_no_signal(bld_breaks.has(pid))
+	bld_update_moved()
+
+
+# наука, порты и сооружения страны — то, что раньше жило в других окнах
+func bld_update_moved() -> void:
+	if bld_sci_box == null:
+		return
+	bld_clear(bld_sci_box)
+	if not tech.is_empty():
+		var t := ""
+		for d in TECH_BUILDINGS:
+			var id: String = d["id"]
+			var inq := 0
+			var left := 0
+			for q in tech["q"]:
+				if q["id"] == id:
+					inq += 1
+					left = maxi(left, int(q["left"]))
+			t += "%s: построено %d/%d%s\n" % [d["name"], int(tech["bld"][id]), int(d["max"]), (", строится %d (ещё %d мес.)" % [inq, left]) if inq > 0 else ""]
+			var miss := tech_build_missing(id)
+			var b := Button.new()
+			b.theme_type_variation = "SmallButton"
+			b.focus_mode = Control.FOCUS_NONE
+			b.text = "%s (%.1f млрд)" % [d["name"], gdp * float(d["cost"]) / 100.0]
+			b.disabled = game_over or miss != ""
+			b.tooltip_text = "%s\nСрок: %d мес. Содержание: %.2f%% ВВП в год.%s" % [d["d"], int(d["months"]), float(d["up"]), ("\nСейчас нельзя: " + miss) if miss != "" else ""]
+			b.pressed.connect(on_tech_build.bind(id))
+			bld_sci_box.add_child(b)
+		bld_sci_rt.text = "[font_size=13]%s[/font_size]" % t.strip_edges()
+	bld_clear(bld_port_box)
+	var ps: Array = fleet_ports_summary() if not flt.is_empty() else []
+	bld_port_title.visible = not ps.is_empty()
+	for p in ps:
+		var row := HBoxContainer.new()
+		bld_port_box.add_child(row)
+		var stt := " · строится, осталось %d сут." % int(p["build"]) if int(p["build"]) > 0 else ""
+		bld_lbl(row, "%s — загрузка %.0f%%%s" % [String(p["name"]), float(p["util"]) * 100.0, stt], 12)
+		var b2 := bld_sbtn(row, "Расширить (%.1f млрд)" % fleet_port_cost(String(p["id"])), "Расширение на 12 месяцев: пропускная способность порта +12%, стоит долга и 2 капитала.", on_fleet_port.bind(String(p["id"])))
+		b2.disabled = int(p["build"]) > 0 or cap_spendable() < 2.0 or game_over
+	var sl := struct_lines()
+	bld_st_rt.text = "[font_size=13]%s[/font_size]" % "\n".join(sl)
+	var rc: float = repair_cost_pct()
+	bld_rep_btn.text = "Отремонтировать всё (%.1f млрд)" % (gdp * rc / 100.0)
+	bld_rep_btn.disabled = game_over or rc < 0.005
 
 
 func bld_cancel() -> void:
@@ -102,7 +386,7 @@ func update_build_window() -> void:
 		(bld_btns[pid] as Button).set_pressed_no_signal(pid == bld_pick)
 	bld_cancel_btn.visible = bld_pick != ""
 	if bld_pick == "":
-		bld_hint.text = "Выберите сооружение, затем щёлкните по своей АТЕ на карте. Политкапитал не нужен — но на стройку реагируют группы интересов."
+		bld_hint.text = "Выберите сооружение, затем щёлкните по своей АТЕ на карте — стройка встанет в очередь. Деньги идут из линии бюджета «Строительство» по очереди сверху вниз; на стройку реагируют группы интересов."
 		bld_info_rt.text = ""
 	else:
 		var pd := find_by_id(PROJECTS, bld_pick)
@@ -113,20 +397,15 @@ func update_build_window() -> void:
 			var c: float = gdp * project_cost_pct(i, pd) / 100.0
 			lo = minf(lo, c)
 			hi = maxf(hi, c)
-		var t := "[b]%s[/b] — %d мес., %s млрд (в крупных регионах дороже)\n" % [pd["name"], int(pd["months"]), ("%.1f" % lo) if absf(hi - lo) < 0.05 else ("%.1f–%.1f" % [lo, hi])]
+		var t := "[b]%s[/b] — не меньше %d мес., %s млрд (в крупных регионах дороже)\n" % [pd["name"], int(pd["months"]), ("%.1f" % lo) if absf(hi - lo) < 0.05 else ("%.1f–%.1f" % [lo, hi])]
+		var yb := bld_payback(bld_pick, false)
+		if yb < 40.0:
+			t += "Для частного инвестора окупается за [b]%.0f[/b] лет%s.\n" % [yb, (" (с льготой — %.0f)" % bld_payback(bld_pick)) if bld_breaks.has(bld_pick) else ""]
 		t += "%s\n" % struct_effect_text(pd)
 		t += "Группы: %s\n" % proj_group_text(bld_pick)
 		t += bld_demand_text(pd)
 		bld_info_rt.text = "[font_size=13]%s[/font_size]" % t
-	var rows: PackedStringArray = []
-	for i in regions.size():
-		var pr: Dictionary = regions[i]["proj"]
-		if pr.is_empty():
-			continue
-		var pd2 := find_by_id(PROJECTS, pr["id"])
-		var a: int = int(pr.get("ate", -1))
-		rows.append("• %s — «%s»%s: ещё %d мес." % [pd2.get("name", "?"), REGIONS[i]["name"], (", " + ate_name(a)) if a >= 0 else "", int(pr["left"])])
-	bld_list_rt.text = "[font_size=13]%s[/font_size]" % ("\n".join(rows) if rows.size() > 0 else "[color=%s]Сейчас ничего не строится.[/color]" % COL_DIM)
+	update_build_queues()
 	update_build_extra()
 
 
@@ -167,17 +446,14 @@ func update_build_extra() -> void:
 		var st := "не начат"
 		if struct_total(String(m["id"])) > 0:
 			st = "[color=%s]построен[/color]" % COL_GOOD
-		elif mr >= 0 and String((regions[mr]["proj"] as Dictionary).get("id", "")) == String(m["id"]):
-			st = "строится, ещё %d мес." % int(regions[mr]["proj"]["left"])
+		elif mr >= 0 and bq_has(mr, String(m["id"])):
+			st = "в очереди строек"
 		bld_mega_rt.text = "[font_size=13][b]%s[/b] — %s\n%s\nГде: «%s» · %.1f%% ВВП (%.0f млрд) · %d мес. Чтобы начать, выберите его в списке выше и щёлкните по региону.\n%s[/font_size]" % [
 			m["name"], st, m.get("desc", ""), String(REGIONS[mr]["name"]) if mr >= 0 else "?", float(m["cost"]), gdp * float(m["cost"]) / 100.0, int(m["months"]), struct_effect_text(m)]
 	var ct := ""
 	if not con_dyn():
 		ct = "[color=%s]Выключено в настройках новой игры («Стройка корпораций и других стран»).[/color]" % COL_DIM
 	else:
-		var q: Array = cs.get("cq", [])
-		for it in q:
-			ct += "• «%s» строит «%s» в регионе «%s»: ещё %d мес.\n" % [it["corp"], find_by_id(PROJECTS, String(it["id"])).get("name", it["id"]), REGIONS[int(it["i"])]["name"] if int(it["i"]) < REGIONS.size() else "?", int(it["left"])]
 		var lg: Array = cs.get("log", [])
 		for k in range(lg.size() - 1, maxi(-1, lg.size() - 6), -1):
 			ct += "[color=%s]%s[/color]\n" % [COL_DIM, String(lg[k])]
@@ -262,11 +538,12 @@ func draw_struct_icons(c: Control, s: float, off: Vector2) -> void:
 				c.draw_circle(p, 8.5, Color(0.06, 0.08, 0.12, 0.85 * al))
 				c.draw_arc(p, 8.5, 0.0, TAU, 20, Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.9 * al), 1.2, true)
 				Ico.draw_icon(String(PROJ_CAT_ICO[clampi(cat, 0, PROJ_CAT_ICO.size() - 1)]), p - Vector2(5.5, 5.5), 11.0, 1.2, Color(0.95, 0.92, 0.80, al), c)
-		var pr: Dictionary = regions[i]["proj"]
-		if not pr.is_empty() and int(pr.get("ate", -1)) >= 0 and int(pr["ate"]) < ate_c.size():
+		for pr in bq:
+			if int(pr["i"]) != i or int(pr.get("ate", -1)) < 0 or int(pr["ate"]) >= ate_c.size():
+				continue
 			var p2: Vector2 = ate_c[int(pr["ate"])] * s + off
 			if rect.has_point(p2):
-				var done: float = 1.0 - float(pr["left"]) / maxf(1.0, float(pr["months"]))
+				var done: float = float(pr["done"]) / maxf(0.001, float(pr["cost"]))
 				c.draw_circle(p2, 8.5, Color(0.06, 0.08, 0.12, 0.7 * al))
 				c.draw_arc(p2, 8.5, -PI / 2.0, -PI / 2.0 + TAU * done, 24, Color(1.0, 0.80, 0.35, al), 2.0, true)
 				c.draw_string(c.get_theme_default_font(), p2 + Vector2(-4.0, 4.0), "⚒", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.85, 0.5, al))

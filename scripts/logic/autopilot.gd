@@ -142,44 +142,9 @@ func auto_resolve_event() -> void:
 		cap_unswap(gov_pm, old_cap)
 
 
+# 0.56: автостроительство — годовой план министерств в очереди строек (construct.gd: bld_plan_step)
 func autobuild_step() -> void:
-	if ec.is_empty() or debt / gdp * 100.0 > 85.0:
-		return
-	var active := 0
-	for r in regions:
-		if not (r["proj"] as Dictionary).is_empty():
-			active += 1
-	if active >= 3:
-		return
-	var mk: Dictionary = ec["mk"]
-	var best := ""
-	var bu := 0.0
-	for id in mk:
-		var u: float = float(mk[id]["u"]) + float(mk[id]["short"]) * 3.0
-		if u > bu:
-			bu = u
-			best = id
-	if best == "" or bu < 0.96:
-		return
-	var pid: String = AP_BUILD_MAP[best]
-	var ri := -1
-	var bd := 1000.0
-	for i in regions.size():
-		if (regions[i]["proj"] as Dictionary).is_empty() and float(regions[i]["dev"]) < bd:
-			bd = float(regions[i]["dev"])
-			ri = i
-	if ri < 0:
-		return
-	var old_sel := selected_region
-	var old_opt: int = proj_option.selected
-	selected_region = ri
-	for k in PROJECTS.size():
-		if PROJECTS[k]["id"] == pid:
-			proj_option.select(k)
-	start_project()
-	selected_region = old_sel
-	proj_option.select(old_opt)
-	log_tag("АВТОПИЛОТ", COL_TEAL, "спрос на рынке «%s» превышает мощности — начато строительство в регионе «%s»." % [String(mk_def(best)["name"]).to_lower(), REGIONS[ri]["name"]])
+	pass
 
 
 func autopilot_step() -> void:

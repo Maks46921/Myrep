@@ -104,9 +104,9 @@ func build_econ_windows() -> void:
 	w = new_window("ec_st", "Сооружения страны", 5, Rect2(0.355, 0.60, 0.17, 0.40))
 	ec_st_rt = make_rt(w.body)
 	ec_st_fold = make_fold(w.body, "Сооружения подробнее")
-	ec_repair_btn = make_button("Отремонтировать всё", w.body)
-	ec_repair_btn.pressed.connect(repair_all)
-	add_note(w.body, "Строить: «Карта» → кнопка «Строительство» (выберите сооружение и щёлкните по своей АТЕ) или карточка региона.")
+	ec_repair_btn = make_button("Открыть строительство", w.body)
+	ec_repair_btn.tooltip_text = "Ремонт, улучшение и новые стройки — в окне «Строительство»."
+	ec_repair_btn.pressed.connect(bld_open)
 
 	# --- графики ---
 	w = new_window("ec_ch", "Графики", 5, Rect2(0.525, 0.60, 0.18, 0.40), false)
@@ -302,42 +302,10 @@ func update_econ_windows() -> void:
 	ec_gf_rt.text = "\n".join(gl)
 	ec_gf_fold.text = "\n".join(gf_more)
 	# сооружения
-	var sl2: PackedStringArray = []
-	var total := 0
-	var cond_sum := 0.0
-	var by_cat := {}
-	for i in regions.size():
-		var bt: Dictionary = regions[i]["built"]
-		for id in bt:
-			var pd := find_by_id(PROJECTS, id)
-			var e2: Dictionary = bt[id]
-			total += int(e2["n"])
-			cond_sum += float(e2["cond"]) * float(e2["n"])
-			var cn: String = STRUCT_CATS[int(pd["cat"])]
-			by_cat[cn] = int(by_cat.get(cn, 0)) + int(e2["n"])
-	if total == 0:
-		sl2.append("Сооружений пока нет. Страна растёт на мощностях, которые строит бизнес: если спрос обгоняет предложение, возникает дефицит.")
-	else:
-		var avg: float = cond_sum / float(total)
-		sl2.append("Построено: [b]%d[/b]   Состояние: [color=%s][b]%.0f%%[/b][/color]   Содержание: [b]%s млрд[/b] в год" % [total, good_col(avg > 60.0), avg, fmt_n(float(ec["struct_up"]) * gdp / 100.0, 1)])
-		for cn in by_cat:
-			sl2.append("  %s: %d" % [cn, by_cat[cn]])
-		sl2.append("[b]Прирост мощностей[/b]")
-		for m in MARKETS:
-			var sk: float = float(mk[m["id"]]["sk"])
-			if sk > 0.0005:
-				sl2.append("  %s: +%.1f%% (от общей мощности)" % [m["name"], sk / float(mk[m["id"]]["K"]) * 100.0])
-		if float(ec["bc_struct"]) > 0.0:
-			sl2.append("Деловой климат от сооружений: +%.1f" % float(ec["bc_struct"]))
-		if float(ec["pr"]) > 0.0:
-			sl2.append("Рост производительности: +%.2f п.п. в год" % float(ec["pr"]))
-		if avg < 60.0:
-			sl2.append(hint_line(false, "Сооружения изнашиваются: их отдача падает. Отремонтируйте."))
+	var sl2 := struct_lines()
 	ec_st_rt.text = sl2[0] if sl2.size() > 0 else ""
 	ec_st_fold.text = "\n".join(sl2.slice(1))
-	var rc: float = repair_cost_pct()
-	ec_repair_btn.text = "Отремонтировать всё (%.1f млрд)" % (gdp * rc / 100.0)
-	ec_repair_btn.disabled = game_over or rc < 0.005
+
 	update_chart()
 
 
@@ -510,3 +478,40 @@ func update_goods_windows() -> void:
 
 func _hot_txt(it: Array) -> String:
 	return "%s %s%%" % [String(good_def(it[0])["short"]).to_lower(), sg(float(it[1]) * 100.0, 1)]
+
+
+# 0.56: сводка сооружений страны (окно «Экономика» и окно «Строительство»)
+func struct_lines() -> PackedStringArray:
+	var sl2: PackedStringArray = []
+	var mk: Dictionary = ec.get("mk", {})
+	var total := 0
+	var cond_sum := 0.0
+	var by_cat := {}
+	for i in regions.size():
+		var bt: Dictionary = regions[i]["built"]
+		for id in bt:
+			var pd := find_by_id(PROJECTS, id)
+			var e2: Dictionary = bt[id]
+			total += int(e2["n"])
+			cond_sum += float(e2["cond"]) * float(e2["n"])
+			var cn: String = STRUCT_CATS[int(pd["cat"])]
+			by_cat[cn] = int(by_cat.get(cn, 0)) + int(e2["n"])
+	if total == 0:
+		sl2.append("Сооружений пока нет. Страна растёт на мощностях, которые строит бизнес: если спрос обгоняет предложение, возникает дефицит.")
+	else:
+		var avg: float = cond_sum / float(total)
+		sl2.append("Построено: [b]%d[/b]   Состояние: [color=%s][b]%.0f%%[/b][/color]   Содержание: [b]%s млрд[/b] в год" % [total, good_col(avg > 60.0), avg, fmt_n(float(ec["struct_up"]) * gdp / 100.0, 1)])
+		for cn in by_cat:
+			sl2.append("  %s: %d" % [cn, by_cat[cn]])
+		sl2.append("[b]Прирост мощностей[/b]")
+		for m in MARKETS:
+			var sk: float = float(mk[m["id"]]["sk"])
+			if sk > 0.0005:
+				sl2.append("  %s: +%.1f%% (от общей мощности)" % [m["name"], sk / float(mk[m["id"]]["K"]) * 100.0])
+		if float(ec["bc_struct"]) > 0.0:
+			sl2.append("Деловой климат от сооружений: +%.1f" % float(ec["bc_struct"]))
+		if float(ec["pr"]) > 0.0:
+			sl2.append("Рост производительности: +%.2f п.п. в год" % float(ec["pr"]))
+		if avg < 60.0:
+			sl2.append(hint_line(false, "Сооружения изнашиваются: их отдача падает. Отремонтируйте."))
+	return sl2

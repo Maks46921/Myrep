@@ -248,8 +248,8 @@ func con_upgrade_check(i: int, id: String) -> String:
 		return "в регионе нет такого сооружения"
 	if lv >= CS_LVL_MAX:
 		return "уже наивысший уровень"
-	if not (regions[i]["proj"] as Dictionary).is_empty():
-		return "в регионе уже идёт стройка"
+	if bq_has(i, id):
+		return "улучшение уже в очереди"
 	return ""
 
 
@@ -262,8 +262,8 @@ func con_upgrade_start(i: int, id: String) -> String:
 	var pd := find_by_id(PROJECTS, id)
 	var m: int = maxi(3, int(round(float(pd["months"]) * CS_UPG_TIME)))
 	var c := con_upgrade_cost(i, id)
-	regions[i]["proj"] = {"id": id, "left": m, "months": m, "cost": c, "ate": -1, "upg": true}
-	log_tag("ПРОЕКТ", COL_TEAL, "%s — «%s»: начато улучшение «%s» до уровня %d (%d мес., %.1f млрд)." % [
+	bq_add(id, i, -1, gdp * c / 100.0, m, true)
+	log_tag("ПРОЕКТ", COL_TEAL, "%s — «%s»: улучшение «%s» до уровня %d поставлено в очередь строек (не меньше %d мес., %.1f млрд)." % [
 		date_text(), REGIONS[i]["name"], pd["name"], con_lvl(i, id) + 1, m, gdp * c / 100.0])
 	refresh()
 	return ""
@@ -409,8 +409,7 @@ func con_month() -> void:
 	if not con_dyn():
 		return
 	con_accidents()
-	con_corp_month()
-	con_ai_month()
+	con_ai_month()   # 0.56: стройки корпораций — в очереди частных инвесторов (bq_priv_spawn)
 
 
 func con_accidents() -> void:
@@ -567,3 +566,372 @@ func con_ai_rows() -> Array:
 		out.append([String(c), int(a["n"]), (a["q"] as Array).size(), int(a["mega"]), int(a["ml"]), String(md.get("name", ""))])
 	out.sort_custom(func(x, y): return int(x[1]) > int(y[1]))
 	return out
+
+
+# ============================================================
+#  0.56 (п.6): ОЧЕРЕДЬ СТРОЕК КАК В VICTORIA 3
+#  Государство строит из линии бюджета «Строительство» (bld_budget, % ВВП в год): деньги и мощности отрасли
+#  делятся по очереди сверху вниз, у каждой стройки — полоса прогресса. Частные инвесторы строят на свои деньги
+#  то, что окупается; игрок привлекает их налоговыми льготами. Мощность стройотрасли общая для всех.
+#  Автостроительство министерств — годовой план, из которого можно вычёркивать пункты.
+# ============================================================
+const BQ_BRK_SHARE := 0.2      # льгота: государство возвращает инвестору 20% затрат
+const BQ_PRIV_MAX := 6
+# министерство, которое ведёт стройку категории (для плана автостроительства)
+const BQ_CAT_MIN := [5, 8, 5, 6, 9, 4, 8, 7, 4, 10, 4, 3, 1, 0]
+
+
+func bld_budget_init() -> void:
+	if bld_budget < 0.0:
+		bld_budget = clampf(0.3 * float(pol_def.get("infra", 3.0)), 0.5, 1.8)
+
+
+func bld_budget_ok() -> float:
+	bld_budget_init()
+	return bld_budget0 if bld_budget0 >= 0.0 else bld_budget
+
+
+func bld_set(v: float) -> void:
+	bld_budget_init()
+	v = clampf(snappedf(v, 0.01), 0.0, 6.0)
+	if bud_draft_on():
+		if bld_budget0 < 0.0:
+			bld_budget0 = bld_budget
+		bld_budget = v
+		if absf(bld_budget - bld_budget0) < 0.001:
+			bld_budget0 = -1.0
+		bud_persuaded.clear()
+	else:
+		bld_budget = v
+
+
+func bld_money_month() -> float:
+	return gdp * bld_budget_ok() / 100.0 / 12.0
+
+
+# мощность стройотрасли, млрд в месяц: растёт вместе с рынком «Строительство» (жилые кварталы его расширяют)
+func bld_cap_month() -> float:
+	var kf := 1.0
+	if not ec.is_empty() and (ec["mk"] as Dictionary).has("con"):
+		var mk: Dictionary = ec["mk"]["con"]
+		kf = clampf(float(mk["K"]) * float(mk_def("con").get("u0", 0.9)), 0.6, 2.5)
+	return gdp * (1.6 + bld_budget_ok()) * kf / 100.0 / 12.0
+
+
+func bq_find(uid: int) -> int:
+	for k in bq.size():
+		if int(bq[k]["uid"]) == uid:
+			return k
+	return -1
+
+
+func bq_in_region(i: int) -> Dictionary:
+	for it in bq:
+		if int(it["i"]) == i:
+			return it
+	return {}
+
+
+func bq_has(i: int, id: String) -> bool:
+	for it in bq:
+		if int(it["i"]) == i and String(it["id"]) == id:
+			return true
+	return false
+
+
+func bq_rate(it: Dictionary) -> float:
+	return float(it["cost"]) / maxf(1.0, float(it["months"]))
+
+
+func bq_add(pid: String, i: int, ate: int, cost_bn: float, months: int, upg: bool = false, auto: bool = false) -> Dictionary:
+	bq_uid += 1
+	var it := {"uid": bq_uid, "id": pid, "i": i, "ate": ate, "cost": cost_bn, "done": 0.0, "months": months, "upg": upg, "auto": auto, "start": turn, "got": 0.0}
+	bq.append(it)
+	return it
+
+
+# распределение денег и мощностей: сначала госочередь по порядку, остаток мощностей — частным
+func bq_alloc(apply: bool) -> Dictionary:
+	var money := bld_money_month()
+	var cap := bld_cap_month()
+	var st := 0.0
+	for it in bq:
+		var need: float = minf(bq_rate(it), float(it["cost"]) - float(it["done"]))
+		var use: float = clampf(minf(need, minf(money - st, cap - st)), 0.0, need)
+		if apply:
+			it["done"] = float(it["done"]) + use
+			it["got"] = use
+		st += use
+	var pv := 0.0
+	var brk := 0.0
+	for it in bq_priv:
+		var need2: float = minf(bq_rate(it), float(it["cost"]) - float(it["done"]))
+		var use2: float = clampf(minf(need2, cap - st - pv), 0.0, need2)
+		if apply:
+			it["done"] = float(it["done"]) + use2
+			it["got"] = use2
+		pv += use2
+		if bool(it.get("brk", false)):
+			brk += use2 * BQ_BRK_SHARE
+	return {"state": st, "priv": pv, "brk": brk, "money": money, "cap": cap}
+
+
+# сколько месяцев осталось при нынешнем темпе (−1 — стоит, денег или мощностей нет)
+func bq_eta(it: Dictionary) -> int:
+	var g: float = float(it.get("got", 0.0))
+	var left: float = float(it["cost"]) - float(it["done"])
+	if left <= 0.001:
+		return 0
+	if g <= 0.0001:
+		return -1
+	return int(ceil(left / g))
+
+
+func bq_move(uid: int, d: int) -> void:
+	var k := bq_find(uid)
+	if k < 0:
+		return
+	var j: int = clampi(k + d, 0, bq.size() - 1) if d > -100 else 0
+	if j == k:
+		return
+	var it: Dictionary = bq[k]
+	bq.remove_at(k)
+	bq.insert(j, it)
+	refresh()
+
+
+func bq_cancel(uid: int) -> void:
+	if pl_deny():
+		return
+	var k := bq_find(uid)
+	if k < 0:
+		return
+	var it: Dictionary = bq[k]
+	bq.remove_at(k)
+	var pd := find_by_id(PROJECTS, String(it["id"]))
+	var i: int = int(it["i"])
+	if float(it["done"]) > 0.0:
+		apply_reg_delta(i, {"loyalty": -3.0, "unrest": 3.0})
+	log_line("[color=%s]%s: стройка «%s» в регионе «%s» остановлена%s.[/color]" % [COL_BAD, date_text(), pd.get("name", it["id"]), REGIONS[i]["name"],
+		" — потрачено %.1f млрд, жители недовольны" % float(it["done"]) if float(it["done"]) > 0.0 else ""])
+	refresh()
+
+
+# старые сохранения: стройка в регионе и очередь корпораций переходят в новую очередь
+func bq_migrate() -> void:
+	for i in regions.size():
+		var pr: Dictionary = regions[i]["proj"]
+		if pr.is_empty():
+			continue
+		var pd := find_by_id(PROJECTS, String(pr["id"]))
+		var cost: float = gdp * float(pr.get("cost", 0.3)) / 100.0
+		var m: int = maxi(1, int(pr.get("months", pd.get("months", 6))))
+		var it := bq_add(String(pr["id"]), i, int(pr.get("ate", -1)), cost, m, bool(pr.get("upg", false)))
+		it["done"] = cost * clampf(1.0 - float(pr.get("left", m)) / float(m), 0.0, 1.0)
+		regions[i]["proj"] = {}
+	if not cs.is_empty() and cs.has("cq"):
+		for c in (cs["cq"] as Array):
+			var pd2 := find_by_id(PROJECTS, String(c["id"]))
+			if pd2.is_empty():
+				continue
+			var m2: int = maxi(1, int(pd2["months"]))
+			var cost2: float = gdp * project_cost_pct(clampi(int(c["i"]), 0, regions.size() - 1), pd2) / 100.0
+			bq_uid += 1
+			bq_priv.append({"uid": bq_uid, "id": String(c["id"]), "i": int(c["i"]), "cost": cost2, "done": cost2 * clampf(1.0 - float(c["left"]) / float(m2), 0.0, 0.99),
+				"months": m2, "corp": String(c["corp"]), "brk": false, "got": 0.0})
+		(cs["cq"] as Array).clear()
+
+
+func bq_month() -> void:
+	bld_budget_init()
+	bq_migrate()
+	var a := bq_alloc(true)
+	bq_spent = float(a["state"])
+	bq_priv_spent = float(a["priv"])
+	bq_brk_spent = float(a["brk"])
+	for k in range(bq.size() - 1, -1, -1):
+		var it: Dictionary = bq[k]
+		if float(it["done"]) >= float(it["cost"]) - 0.0001:
+			bq.remove_at(k)
+			complete_project_pr(int(it["i"]), it)
+	for k in range(bq_priv.size() - 1, -1, -1):
+		var it2: Dictionary = bq_priv[k]
+		if float(it2["done"]) >= float(it2["cost"]) - 0.0001:
+			bq_priv.remove_at(k)
+			bq_priv_done(it2)
+	if con_dyn():
+		bq_priv_spawn()
+	if bool(ap.get("build", false)) and not opp_mode:
+		bld_plan_step()
+
+
+func bq_priv_done(it: Dictionary) -> void:
+	var i: int = int(it["i"])
+	if i >= regions.size():
+		return
+	var pd := find_by_id(PROJECTS, String(it["id"]))
+	if pd.is_empty():
+		return
+	complete_struct(i, String(pd["id"]), region_main_ate(i))
+	var half := {}
+	for rk in (pd.get("reg", {}) as Dictionary):
+		half[rk] = float(pd["reg"][rk]) * 0.7
+	apply_reg_delta(i, half, true)
+	con_log("«%s» построила «%s» в регионе «%s» на свои деньги%s." % [String(it["corp"]), pd["name"], REGIONS[i]["name"], " (с налоговой льготой)" if bool(it.get("brk", false)) else ""])
+
+
+# общественные сооружения: частный инвестор их не строит
+const BQ_PUBLIC := ["road", "grid", "eco", "granary", "museum", "monastery", "stadium", "college", "storage"]
+
+
+# окупаемость сооружения для инвестора, лет (99 — не коммерческое)
+func bld_payback(pid: String, with_brk: bool = true) -> float:
+	var pd := find_by_id(PROJECTS, pid)
+	var k: Dictionary = pd.get("k", {})
+	if pd.is_empty() or k.is_empty() or ec.is_empty() or bool(pd.get("mega", false)) or BQ_PUBLIC.has(pid):
+		return 99.0
+	var cost: float = float(pd["cost"]) * (0.6 + 4.5 / float(maxi(1, regions.size())))
+	var prof := 0.0
+	for m in k:
+		if not (ec["mk"] as Dictionary).has(m):
+			continue
+		var mk: Dictionary = ec["mk"][m]
+		var sell: float = clampf((float(mk["u"]) - 0.6) / 0.35, 0.1, 1.2) + float(mk["short"]) * 3.0
+		# доля рынка в ВВП под корнем: большие рынки (услуги) не дают мгновенной окупаемости, малые (энергия) не безнадёжны
+		prof += 30.0 * sqrt(float(mk_def(String(m)).get("w", 0.05))) * float(k[m]) * (float(mk.get("margin", 0.12)) + 0.15) * sell
+	if prof <= 0.00001:
+		return 99.0
+	# 6 лет — стройка, запуск и выход на мощность; дальше — сама окупаемость
+	var yrs: float = 6.0 + 1.2 * cost / prof
+	if with_brk and bld_breaks.has(pid):
+		yrs *= 1.0 - BQ_BRK_SHARE * 1.25
+	return clampf(yrs, 3.0, 99.0)
+
+
+# список выгодных строек: [окупаемость, pid], лучшие сверху
+func bld_profitable() -> Array:
+	var out: Array = []
+	for pd in PROJECTS:
+		var y := bld_payback(String(pd["id"]))
+		if y < 40.0:
+			out.append([y, String(pd["id"])])
+	out.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
+	return out
+
+
+# частные инвесторы решают по выгоде: чем быстрее окупается, тем охотнее строят
+func bq_priv_spawn() -> void:
+	if corp.is_empty() or bq_priv.size() >= BQ_PRIV_MAX:
+		return
+	for c in corp["list"]:
+		if float(c["att"]) < 45.0 or int(c["st"]) >= 100 and String(es.get("cls", "")) == "planned":
+			continue
+		var opts: Array = CS_CORP_MAP.get(String(c["mk"]), ["factory"])
+		var best := ""
+		var by := 99.0
+		for pid in opts:
+			if find_by_id(PROJECTS, String(pid)).is_empty():
+				continue
+			var y := bld_payback(String(pid))
+			if y < by:
+				by = y
+				best = String(pid)
+		if best == "" or by > 12.0:
+			continue
+		var p: float = 0.012 * clampf(float(c["rev"]) / 40.0, 0.3, 2.5) * (float(c["att"]) / 60.0) * clampf((12.0 - by) / 6.0, 0.1, 1.5)
+		if cs_rng.randf() > p:
+			continue
+		var pd := find_by_id(PROJECTS, best)
+		var r: float = cs_rng.randf()
+		var ri := 0
+		for i in regions.size():
+			r -= gdp_w[i] if i < gdp_w.size() else 0.0
+			if r <= 0.0:
+				ri = i
+				break
+		var cost: float = gdp * project_cost_pct(ri, pd) / 100.0
+		bq_uid += 1
+		bq_priv.append({"uid": bq_uid, "id": best, "i": ri, "cost": cost, "done": 0.0, "months": int(pd["months"]), "corp": corp_name(c), "brk": bld_breaks.has(best), "got": 0.0})
+		con_log("«%s» начала строить «%s» в регионе «%s»: окупится примерно за %.0f г." % [corp_name(c), pd["name"], REGIONS[ri]["name"], by])
+		if bq_priv.size() >= BQ_PRIV_MAX:
+			break
+
+
+func bld_toggle_break(pid: String) -> void:
+	if pl_deny():
+		return
+	if bld_breaks.has(pid):
+		bld_breaks.erase(pid)
+	else:
+		bld_breaks[pid] = true
+	refresh()
+
+
+# ---------- автостроительство министерств: годовой план ----------
+func bld_plan_make() -> void:
+	bld_plan.clear()
+	var budget_y: float = bld_money_month() * 12.0
+	var plan_cost := 0.0
+	for it in bq:
+		plan_cost += float(it["cost"]) - float(it["done"])
+	var cands: Array = []
+	if not ec.is_empty():
+		for m in (ec["mk"] as Dictionary):
+			var mk: Dictionary = ec["mk"][m]
+			var u: float = float(mk["u"]) + float(mk["short"]) * 3.0
+			if u >= 0.93 and AP_BUILD_MAP.has(m):
+				cands.append([u, String(AP_BUILD_MAP[m]), "спрос на рынке «%s»" % String(mk_def(String(m))["name"]).to_lower()])
+	# слабые регионы: больница, университет, жильё, дороги
+	var order: Array = []
+	for i in regions.size():
+		order.append([float(regions[i]["dev"]), i])
+	order.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
+	var soc := ["hospital", "university", "housing", "road"]
+	for k in mini(4, order.size()):
+		cands.append([0.9 - 0.05 * float(k), String(soc[k % soc.size()]), "отстающий регион", int(order[k][1])])
+	for c in cands:
+		var pid: String = String(c[1])
+		var pd := find_by_id(PROJECTS, pid)
+		if pd.is_empty():
+			continue
+		var ri: int = int(c[3]) if c.size() > 3 else int(order[0][1]) if order.size() > 0 else 0
+		if c.size() <= 3:
+			# рыночная стройка — в самом развитом регионе без такой стройки
+			var bd := -1.0
+			for i in regions.size():
+				if not bq_has(i, pid) and float(regions[i]["dev"]) > bd:
+					bd = float(regions[i]["dev"])
+					ri = i
+		var cost: float = gdp * project_cost_pct(ri, pd) / 100.0
+		if plan_cost + cost > budget_y * 1.3:
+			continue
+		plan_cost += cost
+		bld_plan.append({"id": pid, "i": ri, "why": String(c[2]), "off": false, "done": false, "min": int(BQ_CAT_MIN[int(pd["cat"])]) if int(pd["cat"]) < BQ_CAT_MIN.size() else 8})
+		if bld_plan.size() >= 6:
+			break
+	bld_plan_year = year
+
+
+func bld_plan_step() -> void:
+	if bld_plan_year != year or (month == 1 and bld_plan.is_empty()):
+		bld_plan_make()
+		if not bld_plan.is_empty():
+			log_tag("СТРОЙКА", COL_TEAL, "министерства составили план строек на %d год: %d объектов. Лишнее можно вычеркнуть в окне «Строительство»." % [year, bld_plan.size()])
+	# новая стройка из плана — когда госочереди не хватает работы
+	var a := bq_alloc(false)
+	if float(a["state"]) >= float(a["money"]) * 0.85:
+		return
+	for pl in bld_plan:
+		if bool(pl["off"]) or bool(pl["done"]):
+			continue
+		pl["done"] = true
+		var why := project_start_at(int(pl["i"]), String(pl["id"]), -1, true)
+		if why == "":
+			return
+
+
+func bld_plan_toggle(k: int) -> void:
+	if k < 0 or k >= bld_plan.size():
+		return
+	bld_plan[k]["off"] = not bool(bld_plan[k]["off"])
+	refresh()

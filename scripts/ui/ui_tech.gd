@@ -200,6 +200,10 @@ func build_tech_windows() -> void:
 	tw_bld_box = VBoxContainer.new()
 	tw_bld_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lv.add_child(tw_bld_box)
+	# 0.56: строятся в окне «Строительство» (раздел «Наука»)
+	var ob := make_button("Открыть строительство", lv)
+	ob.tooltip_text = "Научные сооружения строятся в окне «Строительство», раздел «Наука»."
+	ob.pressed.connect(bld_open)
 	# схема + информация
 	var rv := VBoxContainer.new()
 	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -584,6 +588,7 @@ func tech_clear(box: Control) -> void:
 
 func tech_build_buildings() -> void:
 	tech_clear(tw_bld_box)
+	return
 	for d in TECH_BUILDINGS:
 		var id: String = d["id"]
 		var miss := tech_build_missing(id)

@@ -24,14 +24,29 @@ func _init():
 			talks += 1
 			if partners > 0:
 				bad += 1; print("FAIL: партнёры вошли в коалицию сами, до переговоров")
-			if g.current_event.is_empty() or String(g.current_event.get("special", "")) != "coal":
+			# 0.56: вместо события открывается большое окно «Коалиционные переговоры»
+			if not g.cn_is_open():
 				bad += 1; print("FAIL: нет окна переговоров после выборов")
-			# приглашаем первых в списке, пока не соберём большинство
+			# собираем проект: добавляем самых сговорчивых, пока хватает мест, и предлагаем по раундам
 			var guard := 0
-			while g.coal_talks and not g.current_event.is_empty() and String(g.current_event.get("special", "")) == "coal" and guard < 12:
+			g.cn_ensure()
+			while g.coal_talks and guard < 12:
 				guard += 1
 				tries += 1
-				g.choose(0)
+				if g.cn_block() != "":
+					var best := -1
+					var bw := -1e9
+					for p in range(1, g.PARTY_NAMES.size()):
+						if g.seats[p] > 0 and g.can_govern(p) and g.cn_can_talk(p) and not (g.cn_draft["parties"] as Array).has(p):
+							var w: float = g.willingness(p, false)
+							if w > bw: bw = w; best = p
+					if best < 0: break
+					g.cn_toggle_party(best)
+					g.cn_auto_mins()
+					continue
+				g.capital = maxf(g.capital, 60.0)
+				g.cn_propose()
+			if g.cn_is_open(): g.cn_open(false)
 			if g.gov_ok():
 				formed += 1
 				if g.coal_talks:

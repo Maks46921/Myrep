@@ -67,7 +67,7 @@ func _init():
 	g.capital = 500.0
 	var ri := 0
 	for i in g.regions.size():
-		if (g.regions[i]["proj"] as Dictionary).is_empty(): ri = i; break
+		if g.bq_in_region(i).is_empty(): ri = i; break
 	var ss0: float = g.ind_ss("steel")
 	var g0: float = g.ind_g()
 	check(g.project_start_at(ri, "steelworks") == "", "комбинат не заложен")
@@ -81,7 +81,7 @@ func _init():
 	var ss1: float = g.ind_ss("steel")
 	check(g.con_upgrade_check(ri, "steelworks") == "", "улучшение недоступно: %s" % g.con_upgrade_check(ri, "steelworks"))
 	check(g.con_upgrade_start(ri, "steelworks") == "", "улучшение не начато")
-	check(bool(g.regions[ri]["proj"].get("upg", false)), "стройка улучшения не помечена")
+	check(bool(g.bq_in_region(ri).get("upg", false)), "стройка улучшения не помечена")
 	g.complete_project(ri)
 	check(g.con_lvl(ri, "steelworks") == lv0 + 1, "уровень не вырос")
 	check(g.ind_ss("steel") > ss1, "улучшение не подняло выпуск")

@@ -28,6 +28,10 @@ func au_fx(d: Dictionary) -> void:
 	pass
 
 
+func bq_alloc(apply: bool) -> Dictionary:
+	return {}
+
+
 func bud_draft_on() -> bool:
 	return false
 
@@ -594,6 +598,12 @@ func compute_budget() -> Dictionary:
 		var pr: Dictionary = regions[i]["proj"]
 		if not pr.is_empty():
 			pj += gdp * float(pr["cost"]) / 100.0 / float(pr["months"]) * 12.0
+	# 0.56: госстройки и льготы инвесторам — по плану распределения на этот месяц
+	if not bq.is_empty() or not bq_priv.is_empty():
+		var ba := bq_alloc(false)
+		pj += float(ba["state"]) * 12.0
+		if float(ba["brk"]) > 0.0:
+			sp["Льготы инвесторам"] = float(ba["brk"]) * 12.0
 	sp["Трансферты регионам"] = tr
 	var zu := 0.0
 	for i in regions.size():
@@ -601,7 +611,7 @@ func compute_budget() -> Dictionary:
 	if zu > 0.0:
 		sp["Зоны и кластеры"] = zu
 	if pj > 0.0:
-		sp["Проекты в регионах"] = pj
+		sp["Строительство (госзаказ)"] = pj
 	if float(mods["extra_spend"]) > 0.0:
 		sp["Программы по законам"] = gdp * mods["extra_spend"] / 100.0
 	var interest: float = maxf(debt, 0.0) * rate
@@ -1152,7 +1162,7 @@ func bud_mark(key: String, old_share: float, old_abs: float) -> void:
 
 
 func bud_pending() -> bool:
-	return not bud_base.is_empty() or not bud_tr_base.is_empty() or oneoff_cap0 >= 0.0
+	return not bud_base.is_empty() or not bud_tr_base.is_empty() or oneoff_cap0 >= 0.0 or bld_budget0 >= 0.0
 
 
 func bud_changes() -> Array:
@@ -1166,6 +1176,8 @@ func bud_changes() -> Array:
 		out.append(["reg_transfer", bud_tr_old_avg(), transfer_avg()])
 	if oneoff_cap0 >= 0.0 and absf(oneoff_cap - oneoff_cap0) >= 0.05:
 		out.append(["oneoff", oneoff_cap0, oneoff_cap])
+	if bld_budget0 >= 0.0 and absf(bld_budget - bld_budget0) >= 0.05:
+		out.append(["bld", bld_budget0, bld_budget])
 	return out
 
 
@@ -1272,6 +1284,8 @@ func bud_change_text(c: Array) -> String:
 		return "«Трансферты регионам» %.2f → %.2f%% ВВП" % [float(c[1]), float(c[2])]
 	if String(c[0]) == "oneoff":
 		return "«Резерв на разовые меры» %.1f → %.1f%% ВВП" % [float(c[1]), float(c[2])]
+	if String(c[0]) == "bld":
+		return "«Строительство» %.1f → %.1f%% ВВП" % [float(c[1]), float(c[2])]
 	return "«%s» %.1f → %.1f%% ВВП" % [policy_title(String(c[0])), float(c[1]), float(c[2])]
 
 
@@ -1286,11 +1300,15 @@ func tr_shift(i: int, d: float) -> void:
 func bud_title(k: String) -> String:
 	if k == "oneoff":
 		return "Резерв на разовые меры"
+	if k == "bld":
+		return "Строительство"
 	return "Трансферты регионам" if k == "reg_transfer" else policy_title(k)
 
 
 # отношение партии к статье; трансферты регионам — как к пособиям и инфраструктуре вместе
 func bud_stance(q: int, k: String) -> float:
+	if k == "bld":
+		return ideo_stance(q, "infra")
 	if k == "reg_transfer" or k == "oneoff":
 		return 0.5 * (ideo_stance(q, "benefits") + ideo_stance(q, "infra"))
 	return ideo_stance(q, k)
@@ -1415,6 +1433,7 @@ func bud_apply(forced: bool) -> void:
 	bud_base.clear()
 	bud_tr_base.clear()
 	oneoff_cap0 = -1.0
+	bld_budget0 = -1.0
 	bud_persuaded.clear()
 	if parts.size() > 0:
 		log_tag("БЮДЖЕТ", COL_GOOD, "бюджет принят: %s." % "; ".join(parts))
@@ -1430,6 +1449,9 @@ func bud_cancel() -> void:
 	if oneoff_cap0 >= 0.0:
 		oneoff_cap = oneoff_cap0
 		oneoff_cap0 = -1.0
+	if bld_budget0 >= 0.0:
+		bld_budget = bld_budget0
+		bld_budget0 = -1.0
 	bud_persuaded.clear()
 
 
@@ -1452,6 +1474,10 @@ func bud_drop_disputed() -> int:
 		if k == "oneoff":
 			oneoff_cap = oneoff_cap0
 			oneoff_cap0 = -1.0
+			continue
+		if k == "bld":
+			bld_budget = bld_budget0
+			bld_budget0 = -1.0
 			continue
 		if float(bud_base[k][1]) >= 0.0:
 			pol_abs[k] = float(bud_base[k][1])

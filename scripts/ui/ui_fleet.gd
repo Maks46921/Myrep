@@ -165,19 +165,19 @@ func update_fleet_windows() -> void:
 			lb.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			lb.custom_minimum_size = Vector2(40.0, 0.0)
 			row.add_child(lb)
-			var b := make_button("Расширить", row)
-			b.tooltip_text = "Расширение на 12 месяцев: пропускная способность порта +12%, стоит долга и 2 капитала."
-			b.pressed.connect(on_fleet_port.bind(String(p["id"])))
-			fw_btn_ports[String(p["id"])] = [lb, b]
+			fw_btn_ports[String(p["id"])] = [lb]
+		# 0.56: порты расширяются в окне «Строительство»
+		if not ps.is_empty():
+			var ob := make_button("Расширить порты — окно «Строительство»", fw_pbox)
+			ob.pressed.connect(bld_open)
 	for p in ps:
 		var pr: Array = fw_btn_ports.get(String(p["id"]), [])
-		if pr.size() < 2:
+		if pr.size() < 1:
 			continue
 		var stt := "строится, осталось %d сут." % int(p["build"]) if int(p["build"]) > 0 else ""
 		(pr[0] as Label).text = "%.0f%% · %s %s" % [float(p["util"]) * 100.0, String(p["name"]), stt]
 		(pr[0] as Label).tooltip_text = "Загрузка порта «%s»: %.0f%%" % [String(p["name"]), float(p["util"]) * 100.0]
-		(pr[1] as Button).text = "+ (%.1f)" % fleet_port_cost(String(p["id"]))
-		(pr[1] as Button).disabled = int(p["build"]) > 0 or cap_spendable() < 2.0
+
 	# происшествия
 	var it := ""
 	if (flt["inc"] as Dictionary).is_empty():

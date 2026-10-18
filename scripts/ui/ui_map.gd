@@ -8,6 +8,10 @@ func bld_cancel() -> void:
 	pass
 
 
+func bld_open() -> void:
+	pass
+
+
 func build_click(pos: Vector2) -> void:
 	pass
 
@@ -974,10 +978,12 @@ func build_map_windows() -> void:
 		proj_option.add_item("%s: %.2f%% ВВП, %d мес." % [pd["name"], pd["cost"], pd["months"]])
 	proj_option.item_selected.connect(func(_i: int) -> void: update_region_info())
 	w.body.add_child(proj_option)
-	proj_start = make_button("Начать стройку в этом регионе", w.body)
-	proj_start.pressed.connect(start_project)
+	proj_option.visible = false   # 0.56: стройки — в окне «Строительство»; здесь только состояние
+	proj_start = make_button("Открыть строительство", w.body)
+	proj_start.pressed.connect(bld_open)
 	proj_cancel = make_button("Остановить проект", w.body)
 	proj_cancel.pressed.connect(cancel_project)
+	proj_cancel.visible = false
 
 	build_regecon_window()
 	w = new_window("regact", "Действия и трансферты", 2, Rect2(0.45, 0.55, 0.255, 0.45))
@@ -1085,7 +1091,7 @@ func layer_info(i: int) -> Array:
 			var cnt := 0
 			for sid in r["built"]:
 				cnt += int(r["built"][sid]["n"])
-			var has: bool = not (r["proj"] as Dictionary).is_empty()
+			var has: bool = not bq_in_region(i).is_empty()
 			return [clampf(float(cnt) / 8.0, 0.0, 1.0), ("%d" % cnt) + ("+стр." if has else ""), 1]
 		15:
 			var gr: float = reg_growth(i)
@@ -1434,7 +1440,7 @@ func draw_map() -> void:
 				val = "%.0f%%" % (rs[layer_leader(li)] * 100.0)
 			else:
 				val = String(layer_info(li)[1])
-			if (regions[li]["proj"] as Dictionary).size() > 0 and map_layer != 14:
+			if not bq_in_region(li).is_empty() and map_layer != 14:
 				Gfx.capital(c, ctr + Vector2(0.0, -float(fs2) * 1.6), C_WARN, false)
 		else:
 			for r in WORLD[cc3]["regions"]:
@@ -1603,7 +1609,7 @@ func update_region_table() -> void:
 		var i: int = table_order[k]
 		var r: Dictionary = regions[i]
 		var row: Dictionary = reg_table_rows[k]
-		var has_proj: bool = not (r["proj"] as Dictionary).is_empty()
+		var has_proj: bool = not bq_in_region(i).is_empty()
 		(row["name"] as Button).text = ("▶ " if i == selected_region else "") + ("● " if has_proj else "") + String(REGIONS[i]["name"])
 		var cells: Array = row["cells"]
 		(cells[0] as Label).text = "%.1f%%" % (pop_w[i] * 100.0)
@@ -1622,12 +1628,13 @@ func update_region_table() -> void:
 	var angry := 0
 	var disloyal := 0
 	var projects := 0
-	for r in regions:
+	for ri2 in regions.size():
+		var r: Dictionary = regions[ri2]
 		if float(r["unrest"]) >= 60.0:
 			angry += 1
 		if float(r["loy"]) < 40.0:
 			disloyal += 1
-		if not (r["proj"] as Dictionary).is_empty():
+		if not bq_in_region(ri2).is_empty():
 			projects += 1
 	reg_summary.text = "Регионов: %d. Неспокойных (недовольство ≥ 60): %d. Нелояльных (< 40): %d. Строек (●): %d. ВВП/душа — тыс. в год, в среднем по стране %.1f. Сортировка: %s%s." % [
 		regions.size(), angry, disloyal, projects, avg_pc, ["название", "население", "ВВП", "лояльность", "недовольство", "ВВП на душу", "безработица", "рост ВРП", "долг региона"][sort_col], " (по убыванию)" if sort_desc else ""]
@@ -1846,22 +1853,21 @@ func update_region_info() -> void:
 	for k in PROJECTS.size():
 		var pdk: Dictionary = PROJECTS[k]
 		proj_option.set_item_text(k, "%s: %.1f млрд, %d мес." % [pdk["name"], gdp * project_cost_pct(i, pdk) / 100.0, pdk["months"]])
-	var pr: Dictionary = r["proj"]
-	if pr.is_empty():
-		var pd: Dictionary = PROJECTS[proj_option.selected]
-		proj_label.text = "Сейчас в регионе ничего не строится. Деньги списываются в расходы бюджета равными частями каждый месяц. Крупным регионам проекты стоят дороже, в уже развитых регионах отдача меньше.\n%s По завершении: %s." % [
-			roi_text(i, pd["reg"], project_cost_pct(i, pd)), describe_reg(effective_reg(i, pd["reg"]))]
-		proj_label.text += "\n" + struct_effect_text(pd) + "\n" + region_struct_text(i)
-		proj_option.disabled = false
-		proj_start.disabled = game_over or opp_mode
-		proj_cancel.disabled = true
-	else:
-		var pd2 := find_by_id(PROJECTS, pr["id"])
-		proj_label.text = "Идёт проект «%s»: осталось %d из %d мес. (%.1f млрд всего). По завершении: %s." % [pd2["name"], pr["left"], pr["months"], gdp * float(pr["cost"]) / 100.0, describe_reg(effective_reg(i, pd2["reg"]))]
-		proj_label.text += "\n" + region_struct_text(i)
-		proj_option.disabled = true
-		proj_start.disabled = true
-		proj_cancel.disabled = game_over
+	# 0.56: только состояние строек региона; сами стройки — в окне «Строительство»
+	var lines: PackedStringArray = []
+	for it in bq:
+		if int(it["i"]) != i:
+			continue
+		var pdq := find_by_id(PROJECTS, String(it["id"]))
+		var eta := bq_eta(it)
+		lines.append("• %s%s: %.0f%% готово, %s" % ["улучшение: " if bool(it.get("upg", false)) else "", pdq.get("name", it["id"]), float(it["done"]) / maxf(0.001, float(it["cost"])) * 100.0,
+			("ещё %d мес." % eta) if eta > 0 else "ждёт денег или мощностей"])
+	for it in bq_priv:
+		if int(it["i"]) == i:
+			lines.append("• %s (инвестор «%s»): %.0f%% готово" % [find_by_id(PROJECTS, String(it["id"])).get("name", it["id"]), String(it["corp"]), float(it["done"]) / maxf(0.001, float(it["cost"])) * 100.0])
+	proj_label.text = ("Стройки в регионе:\n" + "\n".join(lines)) if lines.size() > 0 else "Сейчас в регионе ничего не строится."
+	proj_label.text += "\n" + region_struct_text(i)
+	proj_start.disabled = false
 	for a in REGION_ACTIONS:
 		var row: Dictionary = reg_action_rows[a["id"]]
 		var bt: Button = row["btn"]

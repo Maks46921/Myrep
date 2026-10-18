@@ -16,6 +16,38 @@ func ate_name(a: int) -> String:
 	return ""
 
 
+func bld_money_month() -> float:
+	return 0.0
+
+
+func bq_add(pid: String, i: int, ate: int, cost_bn: float, months: int, upg: bool = false, auto: bool = false) -> Dictionary:
+	return {}
+
+
+func bq_cancel(uid: int) -> void:
+	pass
+
+
+func bq_has(i: int, id: String) -> bool:
+	return false
+
+
+func bq_in_region(i: int) -> Dictionary:
+	return {}
+
+
+func bq_migrate() -> void:
+	pass
+
+
+func bq_month() -> void:
+	pass
+
+
+func bq_rate(it: Dictionary) -> float:
+	return 0.0
+
+
 func church_loy_term(i: int) -> float:
 	return 0.0
 
@@ -208,19 +240,22 @@ func update_regions() -> void:
 		rh.append(gdp * gdp_w[i])
 		if rh.size() > 13:
 			rh.pop_front()
-	for i in n:
-		var pr: Dictionary = regions[i]["proj"]
-		if pr.is_empty():
-			continue
-		pr["left"] = int(pr["left"]) - 1
-		if int(pr["left"]) <= 0:
-			complete_project(i)
+	bq_month()   # 0.56: стройки идут очередью (construct.gd)
 
 
+# 0.56: завершить первую госстройку региона i (для проверок и событий)
 func complete_project(i: int) -> void:
-	var pr: Dictionary = regions[i]["proj"]
+	bq_migrate()
+	for k in bq.size():
+		if int(bq[k]["i"]) == i:
+			var it: Dictionary = bq[k]
+			bq.remove_at(k)
+			complete_project_pr(i, it)
+			return
+
+
+func complete_project_pr(i: int, pr: Dictionary) -> void:
 	var pd := find_by_id(PROJECTS, pr["id"])
-	regions[i]["proj"] = {}
 	if pd.is_empty():
 		return
 	if bool(pr.get("upg", false)):
@@ -265,31 +300,36 @@ func proj_group_text(pid: String) -> String:
 
 
 # начать стройку pid в регионе i (ate — АТЕ, где будет сооружение; -1 — выбрать самую населённую АТЕ региона). "" — успех
-func project_start_at(i: int, pid: String, ate: int = -1) -> String:
+# 0.56: стройка встаёт в очередь госстроек; в регионе их может быть несколько
+func project_start_at(i: int, pid: String, ate: int = -1, auto: bool = false) -> String:
 	if game_over:
 		return "игра окончена"
 	if opp_mode:
 		return "стройкой распоряжается правительство"
 	if i < 0 or i >= regions.size():
 		return "выберите свой регион"
-	if not (regions[i]["proj"] as Dictionary).is_empty():
-		return "в регионе уже идёт стройка"
+	bq_migrate()
 	var pd := find_by_id(PROJECTS, pid)
 	if pd.is_empty():
 		return "нет такого сооружения"
 	var why_c := con_start_check(i, pd)
 	if why_c != "":
 		return why_c
+	if bool(pd.get("mega", false)) and bq_has(i, pid):
+		return "мегапроект уже строится"
+	if bq.size() >= 40:
+		return "в очереди уже 40 строек"
 	if ate < 0:
 		ate = region_main_ate(i)
 	var cost_pct := project_cost_pct(i, pd)
-	regions[i]["proj"] = {"id": pd["id"], "left": int(pd["months"]), "months": int(pd["months"]), "cost": cost_pct, "ate": ate}
+	var it := bq_add(String(pd["id"]), i, ate, gdp * cost_pct / 100.0, int(pd["months"]), false, auto)
+	var eta: int = int(ceil(float(it["cost"]) / maxf(0.0001, minf(bq_rate(it), bld_money_month()))))
 	var fx: Dictionary = proj_group_fx(pid)
 	for g in fx:
 		add_support(String(g), float(fx[g]))
 	var where: String = ("«%s», %s" % [REGIONS[i]["name"], ate_name(ate)]) if ate >= 0 else "«%s»" % REGIONS[i]["name"]
-	log_tag("ПРОЕКТ", COL_TEAL, "%s — %s: начат «%s» (%d мес., всего %.1f млрд). Реакция: %s. %s" % [
-		date_text(), where, pd["name"], pd["months"], gdp * cost_pct / 100.0, proj_group_text(pid), roi_text(i, pd["reg"], cost_pct)])
+	log_tag("ПРОЕКТ", COL_TEAL, "%s — %s: «%s» поставлен в очередь строек%s (не меньше %d мес., всего %.1f млрд; место в очереди %d). Реакция: %s. %s" % [
+		date_text(), where, pd["name"], " по плану министерств" if auto else "", pd["months"], gdp * cost_pct / 100.0, bq.size(), proj_group_text(pid), roi_text(i, pd["reg"], cost_pct)])
 	refresh()
 	return ""
 
@@ -322,15 +362,9 @@ func start_project() -> void:
 func cancel_project() -> void:
 	if game_over:
 		return
-	var i := selected_region
-	var pr: Dictionary = regions[i]["proj"]
-	if pr.is_empty():
-		return
-	var pd := find_by_id(PROJECTS, pr["id"])
-	regions[i]["proj"] = {}
-	apply_reg_delta(i, {"loyalty": -3.0, "unrest": 3.0})
-	log_line("[color=%s]%s: проект «%s» в регионе «%s» остановлен. Жители недовольны (лояльность -3, недовольство +3).[/color]" % [COL_BAD, date_text(), pd["name"], REGIONS[i]["name"]])
-	refresh()
+	var it := bq_in_region(selected_region)
+	if not it.is_empty():
+		bq_cancel(int(it["uid"]))
 
 
 func appoint_governor(kind: int) -> void:
