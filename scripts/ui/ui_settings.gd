@@ -14,7 +14,7 @@ const MUSIC_SETS := ["Эмбиент", "Минимализм", "Всё подр�
 const CLICK_SETS := ["Стандартный щелчок", "Мягкий (дерево)", "Клавиша"]
 const UI_SCALES := [0.9, 1.0, 1.1, 1.25]
 const SETTINGS_PATH := "user://settings.cfg"
-const SETTINGS_KEYS := ["music", "sfx", "theme", "sea", "music_set", "click", "anim", "scale"]
+const SETTINGS_KEYS := ["music", "sfx", "theme", "sea", "music_set", "click", "anim", "scale", "tip_size", "tip_delay"]
 
 var st_ov: Control = null
 var st_tabs: TabContainer = null
@@ -151,6 +151,11 @@ func build_settings_window() -> void:
 			map_ctl.queue_redraw())
 	st_option(g, "Масштаб интерфейса", UI_SCALES.map(func(x: float) -> String: return "%d%%" % int(round(x * 100.0))), "scale",
 		"Размер шрифтов и кнопок. Удобно на больших или маленьких экранах.", func(_i: int) -> void: settings_apply_static())
+	# 0.56: подсказки — размер шрифта и задержка перед показом
+	st_option(g, "Размер подсказок", ["Мелкий", "Обычный", "Крупный"], "tip_size",
+		"Размер шрифта и ширина всплывающих подсказок.", func(_i: int) -> void: pass)
+	st_option(g, "Задержка подсказок", ["Сразу", "0,5 с", "1 с"], "tip_delay",
+		"Сколько держать мышь над элементом, прежде чем появится подсказка.", func(_i: int) -> void: pass)
 	st_check(g, "Плавные анимации (окна, камера, числа)", "anim", "Если выключить, окна и карта меняются сразу — быстрее на слабых компьютерах.")
 	# --- звук ---
 	var a := st_page("Звук")
@@ -246,7 +251,7 @@ func st_option(parent: Control, label: String, items: Array, key: String, tip: S
 	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for it in items:
 		ob.add_item(String(it))
-	ob.select(clampi(int(game_opts.get(key, 1 if key == "scale" else 0)), 0, items.size() - 1))
+	ob.select(clampi(int(game_opts.get(key, 1 if key in ["scale", "tip_size", "tip_delay"] else 0)), 0, items.size() - 1))
 	ob.item_selected.connect(func(i: int) -> void:
 		game_opts[key] = i
 		settings_save()

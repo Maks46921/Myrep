@@ -57,10 +57,6 @@ func cult_vote_mult(ri: int, p: int) -> float:
 	return 0.0
 
 
-func decree_power() -> bool:
-	return false
-
-
 func form_government(verbose: bool) -> bool:
 	return false
 

@@ -400,15 +400,21 @@ func do_region_action(id: String) -> void:
 	if cap_spendable() < float(a["cap"]):
 		log_line("[color=%s]Не хватает политического капитала для действия «%s».[/color]" % [COL_BAD, a["name"]])
 		return
+	var bn: float = gdp * float(a["money"]) / 100.0
+	var ow := oneoff_why(bn)
+	if ow != "":
+		log_line("[color=%s]«%s»: %s.[/color]" % [COL_WARN, a["name"], ow])
+		return
 	capital -= float(a["cap"])
-	debt += gdp * float(a["money"]) / 100.0
+	if bn > 0.0:
+		oneoff_pay(bn, "%s — «%s»" % [a["name"], REGIONS[ri]["name"]])
 	cd[id] = int(a["cd"])
 	var eff := effective_reg(ri, a["reg"])
 	apply_reg_delta(ri, a["reg"], true)
 	var nat := apply_fx(a["nat"])
 	var cost_txt := ""
 	if float(a["money"]) > 0.0:
-		cost_txt = ", расходы %.1f млрд (в долг)" % (gdp * float(a["money"]) / 100.0)
+		cost_txt = ", расходы %.1f млрд из резерва бюджета" % bn
 	log_line("[b]%s: «%s» — %s.[/b] Регион: %s%s%s." % [date_text(), REGIONS[ri]["name"], a["name"], describe_reg(eff), cost_txt, (", страна: " + nat) if nat != "" else ""])
 	refresh()
 
@@ -737,8 +743,12 @@ func reg_tool_buy() -> void:
 			if String(z["id"]) == String(t["id"]):
 				return
 	var cost_pct := tool_cost_pct(i, t)
+	var ow := oneoff_why(gdp * cost_pct / 100.0)
+	if ow != "":
+		log_line("[color=%s]«%s»: %s.[/color]" % [COL_WARN, t["name"], ow])
+		return
 	capital -= float(t["cap"])
-	debt += gdp * cost_pct / 100.0
+	oneoff_pay(gdp * cost_pct / 100.0, "%s — «%s»" % [t["name"], REGIONS[i]["name"]])
 	cd[key] = 18
 	var f := reg_tool_factor(i) * maxf(0.4, 1.0 - 0.25 * float((r["zones"] as Array).size()))
 	if int(t["months"]) > 0:
@@ -752,6 +762,6 @@ func reg_tool_buy() -> void:
 		r["rdebt"] = clampf(float(r["rdebt"]) + float(t["rdebt"]), 0.0, 160.0)
 	apply_reg_delta(i, t["reg"], false)
 	var nat := apply_fx(t["nat"])
-	log_tag("РЕГИОН", COL_TEAL, "%s — «%s»: запущено «%s» (%.1f млрд в долг, политкапитал -%.0f). %s%s." % [
+	log_tag("РЕГИОН", COL_TEAL, "%s — «%s»: запущено «%s» (%.1f млрд из резерва бюджета, политкапитал -%.0f). %s%s." % [
 		date_text(), REGIONS[i]["name"], t["name"], gdp * cost_pct / 100.0, float(t["cap"]), tool_effect_text(t, i), (", страна: " + nat) if nat != "" else ""])
 	refresh()

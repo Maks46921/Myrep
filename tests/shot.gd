@@ -33,6 +33,12 @@ func _init():
 			g.update_goods_windows()
 		if String(a).begins_with("call="):
 			g.call(String(a).substr(5))
+		# 0.56: open=meas|tech|crisis — открыть окно поверх игры
+		if String(a).begins_with("open="):
+			match String(a).substr(5):
+				"meas": g.set_meas_open(true)
+				"tech": g.set_tech_open(true)
+				"crisis": g.set_crisis_open(true)
 		if String(a).begins_with("org="):
 			g.io["sel"] = String(a).substr(4)
 			g.refresh()

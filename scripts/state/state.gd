@@ -247,6 +247,9 @@ var map_layer := 0
 # ============================================================
 
 var workspace: Control
+var meas_q := -1                   # 0.56: квартал, в котором считаются разовые меры
+var meas_qn := 0                   # сколько мер проведено в этом квартале
+var modal_layer: Control = null   # 0.56: слой поверх «Технологий» и «Кризисов» — окна события и выборов
 
 var wins := {}
 
@@ -299,6 +302,7 @@ var fold_nodes: Array = []
 var stats_label: RichTextLabel
 
 var measure_rows := {}
+var meas_note_rt: RichTextLabel = null   # 0.56: сводка в окне «Разовые меры» на вкладке «Бюджет»
 
 var action_rows := {}
 
@@ -310,7 +314,10 @@ var pol_header: Label
 
 var polls_rt: RichTextLabel
 
-var log_box: RichTextLabel
+var log_box: VBoxContainer       # 0.56: журнал — список рамок месяцев (раньше RichTextLabel)
+var log_scroll: ScrollContainer = null
+var log_open := {}               # 0.56: месяц журнала -> раскрыт ли (выбор игрока; по умолчанию открыты последние 3)
+var log_ui_gs: Array = []        # 0.56: рамки месяцев на экране: {key, title, closed, fr, head, body, es, n, nbig, open}
 
 var event_label: RichTextLabel
 
@@ -413,6 +420,9 @@ var transfer_labels: Array = []
 var bud_tr_slider: HSlider = null   # 0.55.5: «Трансферты регионам» — строка с ползунком в бюджете
 
 var bud_tr_label: Label = null
+var bud_oo_label: Label = null          # 0.56: резерв на разовые меры
+var bud_oo_rt: RichTextLabel = null
+var bud_eq_box: VBoxContainer = null    # 0.56: место для программы «Выравнивание регионов» в «Бюджете»
 
 var level_fx_rt: RichTextLabel
 

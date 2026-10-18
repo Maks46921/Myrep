@@ -13,7 +13,7 @@ const RV_STAGE_U := [0.0, 0.3, 1.0, 2.2, 3.5]
 const RV_REG_ACTS := [
 	{"id": "talk", "name": "Диалог с лидерами протеста", "cap": 3.0, "cd": 4, "min": 1,
 		"desc": "Встречи с представителями общин и профсоюзов: недовольство и обида падают, лояльность растёт. На стадии мятежа лидеры могут отказаться."},
-	{"id": "invest", "name": "Инвестиции в регион (+0,15% ВВП в долг)", "cap": 4.0, "cd": 6, "min": 0,
+	{"id": "invest", "name": "Инвестиции в регион (0,15% ВВП из резерва бюджета)", "cap": 4.0, "cd": 6, "min": 0,
 		"desc": "Рабочие места и стройки: развитие региона растёт, недовольство спадает."},
 	{"id": "police", "name": "Усилить полицию", "cap": 2.0, "cd": 3, "min": 1,
 		"desc": "Быстро снижает недовольство, но копит обиду: потом протесты вспыхнут снова. Против вооружённого мятежа бессильна."},
@@ -403,6 +403,8 @@ func rv_reg_act_check(id: String, i: int) -> String:
 		return "нужно %.0f политкапитала" % float(a["cap"])
 	if rv_conf_of(rv_uid(i)) >= 0 and id in ["talk", "police", "invest"]:
 		return "идёт война: используйте действия конфликта"
+	if id == "invest" and oneoff_why(gdp * 0.0015) != "":
+		return oneoff_why(gdp * 0.0015)
 	if id == "commission" and int(rg["stage"]) >= 3:
 		return "слишком поздно: идёт вооружённая борьба"
 	if id == "referendum" or id == "agreed_ref":
@@ -438,7 +440,7 @@ func rv_region_act(id: String, i: int) -> bool:
 				rg["hate"] = rv_clamp(float(rg["hate"]) + 2.0)
 				rv_log("в регионе «%s» лидеры отказались от диалога: они не верят центру." % nm, COL_BAD)
 		"invest":
-			debt += gdp * 0.0015
+			oneoff_pay(gdp * 0.0015, "Инвестиции в регион «%s»" % nm)
 			r["dev"] = rv_clamp(float(r["dev"]) + 3.0)
 			r["unrest"] = rv_clamp(float(r["unrest"]) - 4.0)
 			r["loy"] = rv_clamp(float(r["loy"]) + 2.0)

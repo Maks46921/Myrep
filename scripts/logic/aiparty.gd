@@ -12,8 +12,16 @@ func autopilot_step() -> void:
 	pass
 
 
+func corp_state_share() -> float:
+	return 0.0
+
+
 func gov_style_step() -> void:
 	pass
+
+
+func tip_make(title: String, secs: Array = []) -> String:
+	return ""
 
 
 # --- конец заглушек ---
@@ -329,6 +337,77 @@ func junior_info() -> Dictionary:
 
 func junior_power() -> float:
 	return float(junior_info()["power"])
+
+
+# ============================================================
+#  0.56 (п.18): ИСТОЧНИКИ ПОЛИТИЧЕСКОГО КАПИТАЛА
+#  Правящая партия получает капитал от мест, поста главы правительства, министерств и «экономической власти»
+#  (доля госсектора и поддержка бизнеса); неправящая — по доле голосов. Таблица весов — CAP_W.
+# ============================================================
+const CAP_W := {"base": 0.2, "seats": 1.2, "pm": 0.2, "junior": 0.05, "min": 0.025, "econ": 0.15, "votes": 1.5, "pres": 0.15, "appr": 0.2}
+var cap_vs_turn := -1
+var cap_vs := 0.0
+
+
+func cap_vote_share() -> float:
+	if cap_vs_turn != turn:
+		cap_vs_turn = turn
+		var sh := national_shares(false)
+		cap_vs = float(sh[0]) if sh.size() > 0 else 0.0
+	return cap_vs
+
+
+func cap_sources() -> Array:
+	var out: Array = [["Основа", CAP_W["base"]]]
+	var gov: bool = not opp_mode and in_coalition.size() > 0 and in_coalition[0]
+	if gov:
+		var sh: float = float(seats[0]) / float(maxi(1, SEATS))
+		out.append(["Места в парламенте (%.0f%%)" % (sh * 100.0), float(CAP_W["seats"]) * sh])
+		if bool(junior_info()["junior"]):
+			out.append(["Младший партнёр в коалиции", CAP_W["junior"]])
+		else:
+			out.append(["Пост главы правительства", CAP_W["pm"]])
+		var nm := 0
+		for m in ministries.size():
+			if ministries[m] == 0:
+				nm += 1
+		if nm > 0:
+			out.append(["Министерства (%d)" % nm, float(CAP_W["min"]) * float(nm)])
+		var ep: float = 0.5 * corp_state_share() + 0.5 * float(support.get("Бизнес", 50.0)) / 100.0
+		out.append(["Экономическая власть", float(CAP_W["econ"]) * ep])
+		if approval() >= 55.0:
+			out.append(["Рейтинг выше 55%", CAP_W["appr"]])
+	else:
+		var vs: float = cap_vote_share()
+		out.append(["Доля голосов (%.0f%%)" % (vs * 100.0), float(CAP_W["votes"]) * vs])
+	if pres_party == 0:
+		out.append(["Глава государства из вашей партии", CAP_W["pres"]])
+	var mb: float = float(mods["capital_bonus"])
+	if absf(mb) > 0.001:
+		out.append(["Законы и устройство власти", mb])
+	return out
+
+
+func cap_mults() -> Array:
+	var out: Array = [["Верность линии партии", idl_mult()]]
+	if techno_until > turn:
+		out.append(["Техническое правительство", 0.5])
+	return out
+
+
+# подсказка к капиталу: источники с цифрами
+func cap_tip() -> String:
+	var rows: Array = []
+	for r in cap_sources():
+		rows.append([String(r[0]), "%+.2f" % float(r[1])])
+	var mrows: Array = []
+	for r in cap_mults():
+		mrows.append([String(r[0]), "×%.2f" % float(r[1])])
+	var secs: Array = [["Источники в месяц", rows], ["Множители", mrows], ["Итого", [["Прирост в месяц", "%+.2f" % cap_rate()]]],
+		["", "Капитал тратится на законы, действия и переговоры; за выполненные обещания партнёрам он возвращается. Тратить можно и в минус."]]
+	if capital < 0.0:
+		secs.append(["", "Внимание: капитал в минусе, риск отставки правительства %.0f%% в месяц." % (cap_neg_risk() * 100.0)])
+	return tip_make("Политический капитал: %.1f" % capital, secs)
 
 
 # ============================================================

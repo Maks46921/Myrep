@@ -8,6 +8,10 @@ func ch_law_label(vs: Array) -> void:
 	pass
 
 
+func decree_power() -> bool:
+	return false
+
+
 func democracy_index() -> float:
 	return 0.0
 
@@ -76,14 +80,106 @@ func vote_show() -> void:
 # --- конец заглушек ---
 
 
+# ============================================================
+#  0.56 (п.14, 20): РАЗОВЫЕ МЕРЫ — ответственные и лимит
+#  У каждой меры есть ответственный: министерство (если оно у партнёра и партнёр против — мера заблокирована)
+#  или глава государства (подпишет ли он — зависит от конституции). Кроме своей перезарядки — общий лимит в квартал.
+# ============================================================
+# id -> [министерство (-1 — глава государства), статья, к которой близка мера, направление]
+const MEAS_RESP := {"privatize": [0, "subs", -1], "amnesty": [0, "corp", -1], "stimulus": [0, "infra", 1], "pension_bonus": [9, "pensions", 1],
+	"price_freeze": [5, "benefits", 1], "reserves": [0, "", 0], "cheap_credit": [5, "subs", 1], "fx_intervention": [0, "", 0],
+	"food_import": [6, "benefits", 1], "food_cap": [6, "benefits", 1], "fuel_aid": [0, "eco", -1], "med_support": [3, "health", 1],
+	"housing_aid": [8, "benefits", 1], "pardon": [-1, "police", -1], "unity": [-1, "", 0]}
+const MEAS_Q_LIMIT := 2
+
+
+func meas_quarter() -> int:
+	return year * 4 + (month - 1) / 3
+
+
+func meas_q_used() -> int:
+	return meas_qn if meas_q == meas_quarter() else 0
+
+
+func meas_min(id: String) -> int:
+	return int((MEAS_RESP.get(id, [0, "", 0]) as Array)[0])
+
+
+# партия, держащая министерство меры (0 — вы); -1 — министерство свободно
+func meas_holder(id: String) -> int:
+	var mi := meas_min(id)
+	if mi < 0 or mi >= ministries.size():
+		return 0
+	return ministries[mi]
+
+
+# против ли партнёр p меры (по его отношению к близкой статье бюджета)
+func meas_partner_against(id: String, p: int) -> bool:
+	var r: Array = MEAS_RESP.get(id, [0, "", 0])
+	if String(r[1]) == "" or p <= 0:
+		return false
+	return ideo_stance(p, String(r[1])) * float(r[2]) < -0.25
+
+
+func meas_resp_text(id: String) -> String:
+	var mi := meas_min(id)
+	if mi < 0:
+		return "Глава государства (%s)" % String(ELEC.get("title_n", "глава государства")).to_lower()
+	var h := meas_holder(id)
+	var who: String = "ваша партия" if h == 0 else "партия «%s»" % PARTY_NAMES[h]
+	return "Министерство «%s» — %s" % [String(MINISTRIES[mi]["name"]), who]
+
+
+# подпишет ли глава государства (по конституции): монарх и коллегиальный совет — по совету правительства,
+# избранный президент — только если он из вашей партии (прямые выборы) или из коалиции (выбран парламентом)
+func meas_head_why() -> String:
+	if decree_power():
+		return ""
+	var hk: String = String(ELEC.get("head", "monarch"))
+	if hk == "monarch" or hk == "council" or hk == "none":
+		return ""
+	if pres_party == 0:
+		return ""
+	if hk != "direct" and pres_party > 0 and pres_party < in_coalition.size() and in_coalition[pres_party]:
+		return ""
+	if pres_party < 0:
+		return ""
+	return "это решает %s от партии «%s», а она не поддерживает ваше правительство" % [String(ELEC.get("title_n", "глава государства")).to_lower(), PARTY_NAMES[pres_party]]
+
+
+func meas_why(id: String) -> String:
+	var why := pl_why("gov")
+	if why != "":
+		return why
+	if game_over:
+		return "игра окончена"
+	var cd: int = int(cooldown.get(id, 0))
+	if cd > 0:
+		return "мера недавно проводилась: ещё %d мес." % cd
+	if meas_q_used() >= MEAS_Q_LIMIT:
+		return "в этом квартале уже проведено %d меры — правительство не успевает больше" % MEAS_Q_LIMIT
+	if meas_min(id) < 0:
+		return meas_head_why()
+	var h := meas_holder(id)
+	if h > 0 and in_coalition.size() > h and in_coalition[h] and meas_partner_against(id, h):
+		return "министерство «%s» у партии «%s», и она против этой меры" % [String(MINISTRIES[meas_min(id)]["name"]), PARTY_NAMES[h]]
+	return ""
+
+
 func do_measure(id: String) -> void:
 	if pl_deny(): return
-	if game_over or int(cooldown.get(id, 0)) > 0:
+	var why := meas_why(id)
+	if why != "":
+		log_line("[color=%s]Мера недоступна: %s.[/color]" % [COL_WARN, why])
 		return
 	var m := find_by_id(MEASURES, id)
 	cooldown[id] = int(m["cd"])
+	if meas_q != meas_quarter():
+		meas_q = meas_quarter()
+		meas_qn = 0
+	meas_qn += 1
 	var eff := apply_fx(m["fx"])
-	log_line("[b]%s: разовая мера «%s».[/b] Последствия: %s." % [date_text(), m["name"], eff])
+	log_line("[b]%s: разовая мера «%s».[/b] Отвечает: %s. Последствия: %s." % [date_text(), m["name"], meas_resp_text(id), eff])
 	refresh()
 
 

@@ -8,6 +8,10 @@ func build_army_windows() -> void:
 	pass
 
 
+func build_bud_oneoff(parent: Control) -> void:
+	pass
+
+
 func build_bud_transfer(parent: Control) -> void:
 	pass
 
@@ -65,6 +69,10 @@ func build_law_windows() -> void:
 
 
 func build_map_windows() -> void:
+	pass
+
+
+func build_meas_overlay() -> void:
 	pass
 
 
@@ -128,12 +136,20 @@ func make_crisis_button(parent: Control) -> void:
 	pass
 
 
+func make_meas_button(parent: Control) -> void:
+	pass
+
+
 func make_tech_button(parent: Control) -> void:
 	pass
 
 
 func map_apply_mode() -> void:
 	pass
+
+
+func meas_is_open() -> bool:
+	return false
 
 
 func music_dirs() -> Array:
@@ -153,6 +169,10 @@ func reg_ui_sync() -> void:
 
 
 func set_crisis_open(on: bool) -> void:
+	pass
+
+
+func set_meas_open(on: bool) -> void:
 	pass
 
 
@@ -225,6 +245,10 @@ func update_io_windows() -> void:
 
 
 func update_law_windows() -> void:
+	pass
+
+
+func update_meas_window() -> void:
 	pass
 
 
@@ -502,6 +526,7 @@ func build_ui() -> void:
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
 	make_tech_button(tabs)
 	make_crisis_button(tabs)
+	make_meas_button(tabs)
 	# v50: показатели в прокрутке без полосы — на узком экране обрезаются справа, а кнопки времени и настроек всегда видны
 	var chip_sc := ScrollContainer.new()
 	chip_sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -602,6 +627,7 @@ func build_ui() -> void:
 	build_society_windows()
 	build_tech_windows()
 	build_crisis_windows()
+	build_meas_overlay()
 	build_opp_windows()
 	build_fleet_windows()
 	build_war_windows()
@@ -609,6 +635,18 @@ func build_ui() -> void:
 	build_auto_window()
 	build_realm_windows()
 	build_log_and_event()
+	# 0.56: событие и итоги выборов всплывают поверх «Технологий» и «Кризисов» и не закрывают их
+	modal_layer = Control.new()
+	modal_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(modal_layer)
+	modal_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	modal_layer.offset_top = workspace.offset_top
+	modal_layer.offset_left = workspace.offset_left
+	modal_layer.offset_right = workspace.offset_right
+	modal_layer.offset_bottom = workspace.offset_bottom
+	for mid in ["event", "election"]:
+		if wins.has(mid):
+			(wins[mid] as FloatWindow).reparent(modal_layer, false)
 	for wid in WIN_DEFAULT_CLOSED:
 		if wins.has(wid):
 			(wins[wid] as FloatWindow).closed = true
@@ -950,6 +988,9 @@ func build_budget_windows() -> void:
 		if d["kind"] == "spend":
 			add_slider(w.body, d)
 	build_bud_transfer(w.body)
+	bud_eq_box = VBoxContainer.new()
+	w.body.add_child(bud_eq_box)
+	build_bud_oneoff(w.body)
 	spend_total_label = add_wrap_label(w.body, "")
 	var fl := CheckButton.new()
 	fl.text = "Авто-подъём всех статей до ожиданий групп"
@@ -988,12 +1029,12 @@ func build_budget_windows() -> void:
 	add_note(w.body, "Цифры — поддержка власти группой (0–100). Рейтинг — взвешенная сумма по числу людей в группе.")
 	gp_rt = make_fold(w.body, "Каким партиям симпатизируют группы")
 
+	# 0.56 (п.20): разовые меры — в отдельном окне с карточками (кнопка «Меры» на верхней панели)
 	w = new_window("measures", "Советник и разовые меры", 0, Rect2(0.47, 0.50, 0.235, 0.50))
-	for m in MEASURES:
-		var b := make_button("", w.body)
-		b.pressed.connect(do_measure.bind(m["id"]))
-		measure_rows[m["id"]] = b
-		b.tooltip_text = String(m["desc"])
+	meas_note_rt = make_rt(w.body)
+	var mob := make_button("Открыть окно разовых мер", w.body)
+	mob.tooltip_text = "Карточки всех разовых мер: кто за меру отвечает, что она даст, когда её можно провести снова."
+	mob.pressed.connect(func() -> void: set_meas_open(true))
 
 
 func build_log_and_event() -> void:
@@ -1016,17 +1057,17 @@ func build_log_and_event() -> void:
 	clr.pressed.connect(log_clear)
 	hb.add_child(clr)
 	build_log_filters(w.body)
-	log_box = RichTextLabel.new()
-	log_box.bbcode_enabled = true
-	log_box.scroll_following = true
-	log_box.selection_enabled = true
-	log_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# 0.56: журнал «рамки в рамке» — месяц в общей рамке, каждое сообщение — карточка
+	log_scroll = ScrollContainer.new()
+	log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	w.body.add_child(log_scroll)
+	log_box = VBoxContainer.new()
 	log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	log_box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_box.add_theme_font_size_override("normal_font_size", 14)
-	log_box.add_theme_font_size_override("bold_font_size", 14)
-	log_box.add_theme_constant_override("line_separation", 3)
-	w.body.add_child(log_box)
+	log_box.add_theme_constant_override("separation", 8)
+	log_scroll.add_child(log_box)
+	log_ui_rebuild(true)
 
 	build_event_window()
 	build_election_window()
@@ -1241,11 +1282,12 @@ func refresh() -> void:
 		set_bar("approval", approval())
 		for d in LEVELS:
 			set_bar(d["key"], float(lvl[d["key"]]))
-		for m in MEASURES:
-			var b: Button = measure_rows[m["id"]]
-			var cd: int = int(cooldown[m["id"]])
-			b.text = m["name"] if cd == 0 else "%s (ещё %d мес.)" % [m["name"], cd]
-			b.disabled = cd > 0 or game_over
+		if meas_note_rt != null:
+			var nready := 0
+			for m in MEASURES:
+				if meas_why(String(m["id"])) == "":
+					nready += 1
+			meas_note_rt.text = "[font_size=13]Можно провести сейчас: [b]%d[/b] из %d. В этом квартале проведено %d из %d.[/font_size]" % [nready, MEASURES.size(), meas_q_used(), MEAS_Q_LIMIT]
 	elif current_desk == 1:
 		for a in ACTIONS:
 			var b: Button = action_rows[a["id"]]
@@ -1302,6 +1344,7 @@ func refresh() -> void:
 		update_build_window()
 	update_regions_ui()
 	update_tech_windows()
+	update_meas_window()
 	update_crisis_windows()
 	overlays_lock()
 	update_realm_windows()
@@ -1529,7 +1572,12 @@ func make_theme() -> Theme:
 		th.set_stylebox("grabber_highlight", t, sbox(C_ACCENT.darkened(0.25), Color(0, 0, 0, 0), 0, 4, 3.0, 3.0))
 		th.set_stylebox("grabber_pressed", t, sbox(C_ACCENT, Color(0, 0, 0, 0), 0, 4, 3.0, 3.0))
 	# --- подсказки и разделители ---
-	var tip := sbox(Color(0.055, 0.067, 0.095, 0.98), C_ACCENT.darkened(0.3), 1, 8, 11.0, 8.0)
+	# 0.56: подсказка в цветах интерфейса — фон панели, цветная полоса слева (содержимое рисует tip_on_added)
+	var tip := sbox(C_PANEL, C_BORDER, 1, 8, 14.0, 10.0)
+	tip.border_width_left = 4
+	tip.border_color = C_BORDER
+	tip.border_blend = false
+	tip.content_margin_left = 16.0
 	sdepth(tip, Color(0, 0, 0, 0.45), 10, Vector2(0.0, 3.0))
 	th.set_stylebox("panel", "TooltipPanel", tip)
 	th.set_color("font_color", "TooltipLabel", C_TEXT)
@@ -1540,6 +1588,405 @@ func make_theme() -> Theme:
 	th.set_stylebox("separator", "HSeparator", line)
 	th.set_constant("separation", "HSeparator", 8)
 	return th
+
+
+# ============================================================
+#  0.56: общий построитель подсказок. Все подсказки игры (tooltip_text) перехватываются при показе:
+#  вместо простой строки — заголовок, разделы с подзаголовками, числа таблицей (плюс зелёным, минус красным).
+#  Текст подсказки остаётся обычной строкой, оформление выводится из её вида:
+#    первая строка (короткая) — заголовок; строка «Раздел:» — подзаголовок; «название: +число» — строка таблицы;
+#    «Сейчас нельзя: …» / «Сейчас недоступно: …» — предупреждение. tip_make() собирает такую строку из частей.
+#  Размер шрифта и задержка — в настройках (Графика → «Подсказки»).
+# ============================================================
+const TIP_SIZES := [13, 15, 17]
+const TIP_WIDTHS := [400.0, 460.0, 540.0]
+const TIP_DELAYS := [0.1, 0.5, 1.0]      # project.godot: gui/timers/tooltip_delay_sec = 0.1, остальное добирает tip_on_added
+const TIP_WARN_HEADS := ["Внимание:", "Сейчас нельзя:", "Сейчас недоступно:", "Пока нельзя:", "Недоступно:", "Нельзя:"]
+
+var tip_re_num: RegEx = null
+var tip_re_row: RegEx = null
+
+
+func tip_setup() -> void:
+	if not get_tree().node_added.is_connected(tip_on_added):
+		get_tree().node_added.connect(tip_on_added)
+
+
+# собрать текст подсказки: заголовок + разделы [подзаголовок, строки [[название, значение], …] или текст]
+func tip_make(title: String, secs: Array = []) -> String:
+	var out: PackedStringArray = [title]
+	for sec in secs:
+		var head: String = String(sec[0]) if sec.size() > 0 else ""
+		if head != "":
+			out.append(head + ":")
+		var body: Variant = sec[1] if sec.size() > 1 else ""
+		if body is Array:
+			for r in body:
+				out.append("%s: %s" % [String(r[0]), String(r[1])])
+		elif String(body) != "":
+			out.append(String(body))
+	return "\n".join(out)
+
+
+func tip_num_text(v: float, dec: int = 1, unit: String = "") -> String:
+	return sg(v, dec) + unit
+
+
+func tip_color_nums(t: String) -> String:
+	if tip_re_num == null:
+		tip_re_num = RegEx.new()
+		tip_re_num.compile("(?m)(^|[\\s(«/])([+−-])(\\d+(?:[.,]\\d+)?(?:\\s?%| п\\.п\\.| млрд)?)")
+	var out := ""
+	var pos := 0
+	for m in tip_re_num.search_all(t):
+		var col: String = COL_GOOD if m.get_string(2) == "+" else COL_BAD
+		out += t.substr(pos, m.get_start(2) - pos) + "[color=%s]%s%s[/color]" % [col, m.get_string(2), m.get_string(3)]
+		pos = m.get_end(3)
+	return out + t.substr(pos)
+
+
+func tip_is_row(line: String) -> PackedStringArray:
+	# «название: значение», где значение короткое и начинается с числа или знака
+	if tip_re_row == null:
+		tip_re_row = RegEx.new()
+		tip_re_row.compile("^(.{1,60}?):\\s+([+−\\-×≈~]?\\s?\\d[^\\n]{0,22})$")
+	var m := tip_re_row.search(line)
+	if m == null:
+		return PackedStringArray()
+	return PackedStringArray([m.get_string(1), m.get_string(2)])
+
+
+func tip_bbcode(src: String, fs: int) -> String:
+	var lines: PackedStringArray = src.replace("\r", "").split("\n")
+	var out := ""
+	var i0 := 0
+	if lines.size() > 1 and lines[0].length() <= 70 and lines[0].strip_edges() != "":
+		out += "[font_size=%d][b]%s[/b][/font_size]\n" % [fs + 2, lines[0].strip_edges().replace("[", "[lb]")]
+		i0 = 1
+	var rows: Array = []
+	var flush := func() -> String:
+		if rows.is_empty():
+			return ""
+		var t := "[table=2]"
+		for r in rows:
+			t += "[cell padding=0,1,14,1]%s[/cell][cell padding=0,1,0,1][right]%s[/right][/cell]" % [String(r[0]), tip_color_nums(" " + String(r[1])).substr(1) if String(r[1]).begins_with("+") or String(r[1]).begins_with("−") or String(r[1]).begins_with("-") else String(r[1])]
+		rows.clear()
+		return t + "[/table]\n"
+	for i in range(i0, lines.size()):
+		var ln: String = lines[i].strip_edges(false, true)
+		var esc: String = ln.replace("[", "[lb]")
+		var row := tip_is_row(esc.strip_edges())
+		if row.size() == 2:
+			rows.append(row)
+			continue
+		out += flush.call()
+		if ln.strip_edges() == "":
+			out += "[font_size=6] [/font_size]\n"
+			continue
+		var warn := false
+		for wh in TIP_WARN_HEADS:
+			if ln.strip_edges().begins_with(wh) or ln.contains("\n" + wh):
+				warn = true
+		if warn:
+			out += "[color=%s]%s[/color]\n" % [COL_WARN, esc]
+		elif ln.ends_with(":") and ln.length() <= 48:
+			out += "[font_size=%d][color=%s]%s[/color][/font_size]\n" % [fs - 1, COL_DIM, esc.trim_suffix(":").to_upper()]
+		else:
+			out += tip_color_nums(esc) + "\n"
+	out += flush.call()
+	return out.trim_suffix("\n")
+
+
+func tip_on_added(n: Node) -> void:
+	if not (n is Label) or not (n.get_parent() is PopupPanel):
+		return
+	if n.get_class() != "TooltipLabel" and (n.get_parent() as PopupPanel).theme_type_variation != "TooltipPanel":
+		return
+	var lb := n as Label
+	var src: String = lb.text
+	if src.strip_edges() == "":
+		return
+	var szi: int = clampi(int(game_opts.get("tip_size", 1)), 0, TIP_SIZES.size() - 1)
+	var fs: int = TIP_SIZES[szi]
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = true
+	rt.scroll_active = false
+	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rt.add_theme_font_size_override("normal_font_size", fs)
+	rt.add_theme_font_size_override("bold_font_size", fs)
+	rt.add_theme_color_override("default_color", C_TEXT)
+	rt.add_theme_constant_override("line_separation", 2)
+	# ширина: короткие подсказки — по тексту, длинные переносятся по словам
+	var font: Font = rt.get_theme_font("normal_font")
+	var longest := 0.0
+	for ln in src.split("\n"):
+		longest = maxf(longest, font.get_string_size(ln, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+	var w: float = clampf(longest + 24.0, 120.0, TIP_WIDTHS[szi])
+	rt.custom_minimum_size = Vector2(w, 0.0)
+	rt.text = tip_bbcode(src, fs)
+	lb.text = ""
+	lb.add_child(rt)
+	lb.custom_minimum_size = Vector2(w, rt.get_content_height() + 2.0)
+	# цветная полоса слева — цвет раздела, из которого открыта подсказка
+	var pan := lb.get_parent() as PopupPanel
+	var sb: StyleBox = pan.get_theme_stylebox("panel")
+	if sb is StyleBoxFlat:
+		var sf := (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
+		sf.border_color = accent_for_desk(current_desk)
+		sf.border_width_top = 0
+		sf.border_width_right = 0
+		sf.border_width_bottom = 0
+		pan.add_theme_stylebox_override("panel", sf)
+	var extra: float = float(TIP_DELAYS[clampi(int(game_opts.get("tip_delay", 1)), 0, TIP_DELAYS.size() - 1)]) - TIP_DELAYS[0]
+	if extra > 0.01:
+		pan.call_deferred("hide")
+		get_tree().create_timer(extra).timeout.connect(func() -> void:
+			if is_instance_valid(pan) and pan.is_inside_tree():
+				pan.show())
+
+
+# ============================================================
+#  0.56: ЖУРНАЛ «РАМКИ В РАМКЕ»
+#  Сообщения месяца собраны в общую рамку с заголовком месяца, каждое сообщение — карточка
+#  с меткой, датой и цифрами (плюс зелёным, минус красным). Важные (выборы, кризисы, война,
+#  отставка, коалиция, вступление в ЕС/НАТО) крупнее и ярче. Открыты последние 3 месяца и текущий.
+# ============================================================
+const LOG_KEEP_OPEN := 3
+const LOG_BIG_TAGS := ["ВОЙНА", "КРИЗИС", "ВОЕННОЕ ПОЛОЖЕНИЕ", "ВЛАСТЬ", "ГОСУДАРСТВО", "СКАНДАЛ"]
+const LOG_QUIET_TAGS := ["МИР", "НАУКА", "АВТОПИЛОТ", "СОХРАНЕНИЕ", "РЕМОНТ", "ПРОЕКТ", "НАБЛЮДАТЕЛЬ", "ТОРГОВЛЯ"]
+const LOG_BIG_WORDS := ["итоги выборов", "результаты выборов", "досрочные выборы", "победил на выборах", "бунт", "восстан", "мятеж",
+	"объявил войну", "объявила войну", "начало войны", "перемири", "мирный договор", "капитуляц", "отставк", "недовери", "вотум",
+	"коалиция распалась", "распад коалиц", "новое правительство", "правительство сформировано", "коалиция сформирована",
+	"переворот", "революц", "импичмент", "новая конституция", "референдум"]
+
+
+func log_is_big(e: Dictionary) -> bool:
+	var k: String = String(e.get("k", ""))
+	if k == "head":
+		return true
+	if k != "line":
+		return false
+	var tag: String = String(e.get("tag", ""))
+	if tag in LOG_BIG_TAGS:
+		return true
+	if tag in LOG_QUIET_TAGS:
+		return false
+	var low: String = String(e.get("t", "")).to_lower()
+	for w in LOG_BIG_WORDS:
+		if low.contains(w):
+			return true
+	if (low.contains("вступ") or low.contains("принят")) and (low.contains("нато") or low.contains("евросоюз") or low.contains(" ес")):
+		return true
+	return false
+
+
+func log_groups() -> Array:
+	var gs: Array = []
+	var cur: Array = []
+	for e in log_entries:
+		var k: String = String(e["k"])
+		if k == "year" and cur.is_empty() and not gs.is_empty():
+			(gs.back()["es"] as Array).append(e)
+			continue
+		cur.append(e)
+		if k == "month":
+			gs.append({"title": String(e["date"]), "es": cur, "closed": true})
+			cur = []
+	gs.append({"title": "", "es": cur, "closed": false})
+	return gs
+
+
+func log_ui_rebuild(to_end: bool) -> void:
+	if log_box == null:
+		return
+	for c in log_box.get_children():
+		log_box.remove_child(c)
+		c.queue_free()
+	log_ui_gs.clear()
+	var gs := log_groups()
+	var last_closed: int = gs.size() - 2
+	for i in gs.size():
+		var src: Dictionary = gs[i]
+		var closed: bool = src["closed"]
+		var key: String = String(src["title"]) if closed else "@cur"
+		var def_open: bool = (not closed) or i > last_closed - LOG_KEEP_OPEN
+		var g := log_ui_new_group(key, String(src["title"]), closed, bool(log_open.get(key, def_open)))
+		for e in src["es"]:
+			log_ui_put(g, e)
+		log_ui_head(g)
+	if to_end:
+		log_ui_scroll_end(true)
+
+
+func log_ui_new_group(key: String, title: String, closed: bool, open: bool) -> Dictionary:
+	var fr := PanelContainer.new()
+	fr.add_theme_stylebox_override("panel", sbox(C_BG.lerp(C_PANEL, 0.55), C_BORDER, 1, 8, 8.0, 6.0))
+	fr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_box.add_child(fr)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 6)
+	fr.add_child(vb)
+	var head := Button.new()
+	head.flat = true
+	head.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	head.focus_mode = Control.FOCUS_NONE
+	head.add_theme_font_size_override("font_size", 14)
+	head.tooltip_text = "Свернуть или развернуть месяц"
+	vb.add_child(head)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 5)
+	vb.add_child(body)
+	var g := {"key": key, "title": title, "closed": closed, "fr": fr, "head": head, "body": body, "es": [], "n": 0, "nbig": 0, "open": open, "last": null}
+	head.pressed.connect(func() -> void: log_ui_toggle(g))
+	log_ui_gs.append(g)
+	return g
+
+
+func log_ui_put(g: Dictionary, e: Dictionary) -> void:
+	(g["es"] as Array).append(e)
+	if not log_match(e):
+		return
+	if String(e["k"]) != "note":
+		g["n"] = int(g["n"]) + 1
+		if log_is_big(e):
+			g["nbig"] = int(g["nbig"]) + 1
+	if bool(g["open"]):
+		log_ui_card(g, e)
+
+
+func log_ui_head(g: Dictionary) -> void:
+	var b := g["head"] as Button
+	var t: String = String(g["title"]) if bool(g["closed"]) else "Текущий месяц · %s" % date_text()
+	t = ("▾ " if bool(g["open"]) else "▸ ") + t
+	if int(g["n"]) > 0:
+		t += "  ·  %d" % int(g["n"])
+	if int(g["nbig"]) > 0:
+		t += "  ·  ★ %d" % int(g["nbig"])
+	b.text = t
+	b.add_theme_color_override("font_color", C_TEXT if bool(g["open"]) else Color(COL_DIM))
+	(g["body"] as Control).visible = bool(g["open"])
+
+
+func log_ui_toggle(g: Dictionary) -> void:
+	g["open"] = not bool(g["open"])
+	log_open[String(g["key"])] = g["open"]
+	var body := g["body"] as VBoxContainer
+	for c in body.get_children():
+		body.remove_child(c)
+		c.queue_free()
+	g["last"] = null
+	if bool(g["open"]):
+		for e in g["es"]:
+			if log_match(e):
+				log_ui_card(g, e)
+	log_ui_head(g)
+
+
+func log_ui_add(e: Dictionary) -> void:
+	if log_ui_gs.is_empty():
+		log_ui_rebuild(true)
+		return
+	var g: Dictionary = log_ui_gs.back()
+	if String(e["k"]) == "year" and (g["es"] as Array).is_empty() and log_ui_gs.size() > 1:
+		g = log_ui_gs[log_ui_gs.size() - 2]
+	log_ui_put(g, e)
+	if String(e["k"]) == "month":
+		# месяц закрыт: рамка получает заголовок, начинается новая; старые месяцы сворачиваются
+		g["closed"] = true
+		g["title"] = String(e["date"])
+		g["key"] = String(e["date"])
+		log_ui_head(g)
+		var ng := log_ui_new_group("@cur", "", false, true)
+		log_ui_head(ng)
+		var old_i: int = log_ui_gs.size() - 2 - LOG_KEEP_OPEN
+		if old_i >= 0:
+			var og: Dictionary = log_ui_gs[old_i]
+			if bool(og["open"]) and not log_open.has(String(og["key"])):
+				og["open"] = true
+				log_ui_toggle(og)
+				log_open.erase(String(og["key"]))
+	else:
+		log_ui_head(g)
+	log_ui_scroll_end(false)
+
+
+func log_ui_card(g: Dictionary, e: Dictionary) -> void:
+	var k: String = String(e["k"])
+	var body := g["body"] as VBoxContainer
+	var last: Variant = g["last"]
+	if k == "note":
+		if last != null and is_instance_valid(last):
+			(last as RichTextLabel).append_text("\n[font_size=13][color=%s]%s[/color][/font_size]" % [COL_DIM, tip_color_nums(String(e["t"]))])
+			return
+	var big := log_is_big(e)
+	var cat: String = String(e.get("cat", "ev"))
+	var col := Color(String(LOG_CAT_COL.get(cat, "#8a93aa")))
+	var label: String = String(LOG_CAT_NAME.get(cat, ""))
+	var txt := ""
+	match k:
+		"head":
+			col = Color(String(e["col"]))
+			label = ""
+			txt = "[font_size=17][b][color=%s]%s[/color][/b][/font_size]" % [String(e["col"]), String(e["t"])]
+		"line":
+			if e.has("tag"):
+				col = Color(String(e["col"]))
+				label = String(e["tag"])
+			txt = tip_color_nums(String(e["t"]))
+			if big:
+				txt = "[font_size=16][b]%s[/b][/font_size]" % txt
+		"note":
+			txt = "[color=%s]%s[/color]" % [COL_DIM, tip_color_nums(String(e["t"]))]
+		"month":
+			col = Color("#7fb0ff")
+			label = "ИТОГИ МЕСЯЦА"
+			txt = log_render_month(e).strip_edges()
+			txt = txt.substr(txt.find("[table=4]"))
+		"year":
+			col = Color("#ffd166")
+			label = "ИТОГИ %d ГОДА" % int(e["year"])
+			txt = log_render_year(e).strip_edges()
+			txt = txt.substr(txt.find("[table=4]"))
+	var pc := PanelContainer.new()
+	var sb := sbox(C_PANEL2.lerp(col, 0.16 if big else 0.0), col if big else col.darkened(0.15), 1 if big else 0, 6, 10.0, 6.0)
+	sb.border_width_left = 4 if big else 3
+	sb.content_margin_left = 12.0
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.mouse_filter = Control.MOUSE_FILTER_PASS
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = true
+	rt.scroll_active = false
+	rt.selection_enabled = true
+	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rt.mouse_filter = Control.MOUSE_FILTER_PASS
+	rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rt.add_theme_font_size_override("normal_font_size", 14)
+	rt.add_theme_font_size_override("bold_font_size", 14)
+	rt.add_theme_constant_override("line_separation", 2)
+	var top := ""
+	if label != "":
+		top = "[font_size=11][b][color=#%s]%s[/color][/b][/font_size]" % [col.lightened(0.15).to_html(false), label]
+	if k != "month" and k != "year":
+		top += ("  " if top != "" else "") + "[font_size=11][color=%s]%s[/color][/font_size]" % [COL_DIM, String(e.get("d", ""))]
+	rt.text = (top + "\n" if top != "" else "") + txt
+	pc.add_child(rt)
+	body.add_child(pc)
+	g["last"] = rt
+
+
+func log_ui_scroll_end(force: bool) -> void:
+	if log_scroll == null or not log_scroll.is_inside_tree():
+		return
+	var vb := log_scroll.get_v_scroll_bar()
+	if not force and vb.value < vb.max_value - vb.page - 80.0:
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(log_scroll):
+		log_scroll.scroll_vertical = int(vb.max_value)
 
 
 func sdepth(sb: StyleBox, col: Color, sz: int, off: Vector2) -> void:
@@ -1684,7 +2131,7 @@ func update_chips() -> void:
 	set_chip_num("unemp", unemployment, func(x: float) -> String: return "%.1f%%" % x, scale_color(1.0 - unemployment / 14.0), arrow_text(dun, 2), delta_col(dun, false))
 	set_chip_num("debt", dr, func(x: float) -> String: return "%.0f%%" % x, scale_color(1.0 - dr / 110.0), arrow_text(ddebt, 1), delta_col(ddebt, false))
 	var cr: float = cap_rate()
-	(chips["cap"]["pc"] as Control).tooltip_text = "Политический капитал: расходуется на законы, действия и переговоры. Тратить можно и в минус." + ("\nСейчас капитал в минусе: риск отставки правительства %.0f%% в месяц (при авторитарном строе — падает лояльность кланов)." % (cap_neg_risk() * 100.0) if capital < 0.0 else "")
+	(chips["cap"]["pc"] as Control).tooltip_text = cap_tip()
 	set_chip_num("cap", capital, func(x: float) -> String: return "%.1f" % x, C_BAD if capital < 0.0 else (C_WARN if capital < 15.0 else C_TEXT), "%s%.1f/мес" % ["+" if cr >= 0.0 else "", cr], C_GOOD if cr >= 0.7 else C_DIM)
 	set_chip("coal", "%d/%d" % [gs, SEATS], C_GOOD if gov_ok() else C_BAD, "кризис" if not gov_ok() else "", C_BAD)
 	var el_d: int = days_until_months(parl_in)
@@ -1756,7 +2203,7 @@ func on_log_detail(on: bool) -> void:
 # v50: «Технологии» и «Кризисы» ведут себя как остальные разделы: открытие снимает подсветку с вкладки раздела,
 # а нажатие на любую вкладку раздела закрывает их
 func overlay_tabs_sync() -> void:
-	var ov_on: bool = tech_is_open() or crisis_is_open()
+	var ov_on: bool = tech_is_open() or crisis_is_open() or meas_is_open()
 	var tab: int = desk_tab(current_desk)
 	for kb in desk_buttons.size():
 		(desk_buttons[kb] as Button).set_pressed_no_signal(kb == tab and not ov_on)
@@ -1767,6 +2214,8 @@ func show_tab(t: int) -> void:
 		set_tech_open(false)
 	if crisis_is_open():
 		set_crisis_open(false)
+	if meas_is_open():
+		set_meas_open(false)
 	if politics_page == 11:
 		politics_page = 1
 	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else (society_page if t == 5 else map_page)))))
@@ -1799,6 +2248,8 @@ func update_subbar(i: int) -> void:
 	if io_bar != null:
 		io_bar.visible = on4
 	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3 or on5) else 0.0) + (io_bar_h() if on4 else 0.0)
+	if modal_layer != null:
+		modal_layer.offset_top = workspace.offset_top
 	var pages := [1, 3, 4, 6, 12]
 	for k in 5:
 		(sub_buttons[k] as Button).set_pressed_no_signal(i == pages[k])

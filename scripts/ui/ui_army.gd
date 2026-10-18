@@ -25,10 +25,9 @@ func build_army_windows() -> void:
 	arw["bud_rt"] = make_rt(w.body)
 	var r0 := HBoxContainer.new()
 	w.body.add_child(r0)
-	var bm := fed_btn("−0,1% ВВП", r0, "Сократить статью бюджета «армия».")
-	bm.pressed.connect(ar_ui_spend.bind(-0.1))
-	var bp := fed_btn("+0,1% ВВП", r0, "Увеличить статью бюджета «армия» (то же, что ползунок на вкладке «Бюджет»).")
-	bp.pressed.connect(ar_ui_spend.bind(0.1))
+	# 0.56 (п.8): сумма оборонного бюджета меняется только в «Бюджете»; здесь — только её раскладка по статьям
+	var bo := fed_btn("Открыть в бюджете", r0, "Размер оборонного бюджета задаёт ползунок «Армия» во вкладке «Бюджет». Здесь он делится между статьями.")
+	bo.pressed.connect(func() -> void: show_desk(0))
 	arw["bs"] = {}
 	for k in AR_BS_KEYS:
 		var row := HBoxContainer.new()
@@ -175,25 +174,6 @@ func build_army_windows() -> void:
 	arw["riv_rt"] = make_rt(w.body)
 
 
-func ar_ui_spend(d: float) -> void:
-	if opp_mode:
-		ar_msg = "В оппозиции бюджетом распоряжается правительство."
-		refresh()
-		return
-	var v: float = (float(pol_abs["army"]) + d * gdp / 100.0) if is_abs("army") else float(pol["army"]) + d
-	var allowed := lock_allowed("army", v)
-	if is_abs("army"):
-		pol_abs["army"] = allowed
-		pol["army"] = allowed / gdp * 100.0
-	else:
-		pol["army"] = allowed
-	if sliders.has("army"):
-		(sliders["army"]["slider"] as HSlider).set_value_no_signal(slider_value_for("army"))
-		update_slider_label("army")
-	ar_msg = "" if is_equal_approx(allowed, v) else "Дальше менять расходы нельзя: мешает закон или бюджетное правило."
-	refresh()
-
-
 func ar_ui_bs(k: String, d: float) -> void:
 	ar_msg = ar_shift_bs(k, d)
 	refresh()
@@ -284,7 +264,7 @@ func update_army_windows() -> void:
 	(arw["td"] as Button).tooltip_text = "Добровольцы для обороны своей земли: дёшево, быстро, сильны только дома.\n" + ar_td_check()
 
 	# закупки
-	var pt := "Программы оплачиваются из специального фонда (в долг) помесячно до поставки. Чем больше обычный бюджет тратит на технику, тем дешевле программы."
+	var pt := "Программы оплачиваются помесячно до поставки из резерва бюджета на разовые меры (его размер меняется в «Бюджете»). Чем больше обычный бюджет тратит на технику, тем дешевле программы."
 	if ar_msg != "":
 		pt += "\n[color=%s]%s[/color]" % [COL_WARN, ar_msg]
 	(arw["proc_rt"] as RichTextLabel).text = pt

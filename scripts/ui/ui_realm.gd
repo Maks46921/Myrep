@@ -64,8 +64,8 @@ func build_realm_windows() -> void:
 	rm_attach("science", tw_left_box, "Государство и наука", rm_b_science)
 	if wins.has("actions"):
 		rm_attach("parl", (wins["actions"] as FloatWindow).body, "Парламент и президент", rm_b_parl)
-	if wins.has("fw_bulk"):
-		rm_attach("eq", (wins["fw_bulk"] as FloatWindow).body, "Выравнивание регионов", rm_b_eq)
+	# 0.56 (п.8): программа выравнивания тратит общий бюджет — она в «Бюджете», под трансфертами регионам
+	rm_attach("eq", bud_eq_box, "Выравнивание регионов", rm_b_eq)
 	# v50: сохранения, откат и справка перенесены в настройки (⚙)
 	build_tutorial()
 
@@ -307,7 +307,7 @@ func rm_b_parl(box: Control) -> void:
 
 
 func rm_b_eq(box: Control) -> void:
-	rm_text(box, "Уровень: %d из 3. Бедные регионы благодарны за трансферты, богатые недовольны платежами." % int(rl["lv"]["eq"]))
+	rm_text(box, "Уровень: %d из 3 (%.2f%% ВВП в год из бюджета). Бедные регионы благодарны за доплаты, богатые недовольны.\n[color=%s][font_size=12]Это доплаты бедным регионам из общего бюджета. «Выравнивание бюджетов регионов» во вкладке «Федерация» — другое: там богатые регионы делятся налогами с бедными, общий бюджет не тратится.[/font_size][/color]" % [int(rl["lv"]["eq"]), 0.25 * float(rl["lv"]["eq"]), COL_DIM])
 	rm_acts_box(box, rl_acts("region"), rm_do_rl)
 
 

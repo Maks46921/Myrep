@@ -288,7 +288,7 @@ var BASE_MODS := {
 # --- Разовые меры бюджета (cd — перерыв в месяцах) ---
 var LAW_TOPICS: Array = []
 
-var MEASURES: Array = MEASURES_BASE + ECON_MEASURES
+var MEASURES: Array = MEASURES_BASE + ECON_MEASURES + HEAD_MEASURES
 
 var TERMS := {}
 

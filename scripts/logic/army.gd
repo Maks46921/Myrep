@@ -725,6 +725,9 @@ func ar_td_check() -> String:
 		return "Нужно 2 политического капитала."
 	if float(ar["td"]) >= total_pop() * 1000.0 * 0.004:
 		return "Добровольцев больше нет: все желающие уже в территориальной обороне."
+	var ow := oneoff_why(clampf(total_pop() * 1000.0 * 0.0008, 0.5, 6.0) * 0.004)
+	if ow != "":
+		return "Сейчас нельзя: %s." % ow
 	return ""
 
 
@@ -734,7 +737,7 @@ func ar_td_form() -> bool:
 	capital -= 2.0
 	var sz: float = clampf(total_pop() * 1000.0 * 0.0008, 0.5, 6.0)
 	ar["td"] = float(ar["td"]) + sz
-	debt += sz * 0.004
+	oneoff_pay(sz * 0.004, "Снаряжение территориальной обороны")
 	var sp := mil_home_spots(ccode, 4)
 	var f := mil_new_unit(ccode, sz, mil_q(ccode) * 0.75, int(sp[mil_rng.randi() % sp.size()]), "res", "td")
 	f["mode"] = "def" if mil_at_war() else "hold"
@@ -759,6 +762,9 @@ func ar_buy_check() -> String:
 		return "Нужно 2 политического капитала."
 	if fa_eu_sanc():
 		return "Под санкциями ЕС никто не продаёт вам боеприпасы."
+	var ow := oneoff_why(ar_ammo_price(0.3))
+	if ow != "":
+		return "Сейчас нельзя: %s." % ow
 	return ""
 
 
@@ -767,7 +773,7 @@ func ar_buy_ammo() -> bool:
 		return false
 	var amt := 0.3
 	capital -= 2.0
-	debt += ar_ammo_price(amt)
+	oneoff_pay(ar_ammo_price(amt), "Срочная закупка боеприпасов")
 	(ar["cd"] as Dictionary)["buy"] = 2
 	var m: int = 1 if mil_is_nato(ccode) else 2
 	(ar["pq"] as Array).append({"amt": amt, "m": m})
@@ -855,7 +861,19 @@ func ar_prog_check(id: String) -> String:
 		return "Под санкциями ЕС такие системы вам не продадут."
 	if ar_prog_cost(id) > gdp * 0.02:
 		return "Слишком дорого для экономики страны: %.1f млрд € — больше 2%% ВВП." % ar_prog_cost(id)
+	var ow := oneoff_why(ar_prog_year_need(ar_prog_cost(id) / float(p["m"]), int(p["m"])))
+	if ow != "":
+		return "Сейчас нельзя: %s." % ow
 	return ""
+
+
+# 0.56: сколько программа и уже идущие программы заберут из резерва на разовые меры до конца года
+func ar_prog_year_need(pay: float, m: int) -> float:
+	var rest: int = 13 - month
+	var need: float = pay * float(mini(m, rest))
+	for q in (ar["prog"] as Array):
+		need += float(q["pay"]) * float(mini(int(q["left"]), rest))
+	return need
 
 
 func ar_prog_start(id: String) -> bool:
@@ -882,7 +900,7 @@ func ar_prog_month() -> void:
 	var pr: Array = ar["prog"]
 	for i in range(pr.size() - 1, -1, -1):
 		var q: Dictionary = pr[i]
-		debt += float(q["pay"])
+		oneoff_pay(float(q["pay"]), "Оборонная программа «%s»" % String(ar_prog_info(String(q["id"])).get("n", q["id"])))
 		q["left"] = int(q["left"]) - 1
 		if int(q["left"]) > 0:
 			continue
@@ -926,6 +944,8 @@ func ar_ex_check(kind: String, target: String = "") -> String:
 	var need := {"plan": 2.0, "border": 3.0, "allied": 3.0}
 	if cap_spendable() < float(need.get(kind, 2.0)):
 		return "Нужно %.0f политического капитала." % float(need.get(kind, 2.0))
+	if oneoff_why(gdp * 0.0002) != "":
+		return "Сейчас нельзя: %s." % oneoff_why(gdp * 0.0002)
 	if kind == "border" and (target == "" or not (target in mil_targets())):
 		return "Выберите соседа."
 	if kind == "allied" and not mil_is_nato(ccode) and ar_defense_partners().is_empty():
@@ -947,7 +967,7 @@ func ar_exercise(kind: String, target: String = "") -> bool:
 	if ar_ex_check(kind, target) != "":
 		return false
 	var cost: float = gdp * 0.0002
-	debt += cost
+	oneoff_pay(cost, "Учения")
 	(ar["cd"] as Dictionary)["ex"] = 4
 	match kind:
 		"plan":

@@ -57,6 +57,11 @@ func econ_class() -> String:
 	return "mixed"
 
 
+# 0.56 (п.8): разовые меры, которые оплачиваются из резерва бюджета, % ВВП
+const ES_ONEOFF := {"startup": 0.1, "retrain": 0.15, "coop_bank": 0.2}
+const CO_ONEOFF := {"taxdeal": 0.05, "champ": 0.05}
+
+
 func es_init() -> void:
 	es = {"cls": econ_class(), "prio": [], "plan": {"heavy": 1, "fuel": 1, "cons": 1, "agr": 1}, "ful": 100.0, "five_t": turn,
 		"wage": 1, "strike": 20.0, "deal_t": -99, "share": 1, "conf": clampf(50.0 + (float(support["Бизнес"]) - 50.0) * 0.6, 10.0, 90.0),
@@ -202,6 +207,10 @@ func es_check(id: String) -> String:
 	var cls := econ_class()
 	var parts := id.split(":")
 	var base: String = parts[0]
+	if ES_ONEOFF.has(base):
+		var ow := oneoff_why(gdp * float(ES_ONEOFF[base]) / 100.0)
+		if ow != "":
+			return ow
 	if base == "prio":
 		if not (cls in ["mixed", "statecap"]):
 			return "только при смешанной экономике или госкапитализме"
@@ -302,7 +311,7 @@ func es_act(id: String) -> bool:
 					txt = "Дерегуляция: отменены сотни проверок и лицензий."
 				"startup":
 					es["bon"]["startup"] = turn + 24
-					debt += gdp * 0.001
+					oneoff_pay(gdp * 0.001, "Налоговые каникулы для стартапов")
 					add_support("Молодёжь", 1.5)
 					txt = "Стартапы освобождены от налогов на 2 года."
 				"voucher":
@@ -331,7 +340,7 @@ func es_act(id: String) -> bool:
 					txt = "Зарплатные соглашения сдержанные: ставка на конкурентоспособность."
 				"retrain":
 					es["bon"]["retrain"] = turn + 24
-					debt += gdp * 0.0015
+					oneoff_pay(gdp * 0.0015, "Программа переобучения")
 					txt = "Запущена программа переобучения для безработных."
 				"price_up":
 					es["ctl"] = int(es["ctl"]) + 1
@@ -355,7 +364,7 @@ func es_act(id: String) -> bool:
 					txt = "Больше прибыли направлено на развитие предприятий."
 				"coop_bank":
 					es["bon"]["coop_bank"] = turn + 36
-					debt += gdp * 0.002
+					oneoff_pay(gdp * 0.002, "Кооперативный банк развития")
 					txt = "Основан кооперативный банк развития."
 				"congress":
 					add_support("Рабочие", 3.0)
@@ -487,6 +496,10 @@ func co_check(id: String, i: int) -> String:
 	if not (cls in String(a[2]).split(",")):
 		return "не при этой модели"
 	var c: Dictionary = corp["list"][i]
+	if CO_ONEOFF.has(id):
+		var ow := oneoff_why(gdp * float(CO_ONEOFF[id]) / 100.0)
+		if ow != "":
+			return ow
 	if int(c["cd"]) > turn:
 		return "с компанией недавно уже работали (ещё %d мес.)" % (int(c["cd"]) - turn)
 	if cap_spendable() < 4.0:
@@ -543,7 +556,7 @@ func co_act(id: String, i: int) -> bool:
 	match id:
 		"taxdeal":
 			es["bon"]["taxdeal"] = turn + 24
-			debt += gdp * 0.0005
+			oneoff_pay(gdp * 0.0005, "Инвестиционное соглашение с %s" % nm)
 			c["att"] = minf(100.0, float(c["att"]) + 10.0)
 			txt = "%s подписала инвестиционное соглашение: новые заводы в обмен на льготы." % nm
 		"antitrust":
@@ -594,7 +607,7 @@ func co_act(id: String, i: int) -> bool:
 			txt = "В правление «%s» вошли люди из администрации." % String(c["n"])
 		"champ":
 			c["champ"] = true
-			debt += gdp * 0.0005
+			oneoff_pay(gdp * 0.0005, "Национальный чемпион «%s»" % String(c["n"]))
 			txt = "«%s» — национальный чемпион: субсидии и госзаказ." % String(c["n"])
 		"plan_up":
 			c["pl"] = int(c["pl"]) + 1

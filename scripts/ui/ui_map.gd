@@ -1870,17 +1870,20 @@ func update_region_info() -> void:
 		if float(a["cap"]) > 0.0:
 			cost_parts.append("капитал %.0f" % a["cap"])
 		if float(a["money"]) > 0.0:
-			cost_parts.append("%.1f млрд в долг" % (gdp * float(a["money"]) / 100.0))
+			cost_parts.append("%.1f млрд из резерва" % (gdp * float(a["money"]) / 100.0))
 		var txt: String = loc(String(a["name"]))
 		if cost_parts.size() > 0:
 			txt += " — " + ", ".join(cost_parts)
 		if left > 0:
 			txt += " (ещё %d мес.)" % left
 		bt.text = txt
-		bt.disabled = left > 0 or game_over or cap_spendable() < float(a["cap"])
+		bt.disabled = left > 0 or game_over or cap_spendable() < float(a["cap"]) or oneoff_why(gdp * float(a["money"]) / 100.0) != ""
 		var tip: String = "Эффект: " + describe_reg(effective_reg(i, a["reg"]))
 		if a["reg"].has("dev"):
 			tip += ". " + roi_text(i, a["reg"], float(a["money"]))
+		var ow := oneoff_why(gdp * float(a["money"]) / 100.0)
+		if ow != "":
+			tip += "\nСейчас нельзя: " + ow + "."
 		bt.tooltip_text = tip
 
 

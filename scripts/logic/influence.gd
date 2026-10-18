@@ -303,14 +303,18 @@ func ex_aid_give(c: String) -> bool:
 	var p: Dictionary = ex["p"][c]
 	if ex_cd_get(c, "aid") > 0:
 		return false
+	var ow := oneoff_why(gdp * 0.1 / 100.0)
+	if ow != "":
+		log_line("[color=%s]Помощь и инвестиции: %s.[/color]" % [COL_WARN, ow])
+		return false
 	if not ex_cap(3.0):
 		return false
-	debt += gdp * 0.1 / 100.0
+	oneoff_pay(gdp * 0.1 / 100.0, "Помощь и инвестиции: %s" % WORLD[c]["name"])
 	p["aid"] = minf(40.0, float(p["aid"]) + 8.0)
 	p["cd"]["aid"] = 6
 	ex_rel_change(c, 3.0)
 	add_support("Бизнес", -0.5)
-	log_line("%s: помощь и инвестиции в «%s» (0.1%% ВВП в долг): влияние растёт." % [date_text(), WORLD[c]["name"]])
+	log_line("%s: помощь и инвестиции в «%s» (0.1%% ВВП из резерва бюджета): влияние растёт." % [date_text(), WORLD[c]["name"]])
 	fa_notify("aid", c, 1.0)
 	refresh()
 	return true

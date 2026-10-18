@@ -769,7 +769,8 @@ func check_commitments() -> void:
 			continue
 		if demand_dict_met(c):
 			conc[p] = float(conc.get(p, 0.0)) + 10.0
-			log_tag("ОБЕЩАНИЕ", COL_GOOD, "выполнено перед партией «%s»: принят закон %s. Довольство растёт." % [PARTY_NAMES[p], law_demand_text(p)])
+			capital = minf(100.0, capital + 5.0)   # 0.56: выполненное обещание укрепляет доверие — капитал возвращается
+			log_tag("ОБЕЩАНИЕ", COL_GOOD, "выполнено перед партией «%s»: принят закон %s. Довольство растёт, политкапитал +5." % [PARTY_NAMES[p], law_demand_text(p)])
 			continue
 		if turn >= int(c["deadline"]):
 			conc[p] = float(conc.get(p, 0.0)) - 18.0

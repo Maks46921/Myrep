@@ -883,6 +883,7 @@ func _ready() -> void:
 	settings_load()
 	settings_apply_static()
 	theme = make_theme()
+	tip_setup()
 	audio_init()
 	var win := get_window()
 	win.min_size = Vector2i(1340, 700)
@@ -938,7 +939,11 @@ func _input(e: InputEvent) -> void:
 	if not (e is InputEventKey):
 		return
 	var ke := e as InputEventKey
-	if not ke.pressed or ke.echo or ke.keycode != KEY_SPACE or election_open or has_node("CountryMenu"):
+	# 0.56: пока открыты итоги выборов, пробел ничего не делает — окно закрывается только кнопкой
+	if election_open and ke.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+		get_viewport().set_input_as_handled()
+		return
+	if not ke.pressed or ke.echo or ke.keycode != KEY_SPACE or has_node("CountryMenu"):
 		return
 	if start_ov != null or (st_ov != null and st_ov.visible):
 		return
@@ -959,9 +964,6 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	var k: int = ke.keycode
 	if election_open:
-		if k == KEY_ENTER or k == KEY_KP_ENTER or k == KEY_SPACE:
-			election_continue()
-			get_viewport().set_input_as_handled()
 		return
 	if k == KEY_ESCAPE and bld_pick != "":
 		bld_cancel()

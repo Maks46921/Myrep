@@ -132,7 +132,7 @@ func build_soc_windows() -> void:
 	xw_btn["tar-"].pressed.connect(on_ex_tar.bind(-1))
 	xw_btn["tar+"] = fed_btn("Пошлины + (6)", r7, "Защищают рабочих, бьют по бизнесу и отношениям; партнёр может ответить.")
 	xw_btn["tar+"].pressed.connect(on_ex_tar.bind(1))
-	xw_btn["aid"] = fed_btn("Помощь и инвестиции (3)", w.body, "0,1% ВВП в долг: растёт влияние на страну.")
+	xw_btn["aid"] = fed_btn("Помощь и инвестиции (3)", w.body, "0,1% ВВП из резерва бюджета на разовые меры: растёт влияние на страну.")
 	xw_btn["aid"].pressed.connect(on_ex_aid)
 	var r8 := HBoxContainer.new()
 	w.body.add_child(r8)

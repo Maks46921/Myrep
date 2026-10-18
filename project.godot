@@ -18,3 +18,7 @@ boot_splash/use_filter=true
 window/size/viewport_width=1400
 window/size/viewport_height=820
 window/size/resizable=true
+
+[gui]
+
+timers/tooltip_delay_sec=0.1

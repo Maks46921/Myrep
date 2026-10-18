@@ -47,12 +47,12 @@ func on_tech_toggle(on: bool) -> void:
 func set_tech_open(on: bool) -> void:
 	if tech_ov == null:
 		return
-	if on and not current_event.is_empty():
-		on = false
 	if on != tech_ov.visible:
 		sfx("click")
 	if on and crisis_is_open():
 		set_crisis_open(false)
+	if on and meas_is_open():
+		set_meas_open(false)
 	var was: bool = tech_ov.visible
 	tech_ov.visible = on
 	if on and not was:
@@ -437,8 +437,6 @@ func update_tech_windows() -> void:
 	if tech_ov == null or tech.is_empty():
 		return
 	tech_tab_mark()
-	if tech_ov.visible and not current_event.is_empty():
-		set_tech_open(false)
 	if not tech_ov.visible:
 		return
 	tech_refresh_rates()

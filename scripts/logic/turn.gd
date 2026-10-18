@@ -40,6 +40,14 @@ func bills_step() -> void:
 	pass
 
 
+func cap_mults() -> Array:
+	return []
+
+
+func cap_sources() -> Array:
+	return []
+
+
 func church_init() -> void:
 	pass
 
@@ -148,10 +156,6 @@ func h12_snap() -> void:
 	pass
 
 
-func idl_mult() -> float:
-	return 0.0
-
-
 func idl_step() -> void:
 	pass
 
@@ -170,10 +174,6 @@ func ind_month() -> void:
 
 func io_init() -> void:
 	pass
-
-
-func junior_power() -> float:
-	return 0.0
 
 
 func junior_quit() -> void:
@@ -495,8 +495,14 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 
 
 # прирост политического капитала в месяц (v35: показывается рядом с капиталом в верхней панели)
+# 0.56 (п.18): сумма источников (места, пост главы правительства, министерства, экономическая власть…) × множители
 func cap_rate() -> float:
-	return (0.7 + (0.2 if approval() >= 55.0 else 0.0) + float(mods["capital_bonus"])) * idl_mult() * junior_power() * (0.5 if techno_until > turn else 1.0)
+	var s := 0.0
+	for r in cap_sources():
+		s += float(r[1])
+	for r in cap_mults():
+		s *= float(r[1])
+	return s
 
 
 
@@ -644,6 +650,7 @@ func next_turn_core() -> void:
 	prev_pol = pol.duplicate()
 	if month == 12:
 		log_year_summary()
+		oneoff_year_reset()
 
 	# --- крах государства ---
 	if debt / gdp > 1.5:

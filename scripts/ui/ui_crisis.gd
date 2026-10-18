@@ -45,12 +45,12 @@ func crisis_is_open() -> bool:
 func set_crisis_open(on: bool) -> void:
 	if cr_ov == null:
 		return
-	if on and not current_event.is_empty():
-		on = false
 	if on != cr_ov.visible:
 		sfx("click")
 	if on and tech_ov != null and tech_ov.visible:
 		set_tech_open(false)
+	if on and meas_is_open():
+		set_meas_open(false)
 	var was: bool = cr_ov.visible
 	cr_ov.visible = on
 	if on and not was:
@@ -311,8 +311,6 @@ func update_crisis_windows() -> void:
 		color_button(cr_btn, COL_BAD if hot else Color(0.78, 0.86, 1.0))
 	if cr_ov == null or rv.is_empty():
 		return
-	if cr_ov.visible and not current_event.is_empty():
-		set_crisis_open(false)
 	if not cr_ov.visible:
 		return
 	var nat: Dictionary = rv["nat"]

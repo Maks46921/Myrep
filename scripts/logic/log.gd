@@ -1,6 +1,20 @@
 # Структурированный журнал.
 extends "res://scripts/logic/autopilot.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func log_ui_add(e: Dictionary) -> void:
+	pass
+
+
+func log_ui_rebuild(to_end: bool) -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 func log_guess_cat(s: String) -> String:
 	var low := s.to_lower()
 	for w in LOG_POL_WORDS:
@@ -27,11 +41,13 @@ func log_add(e: Dictionary) -> void:
 			for x in e["notes"]:
 				nn.append(loc(String(x)))
 			e["notes"] = nn
+	if not e.has("d"):
+		e["d"] = date_chip()
 	log_entries.append(e)
 	if log_entries.size() > 700:
 		log_entries.pop_front()
-	if log_box != null and log_match(e):
-		log_box.append_text(log_render(e))
+	if log_box != null:
+		log_ui_add(e)
 
 
 func log_chip(text: String, col: String) -> String:
@@ -92,18 +108,14 @@ func log_render_year(e: Dictionary) -> String:
 
 
 func log_rebuild() -> void:
-	if log_box == null:
-		return
-	log_box.clear()
-	for e in log_entries:
-		if log_match(e):
-			log_box.append_text(log_render(e))
+	if log_box != null:
+		log_ui_rebuild(true)
 
 
 func log_clear() -> void:
 	log_entries.clear()
-	if log_box != null:
-		log_box.clear()
+	log_open.clear()
+	log_rebuild()
 
 
 func on_log_filter(i: int) -> void:

@@ -1135,6 +1135,12 @@ func debt_rate() -> float:
 var bud_base := {}          # ключ -> [доля ВВП до правки, сумма в млрд или -1.0]
 var bud_persuaded := {}     # партнёры, которых убедили уступкой в этом раунде
 var bud_tr_base := {}       # 0.56: черновик трансфертов регионам — uid региона -> утверждённый трансферт (% ВВП региона)
+# 0.56 (п.8): разовые траты (грант региону, меры управления экономикой, инвестиции при бунте, помощь другим странам,
+# срочные закупки армии) идут из строки бюджета «Резерв на разовые меры». Размер резерва меняется только в «Бюджете».
+var oneoff_cap := 1.0       # резерв, % ВВП в год (в черновике — новое значение)
+var oneoff_cap0 := -1.0     # утверждённый резерв, пока в плане есть правка (-1 — правки нет)
+var oneoff_used := 0.0      # потрачено из резерва в этом году, млрд
+var oneoff_log: Array = []  # траты этого года: [дата, что, млрд]
 
 
 func bud_mark(key: String, old_share: float, old_abs: float) -> void:
@@ -1146,7 +1152,7 @@ func bud_mark(key: String, old_share: float, old_abs: float) -> void:
 
 
 func bud_pending() -> bool:
-	return not bud_base.is_empty() or not bud_tr_base.is_empty()
+	return not bud_base.is_empty() or not bud_tr_base.is_empty() or oneoff_cap0 >= 0.0
 
 
 func bud_changes() -> Array:
@@ -1158,7 +1164,56 @@ func bud_changes() -> Array:
 			out.append([k, o, n])
 	if bud_tr_changed():
 		out.append(["reg_transfer", bud_tr_old_avg(), transfer_avg()])
+	if oneoff_cap0 >= 0.0 and absf(oneoff_cap - oneoff_cap0) >= 0.05:
+		out.append(["oneoff", oneoff_cap0, oneoff_cap])
 	return out
+
+
+# ---------- 0.56: резерв на разовые меры ----------
+func oneoff_cap_ok() -> float:
+	return oneoff_cap0 if oneoff_cap0 >= 0.0 else oneoff_cap
+
+
+func oneoff_left() -> float:
+	return maxf(0.0, gdp * oneoff_cap_ok() / 100.0 - oneoff_used)
+
+
+# почему нельзя потратить bn млрд из резерва (пусто — можно); ИИ и режим оппозиции резервом не ограничены
+func oneoff_why(bn: float) -> String:
+	if opp_mode or observer or bn <= 0.0:
+		return ""
+	if bn > oneoff_left() + 0.001:
+		return "в резерве бюджета на разовые меры осталось %.1f млрд из %.1f, нужно %.1f (резерв меняется в «Бюджете»)" % [
+			oneoff_left(), gdp * oneoff_cap_ok() / 100.0, bn]
+	return ""
+
+
+func oneoff_pay(bn: float, what: String) -> void:
+	debt += bn
+	if opp_mode or observer:
+		return
+	oneoff_used += bn
+	oneoff_log.append([date_short(), what, bn])
+	if oneoff_log.size() > 40:
+		oneoff_log.pop_front()
+
+
+func oneoff_set(v: float) -> void:
+	v = clampf(v, 0.0, 5.0)
+	if bud_draft_on():
+		if oneoff_cap0 < 0.0:
+			oneoff_cap0 = oneoff_cap
+		oneoff_cap = v
+		if absf(oneoff_cap - oneoff_cap0) < 0.001:
+			oneoff_cap0 = -1.0
+		bud_persuaded.clear()
+	else:
+		oneoff_cap = v
+
+
+func oneoff_year_reset() -> void:
+	oneoff_used = 0.0
+	oneoff_log.clear()
 
 
 # ---------- 0.56: трансферты регионам тоже идут через план бюджета ----------
@@ -1215,6 +1270,8 @@ func bud_tr_restore() -> void:
 func bud_change_text(c: Array) -> String:
 	if String(c[0]) == "reg_transfer":
 		return "«Трансферты регионам» %.2f → %.2f%% ВВП" % [float(c[1]), float(c[2])]
+	if String(c[0]) == "oneoff":
+		return "«Резерв на разовые меры» %.1f → %.1f%% ВВП" % [float(c[1]), float(c[2])]
 	return "«%s» %.1f → %.1f%% ВВП" % [policy_title(String(c[0])), float(c[1]), float(c[2])]
 
 
@@ -1227,12 +1284,14 @@ func tr_shift(i: int, d: float) -> void:
 
 
 func bud_title(k: String) -> String:
+	if k == "oneoff":
+		return "Резерв на разовые меры"
 	return "Трансферты регионам" if k == "reg_transfer" else policy_title(k)
 
 
 # отношение партии к статье; трансферты регионам — как к пособиям и инфраструктуре вместе
 func bud_stance(q: int, k: String) -> float:
-	if k == "reg_transfer":
+	if k == "reg_transfer" or k == "oneoff":
 		return 0.5 * (ideo_stance(q, "benefits") + ideo_stance(q, "infra"))
 	return ideo_stance(q, k)
 
@@ -1355,6 +1414,7 @@ func bud_apply(forced: bool) -> void:
 				conc[q] = float(conc.get(q, 0.0)) - 4.0
 	bud_base.clear()
 	bud_tr_base.clear()
+	oneoff_cap0 = -1.0
 	bud_persuaded.clear()
 	if parts.size() > 0:
 		log_tag("БЮДЖЕТ", COL_GOOD, "бюджет принят: %s." % "; ".join(parts))
@@ -1367,6 +1427,9 @@ func bud_cancel() -> void:
 		set_policy(k, float(bud_base[k][0]))
 	bud_base.clear()
 	bud_tr_restore()
+	if oneoff_cap0 >= 0.0:
+		oneoff_cap = oneoff_cap0
+		oneoff_cap0 = -1.0
 	bud_persuaded.clear()
 
 
@@ -1385,6 +1448,10 @@ func bud_drop_disputed() -> int:
 	for k in drop:
 		if k == "reg_transfer":
 			bud_tr_restore()
+			continue
+		if k == "oneoff":
+			oneoff_cap = oneoff_cap0
+			oneoff_cap0 = -1.0
 			continue
 		if float(bud_base[k][1]) >= 0.0:
 			pol_abs[k] = float(bud_base[k][1])
