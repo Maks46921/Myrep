@@ -97,7 +97,7 @@ func build_gov_windows() -> void:
 	cabfx_rt = make_rt(w.body)
 	make_tail(cabfx_rt, "Кто что приносит")
 
-	w = new_window("neg", "Переговоры с партией", 4, Rect2(0.50, 0.0, 0.205, 0.70))
+	w = new_window("neg", "Переговоры с партией", 4, Rect2(0.50, 0.0, 0.205, 0.58))
 	neg_option = OptionButton.new()
 	neg_option.focus_mode = Control.FOCUS_NONE
 	neg_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -128,7 +128,10 @@ func build_gov_windows() -> void:
 	neg_rt = make_rt(w.body)
 	make_tail(neg_rt, "Довольство и требования партии")
 
-	w = new_window("commit", "Обязательства и требования", 4, Rect2(0.50, 0.70, 0.205, 0.30))
+	w = new_window("commit", "Обязательства и предложения", 4, Rect2(0.50, 0.58, 0.205, 0.42))
+	pa_box = VBoxContainer.new()
+	pa_box.add_theme_constant_override("separation", 6)
+	w.body.add_child(pa_box)
 	commit_rt = make_rt(w.body)
 
 
@@ -400,7 +403,60 @@ func update_cabfx() -> void:
 	(tails[cabfx_rt] as RichTextLabel).text = t.substr(cut).strip_edges()
 
 
+var pa_box: VBoxContainer = null
+var pa_sig := ""
+
+
+# 0.56 (п.15): предложения министров-партнёров — можно наложить вето за политкапитал
+func update_pa_box() -> void:
+	var sig := "%s|%d|%d" % [str(pa_props), int(capital), turn]
+	if sig == pa_sig:
+		return
+	pa_sig = sig
+	for c in pa_box.get_children():
+		pa_box.remove_child(c)
+		c.queue_free()
+	var hl := Label.new()
+	hl.text = "Предложения министров-партнёров"
+	hl.add_theme_font_size_override("font_size", 14)
+	pa_box.add_child(hl)
+	if pa_props.is_empty():
+		var nl := Label.new()
+		nl.text = "Сейчас предложений нет. Министры-партнёры раз в квартал предлагают сдвинуть статьи бюджета своих министерств."
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.add_theme_font_size_override("font_size", 12)
+		nl.add_theme_color_override("font_color", C_DIM)
+		pa_box.add_child(nl)
+		return
+	for pr in pa_props:
+		var p: int = int(pr["p"])
+		var pc := PanelContainer.new()
+		var sb := sbox(C_PANEL2, PARTY_COLORS[p], 0, 6, 8.0, 5.0)
+		sb.border_width_left = 4
+		pc.add_theme_stylebox_override("panel", sb)
+		pa_box.add_child(pc)
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 6)
+		pc.add_child(hb)
+		var l := Label.new()
+		l.text = pa_prop_text(pr)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.add_theme_font_size_override("font_size", 12)
+		hb.add_child(l)
+		var b := Button.new()
+		b.theme_type_variation = "SmallButton"
+		b.focus_mode = Control.FOCUS_NONE
+		b.text = "Вето (−%.0f)" % pa_veto_cost(p)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		b.disabled = game_over or opp_mode or cap_spendable() < pa_veto_cost(p)
+		b.tooltip_text = "Запретить изменение. Цена зависит от силы партии; министр будет недоволен."
+		b.pressed.connect(pa_veto_prop.bind(int(pr["id"])))
+		hb.add_child(b)
+
+
 func update_commit() -> void:
+	update_pa_box()
 	var t := "[b]Обещания партиям[/b]\n"
 	if commitments.is_empty():
 		t += "[color=%s]Пока обещаний нет. Обещание закона-условия повышает готовность партии войти в коалицию, но у него есть срок.[/color]\n" % COL_DIM

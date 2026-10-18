@@ -232,6 +232,10 @@ func opp_step() -> void:
 	pass
 
 
+func pa_month() -> void:
+	pass
+
+
 func radical_step() -> void:
 	pass
 
@@ -693,6 +697,7 @@ func next_turn_core() -> void:
 	if game_over:
 		return
 	ai_parties_step()
+	pa_month()
 	observer_step()
 	bills_step()
 	idl_step()

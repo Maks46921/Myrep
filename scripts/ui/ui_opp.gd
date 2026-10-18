@@ -50,6 +50,27 @@ func build_opp_windows() -> void:
 	bill_opt = fed_opt(w.body, [], "Законопроекты в работе.")
 	bill_opt.item_selected.connect(on_bill_pick)
 	bill_rt = make_rt(w.body)
+	# 0.56 (доп. 7): как голосует ваша фракция по чужому законопроекту; вето — снять его с повестки
+	bill_vote_row = HFlowContainer.new()
+	bill_vote_row.add_theme_constant_override("h_separation", 4)
+	bill_vote_row.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(bill_vote_row)
+	var vg := ButtonGroup.new()
+	for vk in ["line", "yes", "no", "abst", "free"]:
+		var vb := Button.new()
+		vb.theme_type_variation = "SmallButton"
+		vb.toggle_mode = true
+		vb.button_group = vg
+		vb.focus_mode = Control.FOCUS_NONE
+		vb.text = {"line": "По линии партии", "yes": "За", "no": "Против", "abst": "Воздержаться", "free": "Свободное"}[vk]
+		vb.tooltip_text = {"line": "Фракция голосует так, как ближе программе партии.", "yes": "Фракция голосует «за». Против линии партии — слабеет дисциплина и недовольны избиратели.",
+			"no": "Фракция голосует «против». Против законопроекта партнёра — он обидится.", "abst": "Фракция воздерживается: партнёр обижен меньше, голоса не идут ни за, ни против.",
+			"free": "Каждый депутат голосует по совести: голоса делятся, дисциплина слегка слабеет, партнёры почти не обижаются."}[vk]
+		vb.pressed.connect(func() -> void: pa_set_vote(bill_sel, vk))
+		bill_vote_row.add_child(vb)
+		bill_vote_btns[vk] = vb
+	bill_veto = fed_btn("Снять с повестки", w.body, "Правительство управляет повесткой: законопроект не будут голосовать. Цена — политкапитал, зависит от силы партии.")
+	bill_veto.pressed.connect(func() -> void: pa_veto_bill(bill_sel))
 	bill_acc = fed_btn("Принять просьбу о поправке", w.body, "Партия получит уступку и проголосует «за».")
 	bill_acc.pressed.connect(on_bill_req.bind(true))
 	bill_rej = fed_btn("Отклонить просьбу", w.body, "Отношения с партией ухудшатся.")
@@ -70,6 +91,11 @@ func build_opp_windows() -> void:
 	rider_fill()
 	add_note(w.body, "Закон принимается не сразу: после внесения он идёт через парламент несколько месяцев. Партии присылают просьбы о поправках — вы можете принять их (цена — капитал, смягчение) или внести свои.", true)
 	add_note(w.body, "Соглашения действуют и во власти, и в оппозиции: «поддержка» делает партию терпимой к правительству, «блок» добавляет голосов обеим на выборах, «союз по голосованию» помогает проводить законы.", true)
+
+
+var bill_vote_row: HFlowContainer = null
+var bill_vote_btns := {}
+var bill_veto: Button = null
 
 
 func on_bill_pick(i: int) -> void:
@@ -138,7 +164,8 @@ func update_bill_window() -> void:
 			bill_opt.add_item("", int(b["id"]))
 	for i in bill_opt.item_count:
 		var bb: Dictionary = bills[bill_index(bill_opt.get_item_id(i))]
-		bill_opt.set_item_text(i, loc("%s%s" % [String(law_index[bb["tid"]]["name"]), "" if int(bb["sponsor"]) == 0 else " (правительство)"]))
+		var sp: int = int(bb["sponsor"])
+		bill_opt.set_item_text(i, loc("%s%s" % [String(law_index[bb["tid"]]["name"]), "" if sp == 0 else (" («%s»)" % party_abbr(sp) if bool(bb.get("pa", false)) else " (правительство)")]))
 	if bill_index(bill_sel) < 0 and mine.size() > 0:
 		bill_sel = int(mine[0]["id"])
 	var bi := bill_index(bill_sel)
@@ -151,6 +178,17 @@ func update_bill_window() -> void:
 			bt.tooltip_text = loc(why if why != "" else ("Сила −0.2: слабее эффекты, но закон приемлем для большего числа партий." if k == "soft" else "Сила +0.2: сильнее эффекты, но часть колеблющихся партий будет против."))
 	bill_acc.disabled = true
 	bill_rej.disabled = true
+	var foreign: bool = bi >= 0 and int(bills[bi]["sponsor"]) != 0
+	bill_vote_row.visible = foreign and pl_parl()
+	bill_veto.visible = foreign and bool(bills[bi].get("pa", false)) and not opp_mode
+	if foreign:
+		var pv: String = String(bills[bi].get("pv", "line"))
+		for vk in bill_vote_btns:
+			(bill_vote_btns[vk] as Button).set_pressed_no_signal(vk == pv)
+			(bill_vote_btns[vk] as Button).disabled = game_over
+		var vc := pa_veto_cost(int(bills[bi]["sponsor"]))
+		bill_veto.text = loc("Снять с повестки (политкапитал −%.0f)" % vc)
+		bill_veto.disabled = game_over or cap_spendable() < vc
 	if bi < 0:
 		bill_rt.text = loc("Законопроектов в работе нет. Выберите закон слева и нажмите «Внести законопроект» — он пройдёт через парламент за несколько месяцев.")
 		return
@@ -159,6 +197,10 @@ func update_bill_window() -> void:
 	var v := bill_preview(b)
 	var t := "[b]%s[/b] → %s
 " % [law_index[b["tid"]]["name"], variant_of(b["tid"], int(b["idx"]))["n"]]
+	if int(b["sponsor"]) != 0:
+		var lyes := pa_line(b)
+		t += "Внесла: [b]%s[/b]. Линия вашей партии: [b]%s[/b]. Ваша фракция: [b]%s[/b].
+" % [PARTY_NAMES[int(b["sponsor"])], "за" if lyes else "против", PA_VOTE_NAMES.get(String(b.get("pv", "line")), "по линии партии")]
 	t += "Голосование через %d мес. Сейчас «за» %d из нужных %d.
 " % [maxi(0, int(b["due"]) - turn), int(v["yes"]), law_need(String(b["tid"]))]
 	if is_hybrid(String(b["tid"])):

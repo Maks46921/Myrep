@@ -497,6 +497,23 @@ func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 			continue
 		var s := variant_stance(p, tid, idx)
 		var ok: bool = p == vote_sponsor or s >= 0.0 or (in_coalition[p] and s >= -1.0) or (p in forced) or (s >= -3.0 and pact_has(p, "votes"))
+		# 0.56: по чужому законопроекту фракция игрока голосует так, как он решил
+		if p == 0 and vote_sponsor != 0 and vote_pl != "" and vote_pl != "line":
+			if vote_pl == "yes":
+				ok = true
+			elif vote_pl == "no":
+				ok = false
+			elif vote_pl == "abst":
+				per.append([p, s, false, 0, 0, seats[0]])
+				ab += seats[0]
+				continue
+			else:
+				var fy: float = clampf(0.5 + 0.08 * s, 0.1, 0.9)
+				var fyes: int = int(round(float(seats[0]) * fy))
+				per.append([p, s, fy >= 0.5, fyes, seats[0] - fyes, 0])
+				yes += fyes
+				no += seats[0] - fyes
+				continue
 		var cnt := party_vote_split(p, s, ok)
 		per.append([p, s, ok, cnt[0], cnt[1], cnt[2]])
 		yes += cnt[0]
@@ -518,7 +535,7 @@ func party_dissent(p: int, s: float, line_yes: bool) -> float:
 	elif p < in_coalition.size() and in_coalition[p]:
 		m *= 0.6
 	if p == 0:
-		m *= 0.6
+		m *= 0.6 * (1.0 + 2.0 * pl_disc)   # 0.56: голосования против линии партии расшатывают дисциплину
 	var tr: String = String((PARTY_TRAITS[p] as Dictionary).get("trait", "")) if p < PARTY_TRAITS.size() else ""
 	if tr == "идеолог":
 		m *= 0.75
@@ -699,7 +716,7 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		if in_coalition[p]:
 			partner_stance[p] = variant_stance(p, tid, idx)
 	capital -= cost
-	var ksup := 1.0 if vote_sponsor == 0 else -0.6
+	var ksup := 1.0 if vote_sponsor == 0 else (0.5 if not opp_mode else -0.6)   # 0.56: закон партнёра или оппозиции при вашей власти
 	for g in sd:
 		add_support(g, float(sd[g]) * ksup)
 		bias[g] = float(bias[g]) + float(sd[g]) * 0.4 * ksup
