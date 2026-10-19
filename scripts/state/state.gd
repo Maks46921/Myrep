@@ -705,6 +705,9 @@ var law_headers: Array = []
 var log_entries: Array = []
 
 var log_filter := 0
+var log_query := ""          # 0.57: поиск по тексту журнала
+var log_big := false          # 0.57: только важное
+var log_uid := 0              # 0.57: номер записи (для склейки повторов)
 
 var log_filter_btns: Array = []
 

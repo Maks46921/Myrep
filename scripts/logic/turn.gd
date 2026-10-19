@@ -160,6 +160,10 @@ func idl_step() -> void:
 	pass
 
 
+func inbox_month() -> void:
+	pass
+
+
 func ind_g() -> float:
 	return 0.0
 
@@ -273,6 +277,10 @@ func rl_infl() -> float:
 
 
 func rl_init() -> void:
+	pass
+
+
+func rules_month() -> void:
 	pass
 
 
@@ -580,6 +588,7 @@ func next_turn_core() -> void:
 	council_budget()
 	log_policy_changes()
 	autopilot_run()
+	rules_month()
 	turn += 1
 	month += 1
 	day = 1
@@ -594,6 +603,7 @@ func next_turn_core() -> void:
 		var cd: Dictionary = reg_cd[i]
 		for k in cd:
 			cd[k] = maxi(0, int(cd[k]) - 1)
+	inbox_month()
 	# v49: наступившее продолжение истории (цепочка событий) показывается первым — иначе его месяцами
 	# вытесняют дипломатические события, инициативы стран и вотумы
 	if _ev_chain_due():

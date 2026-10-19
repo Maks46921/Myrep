@@ -9,6 +9,10 @@ var closed := false                       # закрыто игроком (кн�
 var closable := true
 var _xbtn: Button
 signal close_requested(w)
+signal help_requested(w)
+signal star_requested(w)
+var _hbtn: Button
+var _star: Button
 var accent := Color(0.357, 0.553, 0.937)
 var _vb: VBoxContainer
 var _title_bar: PanelContainer
@@ -91,6 +95,22 @@ func setup(title: String, scrolling: bool, acc: Color = Color(0.357, 0.553, 0.93
 	_title.add_theme_font_size_override("font_size", 14)
 	_title.add_theme_color_override("font_color", Color(0.93, 0.95, 1.0))
 	hb.add_child(_title)
+	_star = Button.new()
+	_star.text = "☆"
+	_star.flat = true
+	_star.focus_mode = Control.FOCUS_NONE
+	_star.tooltip_text = "В закладки (Ctrl+K покажет закладки первыми)"
+	_star.add_theme_color_override("font_color", Color(0.95, 0.82, 0.45))
+	_star.pressed.connect(func() -> void: star_requested.emit(self))
+	hb.add_child(_star)
+	_hbtn = Button.new()
+	_hbtn.text = "?"
+	_hbtn.flat = true
+	_hbtn.focus_mode = Control.FOCUS_NONE
+	_hbtn.tooltip_text = "Что это за окно и как им пользоваться"
+	_hbtn.add_theme_color_override("font_color", Color(0.65, 0.85, 0.95))
+	_hbtn.pressed.connect(func() -> void: help_requested.emit(self))
+	hb.add_child(_hbtn)
 	_btn = Button.new()
 	_btn.text = "–"
 	_btn.flat = true
@@ -239,6 +259,18 @@ func _cover_input(ev: InputEvent) -> void:
 	var sc := _content as ScrollContainer
 	if sc != null and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
 		sc.scroll_vertical += 48 * (1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1)
+
+
+func set_starred(on: bool) -> void:
+	if _star != null:
+		_star.text = "★" if on else "☆"
+
+
+func set_helpable(on: bool) -> void:
+	if _hbtn != null:
+		_hbtn.visible = on
+	if _star != null:
+		_star.visible = on
 
 
 func set_closable(on: bool) -> void:

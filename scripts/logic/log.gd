@@ -4,11 +4,23 @@ extends "res://scripts/logic/autopilot.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func log_is_big(e: Dictionary) -> bool:
+	return false
+
+
 func log_ui_add(e: Dictionary) -> void:
 	pass
 
 
+func log_ui_bump(e: Dictionary) -> void:
+	pass
+
+
 func log_ui_rebuild(to_end: bool) -> void:
+	pass
+
+
+func notify_log(e: Dictionary) -> void:
 	pass
 
 
@@ -27,6 +39,12 @@ func log_guess_cat(s: String) -> String:
 
 
 func log_match(e: Dictionary) -> bool:
+	var k := String(e.get("k", ""))
+	if log_big and (k == "line" or k == "head" or k == "note") and not log_is_big(e):
+		return false
+	if log_query != "" and (k == "line" or k == "head" or k == "note"):
+		if not String(e.get("t", "")).to_lower().contains(log_query):
+			return false
 	if log_filter == 0:
 		return true
 	return String(e["cat"]) == String(LOG_FILTER_CATS[log_filter])
@@ -43,11 +61,22 @@ func log_add(e: Dictionary) -> void:
 			e["notes"] = nn
 	if not e.has("d"):
 		e["d"] = date_chip()
+	# 0.57: одинаковые подряд записи склеиваются («× 3»)
+	if String(e.get("k", "")) == "line" and not log_entries.is_empty():
+		var lst: Dictionary = log_entries.back()
+		if String(lst.get("k", "")) == "line" and String(lst.get("t", "")) == String(e.get("t", "")) and String(lst.get("tag", "")) == String(e.get("tag", "")):
+			lst["n"] = int(lst.get("n", 1)) + 1
+			if log_box != null:
+				log_ui_bump(lst)
+			return
+	log_uid += 1
+	e["uid"] = log_uid
 	log_entries.append(e)
 	if log_entries.size() > 700:
 		log_entries.pop_front()
 	if log_box != null:
 		log_ui_add(e)
+	notify_log(e)
 
 
 func log_chip(text: String, col: String) -> String:
@@ -141,6 +170,24 @@ func build_log_filters(parent: Control) -> void:
 		fr.add_child(b)
 		log_filter_btns.append(b)
 	(log_filter_btns[0] as Button).set_pressed_no_signal(true)
+	var bg := Button.new()
+	bg.theme_type_variation = "SmallButton"
+	bg.text = "★ Важное"
+	bg.toggle_mode = true
+	bg.focus_mode = Control.FOCUS_NONE
+	bg.tooltip_text = "Оставить только крупные события: войны, кризисы, выборы, принятые законы."
+	bg.toggled.connect(func(on: bool) -> void:
+		log_big = on
+		log_rebuild())
+	fr.add_child(bg)
+	var qe := LineEdit.new()
+	qe.placeholder_text = "Поиск в журнале"
+	qe.custom_minimum_size = Vector2(150.0, 0.0)
+	qe.clear_button_enabled = true
+	qe.text_changed.connect(func(t: String) -> void:
+		log_query = t.strip_edges().to_lower()
+		log_rebuild())
+	fr.add_child(qe)
 
 
 func log_line(s: String) -> void:
@@ -191,6 +238,15 @@ func h12_label(k: String) -> String:
 
 
 func h12_snap() -> void:
+	# 0.57: главные показатели для подсказок с графиком за 12 месяцев
+	h12_push("appr", approval())
+	h12_push("infl", inflation)
+	h12_push("unemp", unemployment)
+	h12_push("debtr", debt / maxf(1.0, gdp) * 100.0)
+	h12_push("gdp", gdp)
+	h12_push("cap", capital)
+	if not ec.is_empty() and ec.has("res"):
+		h12_push("res", float(ec["res"]))
 	if not ec.is_empty():
 		for key in ["ppi", "rw", "fxs", "cpi_idx"]:
 			if ec.has(key):

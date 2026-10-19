@@ -84,7 +84,7 @@ func io_bar_layout() -> void:
 	(io_row_oth as Control).custom_minimum_size = Vector2(w, 0.0)
 	io_bar_hh = hh + 14.0
 	if io_bar.visible and workspace != null:
-		workspace.offset_top = 64.0 + io_bar_hh
+		workspace.offset_top = ui_top_h + 40.0 + io_bar_hh
 
 
 # раскладка кнопок по группам; пересобирается, только когда членство или заявки изменились
@@ -141,7 +141,7 @@ func build_io_windows() -> void:
 	sb.content_margin_bottom = 3.0
 	bar.add_theme_stylebox_override("panel", sb)
 	add_child(bar)
-	bar.position = Vector2(8.0, 66.0)
+	bar.position = Vector2(8.0, ui_top_h + 42.0)
 	io_bar = bar
 	var rows := VBoxContainer.new()
 	rows.add_theme_constant_override("separation", 4)

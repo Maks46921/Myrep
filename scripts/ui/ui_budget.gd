@@ -13,6 +13,83 @@ func bud_draft_on() -> bool:
 	return not opp_mode and not observer and not game_over
 
 
+# кому план выгоден и кому нет: рост расходов радует группу, рост налога бьёт по группе
+const BUD_WIN := {"pensions": ["Пенсионеры"], "benefits": ["Рабочие", "Пенсионеры"], "health": ["Пенсионеры", "Бюджетники"], "edu": ["Молодёжь", "Бюджетники"],
+	"army": ["Силовики"], "police": ["Силовики"], "admin": ["Бюджетники"], "infra": ["Бизнес", "Рабочие"], "eco": ["Экологи", "Молодёжь"], "subs": ["Бизнес", "Село"], "agri": ["Село"]}
+const BUD_PAY := {"income": ["Рабочие"], "social": ["Рабочие", "Бизнес"], "corp": ["Бизнес"], "vat": ["Рабочие", "Пенсионеры"]}
+
+
+func bud_preview() -> Dictionary:
+	var plan := compute_budget()
+	var h := bud_hold_begin()
+	var base := compute_budget()
+	bud_hold_end_quiet(h)
+	var g1: float = maxf(1.0, gdp)
+	var win := {}
+	var lose := {}
+	for c in bud_changes():
+		var k := String(c[0])
+		var dv := float(c[2]) - float(c[1])
+		if absf(dv) < 0.05:
+			continue
+		var up: bool = dv > 0.0
+		if BUD_WIN.has(k):
+			for g in BUD_WIN[k]:
+				(win if up else lose)[g] = true
+		elif BUD_PAY.has(k):
+			for g in BUD_PAY[k]:
+				(lose if up else win)[g] = true
+	for g in win.keys():
+		if lose.has(g):
+			win.erase(g)
+			lose.erase(g)
+	return {"plan": plan, "base": base, "win": win.keys(), "lose": lose.keys(),
+		"def_plan": -float(plan["balance"]) / g1 * 100.0, "def_base": -float(base["balance"]) / g1 * 100.0,
+		"debt_plan": (debt - float(plan["balance"])) / g1 * 100.0, "debt_base": (debt - float(base["balance"])) / g1 * 100.0}
+
+
+func bud_preview_text() -> String:
+	var pv := bud_preview()
+	var lines: PackedStringArray = []
+	var dp: float = float(pv["def_plan"])
+	var db: float = float(pv["def_base"])
+	var danger: bool = dp > 6.0 or float(pv["debt_plan"]) > 100.0
+	lines.append("[b]Если принять:[/b]")
+	lines.append("Дефицит %s → [color=%s]%.1f%%[/color] ВВП" % ["%.1f%%" % db, COL_BAD if dp > 5.0 else (COL_WARN if dp > 3.0 else COL_GOOD), dp])
+	lines.append("Долг через год %.0f%% → [color=%s]%.0f%%[/color] ВВП" % [float(pv["debt_base"]), COL_BAD if float(pv["debt_plan"]) > 100.0 else (COL_WARN if float(pv["debt_plan"]) > 80.0 else COL_GOOD), float(pv["debt_plan"])])
+	if not (pv["win"] as Array).is_empty():
+		lines.append("[color=%s]Выиграют:[/color] %s" % [COL_GOOD, ", ".join(PackedStringArray(pv["win"]))])
+	if not (pv["lose"] as Array).is_empty():
+		lines.append("[color=%s]Проиграют:[/color] %s" % [COL_BAD, ", ".join(PackedStringArray(pv["lose"]))])
+	if bud_needs_council():
+		var cv := bud_council()
+		lines.append("Коалиция: [color=%s]%s (за %.0f%%)[/color]" % [COL_GOOD if bool(cv["pass"]) else COL_BAD, "поддержит" if bool(cv["pass"]) else "не поддержит", float(cv["yes"]) * 100.0])
+	if danger:
+		lines.append("[color=%s][b]⚠ Красная черта:[/b] дефицит выше 6%% ВВП или долг выше 100%% ВВП. Рынки и рейтинг отреагируют.[/color]" % COL_BAD)
+	return "[font_size=13]%s[/font_size]" % "\n".join(lines)
+
+
+func bud_table_text() -> String:
+	var pv := bud_preview()
+	var pl: Dictionary = pv["plan"]
+	var bs: Dictionary = pv["base"]
+	var rows := "[table=4][cell][color=%s]Статья[/color]   [/cell][cell][color=%s]Было, млрд[/color]   [/cell][cell][color=%s]Станет[/color]   [/cell][cell][color=%s]Разница[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM]
+	var keys: Array = []
+	for k in pl["rev"]:
+		keys.append(["rev", k])
+	for k in pl["exp"]:
+		keys.append(["exp", k])
+	for kk in keys:
+		var a: float = float(bs[kk[0]].get(kk[1], 0.0))
+		var b: float = float(pl[kk[0]].get(kk[1], 0.0))
+		if absf(b - a) < 0.05:
+			continue
+		var good: bool = (b > a) == (kk[0] == "rev")
+		rows += "[cell]%s   [/cell][cell]%.1f   [/cell][cell]%.1f   [/cell][cell][color=%s]%s[/color][/cell]" % [String(kk[1]), a, b, COL_GOOD if good else COL_BAD, sg(b - a, 1)]
+	rows += "[/table]"
+	return "[font_size=12]%s[/font_size]" % rows
+
+
 func update_bud_head() -> void:
 	if bud_head == null:
 		return
@@ -20,6 +97,13 @@ func update_bud_head() -> void:
 	var ch := bud_changes()
 	bud_accept_btn.disabled = ch.is_empty() or game_over
 	bud_cancel_btn.disabled = ch.is_empty()
+	bud_prev_rt.visible = not ch.is_empty()
+	bud_tbl_btn.visible = not ch.is_empty()
+	bud_tbl_rt.visible = not ch.is_empty() and bud_tbl_btn.button_pressed
+	if not ch.is_empty():
+		bud_prev_rt.text = bud_preview_text()
+		if bud_tbl_rt.visible:
+			bud_tbl_rt.text = bud_table_text()
 	if ch.is_empty():
 		var t := "[color=%s]Бюджет утверждён. Двигайте ползунки — получится план; он вступит в силу после «Принять бюджет».[/color]" % COL_DIM
 		if bud_needs_council():

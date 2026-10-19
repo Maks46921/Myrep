@@ -40,6 +40,14 @@ func _init():
 				"tech": g.set_tech_open(true)
 				"crisis": g.set_crisis_open(true)
 				"coal": g.cn_open(true)
+				"rules": g.rules_open(true)
+				"help": g.help_open("tax")
+				"search": g.srch_open(true)
+		if String(a).begins_with("pol="):
+			for kv in String(a).substr(4).split(","):
+				var pr := kv.split(":")
+				(g.sliders[pr[0]]["slider"] as HSlider).value = float(pr[1])
+			g.refresh()
 		if String(a).begins_with("org="):
 			g.io["sel"] = String(a).substr(4)
 			g.refresh()
