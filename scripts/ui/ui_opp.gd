@@ -7,7 +7,6 @@ var pact_rt: RichTextLabel
 var pact_opt: OptionButton
 var pact_btns := {}
 var pact_sel := 1
-var bill_opt: OptionButton
 var bill_rt: RichTextLabel
 var bill_acc: Button
 var bill_rej: Button
@@ -46,29 +45,49 @@ func build_opp_windows() -> void:
 			pact_btns[String(k["id"])] = b2
 
 	# ---- законопроекты (экран «Законы») ----
-	w = new_window("bills", "Законопроекты и поправки", 3, Rect2(0.48, 0.28, 0.222, 0.32))
-	bill_opt = fed_opt(w.body, [], "Законопроекты в работе.")
-	bill_opt.item_selected.connect(on_bill_pick)
+	# 0.57.1: карточки вместо списка. Сверху те, что ждут вашего решения, остальные — по срокам и свёрнуты.
+	w = new_window("bills", "Законопроекты и поправки", 3, Rect2(0.48, 0.22, 0.222, 0.58))
+	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 6)
+	w.body.add_child(srow)
+	var sl := Label.new()
+	sl.text = "Сорт.:"
+	sl.add_theme_color_override("font_color", C_DIM)
+	srow.add_child(sl)
+	var sg_group := ButtonGroup.new()
+	for si in 2:
+		var sb := Button.new()
+		sb.theme_type_variation = "SmallButton"
+		sb.toggle_mode = true
+		sb.button_group = sg_group
+		sb.focus_mode = Control.FOCUS_NONE
+		sb.text = ["По сроку", "По важности"][si]
+		sb.tooltip_text = ["Ближайший срок первым", "Сначала те, что требуют вашего решения"][si]
+		sb.button_pressed = si == bill_sort
+		var sidx := si
+		sb.pressed.connect(func() -> void:
+			bill_sort = sidx
+			bill_sig = ""
+			refresh())
+		srow.add_child(sb)
+	bill_att_title = add_title(w.body, "Ждут вашего решения")
+	bill_att_box = VBoxContainer.new()
+	bill_att_box.add_theme_constant_override("separation", 6)
+	w.body.add_child(bill_att_box)
+	bill_rest_btn = Button.new()
+	bill_rest_btn.focus_mode = Control.FOCUS_NONE
+	bill_rest_btn.toggle_mode = true
+	bill_rest_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bill_rest_btn.pressed.connect(func() -> void:
+		bill_rest_open = bill_rest_btn.button_pressed
+		bill_sig = ""
+		refresh())
+	w.body.add_child(bill_rest_btn)
+	bill_rest_box = VBoxContainer.new()
+	bill_rest_box.add_theme_constant_override("separation", 6)
+	w.body.add_child(bill_rest_box)
+	bill_sel_title = add_title(w.body, "Выбранный законопроект")
 	bill_rt = make_rt(w.body)
-	# 0.56 (доп. 7): как голосует ваша фракция по чужому законопроекту; вето — снять его с повестки
-	bill_vote_row = HFlowContainer.new()
-	bill_vote_row.add_theme_constant_override("h_separation", 4)
-	bill_vote_row.add_theme_constant_override("v_separation", 4)
-	w.body.add_child(bill_vote_row)
-	var vg := ButtonGroup.new()
-	for vk in ["line", "yes", "no", "abst", "free"]:
-		var vb := Button.new()
-		vb.theme_type_variation = "SmallButton"
-		vb.toggle_mode = true
-		vb.button_group = vg
-		vb.focus_mode = Control.FOCUS_NONE
-		vb.text = {"line": "По линии партии", "yes": "За", "no": "Против", "abst": "Воздержаться", "free": "Свободное"}[vk]
-		vb.tooltip_text = {"line": "Фракция голосует так, как ближе программе партии.", "yes": "Фракция голосует «за». Против линии партии — слабеет дисциплина и недовольны избиратели.",
-			"no": "Фракция голосует «против». Против законопроекта партнёра — он обидится.", "abst": "Фракция воздерживается: партнёр обижен меньше, голоса не идут ни за, ни против.",
-			"free": "Каждый депутат голосует по совести: голоса делятся, дисциплина слегка слабеет, партнёры почти не обижаются."}[vk]
-		vb.pressed.connect(func() -> void: pa_set_vote(bill_sel, vk))
-		bill_vote_row.add_child(vb)
-		bill_vote_btns[vk] = vb
 	bill_veto = fed_btn("Снять с повестки", w.body, "Правительство управляет повесткой: законопроект не будут голосовать. Цена — политкапитал, зависит от силы партии.")
 	bill_veto.pressed.connect(func() -> void: pa_veto_bill(bill_sel))
 	bill_acc = fed_btn("Принять просьбу о поправке", w.body, "Партия получит уступку и проголосует «за».")
@@ -93,14 +112,15 @@ func build_opp_windows() -> void:
 	add_note(w.body, "Соглашения действуют и во власти, и в оппозиции: «поддержка» делает партию терпимой к правительству, «блок» добавляет голосов обеим на выборах, «союз по голосованию» помогает проводить законы.", true)
 
 
-var bill_vote_row: HFlowContainer = null
-var bill_vote_btns := {}
 var bill_veto: Button = null
-
-
-func on_bill_pick(i: int) -> void:
-	bill_sel = bill_opt.get_item_id(i)
-	refresh()
+var bill_sort := 1                 # 0 по сроку, 1 сначала требующие решения
+var bill_rest_open := false
+var bill_sig := ""
+var bill_att_title: Label = null
+var bill_att_box: VBoxContainer = null
+var bill_rest_btn: Button = null
+var bill_rest_box: VBoxContainer = null
+var bill_sel_title: Label = null
 
 
 func on_bill_req(acc: bool) -> void:
@@ -147,28 +167,29 @@ func on_rider_add() -> void:
 
 
 func update_bill_window() -> void:
-	if bill_opt == null:
+	if bill_att_box == null:
 		return
-	var mine: Array = []
+	if bill_index(bill_sel) < 0 and bills.size() > 0:
+		var att0 := bills_attention()
+		bill_sel = int(att0[0]["id"]) if att0.size() > 0 else int(bills[0]["id"])
+	var att := bills_attention()
+	var att_ids := {}
+	for a in att:
+		att_ids[int(a["id"])] = a
+	# перестраиваем карточки только если что-то изменилось
+	var sig: PackedStringArray = ["%d|%s|%d|%d|%s" % [bill_sort, str(bill_rest_open), bill_sel, turn, str(game_over)]]
 	for b in bills:
-		mine.append(b)
-	var ids: Array = []
-	for i in bill_opt.item_count:
-		ids.append(bill_opt.get_item_id(i))
-	var want: Array = []
-	for b in mine:
-		want.append(int(b["id"]))
-	if ids != want:
-		bill_opt.clear()
-		for b in mine:
-			bill_opt.add_item("", int(b["id"]))
-	for i in bill_opt.item_count:
-		var bb: Dictionary = bills[bill_index(bill_opt.get_item_id(i))]
-		var sp: int = int(bb["sponsor"])
-		bill_opt.set_item_text(i, loc("%s%s" % [String(law_index[bb["tid"]]["name"]), "" if sp == 0 else (" («%s»)" % party_abbr(sp) if bool(bb.get("pa", false)) else " (правительство)")]))
-	if bill_index(bill_sel) < 0 and mine.size() > 0:
-		bill_sel = int(mine[0]["id"])
+		var rs := ""
+		for r in b["req"]:
+			rs += str(int(r["state"]))
+		sig.append("%d,%d,%s,%s,%.1f,%s,%d,%d" % [int(b["id"]), int(b["due"]), String(b.get("pv", "line")), rs, float(b["pow"]), str(att_ids.has(int(b["id"]))), int(bill_preview(b)["yes"]), (b["forced"] as Array).size()])
+	var sg_now := ";".join(sig)
+	if sg_now != bill_sig:
+		bill_sig = sg_now
+		bill_cards_build(att_ids)
 	var bi := bill_index(bill_sel)
+	bill_sel_title.visible = bi >= 0
+	bill_rt.visible = bi >= 0
 	for k in bill_am:
 		var bt: Button = bill_am[k]
 		bt.disabled = bi < 0 or int(bills[bi]["sponsor"]) != 0 or game_over
@@ -179,20 +200,13 @@ func update_bill_window() -> void:
 	bill_acc.disabled = true
 	bill_rej.disabled = true
 	var foreign: bool = bi >= 0 and int(bills[bi]["sponsor"]) != 0
-	bill_vote_row.visible = foreign and pl_parl()
 	bill_veto.visible = foreign and bool(bills[bi].get("pa", false)) and not opp_mode
 	if foreign:
-		var pv: String = String(bills[bi].get("pv", "line"))
-		for vk in bill_vote_btns:
-			(bill_vote_btns[vk] as Button).set_pressed_no_signal(vk == pv)
-			(bill_vote_btns[vk] as Button).disabled = game_over
 		var vc := pa_veto_cost(int(bills[bi]["sponsor"]))
 		bill_veto.text = loc("Снять с повестки (политкапитал −%.0f)" % vc)
 		bill_veto.disabled = game_over or cap_spendable() < vc
 	if bi < 0:
-		bill_rt.text = loc("Законопроектов в работе нет. Выберите закон слева и нажмите «Внести законопроект» — он пройдёт через парламент за несколько месяцев.")
 		return
-	bill_opt.select(bill_opt.get_item_index(bill_sel))
 	var b: Dictionary = bills[bi]
 	var v := bill_preview(b)
 	var t := "[b]%s[/b] → %s
@@ -228,6 +242,174 @@ func update_bill_window() -> void:
 	if int(b["sponsor"]) == 0:
 		bill_acc.disabled = not pend or game_over
 		bill_rej.disabled = not pend or game_over
+
+
+# карточки законопроектов: сверху те, что ждут решения, остальные по срокам и свёрнуты
+func bill_cards_build(att_ids: Dictionary) -> void:
+	for c in bill_att_box.get_children():
+		c.queue_free()
+	for c in bill_rest_box.get_children():
+		c.queue_free()
+	var wait: Array = []
+	var rest: Array = []
+	for b in bills:
+		if att_ids.has(int(b["id"])):
+			wait.append(b)
+		else:
+			rest.append(b)
+	var by_due := func(x, y): return int(x["due"]) < int(y["due"]) or (int(x["due"]) == int(y["due"]) and int(x["id"]) < int(y["id"]))
+	var by_att := func(x, y):
+		var ax: Dictionary = att_ids[int(x["id"])]
+		var ay: Dictionary = att_ids[int(y["id"])]
+		return int(ax["sev"]) > int(ay["sev"]) or (int(ax["sev"]) == int(ay["sev"]) and int(x["due"]) < int(y["due"]))
+	wait.sort_custom(by_att if bill_sort == 1 else by_due)
+	rest.sort_custom(by_due)
+	bill_att_title.visible = wait.size() > 0
+	bill_att_box.visible = wait.size() > 0
+	for b in wait:
+		bill_att_box.add_child(bill_make_card(b, att_ids[int(b["id"])]))
+	if bills.is_empty():
+		bill_att_title.visible = true
+		bill_att_title.text = loc("Законопроектов в работе нет")
+		var l := Label.new()
+		l.text = loc("Выберите закон слева и нажмите «Внести законопроект» — он пройдёт через парламент за несколько месяцев.")
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.add_theme_color_override("font_color", C_DIM)
+		bill_att_box.visible = true
+		bill_att_box.add_child(l)
+	else:
+		bill_att_title.text = loc("Ждут вашего решения")
+	bill_rest_btn.visible = rest.size() > 0
+	bill_rest_btn.set_pressed_no_signal(bill_rest_open)
+	bill_rest_btn.text = loc("%s Остальные законопроекты: %d (по срокам)" % ["▾" if bill_rest_open else "▸", rest.size()])
+	bill_rest_box.visible = bill_rest_open and rest.size() > 0
+	if bill_rest_open:
+		var last_grp := -1
+		for b in rest:
+			var left := maxi(0, int(b["due"]) - turn)
+			var grp: int = 0 if left <= 0 else (1 if left <= 2 else 2)
+			if grp != last_grp:
+				last_grp = grp
+				var gl := Label.new()
+				gl.text = loc(["В этом месяце", "Через 1–2 месяца", "Позже"][grp])
+				gl.add_theme_color_override("font_color", C_DIM)
+				gl.add_theme_font_size_override("font_size", 13)
+				bill_rest_box.add_child(gl)
+			bill_rest_box.add_child(bill_make_card(b, {}))
+
+
+func bill_card_btn(text: String, parent: Control, cb: Callable, tip: String = "", disabled: bool = false) -> Button:
+	var bt := Button.new()
+	bt.theme_type_variation = "SmallButton"
+	bt.focus_mode = Control.FOCUS_NONE
+	bt.text = loc(text)
+	bt.tooltip_text = loc(tip)
+	bt.disabled = disabled or game_over
+	bt.pressed.connect(cb)
+	parent.add_child(bt)
+	return bt
+
+
+func bill_make_card(b: Dictionary, att: Dictionary) -> PanelContainer:
+	var bid: int = int(b["id"])
+	var tid: String = String(b["tid"])
+	var sp: int = int(b["sponsor"])
+	var need: int = law_need(tid)
+	var yes: int = int(bill_preview(b)["yes"])
+	var left: int = maxi(0, int(b["due"]) - turn)
+	var pc := PanelContainer.new()
+	var border: Color = C_WARN if not att.is_empty() else C_PANEL2.lightened(0.18)
+	pc.add_theme_stylebox_override("panel", sbox(C_PANEL2.lerp(C_ACCENT, 0.10) if bid == bill_sel else C_PANEL2, border, 2 if (bid == bill_sel or not att.is_empty()) else 1, 8, 8.0, 6.0))
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 4)
+	pc.add_child(vb)
+	var top := HBoxContainer.new()
+	vb.add_child(top)
+	var tl := Label.new()
+	tl.text = loc("%s → %s" % [String(law_index[tid]["name"]), String(variant_of(tid, int(b["idx"]))["n"])])
+	tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tl.add_theme_font_size_override("font_size", 14)
+	top.add_child(tl)
+	var spl := Label.new()
+	spl.text = loc("ваш законопроект" if sp == 0 else ("внесла: %s" % party_abbr(sp)))
+	spl.add_theme_font_size_override("font_size", 12)
+	spl.add_theme_color_override("font_color", C_ACCENT if sp == 0 else C_DIM)
+	top.add_child(spl)
+	var dl := Label.new()
+	var dtxt := "голосование в этом месяце" if left <= 0 else ("голосование через %d мес." % left)
+	if not att.is_empty():
+		dtxt += " · " + String(att["why"])
+	dl.text = loc(dtxt)
+	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dl.add_theme_font_size_override("font_size", 12)
+	dl.add_theme_color_override("font_color", C_WARN if not att.is_empty() else C_DIM)
+	vb.add_child(dl)
+	var br := HBoxContainer.new()
+	br.add_theme_constant_override("separation", 8)
+	vb.add_child(br)
+	var bar := StatBar.new()
+	bar.custom_minimum_size = Vector2(80.0, 12.0)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.marker = float(need) * 100.0 / float(SEATS)
+	bar.set_state(float(yes) * 100.0 / float(SEATS), 0.85 if yes >= need else 0.08)
+	bar.tooltip_text = loc("Прогноз: «за» %d, нужно %d. Белая черта — порог большинства." % [yes, need])
+	br.add_child(bar)
+	var nl := Label.new()
+	nl.text = loc("за %d / нужно %d" % [yes, need])
+	nl.add_theme_font_size_override("font_size", 12)
+	nl.add_theme_color_override("font_color", C_GOOD if yes >= need else C_BAD)
+	br.add_child(nl)
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 4)
+	row.add_theme_constant_override("v_separation", 4)
+	vb.add_child(row)
+	if sp == 0:
+		var ri := -1
+		for i in (b["req"] as Array).size():
+			if int(b["req"][i]["state"]) == 0:
+				ri = i
+				break
+		if ri >= 0:
+			var r: Dictionary = b["req"][ri]
+			var rl := Label.new()
+			rl.text = loc(String(r["txt"]))
+			rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			rl.add_theme_font_size_override("font_size", 12)
+			vb.add_child(rl)
+			vb.move_child(rl, 2)
+			var cst := float(r["cost"])
+			bill_card_btn("Принять просьбу%s" % ((" (−%.0f)" % cst) if cst > 0.0 else ""), row, func() -> void: bill_request(bid, ri, true), "Партия получит уступку и проголосует «за».")
+			bill_card_btn("Отклонить", row, func() -> void: bill_request(bid, ri, false), "Отношения с партией ухудшатся.")
+		for kind in ["soft", "hard"]:
+			var kk: String = kind
+			var why := bill_pow_block(b, kk)
+			bill_card_btn("Смягчить" if kk == "soft" else "Усилить", row, func() -> void: bill_amend(bid, kk), why if why != "" else ("Сила −0.2: приемлемее для большего числа партий." if kk == "soft" else "Сила +0.2: эффекты сильнее, часть партий будет против."), why != "")
+		bill_card_btn("Договориться с партиями", row, func() -> void:
+			var sw := bill_swing_parties(b)
+			if sw.size() > 0:
+				pact_sel = int(sw[0])
+			show_desk(12)
+			refresh(), "Переговоры и соглашения: встречи, поддержка, голоса за закон.")
+	else:
+		var vg := ButtonGroup.new()
+		var cur_pv: String = String(b.get("pv", "line"))
+		var can_vote: bool = pl_parl() and seats[0] > 0
+		for vk in ["line", "yes", "no", "abst", "free"]:
+			var vkk: String = vk
+			var vbt := bill_card_btn({"line": "По линии", "yes": "За", "no": "Против", "abst": "Воздержаться", "free": "Свободно"}[vk], row, func() -> void: pa_set_vote(bid, vkk), "Как голосует ваша фракция по этому законопроекту.", not can_vote)
+			vbt.toggle_mode = true
+			vbt.button_group = vg
+			vbt.set_pressed_no_signal(vk == cur_pv)
+		bill_card_btn("Переговоры с партией", row, func() -> void:
+			pact_sel = sp
+			show_desk(12)
+			refresh(), "Договориться с внёсшей партией.")
+	bill_card_btn("Подробнее ▸", row, func() -> void:
+		bill_sel = bid
+		bill_sig = ""
+		refresh(), "Оговорки, отзыв, вето и сводка по выбранному законопроекту.")
+	return pc
 
 
 func on_opp_act(id: String) -> void:

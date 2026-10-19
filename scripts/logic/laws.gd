@@ -476,6 +476,7 @@ func variant_stance(p: int, tid: String, idx: int) -> float:
 
 
 var last_vote := {}    # v51: итог последнего голосования (для окна с анимацией)
+var vote_notes := {}   # 0.57.1: пометки к фракциям в таблице итогов (сделки, давление, обмен голосами)
 
 
 func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
@@ -683,6 +684,12 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	var v := variant_votes(tid, idx, forced)
 	if int(v["yes"]) < law_need(tid):
 		log_line("[color=%s]Закон «%s» не вынесен на голосование: нужно %d голосов, есть %d.[/color]" % [COL_BAD, topic["name"], law_need(tid), v["yes"]])
+		# 0.57.1: окно показывает и этот исход — зал с прогнозом и «ОТКЛОНЁН»
+		last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(v["yes"]), "no": int(v.get("no", 0)), "abst": int(v.get("abst", 0)),
+			"per": v["per"], "passed": false, "sponsor": vote_sponsor, "turn": turn, "bypass": bool(v.get("bypass", false)), "noconv": true,
+			"notes": vote_notes.duplicate(), "next": "Закон не вынесен на голосование: не хватало голосов уже по прогнозу."}
+		vote_notes.clear()
+		vote_show()
 		refresh()
 		return
 	# v51: само голосование — с отступниками и случайными голосами; итог может разойтись с прогнозом
@@ -690,7 +697,9 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	var live := variant_votes(tid, idx, forced)
 	vote_live = false
 	last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(live["yes"]), "no": int(live.get("no", 0)), "abst": int(live.get("abst", 0)),
-		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false))}
+		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false)),
+		"notes": vote_notes.duplicate(), "next": vote_next_text(tid, idx, int(live["yes"]) >= law_need(tid), cost)}
+	vote_notes.clear()
 	if not bool(live.get("bypass", false)) and int(live["yes"]) < law_need(tid):
 		capital -= cost * 0.5
 		log_line("[color=%s]Закон «%s» провален при голосовании: за %d, против %d, воздержались %d — нужно %d. Часть депутатов нарушила дисциплину (политкапитал -%.0f).[/color]" % [COL_BAD, topic["name"], int(live["yes"]), int(live["no"]), int(live["abst"]), law_need(tid), cost * 0.5])
@@ -775,23 +784,64 @@ func mod_item(key: String, old_v: Variant, new_v: Variant) -> Array:
 	return ["%s: %s%s → %s%s" % [info["t"], String.num(float(old_v) * sc, 0), info["u"], String.num(float(new_v) * sc, 0), info["u"]], 0]
 
 
+# Канал, по которому закон влияет на показатель: чтобы игрок видел, откуда берётся эффект.
+func mod_channel(key: String) -> String:
+	if key in ["income_mult", "corp_mult", "vat_mult", "eff_bonus"]:
+		return "через налоги"
+	if key in ["pension_mult", "admin_mult", "extra_spend", "edu_eff", "health_eff", "env_eff", "infra_eff", "zone_eff", "army_q"]:
+		return "через бюджет"
+	if key == "growth_bonus" or key == "unemp_base":
+		return "напрямую"
+	if key in ["sec_bonus", "corr_shift", "equal_shift", "dem_shift", "reg_dev_bonus", "fed_share", "rdebt_shift", "reg_unrest_shift", "auto_shift"]:
+		return "через институты"
+	if key == "mood_shift" or key.begins_with("gb_"):
+		return "через настроение групп"
+	return "правило игры"
+
+
+# Не показываем сдвиги, которые после округления выглядели бы как «0» или «-0».
+func mod_visible(key: String, old_v: Variant, new_v: Variant) -> bool:
+	var info: Dictionary = MOD_INFO[key]
+	var kind: String = info["k"]
+	if kind == "mul":
+		return absf(float(new_v) / float(old_v) - 1.0) * 100.0 >= 0.5
+	if kind == "add":
+		var d: float = absf(float(new_v) - float(old_v)) * float(info.get("sc", 1.0))
+		return d * pow(10.0, float(int(info["dg"]))) >= 0.5
+	return true
+
+
+# что будет дальше — для кнопки «Что будет дальше» в окне итогов (считается до применения закона)
+func vote_next_text(tid: String, idx: int, passed: bool, cost: float) -> String:
+	if not passed:
+		return "Закон не принят. Часть политкапитала (%.0f) потеряна. Внести его заново можно сразу, но состав голосов зависит от дисциплины и сделок." % (cost * 0.5)
+	var t := "[b]Закон вступает в силу сразу.[/b] Изменения по сравнению с прежним порядком:\n"
+	t += items_pros_cons(variant_effect_items(tid, idx))
+	t += "\n[color=%s]Менять его снова можно через %d мес.[/color]" % [COL_DIM, 24 if is_fund(tid) else 12]
+	return t
+
+
 func variant_effect_items(tid: String, idx: int) -> Array:
 	var cur := cur_idx(tid)
 	var items: Array = []
 	var sd := support_delta(tid, idx)
 	for g in GROUPS:
-		if sd.has(g):
+		if sd.has(g) and absf(float(sd[g])) >= 0.55:
 			items.append(["%s %s" % [g, sg(float(sd[g]), 0)], 1 if float(sd[g]) > 0.0 else -1])
 	var st2: Dictionary = law_state.duplicate()
 	st2[tid] = idx
 	var m2 := compute_mods(st2, true, tid)
+	# 0.57.1: сравниваем с действующим порядком, а не с живыми mods (там ещё слои технологий, дипломатии и радикалов)
+	var m1 := compute_mods(law_state, true)
 	for key in MOD_INFO:
-		if absf(float(m2[key]) - float(mods[key])) > 0.00001:
-			items.append(mod_item(key, mods[key], m2[key]))
+		if absf(float(m2[key]) - float(m1[key])) > 0.00001 and mod_visible(key, m1[key], m2[key]):
+			var mi := mod_item(key, m1[key], m2[key])
+			mi[0] = "%s (%s)" % [mi[0], mod_channel(key)]
+			items.append(mi)
 	var std := dict_diff(variant_part(tid, cur, "st"), variant_part(tid, idx, "st", true))
 	for k in std:
 		var good: bool = (float(std[k]) < 0.0) == (k == "corruption")
-		items.append(["%s %s" % [STATE_NAMES[k], sg(float(std[k]), 0)], 1 if good else -1])
+		items.append(["%s %s (через институты)" % [STATE_NAMES[k], sg(float(std[k]), 0)], 1 if good else -1])
 	var rgd := dict_diff(variant_part(tid, cur, "rg"), variant_part(tid, idx, "rg", true))
 	for k in rgd:
 		items.append(reg_item(k, float(rgd[k]), "во всех регионах (разово)"))

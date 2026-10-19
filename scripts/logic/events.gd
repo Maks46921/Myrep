@@ -339,6 +339,22 @@ func ev_title(e: Dictionary, text: String) -> String:
 	return t
 
 
+# Цена в капитале показана только на кнопке, в строке последствий её не повторяем.
+# Некоторые варианты имели цену прямо в тексте «(капитал -4)»: убираем, цена стоит в скобках кнопки.
+func strip_capital_note(t: String) -> String:
+	var re := RegEx.new()
+	re.compile("\\s*\\(капитал [-−+]?\\d+\\)")
+	return re.sub(t, "", true)
+
+
+func fx_no_capital(fx: Dictionary) -> Dictionary:
+	if not fx.has("capital"):
+		return fx
+	var d: Dictionary = fx.duplicate()
+	d.erase("capital")
+	return d
+
+
 # "" — вариант доступен, иначе причина
 func ev_opt_block(opt: Dictionary) -> String:
 	var fx: Dictionary = opt.get("fx", {})
@@ -602,7 +618,7 @@ func present_event() -> void:
 				csuf = "   [цена: %.0f капитала%s]" % [ccost, ", капитал уйдёт в минус" if capital < ccost else ""]
 			elif ccost <= -0.5:
 				csuf = "   [+%.0f капитала]" % -ccost
-			b.text = "%d   %s%s" % [i + 1, coal_text(ev_text(String(o["l"]))), csuf]
+			b.text = "%d   %s%s" % [i + 1, coal_text(ev_text(strip_capital_note(String(o["l"])))), csuf]
 			var d := describe_fx(o["fx"], event_region)
 			b.tooltip_text = ("Последствия: " + d) if d != "" else "Без прямых последствий"
 			var blk: String = ev_opt_block(o) if spec == "" else ""
@@ -623,7 +639,7 @@ func present_event() -> void:
 			if blk != "":
 				extra += "\n[color=%s]✖ Недоступно: %s[/color]" % [COL_BAD, blk]
 			var stars := ""
-			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", fx_pros_cons(o["fx"], event_region), extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
+			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", fx_pros_cons(fx_no_capital(o["fx"]), event_region), extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
 			var card: PanelContainer = event_boxes[i]
 			var bcol: Color = C_TEAL if i == best else kc.darkened(0.45)
 			var csb := sbox(C_PANEL2.darkened(0.18) if blk == "" else C_PANEL.darkened(0.2), bcol, 2 if i == best else 1, 10, 4.0, 3.0)

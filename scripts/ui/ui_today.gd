@@ -146,7 +146,11 @@ func today_todo() -> Array:
 	if offer_pending:
 		out.append({"t": "[b]Вам предложили войти в правительство[/b]", "btn": "Оппозиция", "f": func() -> void: show_desk(12)})
 	if bills.size() > 0:
-		out.append({"t": "[b]Законопроекты в работе: %d[/b]\nГолосования и поправки." % bills.size(), "btn": "Законопроекты", "f": func() -> void: goto_win("bills")})
+		var batt := bills_attention()
+		var btxt := "Голосования и поправки."
+		if batt.size() > 0:
+			btxt = "Ждут вашего решения: %d (%s). Ближайшее голосование через %d мес." % [batt.size(), String(batt[0]["why"]), int(batt[0]["left"])]
+		out.append({"t": "[b]Законопроекты в работе: %d[/b]\n%s" % [bills.size(), btxt], "btn": "Законопроекты", "f": func() -> void: goto_win("bills")})
 	if capital >= 60.0:
 		out.append({"t": "[b]Накоплено %.0f политического капитала[/b]\nЕго можно потратить на законы и реформы." % capital, "btn": "Законы", "f": func() -> void: show_desk(3)})
 	return out

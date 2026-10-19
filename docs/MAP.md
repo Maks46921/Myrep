@@ -74,14 +74,14 @@ v52_1: международные организации. Члены (из 38 с
 
 Переменные (7): `bud_base`, `bud_persuaded`, `bud_tr_base`, `oneoff_cap`, `oneoff_cap0`, `oneoff_used`, `oneoff_log`
 
-### `scripts/logic/laws.gd`  (1360 строк)
+### `scripts/logic/laws.gd`  (1410 строк)
 Законы: варианты, голосование, числовые законы, меры и действия.
 
-Функции (82): `ch_law_label`, `decree_power`, `democracy_index`, `hold_parliament`, `junior_info`, `law_locked`, `martial_on`, `national_shares`, `pact_has`, `party_stance`, `propose_variant`, `radical_bypass`, `radical_enact`, `radical_req`, `refresh`, `rid_of`, `sfx`, `vote_show`, `meas_quarter`, `meas_q_used`, `meas_min`, `meas_holder`, `meas_partner_against`, `meas_resp_text`, `meas_head_why`, `meas_why`, `do_measure`, `do_action`, `level_effects_text`, `fx_items`, `reg_item`, `fx_pros_cons`, `layer_ramp`, `level_effect_list`, `law_tweak`, `variant_of`, `variant_part`, `cur_idx`, `law_cost`, `dict_diff`, `support_delta`, `variant_stance`, `variant_votes`, `party_dissent`, `party_vote_split`, `upper_check`, `upper_text`, `negotiate_variant`, `adopt_variant`, `mod_item`, `variant_effect_items`, `items_pros_cons`, `pres_needs_runoff`, `law_reform_count`, `law_demand_of`, `law_demand_met`, `law_demand_text`, `fmt_param`, `param_grid`, `make_param_topic`, `build_law_topics`, `sq_effects`, `variant_own_items`, `is_fund`, `law_need`, `demand_idx`, `demand_dict_met`, `param_scale_text`, `variant_swing`, `law_years`, `law_scaled`, `law_fit_generic`, `law_text_apply`, `de_law_params`, `de_fix_ps`, `de_adapt_topics`, `brake_allowed`, `brake_active`, `brake_step`, `brake_text`, `snap_info`, `snap_votes`
+Функции (85): `ch_law_label`, `decree_power`, `democracy_index`, `hold_parliament`, `junior_info`, `law_locked`, `martial_on`, `national_shares`, `pact_has`, `party_stance`, `propose_variant`, `radical_bypass`, `radical_enact`, `radical_req`, `refresh`, `rid_of`, `sfx`, `vote_show`, `meas_quarter`, `meas_q_used`, `meas_min`, `meas_holder`, `meas_partner_against`, `meas_resp_text`, `meas_head_why`, `meas_why`, `do_measure`, `do_action`, `level_effects_text`, `fx_items`, `reg_item`, `fx_pros_cons`, `layer_ramp`, `level_effect_list`, `law_tweak`, `variant_of`, `variant_part`, `cur_idx`, `law_cost`, `dict_diff`, `support_delta`, `variant_stance`, `variant_votes`, `party_dissent`, `party_vote_split`, `upper_check`, `upper_text`, `negotiate_variant`, `adopt_variant`, `mod_item`, `mod_channel`, `mod_visible`, `vote_next_text`, `variant_effect_items`, `items_pros_cons`, `pres_needs_runoff`, `law_reform_count`, `law_demand_of`, `law_demand_met`, `law_demand_text`, `fmt_param`, `param_grid`, `make_param_topic`, `build_law_topics`, `sq_effects`, `variant_own_items`, `is_fund`, `law_need`, `demand_idx`, `demand_dict_met`, `param_scale_text`, `variant_swing`, `law_years`, `law_scaled`, `law_fit_generic`, `law_text_apply`, `de_law_params`, `de_fix_ps`, `de_adapt_topics`, `brake_allowed`, `brake_active`, `brake_step`, `brake_text`, `snap_info`, `snap_votes`
 
 Константы (5): `MEAS_RESP`, `MEAS_Q_LIMIT`, `POW_MODERATION`, `SQ_K`, `SNAP_RULES`
 
-Переменные (2): `last_vote`, `vote_live`
+Переменные (3): `last_vote`, `vote_notes`, `vote_live`
 
 ### `scripts/logic/goods.gd`  (167 строк)
 Товары: потребительская корзина (18 видов), их цены и спрос, корзины групп населения.
@@ -114,10 +114,10 @@ v52_1: международные организации. Члены (из 38 с
 
 Константы (5): `GOV_EXCLUDE`, `CORDON_JOIN`, `CN_MIN_W`, `CN_PAT`, `CN_PAY`
 
-### `scripts/logic/events.gd`  (958 строк)
+### `scripts/logic/events.gd`  (974 строк)
 События и новости.
 
-Функции (57): `auto_event_ok`, `auto_event_pick`, `auto_resolve_event`, `cap_swap`, `cap_unswap`, `council_event`, `council_event_note`, `council_event_ok`, `council_split`, `ev_ext_val`, `fleet_resolve`, `flt_has_sea`, `inbox_route`, `io_member`, `io_members`, `io_ready`, `mil_resolve`, `opp_resolve_offer`, `radical_events`, `realism_resolve`, `resolve_crisis`, `revolt_resolve`, `set_time_btns`, `win_fade_in`, `ev_de_only`, `ev_org_blocked`, `event_ok`, `ev_id`, `ev_cond_ok`, `ev_weight`, `ev_pick`, `ev_by_id`, `ev_text`, `ev_rand_region`, `ev_opt_score`, `ev_fx_score`, `ev_title`, `ev_opt_block`, `ev_first_ok`, `_ev_chain_due`, `ev_tick`, `ev_after_choice`, `show_news`, `ev_kind_info`, `ev_kind_info0`, `ev_style`, `ev_context_text`, `ev_for_player`, `present_event`, `econ_pool`, `show_event`, `choose`, `dip_events`, `dip_summit_orgs`, `gen_dip_event`, `w_help_event`, `fire_scripted`
+Функции (59): `auto_event_ok`, `auto_event_pick`, `auto_resolve_event`, `cap_swap`, `cap_unswap`, `council_event`, `council_event_note`, `council_event_ok`, `council_split`, `ev_ext_val`, `fleet_resolve`, `flt_has_sea`, `inbox_route`, `io_member`, `io_members`, `io_ready`, `mil_resolve`, `opp_resolve_offer`, `radical_events`, `realism_resolve`, `resolve_crisis`, `revolt_resolve`, `set_time_btns`, `win_fade_in`, `ev_de_only`, `ev_org_blocked`, `event_ok`, `ev_id`, `ev_cond_ok`, `ev_weight`, `ev_pick`, `ev_by_id`, `ev_text`, `ev_rand_region`, `ev_opt_score`, `ev_fx_score`, `ev_title`, `strip_capital_note`, `fx_no_capital`, `ev_opt_block`, `ev_first_ok`, `_ev_chain_due`, `ev_tick`, `ev_after_choice`, `show_news`, `ev_kind_info`, `ev_kind_info0`, `ev_style`, `ev_context_text`, `ev_for_player`, `present_event`, `econ_pool`, `show_event`, `choose`, `dip_events`, `dip_summit_orgs`, `gen_dip_event`, `w_help_event`, `fire_scripted`
 
 Константы (4): `EV_ORG_WORDS`, `EV_COOLDOWN`, `EV_LATER_MAX`, `SUMMIT_ORGS`
 
@@ -248,10 +248,10 @@ v38: политика войны.
 
 Константы (6): `NO_PLAY_SLOTS`, `NO_PLAY_NAMES`, `NO_GOV_SLOTS`, `OPP_ACTS`, `PACT_KINDS`, `PM_LEAD_START`
 
-### `scripts/logic/aiparty.gd`  (1555 строк)
+### `scripts/logic/aiparty.gd`  (1751 строк)
 Партийный ИИ: идеологии, политический капитал партий, правление без вас, законопроекты и поправки.
 
-Функции (78): `autobalance_step`, `autopilot_step`, `corp_state_share`, `gov_style_step`, `tip_make`, `ideo_keys`, `ideo_valid`, `lean_share`, `ideo_d`, `ideo_stat`, `party_arch`, `ideo_stance`, `ideo_target`, `gov_stance`, `gov_target`, `ai_def_lim`, `ai_policy_step`, `ideo_label`, `idl_planks`, `plank_dev`, `idl_mult`, `idl_step`, `idl_react`, `ideology_text`, `junior_info`, `junior_power`, `cap_vote_share`, `cap_sources`, `cap_mults`, `cap_tip`, `rel`, `rel_add`, `prm_base`, `prm_init`, `ai_init`, `ai_note`, `cap_swap`, `cap_unswap`, `autopilot_run`, `ai_parties_step`, `ai_party_act`, `ai_bloc_plan`, `ai_gov_rule`, `ai_recruit`, `ai_reshuffle`, `ai_pick_law`, `bill_of`, `bill_index`, `bill_forced`, `bill_preview`, `propose_variant`, `bill_request_new`, `bill_request`, `bill_pow_block`, `bill_amend`, `bill_rider_list`, `bill_rider_check`, `bill_rider_add`, `_lean_sum`, `bill_riders_apply`, `conc_all_groups_cost`, `bills_step`, `bill_vote`, `ai_bill_vote`, `pa_power`, `pa_veto_cost`, `pa_month`, `pa_quarter`, `pa_options`, `pa_pick_bill`, `pa_do`, `pa_line`, `pa_set_vote`, `pa_bill_vote`, `pa_vote_after`, `pa_veto_bill`, `pa_veto_prop`, `pa_prop_text`
+Функции (96): `autobalance_step`, `autopilot_step`, `corp_state_share`, `gov_style_step`, `nt_toast`, `tip_make`, `vote_plan_live`, `vote_plan_open`, `vt_plan_busy`, `ideo_keys`, `ideo_valid`, `lean_share`, `ideo_d`, `ideo_stat`, `party_arch`, `ideo_stance`, `ideo_target`, `gov_stance`, `gov_target`, `ai_def_lim`, `ai_policy_step`, `ideo_label`, `idl_planks`, `plank_dev`, `idl_mult`, `idl_step`, `idl_react`, `ideology_text`, `junior_info`, `junior_power`, `cap_vote_share`, `cap_sources`, `cap_mults`, `cap_tip`, `rel`, `rel_add`, `prm_base`, `prm_init`, `ai_init`, `ai_note`, `cap_swap`, `cap_unswap`, `autopilot_run`, `ai_parties_step`, `ai_party_act`, `ai_bloc_plan`, `ai_gov_rule`, `ai_recruit`, `ai_reshuffle`, `ai_pick_law`, `bill_of`, `bill_index`, `bill_forced`, `bill_preview`, `propose_variant`, `bill_request_new`, `bill_request`, `bill_pow_block`, `bill_amend`, `bill_rider_list`, `bill_rider_check`, `bill_rider_add`, `_lean_sum`, `bill_riders_apply`, `conc_all_groups_cost`, `bills_step`, `bill_warn_short`, `bills_attention`, `bills_due_step`, `bill_run_vote`, `bill_plan_wanted`, `bill_deal_cost`, `bill_press_ok`, `bill_press_cost`, `bill_swing_parties`, `bill_plan_preview`, `bill_plan_apply`, `pa_trade_value`, `pa_trade`, `pa_amend`, `bill_vote`, `ai_bill_vote`, `pa_power`, `pa_veto_cost`, `pa_month`, `pa_quarter`, `pa_options`, `pa_pick_bill`, `pa_do`, `pa_line`, `pa_set_vote`, `pa_bill_vote`, `pa_vote_after`, `pa_veto_bill`, `pa_veto_prop`, `pa_prop_text`
 
 Константы (7): `ARCH`, `CAP_K`, `CAP_W`, `RIDER_CHARS`, `RIDER_MAX`, `MIN_BUD`, `PA_VOTE_NAMES`
 
@@ -494,12 +494,12 @@ v55_1: рамка «Общество»: вкладки «Религия и ми�
 
 Переменные (13): `rm_boxes`, `rm_ver`, `tut_panel`, `tut_label`, `tut_idx`, `rm_partner`, `tut_fx`, `tut_btns`, `tut_offer_btns`, `tut_title`, `tut_done`, `tut_timer`, `tut_tr`
 
-### `scripts/ui/ui_opp.gd`  (319 строк)
+### `scripts/ui/ui_opp.gd`  (501 строк)
 Интерфейс: оппозиция и переговоры между партиями (экран «Политика»).
 
-Функции (12): `build_opp_windows`, `on_bill_pick`, `on_bill_req`, `on_bill_amend`, `rider_fill`, `on_rider_add`, `update_bill_window`, `on_opp_act`, `on_pact_party`, `on_pact_do`, `powers_text`, `update_opp_windows`
+Функции (14): `build_opp_windows`, `on_bill_req`, `on_bill_amend`, `rider_fill`, `on_rider_add`, `update_bill_window`, `bill_cards_build`, `bill_card_btn`, `bill_make_card`, `on_opp_act`, `on_pact_party`, `on_pact_do`, `powers_text`, `update_opp_windows`
 
-Переменные (18): `opp_rt`, `opp_btns`, `pact_rt`, `pact_opt`, `pact_btns`, `pact_sel`, `bill_opt`, `bill_rt`, `bill_acc`, `bill_rej`, `bill_am`, `rider_kind`, `rider_arg`, `rider_btn`, `rider_args`, `bill_vote_row`, `bill_vote_btns`, `bill_veto`
+Переменные (23): `opp_rt`, `opp_btns`, `pact_rt`, `pact_opt`, `pact_btns`, `pact_sel`, `bill_rt`, `bill_acc`, `bill_rej`, `bill_am`, `rider_kind`, `rider_arg`, `rider_btn`, `rider_args`, `bill_veto`, `bill_sort`, `bill_rest_open`, `bill_sig`, `bill_att_title`, `bill_att_box`, `bill_rest_btn`, `bill_rest_box`, `bill_sel_title`
 
 ### `scripts/ui/ui_fleet.gd`  (194 строк)
 Экран «Флот» (desk 14): морская торговля, порты, военный флот, война на море.
@@ -562,12 +562,14 @@ v50_1: конструктор договоров — «чистый лист». 
 
 Переменные (7): `ts_ov`, `ts_title`, `ts_partner`, `ts_partners`, `ts_checks`, `ts_eval`, `ts_go`
 
-### `scripts/ui/ui_vote.gd`  (235 строк)
-v51_1: окно итогового голосования. Зал заседаний загорается место за местом — зелёным «за», красным «против»,
+### `scripts/ui/ui_vote.gd`  (673 строк)
+v51_1: окно итогового голосования. Зал заседаний загорается место за местом: плитка в цвет партии, кружок в ней
 
-Функции (6): `vote_show`, `vote_build`, `vote_layout_seats`, `vote_step`, `vote_draw`, `vote_done`
+Функции (20): `vote_plan_live`, `vt_plan_busy`, `vote_show`, `vote_build`, `vote_btn_pressed`, `vote_plan_open`, `vt_party_tag`, `vt_toggle_btn`, `vt_label`, `vote_plan_refresh`, `vote_plan_own`, `vote_plan_other`, `vote_plan_later`, `vote_plan_go`, `vote_layout_seats`, `vote_legend_text`, `vote_step`, `vote_draw`, `vt_stance_text`, `vote_done`
 
-Переменные (11): `vt_ov`, `vt_hall`, `vt_title`, `vt_sub`, `vt_board`, `vt_table`, `vt_btn`, `vt_seats`, `vt_t`, `vt_tw`, `vt_data`
+Константы (1): `VT_ANIM`
+
+Переменные (30): `vt_ov`, `vt_hall`, `vt_title`, `vt_sub`, `vt_board`, `vt_table`, `vt_btn`, `vt_legend`, `vt_next`, `vt_next_btn`, `vt_res_box`, `vt_plan_box`, `vt_fc_lbl`, `vt_fc_bar`, `vt_mode_row`, `vt_plan_list`, `vt_plan_note`, `vt_later_btn`, `vt_seats`, `vt_tile`, `vt_t`, `vt_tw`, `vt_data`, `vt_stage`, `vt_plan_bid`, `vt_from_plan`, `vt_mode`, `vt_deals`, `vt_press`, `vt_pv`
 
 ### `scripts/ui/ui_regime.gd`  (831 строк)
 v51_1: раздел «Политика» при недемократическом режиме. Вместо парламента, партий и опросов — «Вертикаль власти»
@@ -596,7 +598,7 @@ v52_1: рамка «Организации». Вкладки — междуна�
 
 Переменные (17): `io_tabs`, `io_head_ctl`, `io_mem_ctl`, `io_ext_rt`, `io_info_rt`, `io_act_box`, `io_ses_rt`, `io_vote_btns`, `io_hist_rt`, `io_built_for`, `io_row_mem`, `io_row_oth`, `io_lbl_cand`, `io_lbl_oth`, `io_other_opt`, `io_groups_key`, `io_bar_hh`
 
-### `scripts/ui/ui_today.gd`  (679 строк)
+### `scripts/ui/ui_today.gd`  (683 строк)
 0.57: разгрузка игрока. Рамка «Сегодня», рамка «Мир» (бывшие «Карта» и «Организации»), поиск по игре (Ctrl+K),
 
 Функции (29): `bm_sig`, `inbox_todo`, `layout_remember`, `rules_open`, `rules_todo`, `srch_extra`, `today_bm_defs`, `build_today_windows`, `today_problems`, `today_todo`, `today_dates`, `today_nums`, `today_row`, `today_tip`, `update_today`, `goto_win`, `nav_note`, `nav_back`, `update_chips_extra`, `spark_text`, `chip_tip`, `srch_collect`, `srch_open`, `srch_build`, `srch_key`, `srch_fill`, `srch_run`, `ui_hotkey`, `esc_close`
@@ -614,7 +616,7 @@ v52_1: рамка «Организации». Вкладки — междуна�
 
 Переменные (5): `inbox`, `inbox_year`, `inbox_asked`, `inbox_bypass`, `inbox_done_month`
 
-### `scripts/ui/ui_notify.gd`  (235 строк)
+### `scripts/ui/ui_notify.gd`  (240 строк)
 0.57: уведомления. Плашки с звуком только для важного, точки на вкладках (красная — решить сейчас, жёлтая — можно улучшить,
 
 Функции (12): `nav_extras`, `nt_class`, `nt_mode`, `nt_plain`, `notify_log`, `nt_stop_check`, `build_notify_ui`, `nt_toast`, `nt_dot_state`, `update_ui_extras`, `nt_autoslow`, `settings_extra_pages`
@@ -623,12 +625,12 @@ v52_1: рамка «Организации». Вкладки — междуна�
 
 Переменные (8): `nt_layer`, `nt_box`, `nt_last_text`, `nt_new`, `nt_dots`, `nt_crisis`, `nt_rx`, `nt_hist`
 
-### `scripts/ui/ui_nav.gd`  (520 строк)
+### `scripts/ui/ui_nav.gd`  (533 строк)
 0.57: навигация. Кнопки «?» и «★» в окнах, закладки, раскладки окон (плиткой, готовые наборы, «своя»), меню «Ещё»,
 
-Функции (30): `win_id_of`, `win_help_text`, `on_win_help`, `help_open`, `help_term`, `help_build`, `bm_list`, `bm_has`, `bm_toggle`, `on_win_star`, `bm_entry`, `today_bm_defs`, `bm_sig`, `srch_extra`, `layout_ids`, `layout_tile_ids`, `layout_tile`, `layout_preset`, `layout_snapshot`, `layout_apply_snapshot`, `layout_own_save`, `layout_own_load`, `layout_remember`, `layout_restore_all`, `win_menu_extra`, `win_menu_pick`, `build_more_menu`, `nav_extras`, `nav_init`, `subbar_hide_absent`
+Функции (31): `win_id_of`, `win_help_text`, `on_win_help`, `help_open`, `help_term`, `help_build`, `bm_list`, `bm_has`, `bm_toggle`, `on_win_star`, `bm_entry`, `today_bm_defs`, `bm_sig`, `srch_extra`, `layout_ids`, `layout_tile_ids`, `layout_tile`, `layout_preset`, `layout_snapshot`, `layout_apply_snapshot`, `layout_own_save`, `layout_own_load`, `layout_remember`, `lay_is_old_default`, `layout_restore_all`, `win_menu_extra`, `win_menu_pick`, `build_more_menu`, `nav_extras`, `nav_init`, `subbar_hide_absent`
 
-Константы (4): `WIN_HELP`, `GLOSSARY`, `LAYOUT_PRESETS`, `TILE_LEFT`
+Константы (5): `WIN_HELP`, `GLOSSARY`, `LAYOUT_PRESETS`, `TILE_LEFT`, `LAY_MIGRATE`
 
 Переменные (6): `help_ov`, `help_title`, `help_rt`, `lay_prev`, `more_btn`, `show_all_btn`
 

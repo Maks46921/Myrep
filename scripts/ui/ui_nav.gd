@@ -380,6 +380,17 @@ func layout_remember(desk: int) -> void:
 	settings_save()
 
 
+# 0.57.1: окна экрана «Законы» перекроены ради карточек законопроектов; прежние положения по умолчанию заменяются новыми
+const LAY_MIGRATE := {"law_votes": [0.48, 0.0, 0.222, 0.28], "bills": [0.48, 0.28, 0.222, 0.32], "rm_law": [0.48, 0.60, 0.222, 0.40]}
+
+
+func lay_is_old_default(a: Array, old: Array) -> bool:
+	for i in 4:
+		if absf(float(a[i]) - float(old[i])) > 0.003:
+			return false
+	return true
+
+
 func layout_restore_all() -> void:
 	var all: Dictionary = game_opts.get("lay_auto", {})
 	for k in all:
@@ -390,6 +401,8 @@ func layout_restore_all() -> void:
 			var a: Array = snap[id]
 			if a.size() < 5:
 				continue
+			if LAY_MIGRATE.has(id) and lay_is_old_default(a, LAY_MIGRATE[id]):
+				continue    # 0.57.1: окно в прежнем положении по умолчанию — берём новое
 			var w: FloatWindow = wins[id]
 			w.frac = Rect2(float(a[0]), float(a[1]), float(a[2]), float(a[3]))
 			w.closed = bool(a[4])

@@ -186,7 +186,12 @@ func nt_dot_state(tab: int) -> int:
 	elif tab == 0 and not bud_changes().is_empty():
 		st = maxi(st, 2)
 	elif tab == 2 and (bills.size() > 0 or pa_props.size() > 0):
-		st = maxi(st, 2)
+		st = maxi(st, 1)
+		if pa_props.size() > 0:
+			st = maxi(st, 2)
+		# 0.57.1: законопроект ждёт решения — жёлтая точка, голосование уже в этом или следующем месяце — красная
+		for a in bills_attention():
+			st = maxi(st, 3 if int(a["left"]) <= 1 and int(a["sev"]) >= 2 else 2)
 	return st
 
 

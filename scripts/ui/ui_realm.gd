@@ -68,7 +68,7 @@ func build_realm_windows() -> void:
 	rm_win("energy", "rm_energy", "Энергия и климат", 16, Rect2(0.0, 0.42, 0.30, 0.58), rm_b_energy)
 	rm_win("hist", "rm_hist", "История показателей", 7, Rect2(0.35, 0.5, 0.355, 0.5), rm_b_hist)
 	rm_win("demo", "rm_demo", "Демография и пенсии", 11, Rect2(0.0, 0.78, 0.705, 0.22), rm_b_demo)
-	rm_win("law", "rm_law", "Право, коррупция и СМИ", 3, Rect2(0.48, 0.60, 0.222, 0.40), rm_b_law)
+	rm_win("law", "rm_law", "Право, коррупция и СМИ", 3, Rect2(0.48, 0.80, 0.222, 0.20), rm_b_law)
 	rm_win("army", "rm_army", "Армия как политический игрок", 13, Rect2(0.22, 0.0, 0.19, 0.36), rm_b_army)
 	rm_attach("conf", cr_right_box, "Вмешательство, переговоры и признание новых государств", rm_b_conf)
 	rm_attach("science", tw_left_box, "Государство и наука", rm_b_science)
