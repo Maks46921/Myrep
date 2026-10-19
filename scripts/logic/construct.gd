@@ -777,6 +777,12 @@ func bq_priv_done(it: Dictionary) -> void:
 	for rk in (pd.get("reg", {}) as Dictionary):
 		half[rk] = float(pd["reg"][rk]) * 0.7
 	apply_reg_delta(i, half, true)
+	if bool(it.get("cred", false)):
+		# невозвраты по кредитам госбанка падают на бюджет: тем больше, чем выше коррупция
+		var bad: float = float(it["cost"]) * 0.04 * clampf(float(lvl.get("corruption", 30.0)) / 40.0, 0.5, 2.0)
+		debt += bad
+		con_log("«%s» построила «%s» в регионе «%s» на кредит госбанка; невозвраты кредита ложатся на бюджет: %.2f млрд." % [String(it["corp"]), pd["name"], REGIONS[i]["name"], bad])
+		return
 	con_log("«%s» построила «%s» в регионе «%s» на свои деньги%s." % [String(it["corp"]), pd["name"], REGIONS[i]["name"], " (с налоговой льготой)" if bool(it.get("brk", false)) else ""])
 
 
@@ -826,6 +832,10 @@ func bq_priv_spawn() -> void:
 	for c in corp["list"]:
 		if float(c["att"]) < 45.0 or int(c["st"]) >= 100 and String(es.get("cls", "")) == "planned":
 			continue
+		# 0.56: государственные компании строят и по поручению государства (не только ради окупаемости),
+		# а госбанки кредитуют их стройки на льготных условиях
+		var is_state: bool = int(c["st"]) >= 50
+		var cred: bool = is_state and (String(es.get("cls", "mixed")) in ["statecap", "planned", "social", "mixed"] or au_auth())
 		var opts: Array = CS_CORP_MAP.get(String(c["mk"]), ["factory"])
 		var best := ""
 		var by := 99.0
@@ -836,9 +846,11 @@ func bq_priv_spawn() -> void:
 			if y < by:
 				by = y
 				best = String(pid)
-		if best == "" or by > 12.0:
+		if best == "" or by > (24.0 if is_state else 12.0):
 			continue
 		var p: float = 0.012 * clampf(float(c["rev"]) / 40.0, 0.3, 2.5) * (float(c["att"]) / 60.0) * clampf((12.0 - by) / 6.0, 0.1, 1.5)
+		if is_state:
+			p = maxf(p, 0.006 * clampf(float(c["rev"]) / 40.0, 0.3, 2.5)) * 1.4
 		if cs_rng.randf() > p:
 			continue
 		var pd := find_by_id(PROJECTS, best)
@@ -849,10 +861,13 @@ func bq_priv_spawn() -> void:
 			if r <= 0.0:
 				ri = i
 				break
-		var cost: float = gdp * project_cost_pct(ri, pd) / 100.0
+		var cost: float = gdp * project_cost_pct(ri, pd) / 100.0 * (0.85 if cred else 1.0)
 		bq_uid += 1
-		bq_priv.append({"uid": bq_uid, "id": best, "i": ri, "cost": cost, "done": 0.0, "months": int(pd["months"]), "corp": corp_name(c), "brk": bld_breaks.has(best), "got": 0.0})
-		con_log("«%s» начала строить «%s» в регионе «%s»: окупится примерно за %.0f г." % [corp_name(c), pd["name"], REGIONS[ri]["name"], by])
+		bq_priv.append({"uid": bq_uid, "id": best, "i": ri, "cost": cost, "done": 0.0, "months": int(pd["months"]), "corp": corp_name(c), "brk": bld_breaks.has(best), "got": 0.0, "cred": cred})
+		if cred:
+			con_log("«%s» (госкомпания) начала строить «%s» в регионе «%s» на кредит госбанка; окупаемость %s." % [corp_name(c), pd["name"], REGIONS[ri]["name"], ("около %.0f г." % by) if by < 40.0 else "не главное — стройка по поручению государства"])
+		else:
+			con_log("«%s» начала строить «%s» в регионе «%s»: окупится примерно за %.0f г." % [corp_name(c), pd["name"], REGIONS[ri]["name"], by])
 		if bq_priv.size() >= BQ_PRIV_MAX:
 			break
 

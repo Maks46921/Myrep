@@ -44,6 +44,7 @@ scripts/logic/intorg.gd
 scripts/logic/realism.gd
 scripts/logic/diplo2.gd
 scripts/logic/fpai.gd
+scripts/logic/regime2.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd
 scripts/logic/log.gd

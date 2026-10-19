@@ -79,12 +79,16 @@ func _init():
 	g.gdp = gd * 2.0
 	check(g.tech_cap() > c1 * 1.2, "потолок должен расти с ВВП")
 	g.gdp = gd
+	var had_ml: bool = g.law_state.has("media_law")
 	var law0 = g.law_state.get("media_law", 0)
 	g.law_state["media_law"] = 1
 	var cf: float = g.tech_cap()
 	g.law_state["media_law"] = 2
 	var cs: float = g.tech_cap()
-	g.law_state["media_law"] = law0
+	if had_ml:
+		g.law_state["media_law"] = law0
+	else:
+		g.law_state.erase("media_law")
 	check(cf > cs * 1.1, "свобода слова должна поднимать потолок (%.2f vs %.2f)" % [cf, cs])
 	# --- расходы на образование и убывающая отдача ---
 	var edu0: float = g.pol["edu"]

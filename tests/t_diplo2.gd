@@ -33,9 +33,16 @@ func region_noncap(g) -> int:
 			return i
 	return 0
 
+# 0.56: если выборы назначены в первые месяцы (HU, BG), сдвигаем их: тест рассчитан на игру у власти
+func hold_parl(g) -> void:
+	if g.turn - g.last_parl >= g.parl_term() - 6:
+		g.last_parl = g.turn
+
+
 func _init():
 	var g = mk({})
 	for i in 5: await process_frame
+	hold_parl(g)
 	var cc: String = g.ccode
 	check(g.dx_on(), "состояние dx не создано")
 	var nbs: Array = g.dx_countries()
@@ -151,6 +158,7 @@ func _init():
 	# --- выключено ---
 	var g2 = mk({"rlev": 0})
 	for i in 3: await process_frame
+	hold_parl(g2)
 	months(g2, 6)
 	check(not g2.dx_on() or g2.dx_treaty_acts(c1).is_empty(), "при rlev=0 модуль молчит")
 	print("diplo2 ", cc, " проблем ", bad)

@@ -25,9 +25,11 @@ const REG_SKIN := {
 const REG_POL_DESKS := [1, 3, 4, 6, 11, 12]
 const REG_HIDE_AUTH := ["parliament", "parties", "party", "polls", "opp", "pacts", "neg"]
 const REG_HIDE_HYB := ["party", "polls"]
-const REG_WINS_HYB := ["reg_vert", "reg_tools", "reg_mood"]
-const REG_TOOL_GROUPS := [["Страх и репрессии", ["arrests", "amnesty", "censor"]], ["Пропаганда и культ", ["prop_up", "prop_dn", "cult", "decult"]],
-	["Выборы", ["fraud_up", "fraud_dn", "referendum"]], ["Будущее режима", ["succ", "promise", "plenum_c", "plenum_r", "fatwa", "lib", "constitution", "roundtable"]]]
+const REG_WINS_HYB := ["reg_vert", "reg_tools", "reg_mood", "reg_dec"]
+const REG_TOOL_GROUPS := [["Страх и репрессии", ["arrests", "amnesty", "censor", "pol_up", "pol_dn", "pris_swap"]], ["Пропаганда и культ", ["prop_up", "prop_dn", "cult", "decult", "media_reg", "youth_org"]],
+	["Выборы", ["fraud_up", "fraud_dn", "referendum", "turn_up", "turn_dn", "stage_on", "stage_off"]],
+	["Экономика, границы и мир", ["bm_raid", "bm_legal", "brain_ret", "borders_open", "evade", "patron_east", "patron_gulf", "patron_bloc", "patron_drop"]],
+	["Будущее режима", ["succ", "succ_train", "succ_swap", "promise", "plenum_c", "plenum_r", "fatwa", "lib", "constitution", "roundtable"]]]
 
 var ui_reg_cls := ""
 var rg_head: Control = null
@@ -47,6 +49,15 @@ var rg_repr_rt: RichTextLabel = null
 var rg_repr_btns := {}
 var rg_trans: Control = null
 var rg_clan_cls := ""
+var dec_checks := {}
+var dec_opt := {}
+var dec_orgs_box: VBoxContainer = null
+var dec_orgs_sig := ""
+var dec_orgs := {}
+var dec_rt: RichTextLabel = null
+var dec_cost: Label = null
+var dec_btn: Button = null
+var dec_open_btn: Button = null
 
 
 func reg_skin() -> Dictionary:
@@ -75,7 +86,7 @@ func build_regime_windows() -> void:
 
 	w = new_window("reg_tools", "Инструменты режима", 1, Rect2(0.28, 0.0, 0.22, 1.0))
 	rg_meters = Control.new()
-	rg_meters.custom_minimum_size = Vector2(0.0, 92.0)
+	rg_meters.custom_minimum_size = Vector2(0.0, 176.0)
 	rg_meters.draw.connect(reg_draw_meters)
 	w.body.add_child(rg_meters)
 	for grp in REG_TOOL_GROUPS:
@@ -87,6 +98,10 @@ func build_regime_windows() -> void:
 			b.tooltip_text = String(a[5])
 			b.pressed.connect(reg_do.bind(String(id)))
 			rg_tool_btns[String(id)] = b
+
+	dec_open_btn = make_button("Одноразовые решения новой власти…", w.body)
+	dec_open_btn.tooltip_text = "Конструктор пакета: национализация, выход из организаций, новая конституция, чистка силовиков и другие решения, которые подписываются разом."
+	dec_open_btn.pressed.connect(dec_open)
 
 	w = new_window("reg_mood", "Настроения и угрозы", 1, Rect2(0.50, 0.0, 0.205, 0.64))
 	rg_gauge = Control.new()
@@ -118,7 +133,8 @@ func build_regime_windows() -> void:
 		b2.tooltip_text = String(a2[5])
 		b2.pressed.connect(reg_do.bind(id))
 		rg_repr_btns[id] = b2
-	for id in ["reg_vert", "reg_tools", "reg_mood", "reg_facade", "reg_repr"]:
+	build_dec_window()
+	for id in ["reg_vert", "reg_tools", "reg_mood", "reg_facade", "reg_repr", "reg_dec"]:
 		(wins[id] as FloatWindow).visible = false
 
 
@@ -140,16 +156,22 @@ func win_mode_ok(id: String) -> bool:
 
 
 # ---------- смена режима: раскладка, вкладки, палитра ----------
+var reg_sync_busy := false
+
+
 func reg_ui_sync() -> void:
 	if au.is_empty() or wins.is_empty():
 		return
 	var cls := regime_class()
+	if reg_sync_busy:
+		return
 	if cls != String(au["cls"]):
 		au_set_class(cls)
 	if cls == ui_reg_cls:
 		return
 	var first: bool = ui_reg_cls == ""
 	ui_reg_cls = cls
+	reg_sync_busy = true
 	reg_layout()
 	reg_apply_skin()
 	reg_tabs()
@@ -158,6 +180,7 @@ func reg_ui_sync() -> void:
 		reg_transition()
 	if not first:
 		show_desk(current_desk)
+	reg_sync_busy = false
 
 
 func reg_layout() -> void:
@@ -364,6 +387,15 @@ func update_regime_windows() -> void:
 	if ui_reg_cls == "" or ui_reg_cls == "dem" or au.is_empty():
 		return
 	reg_build_rows()
+	if bool(au.get("dec_offer", false)) and not observer and wins.has("reg_dec") and not game_over:
+		if not bool(au.get("dec_offer_log", false)):
+			au["dec_offer_log"] = true
+			log_line("[color=%s]Новая власть может принять одноразовые решения пакетом: кнопка «Одноразовые решения новой власти» в «Инструментах режима» (раздел «Политика»).[/color]" % COL_WARN)
+		if current_desk == 1:
+			au["dec_offer"] = false
+			au["dec_offer_log"] = false
+			dec_open()
+	dec_update()
 	rg_head.tooltip_text = "Режим в игре: %s." % au_class_name() + ("\nВ реальности: %s." % REG_INDEX if String(REG_INDEX) != "" else "")
 	rg_head.queue_redraw()
 	rg_map.queue_redraw()
@@ -427,6 +459,7 @@ func update_regime_windows() -> void:
 		t += ("[color=%s]Обещание передать власть гражданским: осталось %s.[/color]\n" % [COL_WARN, months_text(left)]) if left > 0 else ("[color=%s]Обещание нарушено — недовольство растёт.[/color]\n" % COL_BAD)
 	if ui_reg_cls == "hybrid":
 		t += "[color=%s]Выборы проводятся: партия власти получает «административный ресурс» (+%.0f п. п.), но после выборов с фальсификациями возможны протесты.[/color]" % [COL_DIM, float(au["fraud"]) * 0.3]
+	t += "\n" + au2_report()
 	rg_mood_rt.text = t
 	var lg: Array = au.get("log", [])
 	rg_log_rt.text = "[font_size=12]%s[/font_size]" % ("\n".join(lg.slice(0, 6)) if lg.size() > 0 else "[color=%s]Пока ничего не происходило.[/color]" % COL_DIM)
@@ -529,12 +562,15 @@ func reg_draw_meters() -> void:
 		return
 	var sz: Vector2 = c.size
 	var f: Font = c.get_theme_default_font()
+	var x: Dictionary = au_x()
 	var rows := [["Страх", float(au["fear"]), Color(0.85, 0.35, 0.35)], ["Пропаганда", float(au["prop"]), Color(0.95, 0.70, 0.30)],
-		["Фальсификации", float(au["fraud"]), Color(0.70, 0.55, 0.95)]]
+		["Фальсификации", float(au["fraud"]), Color(0.70, 0.55, 0.95)], ["Тайная полиция", float(x["pol"]), Color(0.78, 0.40, 0.40)],
+		["Молодёжные союзы", float(x["youth"]), Color(0.45, 0.78, 0.55)], ["Чёрный рынок", float(x["bm"]), Color(0.60, 0.60, 0.65)],
+		["Утечка умов", float(x["brain"]), Color(0.40, 0.65, 0.90)]]
 	var y := 4.0
 	for r in rows:
 		c.draw_string(f, Vector2(0.0, y + 12.0), String(r[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.80, 0.83, 0.90))
-		var x0: float = 104.0
+		var x0: float = 124.0
 		var bw: float = sz.x - x0 - 34.0
 		c.draw_rect(Rect2(x0, y + 3.0, bw, 10.0), Color(1, 1, 1, 0.07))
 		c.draw_rect(Rect2(x0, y + 3.0, bw * clampf(float(r[1]) / 100.0, 0.0, 1.0), 10.0), r[2])
@@ -637,3 +673,158 @@ func reg_draw_und(bar: Control, uid: String) -> void:
 	var cells: int = int(s / 10.0)
 	for k in cells:
 		bar.draw_circle(Vector2(sz.x * clampf(s / 100.0, 0.0, 1.0) * (float(k) + 0.5) / float(maxi(1, cells)), 23.5), 2.0, Color(0, 0, 0, 0.35))
+
+
+# ---------- 0.56: одноразовые решения новой власти (конструктор пакета) ----------
+func build_dec_window() -> void:
+	var w: FloatWindow = new_window("reg_dec", "Решения новой власти", 1, Rect2(0.12, 0.04, 0.50, 0.92))
+	add_note(w.body, "Отметьте решения галочками и подпишите их одним указом: пакет дешевле суммы и подписывается раньше, чем элиты успеют возразить. Каждое решение принимается один раз.")
+	for d in AU_DECS:
+		var id: String = String(d[0])
+		var cb := CheckBox.new()
+		cb.text = "%s (капитал %.0f)" % [String(d[1]), float(d[2])]
+		cb.focus_mode = Control.FOCUS_NONE
+		cb.tooltip_text = String(d[3])
+		cb.toggled.connect(dec_changed)
+		w.body.add_child(cb)
+		dec_checks[id] = cb
+		add_note(w.body, String(d[3]))
+		match id:
+			"nat":
+				var ob := OptionButton.new()
+				ob.add_item("С выкупом по рыночной цене", 0)
+				ob.add_item("Без выкупа (конфискация)", 1)
+				ob.item_selected.connect(dec_changed_i)
+				w.body.add_child(ob)
+				dec_opt[id] = ob
+			"orgs":
+				dec_orgs_box = VBoxContainer.new()
+				dec_orgs_box.add_theme_constant_override("separation", 2)
+				w.body.add_child(dec_orgs_box)
+			"econ":
+				var oe := OptionButton.new()
+				oe.item_selected.connect(dec_changed_i)
+				w.body.add_child(oe)
+				dec_opt[id] = oe
+			"sym":
+				var os := OptionButton.new()
+				for nm in AU_NEW_NAMES:
+					os.add_item(String(nm))
+				os.item_selected.connect(dec_changed_i)
+				w.body.add_child(os)
+				dec_opt[id] = os
+			"regs":
+				var orr := OptionButton.new()
+				orr.add_item("Назначить губернаторов из центра", 0)
+				orr.add_item("Распустить региональное самоуправление", 1)
+				orr.item_selected.connect(dec_changed_i)
+				w.body.add_child(orr)
+				dec_opt[id] = orr
+	add_title(w.body, "Что произойдёт")
+	dec_rt = make_rt(w.body)
+	dec_cost = Label.new()
+	dec_cost.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	w.body.add_child(dec_cost)
+	dec_btn = make_button("Подписать пакет", w.body)
+	dec_btn.pressed.connect(dec_sign)
+
+
+func dec_changed(_on: bool) -> void:
+	dec_update()
+
+
+func dec_changed_i(_i: int) -> void:
+	dec_update()
+
+
+func dec_open() -> void:
+	if not wins.has("reg_dec"):
+		return
+	var fw: FloatWindow = wins["reg_dec"]
+	fw.closed = false
+	show_desk(1 if current_desk != 1 else current_desk)
+	fw.move_to_front()
+	dec_update()
+
+
+func dec_sel() -> Array:
+	var sel: Array = []
+	for id in dec_checks:
+		if (dec_checks[id] as CheckBox).button_pressed and not (dec_checks[id] as CheckBox).disabled:
+			sel.append(String(id))
+	return sel
+
+
+func dec_opts() -> Dictionary:
+	var o := {}
+	if dec_opt.has("nat"):
+		o["nat_mode"] = "buyout" if (dec_opt["nat"] as OptionButton).selected <= 0 else "confiscate"
+	if dec_opt.has("regs"):
+		o["reg_mode"] = "appoint" if (dec_opt["regs"] as OptionButton).selected <= 0 else "dissolve"
+	if dec_opt.has("sym"):
+		o["name"] = (dec_opt["sym"] as OptionButton).get_item_text((dec_opt["sym"] as OptionButton).selected)
+	if dec_opt.has("econ") and (dec_opt["econ"] as OptionButton).item_count > 0:
+		o["econ"] = (dec_opt["econ"] as OptionButton).get_item_id((dec_opt["econ"] as OptionButton).selected)
+	var og: Array = []
+	for k in dec_orgs:
+		if (dec_orgs[k] as CheckBox).button_pressed:
+			og.append(String(k))
+	o["orgs"] = og
+	return o
+
+
+func dec_update() -> void:
+	if dec_rt == null or not au_on():
+		return
+	var avail: Dictionary = {}
+	for id in dec_checks:
+		var cb: CheckBox = dec_checks[id]
+		var why := au2_dec_avail(String(id))
+		avail[id] = why
+		cb.disabled = why != ""
+		if why != "":
+			cb.button_pressed = false
+		var base: String = "%s (капитал %.0f)" % [String(au2_dec_def(String(id))[1]), float(au2_dec_def(String(id))[2])]
+		cb.text = base + ("" if why == "" else " — " + why)
+	# список организаций
+	var orgs: Array = au2_dec_orgs()
+	var sig := ",".join(orgs)
+	if sig != dec_orgs_sig and dec_orgs_box != null:
+		dec_orgs_sig = sig
+		for ch in dec_orgs_box.get_children():
+			ch.queue_free()
+		dec_orgs.clear()
+		for o in orgs:
+			var cb2 := CheckBox.new()
+			cb2.text = "     выйти из: %s" % String(ORGS[o].get("sh", o))
+			cb2.focus_mode = Control.FOCUS_NONE
+			cb2.toggled.connect(dec_changed)
+			dec_orgs_box.add_child(cb2)
+			dec_orgs[String(o)] = cb2
+	if dec_opt.has("econ"):
+		var oe: OptionButton = dec_opt["econ"]
+		var vars: Array = au2_dec_econ_variants()
+		var s2 := str(vars)
+		if str(oe.get_meta("sig", "")) != s2:
+			oe.set_meta("sig", s2)
+			oe.clear()
+			for v in vars:
+				oe.add_item(String(v[1]), int(v[0]))
+	var sel := dec_sel()
+	var opts := dec_opts()
+	dec_rt.text = "[font_size=13]%s[/font_size]" % (au2_dec_preview(sel, opts) if not sel.is_empty() else "[color=%s]Ничего не отмечено.[/color]" % COL_DIM)
+	var why2 := au2_dec_check(sel, opts) if not sel.is_empty() else "ничего не выбрано"
+	dec_cost.text = "Цена пакета: %.1f капитала (без скидки %.1f). Доступно: %.1f.%s" % [au2_dec_cost(sel, opts), au2_dec_cost_raw(sel, opts), cap_spendable(), "" if why2 == "" else "\nСейчас нельзя: " + why2]
+	dec_btn.disabled = why2 != ""
+
+
+func dec_sign() -> void:
+	var sel := dec_sel()
+	if au2_dec_sign(sel, dec_opts()):
+		sfx("good")
+		for id in dec_checks:
+			(dec_checks[id] as CheckBox).button_pressed = false
+		refresh()
+	else:
+		sfx("bad")
+	dec_update()

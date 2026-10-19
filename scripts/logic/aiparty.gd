@@ -351,7 +351,10 @@ func junior_power() -> float:
 #  Правящая партия получает капитал от мест, поста главы правительства, министерств и «экономической власти»
 #  (доля госсектора и поддержка бизнеса); неправящая — по доле голосов. Таблица весов — CAP_W.
 # ============================================================
-const CAP_W := {"base": 0.2, "seats": 1.2, "pm": 0.2, "junior": 0.05, "min": 0.025, "econ": 0.15, "votes": 1.5, "pres": 0.15, "appr": 0.2}
+# 0.56 (доп. 8): капитал растёт в 1,5 раза быстрее (было: основа 0,2, места 1,2, глава правительства 0,2, младший партнёр 0,05,
+# министерство 0,025, экономика 0,15, голоса 1,5, глава государства 0,15, рейтинг 0,2)
+const CAP_K := 1.5
+const CAP_W := {"base": 0.30, "seats": 1.80, "pm": 0.30, "junior": 0.075, "min": 0.0375, "econ": 0.225, "votes": 2.25, "pres": 0.225, "appr": 0.30}
 var cap_vs_turn := -1
 var cap_vs := 0.0
 
@@ -389,7 +392,7 @@ func cap_sources() -> Array:
 		out.append(["Доля голосов (%.0f%%)" % (vs * 100.0), float(CAP_W["votes"]) * vs])
 	if pres_party == 0:
 		out.append(["Глава государства из вашей партии", CAP_W["pres"]])
-	var mb: float = float(mods["capital_bonus"])
+	var mb: float = float(mods["capital_bonus"]) * CAP_K
 	if absf(mb) > 0.001:
 		out.append(["Законы и устройство власти", mb])
 	return out
@@ -1315,7 +1318,9 @@ func pa_options(p: int) -> Array:
 				var step: float = 0.2 if absf(dd) >= 0.6 else 0.1
 				step *= signf(dd)
 				var wgt: float = 0.5 + 0.5 * minf(absf(dd), 1.5)
-				if step > 0.0 and last_deficit_pct > 3.0:
+				if step > 0.0 and last_deficit_pct > 3.5:
+					continue   # 0.56: при дефиците выше 3,5% ВВП партнёры денег не просят
+				if step > 0.0 and last_deficit_pct > 2.5:
 					wgt *= 0.3
 				out.append([wgt, "bud", {"m": m, "key": key, "d": step}])
 		var lb := pa_pick_bill(p)
@@ -1351,6 +1356,9 @@ func pa_pick_bill(p: int) -> Dictionary:
 			if idx < 0 or idx >= vs.size():
 				continue
 			if radical_req(tid, idx) != "" or String((vs[idx] as Dictionary).get("rid", "")) != "":
+				continue
+			# 0.56: при большом дефиците партнёры не вносят законы, которые добавляют бюджетные программы
+			if last_deficit_pct > 3.0 and float(((vs[idx] as Dictionary).get("a", {}) as Dictionary).get("extra_spend", 0.0)) > float((((vs[cur] as Dictionary).get("a", {})) as Dictionary).get("extra_spend", 0.0)):
 				continue
 			var s := variant_stance(p, tid, idx)
 			if s > bs:

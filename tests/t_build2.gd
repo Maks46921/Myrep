@@ -25,9 +25,16 @@ func drop(g) -> void:
 	g.free()
 	await process_frame
 
+# 0.56: если выборы назначены в первые месяцы (HU, BG), сдвигаем их: тест рассчитан на игру у власти
+func hold_parl(g) -> void:
+	if g.turn - g.last_parl >= g.parl_term() - 6:
+		g.last_parl = g.turn
+
+
 func _init():
 	var g = mk({})
 	for i in 5: await process_frame
+	hold_parl(g)
 	var cc: String = g.ccode
 	# список сооружений и товаров
 	var nmega := 0
@@ -161,6 +168,7 @@ func _init():
 	# живая стройка: корпорации и другие страны
 	g = mk({"bldev": 1, "exev": 1, "seed": 5})
 	for i in 5: await process_frame
+	hold_parl(g)
 	var pre: int = g.struct_total_count()
 	if not g.corp.is_empty() and not (g.corp["list"] as Array).is_empty():
 		var c0: Dictionary = g.corp["list"][0]

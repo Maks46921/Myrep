@@ -6,16 +6,24 @@
 # Плюс подсказки для новичка.
 extends "res://scripts/ui/ui_crisis.gd"
 
+# 0.56 (п.1): обучение со стрелкой и светящейся рамкой. t — текст, tg — на что указывает стрелка
+# (play, speed, cap, appr, tab0…tab5, tech, crisis, meas, set или win:<id окна>), do — что открыть перед показом шага
 const TUT_STEPS := [
-	"Добро пожаловать! Вверху — разделы «Бюджет», «Экономика», «Политика», «Карта» и окна «Технологии», «Кризисы». Время идёт кнопками справа вверху: «▶» запускает ход, паузой можно остановить.",
-	"«Бюджет»: ползунки — налоги и расходы. Меняйте понемногу и смотрите прогноз роста, инфляции и рейтинга. Долг растёт, когда расходы выше доходов.",
-	"«Политика»: парламент, законы, правительство, население. Чтобы править, нужно большинство мест. Недовольные партнёры по коалиции могут уйти.",
-	"«Карта»: регионы страны. Щёлкните по региону — увидите недовольство и сепаратизм. Богатые и бедные регионы относятся к центру по-разному.",
-	"«Технологии»: пять веток знаний. Исследования идут быстрее с образованием, ВВП и свободой слова. Соседи подсказывают то, что уже знают сами.",
-	"«Кризисы»: протесты, мятежи и перевороты. Раннее вмешательство дешевле: диалог, инвестиции, автономия. Там же — мирные конференции и признание новых государств.",
-	"Новое в окнах разделов: «Экономика → Влияние и зависимость» — союзы (ЕС, НАТО), договоры, разведка; «Товары и цены» — история показателей; четвёртая вкладка «Экономики» (пульт экономической модели) — энергия и климат; «Политика → Религия и миграция» — старение и пенсии; «Законы» — коррупция и СМИ; «Карта → Армия и война» — армия как политический игрок.",
-	"Политический капитал — валюта решений. Он копится со временем и тратится на законы, реформы и переговоры. Не тратьте весь запас: он нужен на кризисы.",
-	"Игру можно сохранить в настройках (кнопка ⚙ в правом верхнем углу). Раз в год делается автоснимок, поэтому ошибку можно откатить на год назад. Удачи!",
+	{"t": "Добро пожаловать! Время идёт кнопкой «▶»: дни сменяют друг друга, пока не случится событие или выборы. Рядом — скорость, а паузой можно остановиться и подумать.", "tg": "play", "do": "tab:0"},
+	{"t": "«Бюджет»: ползунки налогов и расходов. Меняйте понемногу и смотрите прогноз роста, инфляции и рейтинга. Долг растёт, когда расходы выше доходов. Кнопки «−» и «+» меняют ставку на 0,1% ВВП.", "tg": "win:tax", "do": "tab:0"},
+	{"t": "«Экономика»: рынки, товары, компании страны, сооружения и пульт экономической модели. Здесь видно, что дорожает, чего не хватает и кто в стране зарабатывает.", "tg": "tab1", "do": "tab:1"},
+	{"t": "«Политика»: парламент, законы, правительство, население и оппозиция. Чтобы править, нужно большинство мест. Недовольные партнёры по коалиции могут уйти, а при другом режиме раздел выглядит иначе.", "tg": "win:parliament", "do": "tab:2"},
+	{"t": "«Карта»: регионы страны. Щёлкните по региону, чтобы увидеть недовольство, сепаратизм и экономику. Богатые и бедные регионы относятся к центру по-разному.", "tg": "win:map", "do": "tab:3"},
+	{"t": "«Организации»: ЕС, НАТО, ООН и другие. Вступление и выход, взносы, голосования на сессиях и влияние внутри организации. Членство даёт выгоды, но и требует обязательств.", "tg": "win:io_head", "do": "tab:4"},
+	{"t": "«Общество → Народы»: народы страны, их регионы и напряжённость, культурная политика и родные страны диаспор. Недовольное меньшинство может потребовать автономии.", "tg": "win:cu_nat", "do": "desk:19"},
+	{"t": "«Общество → Религия»: главная церковь, её законы и религиозность регионов. Союз с церковью приносит голоса консерваторов, но сердит светских избирателей.", "tg": "win:ch_main", "do": "desk:20"},
+	{"t": "«Строительство»: очередь государственных строек, частные инвесторы, налоговые льготы и годовой план министерств. Стройка занимает месяцы и упирается в мощность строительной отрасли.", "tg": "win:build", "do": "bld"},
+	{"t": "«Технологии»: пять веток знаний. Исследования идут быстрее с образованием, ВВП и свободой слова. Соседи подсказывают то, что уже знают сами. Очередь изучения — справа.", "tg": "tech", "do": "tab:0"},
+	{"t": "«Кризисы»: протесты, мятежи и перевороты. Раннее вмешательство дешевле: диалог, инвестиции, автономия. Там же — мирные конференции и признание новых государств.", "tg": "crisis", "do": "tab:0"},
+	{"t": "«Карта → Армия и война»: здесь объявляют войну и мир, а также вводят военное положение. Пока оно действует, выборы не проводятся, а конституцию менять нельзя.", "tg": "win:war_ops", "do": "desk:13"},
+	{"t": "«Меры»: разовые меры за часть ВВП и советник. Они оплачиваются из резерва бюджета, поэтому следите за запасом.", "tg": "meas", "do": "tab:0"},
+	{"t": "Политический капитал — валюта решений. Он копится со временем (места в парламенте, пост главы правительства, министерства, рейтинг) и тратится на законы, реформы и переговоры. Не тратьте весь запас: он нужен на кризисы.", "tg": "cap", "do": "tab:0"},
+	{"t": "Игру можно сохранить в настройках (кнопка ⚙). Раз в год делается автоснимок, поэтому ошибку можно откатить на год назад. Там же — кнопка «Пройти обучение заново». Удачи!", "tg": "set", "do": "tab:0"},
 ]
 
 var rm_boxes: Dictionary = {}   # ключ -> {"box": Control, "fn": Callable, "stamp": String}
@@ -431,50 +439,103 @@ func rm_b_science(box: Control) -> void:
 	rm_acts_box(box, dx_eth_acts(), func(id: String, _g: String) -> void: dx_eth_do(id))
 
 
-# ---------- подсказки новичка ----------
+# ---------- подсказки новичка (0.56: стрелка и светящаяся рамка, предложение при первом запуске) ----------
+var tut_fx: Control = null
+var tut_btns: HBoxContainer = null
+var tut_offer_btns: HBoxContainer = null
+var tut_title: Label = null
+var tut_done := -1
+var tut_timer: Timer = null
+var tut_tr := Rect2()
+
+
 func build_tutorial() -> void:
+	tut_fx = Control.new()
+	tut_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tut_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tut_fx.z_index = 39
+	tut_fx.visible = false
+	tut_fx.draw.connect(tut_draw)
+	add_child(tut_fx)
 	tut_panel = PanelContainer.new()
-	tut_panel.add_theme_stylebox_override("panel", sbox(Color(0.07, 0.09, 0.14, 0.96), C_ACCENT, 2, 10, 10.0, 8.0))
+	tut_panel.add_theme_stylebox_override("panel", sbox(Color(0.07, 0.09, 0.14, 0.97), C_ACCENT, 2, 10, 12.0, 10.0))
 	tut_panel.visible = false
 	add_child(tut_panel)
-	tut_panel.anchor_left = 0.0
-	tut_panel.anchor_top = 1.0
-	tut_panel.anchor_right = 0.0
-	tut_panel.anchor_bottom = 1.0
-	tut_panel.offset_left = 12.0
-	tut_panel.offset_bottom = -12.0
-	tut_panel.offset_top = -150.0
-	tut_panel.offset_right = 430.0
 	tut_panel.z_index = 40
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 6)
+	vb.add_theme_constant_override("separation", 8)
 	tut_panel.add_child(vb)
+	tut_title = Label.new()
+	tut_title.add_theme_font_size_override("font_size", 12)
+	tut_title.add_theme_color_override("font_color", C_ACCENT.lightened(0.2))
+	vb.add_child(tut_title)
 	tut_label = Label.new()
 	tut_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tut_label.custom_minimum_size = Vector2(390.0, 0.0)
-	tut_label.add_theme_font_size_override("font_size", 13)
+	tut_label.custom_minimum_size = Vector2(380.0, 0.0)
+	tut_label.add_theme_font_size_override("font_size", 14)
 	vb.add_child(tut_label)
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 6)
-	vb.add_child(hb)
+	tut_btns = HBoxContainer.new()
+	tut_btns.add_theme_constant_override("separation", 6)
+	vb.add_child(tut_btns)
+	var bk := Button.new()
+	bk.text = "◂ Назад"
+	bk.focus_mode = Control.FOCUS_NONE
+	bk.pressed.connect(on_tut_back)
+	tut_btns.add_child(bk)
 	var nx := Button.new()
 	nx.text = "Далее ▸"
 	nx.focus_mode = Control.FOCUS_NONE
 	nx.pressed.connect(on_tut_next)
-	hb.add_child(nx)
+	tut_btns.add_child(nx)
 	var sk := Button.new()
 	sk.text = "Пропустить"
 	sk.focus_mode = Control.FOCUS_NONE
 	sk.pressed.connect(on_tut_skip)
-	hb.add_child(sk)
+	tut_btns.add_child(sk)
+	tut_offer_btns = HBoxContainer.new()
+	tut_offer_btns.add_theme_constant_override("separation", 6)
+	vb.add_child(tut_offer_btns)
+	var y1 := Button.new()
+	y1.text = "Пройти обучение"
+	y1.focus_mode = Control.FOCUS_NONE
+	y1.pressed.connect(on_tut_start)
+	tut_offer_btns.add_child(y1)
+	var y2 := Button.new()
+	y2.text = "Не сейчас"
+	y2.focus_mode = Control.FOCUS_NONE
+	y2.pressed.connect(on_tut_skip)
+	tut_offer_btns.add_child(y2)
+	var y3 := Button.new()
+	y3.text = "Больше не предлагать"
+	y3.focus_mode = Control.FOCUS_NONE
+	y3.pressed.connect(on_tut_never)
+	tut_offer_btns.add_child(y3)
+	tut_timer = Timer.new()
+	tut_timer.wait_time = 0.04
+	tut_timer.timeout.connect(tut_tick)
+	add_child(tut_timer)
+	tut_timer.start()
+	# при первом запуске предлагаем, а не навязываем
 	if int(game_opts.get("tut", 1)) == 1 and turn == 0:
-		tut_idx = 0
+		tut_idx = -2
+
+
+func on_tut_start() -> void:
+	tut_idx = 0
+	tut_done = -1
+	update_tutorial()
 
 
 func on_tut_next() -> void:
 	tut_idx += 1
 	if tut_idx >= TUT_STEPS.size():
 		tut_idx = -1
+		show_tab(0)
+	update_tutorial()
+
+
+func on_tut_back() -> void:
+	tut_idx = maxi(0, tut_idx - 1)
 	update_tutorial()
 
 
@@ -483,11 +544,133 @@ func on_tut_skip() -> void:
 	update_tutorial()
 
 
+func on_tut_never() -> void:
+	game_opts["tut"] = 0
+	tut_idx = -1
+	update_tutorial()
+
+
+func tut_target(key: String) -> Control:
+	if key.begins_with("tab"):
+		var k: int = int(key.substr(3))
+		return desk_buttons[k] if k < desk_buttons.size() else null
+	if key.begins_with("win:"):
+		var id: String = key.substr(4)
+		if wins.has(id) and (wins[id] as FloatWindow).visible:
+			return wins[id]
+		return null
+	match key:
+		"play": return play_btn
+		"speed": return speed_opt
+		"tech": return tech_btn
+		"crisis": return cr_btn
+		"meas": return get("meas_btn") as Control   # объявлены в модулях ниже по цепочке
+		"set": return get("st_btn") as Control
+		"cap": return (chips["cap"]["pc"] as Control) if chips.has("cap") else null
+		"appr": return (chips["appr"]["pc"] as Control) if chips.has("appr") else null
+	return null
+
+
+func tut_do(act: String) -> void:
+	if tech_is_open():
+		set_tech_open(false)
+	if crisis_is_open():
+		set_crisis_open(false)
+	if meas_is_open():
+		set_meas_open(false)
+	if act.begins_with("tab:"):
+		show_tab(int(act.substr(4)))
+	elif act.begins_with("desk:"):
+		show_desk(int(act.substr(5)))
+	elif act == "bld":
+		bld_open()
+
+
 func update_tutorial() -> void:
 	if tut_panel == null:
 		return
 	var ov_open: bool = (tech_ov != null and tech_ov.visible) or (cr_ov != null and cr_ov.visible)
-	var show_it: bool = tut_idx >= 0 and tut_idx < TUT_STEPS.size() and current_event.is_empty() and not ov_open
+	var step_on: bool = tut_idx >= 0 and tut_idx < TUT_STEPS.size()
+	var offer: bool = tut_idx == -2
+	var show_it: bool = (step_on or offer) and current_event.is_empty() and not election_open and (not ov_open or step_on)
 	tut_panel.visible = show_it
-	if show_it:
-		tut_label.text = "Подсказка %d из %d\n%s" % [tut_idx + 1, TUT_STEPS.size(), String(TUT_STEPS[tut_idx])]
+	tut_fx.visible = show_it and step_on
+	tut_btns.visible = step_on
+	tut_offer_btns.visible = offer
+	if not show_it:
+		return
+	if offer:
+		tut_title.text = "Обучение"
+		tut_label.text = "Хотите пройти короткое обучение? Стрелка и светящаяся рамка покажут главные разделы игры. Его можно прервать в любой момент и повторить из настроек (⚙)."
+		tut_tr = Rect2()
+	else:
+		var st: Dictionary = TUT_STEPS[tut_idx]
+		if tut_done != tut_idx:
+			tut_done = tut_idx
+			tut_do(String(st.get("do", "")))
+		tut_title.text = "Обучение · шаг %d из %d" % [tut_idx + 1, TUT_STEPS.size()]
+		tut_label.text = String(st["t"])
+		var tc: Control = tut_target(String(st.get("tg", "")))
+		tut_tr = tc.get_global_rect() if tc != null and tc.is_inside_tree() and tc.is_visible_in_tree() else Rect2()
+	tut_place()
+
+
+# панель — рядом с целью, но не поверх неё
+func tut_place() -> void:
+	tut_panel.reset_size()
+	var vp: Vector2 = get_viewport_rect().size
+	var ps: Vector2 = tut_panel.get_combined_minimum_size()
+	var pos := Vector2(16.0, vp.y - ps.y - 16.0)
+	if tut_tr.size.x > 0.0:
+		var cx: float = tut_tr.position.x + tut_tr.size.x * 0.5
+		if tut_tr.position.y < 140.0:
+			pos = Vector2(cx - ps.x * 0.5, tut_tr.end.y + 64.0)
+		elif tut_tr.get_center().y < vp.y * 0.5:
+			pos = Vector2(tut_tr.get_center().x - ps.x * 0.5, tut_tr.end.y + 64.0)
+		else:
+			pos = Vector2(tut_tr.get_center().x - ps.x * 0.5, tut_tr.position.y - ps.y - 64.0)
+		pos.x = clampf(pos.x, 10.0, vp.x - ps.x - 10.0)
+		pos.y = clampf(pos.y, 70.0, vp.y - ps.y - 10.0)
+	else:
+		pos = Vector2((vp.x - ps.x) * 0.5, vp.y * 0.5 - ps.y * 0.5) if tut_idx == -2 else pos
+	tut_panel.position = pos
+	tut_panel.size = ps
+
+
+func tut_tick() -> void:
+	if tut_fx != null and tut_fx.visible:
+		if tut_idx >= 0 and tut_idx < TUT_STEPS.size():
+			var tc: Control = tut_target(String(TUT_STEPS[tut_idx].get("tg", "")))
+			var r: Rect2 = tc.get_global_rect() if tc != null and tc.is_inside_tree() and tc.is_visible_in_tree() else Rect2()
+			if r != tut_tr:
+				tut_tr = r
+				tut_place()
+		tut_fx.queue_redraw()
+
+
+func tut_draw() -> void:
+	if tut_tr.size.x <= 0.0:
+		return
+	var ph: float = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) / 230.0)
+	var r: Rect2 = tut_tr.grow(5.0)
+	var col: Color = C_ACCENT.lightened(0.35)
+	# свечение: несколько расходящихся рамок
+	for k in 5:
+		var g: float = float(k) * 2.5 + ph * 3.0
+		var a: float = (0.28 - float(k) * 0.045) * (0.55 + 0.45 * ph)
+		tut_fx.draw_rect(r.grow(g), Color(col.r, col.g, col.b, maxf(0.02, a)), false, 2.0)
+	tut_fx.draw_rect(r, Color(col.r, col.g, col.b, 0.95), false, 2.5)
+	tut_fx.draw_rect(r, Color(col.r, col.g, col.b, 0.06 + 0.06 * ph), true)
+	# стрелка от панели к рамке
+	var pr := Rect2(tut_panel.position, tut_panel.size)
+	var from := Vector2(clampf(r.get_center().x, pr.position.x + 16.0, pr.end.x - 16.0), pr.position.y if r.get_center().y < pr.get_center().y else pr.end.y)
+	var to := Vector2(r.get_center().x, r.end.y + 4.0 if r.get_center().y < pr.get_center().y else r.position.y - 4.0)
+	to = to + (from - to).normalized() * (4.0 + ph * 5.0)
+	var d: Vector2 = (to - from)
+	if d.length() < 10.0:
+		return
+	var dir: Vector2 = d.normalized()
+	var perp := Vector2(-dir.y, dir.x)
+	var tail: Vector2 = to - dir * 12.0
+	tut_fx.draw_line(from, tail, Color(col.r, col.g, col.b, 0.9), 3.0, true)
+	tut_fx.draw_colored_polygon(PackedVector2Array([to, tail + perp * 9.0, tail - perp * 9.0]), Color(col.r, col.g, col.b, 0.98))

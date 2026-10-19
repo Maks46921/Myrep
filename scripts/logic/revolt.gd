@@ -5,6 +5,16 @@
 # Все числа настраиваются в константах ниже; при настройке игры revev=0 модуль отключён (эталоны golden).
 extends "res://scripts/logic/radical.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func au_sep_term(i: int) -> float:
+	return 0.0
+
+
+# --- конец заглушек ---
+
+
 const RV_STAGE_NAMES := ["спокойно", "протесты", "беспорядки", "вооружённый мятеж", "война"]
 const RV_STAGE_COL := ["#58c887", "#e8c94a", "#f0a040", "#e0605a", "#d03050"]
 # влияние стадии региона на рост ВВП страны (п.п. в год на единицу доли региона в ВВП) и на безработицу
@@ -274,6 +284,7 @@ func rv_sep_target(i: int) -> float:
 	var t: float = ident * 45.0 + (50.0 - float(r["loy"])) * 0.55 + maxf(0.0, 35.0 - float(r["auto"])) * 0.5 - maxf(0.0, float(r["auto"]) - 60.0) * 0.25
 	t += float(rg["hate"]) * 0.35 + rv_identity_gap(i) * 0.25
 	t += cult_sep_term(i)
+	t += au_sep_term(i)
 	t += clampf(float(r["dev"]) - reg_avg("dev"), -20.0, 30.0) * 0.15
 	t -= float(r.get("status", 0)) * 3.0
 	t += float((rv["states"] as Array).size()) * 4.0 * ident

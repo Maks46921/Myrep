@@ -33,6 +33,10 @@ func au_on() -> bool:
 	return false
 
 
+func au_opp_mult(p: int, role: float) -> float:
+	return 0.0
+
+
 func church_vote_mult(ri: int, p: int) -> float:
 	return 0.0
 
@@ -133,6 +137,10 @@ func show_head_election(rep: Dictionary) -> void:
 	pass
 
 
+func swap_idx(v: int, k: int) -> int:
+	return 0
+
+
 func upper_renew(shares: Array) -> String:
 	return ""
 
@@ -176,7 +184,11 @@ func gov_pm_party() -> int:
 func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 	var w: Array[float] = []
 	var r: Dictionary = regions[ri]
-	var eff: float = clampf(float(support[g]) + (float(r["loy"]) - 50.0) * 0.5, 5.0, 100.0)
+	# 0.56: при игре не за стартовую партию вклад лояльности региона считается от стартового значения (а не от 50):
+	# иначе на старте партия власти и ваша получали не те веса, что в опросах (за СвДП АдГ на старте имела 39% вместо 26%)
+	var ref: bool = player_orig != 0
+	var loy0: float = reg_loy_start(ri) if ref else 50.0
+	var eff: float = clampf(float(support[g]) + (float(r["loy"]) - loy0) * 0.5, 5.0, 100.0)
 	var lean: Array = LEAN[g]
 	var roles := gov_roles()
 	var ex: float = 4.0 if pres else 3.0
@@ -187,7 +199,10 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 	var own_full: bool = opp_mode or player_orig != 0
 	var gb: float = maxf(5.0, float(GROUP_BASE[g]))
 	var effg: float = eff
-	if opp_mode:
+	if ref:
+		var g0: float = float(group_base0.get(g, gb)) + (loy0 - 50.0) * 0.5
+		effg = clampf(g0 - (eff - gb) / 0.6, 5.0, 100.0) if opp_mode else clampf(g0 + (eff - gb), 5.0, 100.0)
+	elif opp_mode:
 		effg = clampf(gb - (eff - gb) / 0.6, 5.0, 100.0)
 	for p in PARTY_NAMES.size():
 		var v: float = float(lean[p])
@@ -199,17 +214,31 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 		elif p == 0 and own_full:
 			v *= pow(eff / 50.0, ex)
 		elif roles[p] > 0.0:
-			v *= pow((effg / gb) if own_full else (eff / 50.0), ex * roles[p])
+			if ref:
+				# оценка власти — на шкале правящей партии (её стартовая поддержка групп); LEAN прежней партии власти подогнан под (поддержка / 50)^k
+				var gk: float = pow(effg / 50.0, ex * roles[p])
+				if p == player_orig:
+					gk /= pow(float(group_base0.get(g, gb)) / 50.0, ex)
+				v *= gk
+			else:
+				v *= pow((effg / gb) if own_full else (eff / 50.0), ex * roles[p])
 		elif p == REGIONAL_P:
 			v *= (1.0 + float(r["unrest"]) / 40.0) * lerpf(0.6, 1.5, float(REGIONS[ri]["reg"]))
 		v *= float(REG_BIAS[ri][p]) * funding_mult(p) * pact_mult(p)
-		v *= cult_vote_mult(ri, p) * church_vote_mult(ri, p)
+		v *= cult_vote_mult(ri, p) * church_vote_mult(ri, p) * au_opp_mult(p, roles[p]) * er_mig_mult(ri, p)
 		if p > 0:
 			v *= issue_multiplier(p)
 		if pres and p > 0:
 			v *= charisma[p]
 		w.append(v)
 	return w
+
+
+func reg_loy_start(ri: int) -> float:
+	var key := String(REGIONS[ri].get("uid", ccode + "-" + String(REGIONS[ri]["code"])))
+	if not reg_loy0.has(key):
+		reg_loy0[key] = float(regions[ri]["loy"])
+	return float(reg_loy0[key])
 
 
 func region_shares(ri: int, pres: bool, only: Array = []) -> Array[float]:
@@ -256,6 +285,8 @@ func parl_shares() -> Array[float]:
 		if raw[p] < thr and not (p in exempt):
 			raw[p] = 0.0
 		keep += raw[p]
+	if keep <= 0.0001:
+		return national_shares(false)   # барьер выше всех — защита от деления на ноль (никто не прошёл)
 	for p in raw.size():
 		raw[p] /= keep
 	return raw
@@ -1038,8 +1069,27 @@ func er_gov_years(p: int) -> float:
 	return float(turn - int(joined.get(p, 0))) / 12.0
 
 
+# 0.56: архетип партии по исходному номеру (при игре за другую партию слоты 0 и player_orig поменяны местами, PARCH — нет)
+func er_arch(p: int) -> String:
+	var o: int = swap_idx(p, player_orig)
+	return String(PARCH[o]) if o >= 0 and o < PARCH.size() else ""
+
+
 func er_populist(p: int) -> bool:
-	return p == PROTEST_P or (p < PARCH.size() and String(PARCH[p]) in ["popr", "popl"])
+	return p == PROTEST_P or er_arch(p) in ["popr", "popl"]
+
+
+# 0.56: правые популисты растут вместе с миграционным и культурным напряжением региона (cut − cut0), протестная партия — вдвое слабее
+func er_mig_mult(ri: int, p: int) -> float:
+	var k := 0.0
+	if er_arch(p) == "popr":
+		k = 0.014
+	elif p == PROTEST_P:
+		k = 0.007
+	if k == 0.0:
+		return 1.0
+	var r: Dictionary = regions[ri]
+	return clampf(1.0 + k * (float(r.get("cut", 0.0)) - float(r.get("cut0", 0.0))), 0.8, 1.7)
 
 
 func er_neff(sh: Array) -> float:
@@ -1110,9 +1160,9 @@ func er_ceiling(p: int, sh: Array) -> Array:
 		c -= 0.03
 		why.append("«санитарный кордон» −3")
 	# партия, уже набирающая много голосов, имеет запас роста над текущим результатом (избиратели привыкли за неё голосовать)
-	if p < prev_raw.size() and float(prev_raw[p]) * 1.2 > c:
-		c = float(prev_raw[p]) * 1.2
-		why.append("большая устойчивая база: потолок на 20%% выше текущего результата")
+	if p < prev_raw.size() and float(prev_raw[p]) > c:
+		c = float(prev_raw[p])
+		why.append("большая устойчивая база: потолок не ниже результата прошлых выборов")
 	return [clampf(c, 0.20, ER_CAP_MAX), why]
 
 
@@ -1168,9 +1218,12 @@ func er_apply(sh: Array[float]) -> Array[float]:
 				v = maxf(0.0, float(prev_raw[p]) + m * tanh(d / m))
 				moved = true
 			var c: float = float(er_ceiling(p, sh)[0])
-			var a: float = 0.8 * c
+			# мягкий потолок: выше 0,8 c рост затухает; уже набранное на прошлых выборах не режется, а выше потолка расти нельзя
+			var pv: float = float(prev_raw[p])
+			var hi: float = maxf(c, pv)
+			var a: float = minf(hi, maxf(0.8 * c, pv))
 			if v > a:
-				v = a + (c - a) * (1.0 - exp(-(v - a) / (c - a)))
+				v = a + (hi - a) * (1.0 - exp(-(v - a) / maxf(0.0001, hi - a))) if hi - a > 0.002 else a
 				moved = true
 		out.append(v)
 		fixed.append(moved)

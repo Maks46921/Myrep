@@ -5,6 +5,67 @@
 #   dictatorship / junta / oneparty / monarchy_abs / theocracy — власть указами.
 extends "res://scripts/logic/revolt.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func au2_act(id: String) -> bool:
+	return false
+
+
+func au2_after_election() -> void:
+	pass
+
+
+func au2_check(id: String) -> String:
+	return ""
+
+
+func au2_clan_t(kind: String) -> float:
+	return 0.0
+
+
+func au2_def(id: String) -> Array:
+	return []
+
+
+func au2_dyn() -> void:
+	pass
+
+
+func au2_has(id: String) -> bool:
+	return false
+
+
+func au2_risk() -> float:
+	return 0.0
+
+
+func au2_stage(sh: Array[float]) -> Array[float]:
+	var r: Array[float] = []
+	return r
+
+
+func au2_step() -> void:
+	pass
+
+
+func au2_und_t() -> float:
+	return 0.0
+
+
+func au_fe() -> float:
+	return 0.0
+
+
+func au_pe() -> float:
+	return 0.0
+
+
+# --- конец заглушек ---
+
+
+# 0.56: во сколько раз страх и пропаганда сильнее влияют на протесты, подполье, оппозицию, агентов, сепаратизм и рейтинг (и стоят денег: regime2.gd)
+const AU2 := 2.0
 const AU_CLASS_NAMES := {"dem": "Демократия", "hybrid": "Гибридный режим", "dictatorship": "Диктатура", "junta": "Военная хунта",
 	"oneparty": "Однопартийное государство", "monarchy_abs": "Абсолютная монархия", "theocracy": "Теократия"}
 const AU_CLASS_MOTTO := {"hybrid": "Выборы есть, но исход известен заранее",
@@ -61,7 +122,11 @@ func regime_class() -> String:
 	if rid_of("state_church") == "theocracy" or r == "theocracy":
 		return "theocracy"
 	var d := democracy_index()
-	if d < 0.25 or (r == "superpres" and d < 0.45):
+	# 0.56: гистерезис — сам класс режима чуть сдвигает индекс демократии, и без запаса у границы окна бесконечно перестраивались
+	var hy: float = 0.0
+	if au.get("cls", "dem") == "hybrid":
+		hy = 0.05
+	if d < 0.25 + hy or (r == "superpres" and d < 0.45 + hy):
 		return "hybrid"
 	return "dem"
 
@@ -137,6 +202,8 @@ func au_set_class(cls: String, quiet: bool = false) -> void:
 		au["sw_t"] = turn
 		au["sw_from"] = old
 		au["fat_t"] = turn
+		if cls != "dem" and old == "dem":
+			au["dec_offer"] = true
 		if cls != "dem":
 			log_line("[color=%s][b]%s.[/b] Теперь власть держится на кланах: %s. Раздел «Политика» перестроен под новый режим.[/color]" % [COL_WARN, au_class_name(cls),
 				", ".join((AU_CLANS[cls] as Array).map(func(c: Array) -> String: return String(c[1])))])
@@ -193,8 +260,9 @@ func au_clan_target(id: String) -> float:
 	var e: Dictionary = au["cl"][id]
 	var g: float = clampf(growth, -5.0, 5.0)
 	var t: float = 50.0 + (approval() - 45.0) * 0.30 + g * 1.5 + float(e["b"])
-	var fear: float = float(au["fear"])
+	var fear: float = au_fe()
 	var lib: float = 1.0 if au_lib() else 0.0
+	t += au2_clan_t(String(c[3]))
 	match String(c[3]):
 		"force":
 			var army_r: float = float(pol["army"]) / maxf(0.1, float(pol_def["army"]))
@@ -207,7 +275,7 @@ func au_clan_target(id: String) -> float:
 		"apparat":
 			t += float(au["cult"]) * 2.0 + clampf((capital - 40.0) * 0.1, -6.0, 6.0)
 		"ideo_c":
-			t += fear * 0.08 + float(au["prop"]) * 0.05 - lib * 10.0
+			t += fear * 0.08 + au_pe() * 0.05 - lib * 10.0
 		"ideo_r":
 			t += -fear * 0.10 + lib * 12.0 - float(au["cult"]) * 2.0 + (6.0 if turn - int(au.get("reform_t", -999)) < 24 else 0.0)
 	t -= maxf(0.0, -capital) * 0.25   # 0.55.5: капитал в минусе — кланы теряют лояльность (растёт риск переворота)
@@ -215,7 +283,7 @@ func au_clan_target(id: String) -> float:
 
 
 func au_und_target() -> float:
-	var t: float = 10.0 + maxf(0.0, 50.0 - approval()) * 0.9 + float(au["fraud"]) * 0.25 - float(au["fear"]) * 0.45 + shortage * 0.2 + maxf(0.0, -growth) * 3.0
+	var t: float = 10.0 + maxf(0.0, 50.0 - approval()) * 0.9 + float(au["fraud"]) * 0.25 - au_fe() * 0.45 + shortage * 0.2 + au2_und_t() + maxf(0.0, -growth) * 3.0
 	if au_lib():
 		t += 15.0
 	if bool(au.get("censor", false)):
@@ -268,17 +336,18 @@ func au_step() -> void:
 	# последствия: силовики и бизнес чувствуют настроение своих кланов, страх гасит протест, фальсификации злят молодёжь
 	add_support("Силовики", (au_type_loy("force") - 50.0) * 0.01)
 	add_support("Бизнес", (au_type_loy("money") - 50.0) * 0.008)
-	add_support("Молодёжь", -float(au["fear"]) * 0.004 - float(au["fraud"]) * 0.002 - (0.05 if bool(au.get("censor", false)) else 0.0))
-	var supp: float = float(au["fear"]) * (0.008 if au_auth() else 0.004)
+	add_support("Молодёжь", -au_fe() * 0.004 - float(au["fraud"]) * 0.002 - (0.05 if bool(au.get("censor", false)) else 0.0))
+	var supp: float = au_fe() * (0.008 if au_auth() else 0.004)
 	var rloy: float = au_type_loy("reg")
 	for r in regions:
 		r["unrest"] = clampf(float(r["unrest"]) - supp + (50.0 - rloy) * 0.004 + au_und_max() * 0.002, 0.0, 100.0)
 	if int(au["cult"]) > 0:
-		capital += float(au["cult"]) * 0.15
+		capital += float(au["cult"]) * 0.15 * CAP_K
 	# хунта обещала уйти — и не ушла
 	if String(au["cls"]) == "junta" and int(au.get("promise", -1)) > 0 and turn == int(au["promise"]):
 		log_line("[color=%s][b]Срок обещания хунты истёк.[/b] Власть не передана гражданским — недовольство резко растёт.[/color]" % COL_BAD)
 		regime_risk = minf(100.0, regime_risk + 20.0)
+	au2_step()
 	if observer:
 		au_ai()
 	au_events()
@@ -296,7 +365,7 @@ func au_risk_add() -> float:
 		r += maxf(0.0, float(au["und"][k]["s"]) - 30.0) * 0.12
 	if String(au.get("succ", "")) != "":
 		r -= 4.0
-	return r
+	return r + au2_risk()
 
 
 # месяцы «усталости от правителя»: сбрасываются преемником и референдумом
@@ -315,11 +384,12 @@ func au_dyn() -> void:
 	var fraud: float = float(au["fraud"]) - float(bs.get("fraud", 0.0))
 	var cult: float = float(au["cult"]) - float(bs.get("cult", 0.0))
 	var prop: float = float(au["prop"]) - float(bs.get("prop", 0.0))
-	mods["growth_bonus"] = float(mods["growth_bonus"]) + (au_type_loy("money") - 55.0) * 0.004 - fear * 0.002 - (0.05 if bool(au.get("censor", false)) else 0.0) \
+	mods["growth_bonus"] = float(mods["growth_bonus"]) + (au_type_loy("money") - 55.0) * 0.004 - fear * 0.002 * AU2 - (0.05 if bool(au.get("censor", false)) else 0.0) \
 		+ (0.2 if String(au["cls"]) == "oneparty" and turn - int(au.get("reform_t", -999)) < 24 else 0.0)
 	mods["corr_shift"] = float(mods["corr_shift"]) + maxf(0.0, 50.0 - au_type_loy("apparat")) * 0.05 + cult * 0.5
-	mods["mood_shift"] = float(mods["mood_shift"]) + prop * 0.002 - fraud * 0.001
-	mods["dem_shift"] = float(mods.get("dem_shift", 0.0)) - fear * 0.0012 - fraud * 0.001 - cult * 0.01 - (0.03 if bool(au.get("censor", false)) else 0.0)
+	mods["mood_shift"] = float(mods["mood_shift"]) + prop * 0.008 * AU2 - fraud * 0.001
+	mods["dem_shift"] = float(mods.get("dem_shift", 0.0)) - fear * 0.0012 * AU2 - fraud * 0.001 - cult * 0.01 - (0.03 if bool(au.get("censor", false)) else 0.0)
+	au2_dyn()
 
 
 # официальный рейтинг (то, что показывают государственные СМИ и «правильные» опросы)
@@ -327,7 +397,7 @@ func au_official_approval() -> float:
 	var a := approval()
 	if not au_on():
 		return a
-	return minf(97.0, a + float(au["prop"]) * 0.25 + float(au["fear"]) * 0.15 + (8.0 if au_auth() else 0.0))
+	return minf(97.0, a + au_pe() * 0.25 + au_fe() * 0.15 + (8.0 if au_auth() else 0.0))
 
 
 # v53: партия власти — та, что возглавляет правительство (игрок в оппозиции — партия главы правительства)
@@ -349,7 +419,7 @@ func au_control() -> float:
 	if not au_on():
 		return 0.0
 	var d := democracy_index()
-	var c: float = 0.30 + float(au["fear"]) * 0.006 + float(au["fraud"]) * 0.008 + float(au["prop"]) * 0.002 - d * 0.8
+	var c: float = 0.30 + au_fe() * 0.006 + float(au["fraud"]) * 0.008 + au_pe() * 0.002 - d * 0.8
 	if turn - int(au.get("lib_t", -999)) < 24:
 		c -= 0.15
 	return clampf(c, 0.0, 0.92)
@@ -369,6 +439,10 @@ func au_note_start() -> void:
 # насколько позволяет контроль (au_control): провал её реальной поддержки ЦИК «дорисовывает». Сверх того —
 # фальсификации выше стартового уровня (рычаг «Больше административного ресурса»).
 func au_fraud_shares(sh: Array[float]) -> Array[float]:
+	return au2_stage(au_fraud_base(sh))
+
+
+func au_fraud_base(sh: Array[float]) -> Array[float]:
 	au["last_add"] = 0.0
 	if not au_on() or sh.is_empty():
 		return sh
@@ -407,6 +481,7 @@ func au_fraud_shares(sh: Array[float]) -> Array[float]:
 func au_after_election() -> void:
 	if not au_on():
 		return
+	au2_after_election()
 	var f: float = float(au["fraud"]) - float((au.get("base", {}) as Dictionary).get("fraud", 0.0)) * 0.5
 	var drawn: float = float(au.get("last_add", 0.0)) * 100.0
 	if drawn >= 3.0:
@@ -425,6 +500,9 @@ func au_after_election() -> void:
 
 # ---------- рычаги ----------
 func au_act_def(id: String) -> Array:
+	var d2 := au2_def(id)
+	if not d2.is_empty():
+		return d2
 	for a in AU_ACTS:
 		if String(a[0]) == id:
 			return a
@@ -432,6 +510,8 @@ func au_act_def(id: String) -> Array:
 
 
 func au_check(id: String) -> String:
+	if au2_has(id):
+		return au2_check(id)
 	var why := pl_why("gov")
 	if why != "":
 		return why
@@ -533,6 +613,8 @@ func au_und_add(d: float, only: String = "") -> void:
 
 
 func au_act(id: String) -> bool:
+	if au2_has(id):
+		return au2_act(id)
 	var why := au_check(id)
 	if why != "":
 		log_line("[color=%s]Нельзя: %s.[/color]" % [COL_WARN, why])

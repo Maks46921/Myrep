@@ -2191,7 +2191,7 @@
 						"capital_bonus": -0.2
 					},
 					"set": {
-						"threshold": 5
+						"threshold": 0.05
 					},
 					"ps": {
 						0: -6.0,
@@ -2218,7 +2218,7 @@
 						"capital_bonus": -0.1
 					},
 					"set": {
-						"threshold": 5
+						"threshold": 0.05
 					},
 					"ps": {
 						0: -2.0,

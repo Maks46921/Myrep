@@ -16,6 +16,10 @@ func ate_name(a: int) -> String:
 	return ""
 
 
+func au_unr_term(i: int) -> float:
+	return 0.0
+
+
 func bld_money_month() -> float:
 	return 0.0
 
@@ -199,7 +203,7 @@ func update_regions() -> void:
 		var ut: float = (20.0 + (50.0 - float(r["loy"])) * 0.45 + (ur - 6.5) * 1.8 + (inflation - 4.0) * 0.8
 			+ lvl_unrest + float(mods["reg_unrest_shift"]) - (float(r["dev"]) - float(d["dev"])) * 0.12
 			- float(r["auto"]) * 0.15 + float(d["reg"]) * 8.0 - tr * 2.0 + maxf(0.0, nb_u - 40.0) * 0.12 + float(unr_off[i]) + ag_unrest_term(i))
-		ut += fed_unr_term(i) + soc_unr_term(i) + cult_unr_term(i) + church_unr_term(i) + con_unr_term(i)
+		ut += fed_unr_term(i) + soc_unr_term(i) + cult_unr_term(i) + church_unr_term(i) + con_unr_term(i) + au_unr_term(i)
 		if gk == 2:
 			ut -= 3.0 * gs
 		elif gk == 3:

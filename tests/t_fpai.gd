@@ -28,9 +28,16 @@ func drop(g) -> void:
 	root.remove_child(g)
 	g.free()
 
+# 0.56: если выборы назначены в первые месяцы (HU, BG), сдвигаем их: тест рассчитан на игру у власти
+func hold_parl(g) -> void:
+	if g.turn - g.last_parl >= g.parl_term() - 6:
+		g.last_parl = g.turn
+
+
 func _init():
 	var g = mk({})
 	for i in 4: await process_frame
+	hold_parl(g)
 	var cc: String = g.ccode
 	check(g.fa_on(), "модуль ИИ стран не включён")
 	var nb: Array = g.tech_nb()
@@ -53,6 +60,9 @@ func _init():
 	check(float(mem_t.get(t, 0.0)) > m0 * 0.6, "память о помощи слишком короткая: %.1f из %.1f" % [float(mem_t.get(t, 0.0)), m0])
 	months(g, 24)
 	# --- шпионаж: санкции и солидарность ---
+	# за два года могли набежать добрые баллы (например, за законы партнёров, поднявшие индекс демократии) — проверяем реакцию с нуля
+	if eu_other != "":
+		g.fa["mem"][eu_other] = 0.0
 	for k in 4:
 		g.capital = 100.0
 		g.dx["cd"].clear()
@@ -60,13 +70,14 @@ func _init():
 	months(g, 2)
 	check(g.fa_sanctioning(t), "после серии раскрытых операций «%s» должна ввести санкции" % t)
 	if eu_other != "" and g.fa_is_eu(t):
-		check(float(g.fa["mem"].get(eu_other, 0.0)) < 0.0, "союзники по ЕС должны осудить шпионаж")
+		check(float(g.fa["mem"].get(eu_other, 0.0)) < 0.0, "союзники по ЕС должны осудить шпионаж (%s: %.2f, цель %s)" % [eu_other, float(g.fa["mem"].get(eu_other, 0.0)), t])
 	check(g.fa_explain(t).find("Помнят") >= 0, "пояснение должно перечислять причины")
 	var rl_before: float = float(g.rl.get("g", 0.0))
 	drop(g)
 	# --- выход из НАТО, отказ от демократии ---
 	var g2 = mk({})
 	for i in 4: await process_frame
+	hold_parl(g2)
 	var nato_c := ""
 	var neutral_c := ""
 	for c2 in g2.fa_bots():
@@ -89,6 +100,7 @@ func _init():
 	# --- война: жертва вводит санкции, ЕС охладевает ---
 	var g3 = mk({"milev": 1})
 	for i in 4: await process_frame
+	hold_parl(g3)
 	var vic: String = String(g3.tech_nb()[0])
 	var eu_avg0 := 0.0
 	var n_eu := 0
@@ -111,6 +123,7 @@ func _init():
 	# --- инициативы: помощь в кризисе ---
 	var g4 = mk({})
 	for i in 4: await process_frame
+	hold_parl(g4)
 	g4.debt = g4.gdp * 1.25
 	for c7 in g4.fa_bots():
 		g4.fa_hit(c7, 30.0, "тест")
@@ -143,6 +156,7 @@ func _init():
 	# --- выключено ---
 	var g5 = mk({"rlev": 0})
 	for i in 4: await process_frame
+	hold_parl(g5)
 	check(g5.fa_rel_term(String(g5.fa_bots()[0])) == 0.0, "при rlev=0 ИИ стран не влияет на отношения")
 	print("fpai ", cc, " проблем ", bad)
 	quit(1 if bad > 0 else 0)

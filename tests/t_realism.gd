@@ -27,9 +27,16 @@ func months(g, n: int) -> void:
 		settle(g)
 		g.next_turn()
 
+# 0.56: если выборы назначены в первые месяцы (HU, BG), сдвигаем их: тест рассчитан на игру у власти
+func hold_parl(g) -> void:
+	if g.turn - g.last_parl >= g.parl_term() - 6:
+		g.last_parl = g.turn
+
+
 func _init():
 	var g = mk({})
 	for i in 5: await process_frame
+	hold_parl(g)
 	var cc: String = g.ccode
 	check(g.rl_on() and not g.rl.is_empty(), "состояние rl не создано")
 	var b: Dictionary = g.rl["b"]
@@ -122,6 +129,7 @@ func _init():
 	# --- выключение ---
 	var g2 = mk({"rlev": 0})
 	for i in 3: await process_frame
+	hold_parl(g2)
 	months(g2, 6)
 	check(g2.rl_g() == 0.0 and g2.rl_infl() == 0.0 and g2.rl_acts("blocs").is_empty(), "при rlev=0 модуль должен молчать")
 	print("realism ", cc, " проблем ", bad)

@@ -178,12 +178,15 @@ func apply_player_party(k: int) -> void:
 	PARTY_DESC[0] = "Ваша партия. " + dk
 	PARTY_DESC[k] = d0
 	# --- профили электората ---
+	group_base0 = GROUP_BASE.duplicate()
 	var newbase := {}
 	for g in GROUPS:
 		var arr: Array = LEAN[g]
 		var lk: float = float(arr[k])
-		newbase[g] = clampf(50.0 * pow(maxf(0.0001, lk) / 6.0, 1.0 / 3.0), 14.0, 66.0)
-		arr[k] = 6.0 * pow(float(GROUP_BASE[g]) / 50.0, 3.0)
+		# 0.56: у протестной партии вес растёт как (поддержка / 50)^1,5, а не ^3 (см. vote_weights) — иначе за АдГ на старте 34% вместо 26%
+		newbase[g] = clampf(50.0 * pow(maxf(0.0001, lk) / 6.0, (2.0 / 3.0) if k == PROTEST_P else (1.0 / 3.0)), 14.0, 66.0)
+		# 0.56: у прежней партии власти свой исходный LEAN (в Польше 3 и 5, а не 6): его и нужно сохранить
+		arr[k] = float(arr[0]) * pow(float(GROUP_BASE[g]) / 50.0, 3.0)
 		arr[0] = 6.0
 	for g in GROUPS:
 		GROUP_BASE[g] = newbase[g]
@@ -245,6 +248,8 @@ func apply_player_party(k: int) -> void:
 				for key in ps:
 					nps[swap_idx(int(key), k)] = ps[key]
 				v["ps"] = nps
+	# 0.56: доли прошлых выборов (предел сдвига и потолок) считались до смены номеров партий — начать заново
+	prev_raw = []
 
 
 # ---------- создание правительства без вас ----------
@@ -344,6 +349,7 @@ func opp_init() -> void:
 	coal_deal = {}
 	if 0 in COALITION0:
 		pm_lead = player_orig == 0 and ccode in PM_LEAD_START
+		prev_raw = []   # 0.56: стартовые доли для предела сдвига берутся уже при готовой власти
 		return
 	opp_mode = true
 	var members: Array = []
@@ -358,6 +364,7 @@ func opp_init() -> void:
 	opp_set_gov({"members": members, "pm": best, "seats": 0, "ok": true, "stab": 64.0})
 	opp_gov["seats"] = opp_gov_seats()
 	prel_init()
+	prev_raw = []   # 0.56: стартовые доли для предела сдвига берутся уже при готовой власти
 
 
 func opp_ap_force() -> void:

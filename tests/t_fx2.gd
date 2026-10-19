@@ -30,7 +30,7 @@ func _init():
 		else:
 			walk(cm[k], k, 0)
 	for p in g.get_property_list():
-		if p["usage"] & 4096 and (p["type"] == TYPE_ARRAY or p["type"] == TYPE_DICTIONARY) and p["name"] != "regions":
+		if p["usage"] & 4096 and (p["type"] == TYPE_ARRAY or p["type"] == TYPE_DICTIONARY) and p["name"] != "regions" and not (p["name"] in ["dec_checks", "dec_opt"]):
 			walk(g.get(p["name"]), "var." + p["name"], 0)
 	print("%s: проблем %d" % [g.ccode, bad.size()])
 	var seen := {}

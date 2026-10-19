@@ -1689,22 +1689,9 @@ func build_bud_transfer(parent: Control) -> void:
 	bud_tr_label = Label.new()
 	bud_tr_label.add_theme_color_override("font_color", acc.lightened(0.25))
 	top.add_child(bud_tr_label)
-	var mb := Button.new()
-	mb.theme_type_variation = "SmallButton"
-	mb.text = "Подробнее…"
-	mb.focus_mode = Control.FOCUS_NONE
-	mb.tooltip_text = "Открыть окно с распределением трансфертов по регионам."
-	mb.pressed.connect(bud_tr_open)
-	top.add_child(mb)
-	for dir in [-1, 1]:
-		var pb := Button.new()
-		pb.theme_type_variation = "SmallButton"
-		pb.text = "−" if dir < 0 else "+"
-		pb.focus_mode = Control.FOCUS_NONE
-		pb.custom_minimum_size = Vector2(24.0, 0.0)
-		pb.tooltip_text = ("Уменьшить" if dir < 0 else "Увеличить") + " на 0,1% ВВП (с Shift — на 1%). Изменение идёт в план бюджета."
-		pb.pressed.connect(bud_tr_nudge.bind(dir))
-		top.add_child(pb)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	vb.add_child(row)
 	bud_tr_slider = HSlider.new()
 	bud_tr_slider.min_value = 0.0
 	bud_tr_slider.max_value = maxf(3.0, transfer_avg() * 2.5)
@@ -1716,7 +1703,23 @@ func build_bud_transfer(parent: Control) -> void:
 	bud_tr_slider.add_theme_stylebox_override("grabber_area_highlight", sbox(acc, Color(0, 0, 0, 0), 0, 4, 0.0, 3.0))
 	bud_tr_slider.value_changed.connect(on_bud_tr)
 	bud_tr_slider.drag_ended.connect(func(_ch: bool) -> void: bud_tr_shrink())
-	vb.add_child(bud_tr_slider)
+	row.add_child(bud_tr_slider)
+	var mb := Button.new()
+	mb.theme_type_variation = "SmallButton"
+	mb.text = "Подробнее…"
+	mb.focus_mode = Control.FOCUS_NONE
+	mb.tooltip_text = "Открыть окно с распределением трансфертов по регионам."
+	mb.pressed.connect(bud_tr_open)
+	row.add_child(mb)
+	for dir in [-1, 1]:
+		var pb := Button.new()
+		pb.theme_type_variation = "SmallButton"
+		pb.text = "−" if dir < 0 else "+"
+		pb.focus_mode = Control.FOCUS_NONE
+		pb.custom_minimum_size = Vector2(24.0, 0.0)
+		pb.tooltip_text = ("Уменьшить" if dir < 0 else "Увеличить") + " на 0,1% ВВП (с Shift — на 1%). Изменение идёт в план бюджета."
+		pb.pressed.connect(bud_tr_nudge.bind(dir))
+		row.add_child(pb)
 
 
 func on_bud_tr(v: float) -> void:

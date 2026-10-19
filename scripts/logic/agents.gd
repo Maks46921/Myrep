@@ -1,5 +1,5 @@
 # Население: подключение агентов к голосованию, шагу и протестам.
-extends "res://scripts/logic/fpai.gd"
+extends "res://scripts/logic/regime2.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
@@ -170,7 +170,7 @@ func ag_step() -> void:
 	var rloy := PackedFloat32Array()
 	rloy.resize(regions.size())
 	for ri in regions.size():
-		rloy[ri] = clampf((float(regions[ri]["loy"]) - 50.0) * 0.25 - (float(regions[ri]["unrest"]) - 30.0) * 0.1, -8.0, 8.0)
+		rloy[ri] = clampf((float(regions[ri]["loy"]) - 50.0) * 0.25 - (float(regions[ri]["unrest"]) - 30.0) * 0.1 + au_ag_term(ri), -8.0, 8.0)
 	var mig := 0.0
 	if not soc.is_empty() and soc.has("in_now"):
 		mig = clampf(soc_din() / 3.0, -1.0, 2.0)

@@ -13,6 +13,11 @@ func _init():
 	var f := FileAccess.open("res://.testlogs/sim30_%s.tsv" % cc, FileAccess.WRITE)
 	var hdr := "year\tgdp\tgrowth\tinfl\tunemp\tdebt_pct\tapproval\topp_mode\tgame_over\tcoalition_seats\t" + "\t".join(PackedStringArray(g.PARTY_NAMES.map(func(n): return String(n).replace("\t", " "))))
 	f.store_line(hdr)
+	var sh0 = g.national_shares(false)
+	var s0 := "0\t%.0f\t%.1f\t%.1f\t%.1f\t%.0f\t%.0f\t%s\t%s\t%d" % [g.gdp, g.growth, g.inflation, g.unemployment, g.debt / g.gdp * 100.0, g.approval(), str(g.opp_mode), str(g.game_over), g.gov_seats()]
+	for x0 in sh0:
+		s0 += "\t%.1f" % (float(x0) * 100.0)
+	f.store_line(s0)
 	var last_parl: int = -1
 	var elections: Array = []
 	for m in years * 12:
@@ -38,6 +43,6 @@ func _init():
 			for x in sh2:
 				s2 += "\t%.1f" % (float(x) * 100.0)
 			f.store_line(s2)
-	f.store_line("END\tturn=%d\tgame_over=%s\telections=%d" % [g.turn, str(g.game_over), elections.size()])
+	f.store_line("END\tturn=%d\tgame_over=%s\telections=%d\treason=%s" % [g.turn, str(g.game_over), elections.size(), String(g.end_reason).replace("\n", " ").replace("\t", " ")])
 	f.close()
 	quit()

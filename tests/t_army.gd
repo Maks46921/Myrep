@@ -32,9 +32,16 @@ func drop(g) -> void:
 func finite(v: float) -> bool:
 	return not is_nan(v) and not is_inf(v)
 
+# 0.56: если выборы назначены в первые месяцы (HU, BG), сдвигаем их: тест рассчитан на игру у власти
+func hold_parl(g) -> void:
+	if g.turn - g.last_parl >= g.parl_term() - 6:
+		g.last_parl = g.turn
+
+
 func _init():
 	var g = mk({})
 	for i in 4: await process_frame
+	hold_parl(g)
 	var cc: String = g.ccode
 	check(g.ar_on(), "модуль армии не включён")
 	check(g.AR_DATA.has(cc), "нет данных армии для страны")
@@ -156,6 +163,7 @@ func _init():
 	# --- война ---  (v50: без войны, идущей с начала игры, — проверяем новую)
 	var g2 = mk({"ongoing": false})
 	for i in 4: await process_frame
+	hold_parl(g2)
 	var tg2: Array = g2.mil_targets()
 	if not tg2.is_empty():
 		var foe := String(tg2[0])
@@ -198,6 +206,7 @@ func _init():
 	# --- гонка вооружений: соседи реагируют на резкое усиление ---
 	var g3 = mk({})
 	for i in 4: await process_frame
+	hold_parl(g3)
 	g3.set_policy("army", float(g3.pol["army"]) * 2.2)
 	g3.capital = 200.0
 	for k3 in 6:
