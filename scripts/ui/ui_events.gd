@@ -129,7 +129,7 @@ func show_election(rep: Dictionary) -> void:
 	el_view.visible = true
 	el_head.visible = false
 	var cst: String = String(rep["state"])
-	el_view.set_data(rows, order, thr, SEATS, MAJORITY, "%d" % gov_seats(), "коалиция · нужно %d из %d" % [MAJORITY, SEATS], C_GOOD if cst == "gov" else (C_WARN if (cst == "crisis" or cst == "opp") else C_BAD))
+	el_view.set_data(rows, order, thr, SEATS, MAJORITY, "%d" % gov_seats(), "коалиция · нужно %d из %d" % [MAJORITY, SEATS], C_GOOD if cst == "gov" else (C_WARN if (cst == "crisis" or cst == "opp" or cst == "talks") else C_BAD))
 	var sham: bool = bool(rep["sham"])
 	var gold := Color(1.0, 0.82, 0.40) if not sham else C_BAD
 	el_banner.add_theme_stylebox_override("panel", ev_style(gold))
@@ -159,6 +159,9 @@ func show_election(rep: Dictionary) -> void:
 		vcol = C_GOOD
 	elif st == "crisis":
 		vtitle = "Правительственный кризис: нет большинства"
+		vcol = C_WARN
+	elif st == "talks":
+		vtitle = "Коалиционные переговоры"
 		vcol = C_WARN
 	elif st == "opp":
 		vtitle = "Вы в оппозиции"
@@ -201,6 +204,8 @@ func show_election(rep: Dictionary) -> void:
 		t += "[color=%s]Коалиция: %s — %d мест из %d (большинство %d). Политкапитал +8.[/color]" % [COL_GOOD, coalition_names(), gov_seats(), SEATS, MAJORITY]
 	elif st == "crisis":
 		t += "[color=%s]В вашей коалиции %d мест из %d. У вас %d мес., чтобы найти партнёров, иначе будут назначены новые выборы.[/color]" % [COL_WARN, gov_seats(), SEATS, crisis_limit()]
+	elif st == "talks":
+		t += "[color=%s]Большинства у вашей партии нет: %d мест из %d, нужно %d. Коалицию собираете вы — после этого окна откроются переговоры с партиями (%d мес.).[/color]" % [COL_WARN, seats[0], SEATS, MAJORITY, crisis_limit()]
 	elif st == "opp":
 		t += "[color=%s]%s Игра продолжается: критикуйте власть, договаривайтесь с партиями и добивайтесь возвращения к власти.[/color]" % [COL_WARN, String(rep.get("opp", ""))]
 	else:
@@ -240,11 +245,24 @@ func election_continue() -> void:
 		end_game(m)
 		return
 	refresh()
+	coal_talks_event()
 
 
 func build_event_window() -> void:
 	var w: FloatWindow = new_window("event", "Требуется решение", -2, Rect2(0.15, 0.02, 0.52, 0.92))
 	w.custom_minimum_size = Vector2(460.0, 320.0)
+	# v45_1: затемнение под окном решения (щелчки не перехватывает)
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.01, 0.03, 0.45)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.visible = false
+	workspace.add_child(dim)
+	workspace.move_child(dim, w.get_index())
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	w.visibility_changed.connect(func() -> void:
+		dim.visible = w.visible
+		if w.visible:
+			workspace.move_child(dim, maxi(0, w.get_index() - 1) if dim.get_index() < w.get_index() else w.get_index()))
 	ev_banner = PanelContainer.new()
 	ev_banner.add_theme_stylebox_override("panel", ev_style(C_PURPLE))
 	w.body.add_child(ev_banner)
@@ -268,8 +286,13 @@ func build_event_window() -> void:
 	ev_meta_lbl.add_theme_font_size_override("font_size", 13)
 	ev_meta_lbl.add_theme_color_override("font_color", C_DIM)
 	vb.add_child(ev_meta_lbl)
+	ev_banner.visible = false
+	ev_art = EventArt.new()
+	w.body.add_child(ev_art)
+	w.body.move_child(ev_art, 0)
 	event_label = make_rt(w.body)
 	ev_ctx = make_rt(w.body)
+	ev_adv = make_rt(w.body)
 	add_title(w.body, "Ваш ответ")
 	event_buttons.clear()
 	event_boxes.clear()

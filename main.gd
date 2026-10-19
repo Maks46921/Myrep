@@ -1,10 +1,10 @@
-# PolitGame: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
+# Symphony: корневой скрипт (вершина цепочки наследования, см. scripts/CHAIN.txt).
 # Политико-экономическая игра, версия 8 (новая система коалиций).
 # Время идёт по дням: скорость задают кнопки справа вверху, а экономика и политика считаются на границе месяцев. Три экрана: «Бюджет», «Политика», «Карта регионов».
 # Все окна плавающие: двигайте за заголовок, меняйте размер за правый/нижний край и угол,
 # двойной щелчок по заголовку (или кнопка «–») сворачивает окно.
 # Весь интерфейс создаётся кодом. Повесьте скрипт на корневой узел Control (Godot 4.x).
-extends "res://scripts/ui/ui_war.gd"
+extends "res://scripts/ui/ui_orgs.gd"
 
 # ============================================================
 #  СТРАНЫ: применение пакета данных
@@ -34,6 +34,14 @@ func seed_arg() -> int:
 func apply_country(code: String) -> void:
 	ccode = code
 	var d: Dictionary = CDATA[code]
+	# 0.55.4: необязательные ключи пакета страны — сброс, чтобы не остались от прошлой страны
+	MAJ_BASE = 0
+	PROTEST_P = 9
+	REGIONAL_P = 8
+	LAW_START = {}
+	AID0 = 0.0
+	AID_NOTE = ""
+	REG_INDEX = ""
 	for k in d:
 		var v = d[k]
 		if v is Array or v is Dictionary:
@@ -44,8 +52,9 @@ func apply_country(code: String) -> void:
 	SEATS = int(SEATS)
 	if code == "DE":
 		SEATS = 630
-	MAJORITY = SEATS / 2 + 1
-	SUPER = int(ceil(float(SEATS) * 2.0 / 3.0))
+	var mb: int = int(MAJ_BASE) if int(MAJ_BASE) > SEATS else SEATS
+	MAJORITY = mb / 2 + 1
+	SUPER = int(ceil(float(mb) * 2.0 / 3.0))
 	if code != "DE":
 		gdp = GDP0
 		debt = float(mc["debt"])
@@ -86,10 +95,21 @@ func apply_country(code: String) -> void:
 		remap_base_ps()
 	radical_inject()
 	regecon_inject()
+	law_text_apply()
+	# 0.55.4: страна с темой «Режим военного положения» (Украина) начинает при военном положении
+	martial = false
+	for t in LAW_TOPICS:
+		if String(t["id"]) == "martial_law":
+			martial = true
 	build_loc()
 	apply_player_party(party_arg())
 	if not get_window() == null:
-		get_window().title = "PolitGame: %s" % String(WORLD[code]["name"])
+		get_window().title = "Symphony %s: %s" % [game_version(), String(WORLD[code]["name"])]
+
+
+# 0.55.4: номер версии вида 0.55.4 — из project.godot (application/config/version)
+func game_version() -> String:
+	return String(ProjectSettings.get_setting("application/config/version", ""))
 
 
 func apply_markets() -> void:
@@ -117,9 +137,26 @@ func apply_markets() -> void:
 	apply_goods()
 
 
+# v50: исходные данные Германии (они живут в переменных скрипта и меняются в игре — при обмене партий, при загрузке другой страны);
+# меню берёт их отсюда, а не из текущей партии (раньше после игры за Volt в меню путались правящая партия и партия игрока)
+var de_base := {}
+const DE_BASE_KEYS := ["PARTY_NAMES", "PARTY_COLORS", "PARTY_LEADERS", "PARTY_DESC", "PARTY_TRAITS", "DE_START_SEATS", "DE_START_MIN",
+	"COALITION0", "REGIONS", "SEATS", "MARKETS_OVR"]
+
+
+func de_base_snap() -> void:
+	if not de_base.is_empty():
+		return
+	for k in DE_BASE_KEYS:
+		var v = get(k)
+		de_base[k] = v.duplicate(true) if (v is Array or v is Dictionary) else v
+
+
 func cdat(code: String, key: String):
 	var d: Dictionary = CDATA.get(code, {})
-	return d[key] if d.has(key) else get(key)
+	if d.has(key):
+		return d[key]
+	return de_base[key] if de_base.has(key) else get(key)
 
 
 func diff_color(d: int) -> Color:
@@ -127,11 +164,22 @@ func diff_color(d: int) -> Color:
 
 
 func menu_title(parent: Control, text: String) -> void:
+	# v49: значок раздела перед заголовком
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 6)
+	parent.add_child(hb)
+	var ik: String = String({"Паспорт": "scroll", "Политическая ситуация": "hall", "Ваше положение": "person", "Экономика": "chart",
+		"Сильные стороны и риски": "warn", "Соседи и мир": "globe", "Регионы": "map", "Население (модель агентов)": "people",
+		"Ход игры": "calendar", "Воспроизводимость и интерфейс": "gauge"}.get(text, ""))
+	if ik != "":
+		var ic: Control = Ico.make(ik, C_ACCENT.lightened(0.2), 13.0)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hb.add_child(ic)
 	var l := Label.new()
 	l.text = text.to_upper()
 	l.add_theme_font_size_override("font_size", 12)
 	l.add_theme_color_override("font_color", C_ACCENT.lightened(0.2))
-	parent.add_child(l)
+	hb.add_child(l)
 	var line := ColorRect.new()
 	line.color = C_BORDER
 	line.custom_minimum_size = Vector2(0.0, 1.0)
@@ -270,19 +318,36 @@ func fill_country_card(code: String, box: VBoxContainer, head: Label, sub: Label
 	var head_txt: String = {"direct": "президент избирается всенародно", "indirect": "президент избирается собранием выборщиков", "council": "коллегиальный глава (совет)", "monarch": "монарх (не избирается)"}.get(headk, "—")
 	var regs: Array = cdat(code, "REGIONS")
 	var cur: String = "евро" if bool(mc.get("euro", true)) else "собственная валюта"
-	var pt := "[table=2]"
+	# v49: паспорт — строки со значками
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 3)
+	box.add_child(grid)
 	for row in [
-		["Население", "%.1f млн чел." % float(info["pop"])],
-		["ВВП", "%s млрд € (%.1f тыс. на человека)" % [fmt_n(float(info["gdp"])), float(info["gdp"]) / maxf(0.01, float(info["pop"]))]],
-		["Госдолг", "%.0f%% ВВП" % float(info["debt_pct"])],
-		["Деление", "%d %s" % [regs.size(), String(terms.get("regs", "регионов"))]],
-		["Валюта", cur + (", в ЕС" if bool(mc.get("eu", true)) else ", вне ЕС")],
-		["Глава государства", head_txt],
-		["Парламент", "%d мест, большинство — %d" % [seats_n, seats_n / 2 + 1]],
-		["Верхняя палата", String(up.get("name", "")) if String(up.get("name", "")) != "" else "нет"],
+		["people", "Население", "%.1f млн чел." % float(info["pop"])],
+		["chart", "ВВП", "%s млрд € (%.1f тыс. на человека)" % [fmt_n(float(info["gdp"])), float(info["gdp"]) / maxf(0.01, float(info["pop"]))]],
+		["bank", "Госдолг", "%.0f%% ВВП" % float(info["debt_pct"])],
+		["map", "Деление", "%d %s" % [regs.size(), String(terms.get("regs", "регионов"))]],
+		["coin", "Валюта", cur + (", в ЕС" if bool(mc.get("eu", true)) else ", вне ЕС")],
+		["crown" if headk == "monarch" else "person", "Глава государства", head_txt],
+		["hall", "Парламент", "%d мест, большинство — %d" % [seats_n, seats_n / 2 + 1]],
+		["ballot", "Верхняя палата", String(up.get("name", "")) if String(up.get("name", "")) != "" else "нет"],
 	]:
-		pt += "[cell][color=#98a1b8]%s  [/color][/cell][cell]%s[/cell]" % [row[0], row[1]]
-	menu_rt(box, pt + "[/table]")
+		var ic: Control = Ico.make(String(row[0]), Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b).lightened(0.25), 16.0)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		grid.add_child(ic)
+		var k := Label.new()
+		k.text = String(row[1])
+		k.add_theme_color_override("font_color", C_DIM)
+		k.add_theme_font_size_override("font_size", 14)
+		grid.add_child(k)
+		var vl := Label.new()
+		vl.text = String(row[2])
+		vl.add_theme_font_size_override("font_size", 14)
+		vl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(vl)
 	# --- ситуация ---
 	menu_title(box, "Политическая ситуация")
 	menu_rt(box, String(info["blurb"]))
@@ -474,6 +539,11 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	opt_choice(box, "Живая демография (религии, миграция)", "«Да» — религиозный состав и миграция меняются сами (рождаемость, секуляризация, волны беженцев, события). «Нет» — меняется только от ваших решений.", ["Нет, только мои решения", "Да"], clampi(int(game_opts["socev"]), 0, 1), func(i: int) -> void: game_opts["socev"] = i)
 	opt_choice(box, "Давление партнёров", "Другие страны сами вводят пошлины, предлагают соглашения, поднимают цены на энергию и просят помощи.", ["Нет", "Да"], clampi(int(game_opts["exev"]), 0, 1), func(i: int) -> void: game_opts["exev"] = i)
 	opt_choice(box, "Военные угрозы и происшествия на море", "«Да» — соседи с очень плохими отношениями и сильной армией могут сами напасть на вас; на морских путях случаются штормы, аварии и нападения. «Нет» — войны начинаете только вы, море спокойно.", ["Нет", "Да"], clampi(int(game_opts.get("milev", 1)), 0, 1), func(i: int) -> void: game_opts["milev"] = i)
+	opt_choice(box, "Кризисы: протесты, сепаратизм, перевороты", "Недовольство регионов растёт в стадии: протесты, беспорядки, мятеж; возможны референдумы о независимости, войны за отделение, революция, гражданская война и перевороты. «Нет» — ничего этого нет. «Часто» — кризисы случаются заметно чаще.", ["Нет", "Обычно", "Часто"], clampi(int(game_opts.get("revev", 1)), 0, 2), func(i: int) -> void: game_opts["revev"] = i)
+	opt_choice(box, "Государство и мир: блоки, демография, энергия, коррупция, СМИ", "«Да» — работают членство в ЕС/НАТО/евро/Шенгене, старение и пенсии, цены на энергию и климат, коррупция и суды, свобода СМИ, выравнивание регионов, дипломатия и разведка. «Нет» — этого нет.", ["Нет", "Да"], clampi(int(game_opts.get("rlev", 1)), 0, 1), func(i: int) -> void: game_opts["rlev"] = i)
+	opt_choice(box, "Стройка корпораций и других стран", "«Да» — корпорации сами строят заводы и сооружения в ваших регионах, другие страны строят своё и свои мегапроекты, изношенные сооружения могут попасть в аварию. «Нет» — строите только вы.", ["Нет", "Да"], clampi(int(game_opts.get("bldev", 1)), 0, 1), func(i: int) -> void: game_opts["bldev"] = i)
+	opt_choice(box, "Коалиция после выборов", "«Вручную» — если у вашей партии нет большинства, вы сами ведёте переговоры: кого пригласить, что пообещать, какие министерства отдать. «Автоматически» — партнёров подбирает ИИ, как раньше.", ["Автоматически", "Вручную"], clampi(int(game_opts.get("coal", 1)), 0, 1), func(i: int) -> void: game_opts["coal"] = i)
+	opt_choice(box, "Подсказки для новичка", "Короткий тур по окнам игры в начале партии. Его можно пропустить или запустить снова в окне «Государство → Игра».", ["Нет", "Да"], clampi(int(game_opts.get("tut", 1)), 0, 1), func(i: int) -> void: game_opts["tut"] = i)
 	opt_slider(box, "Громкость музыки", "Спокойная фоновая музыка. 0 — выключена. Свои треки (*.ogg) можно положить в папку audio/music проекта.", 0.0, 1.0, 0.05, float(game_opts.get("music", 0.45)), func(x: float) -> String: return "%.0f%%" % (x * 100.0), func(x: float) -> void:
 		game_opts["music"] = x
 		audio_apply_volume())
@@ -494,7 +564,7 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	rs.text = "Сбросить все настройки"
 	rs.focus_mode = Control.FOCUS_NONE
 	rs.pressed.connect(func() -> void:
-		game_opts.merge({"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1}, true)
+		game_opts.merge({"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "bldev": 1, "tut": 1, "coal": 1}, true)
 		for ch in sc.get_children():
 			ch.queue_free()
 		build_settings_panel(sc)
@@ -505,6 +575,20 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 
 # параметры запуска для тестов: agents=0|1 k=250 ev=1.6 news=1 econ=0|1|2 volat=2 cap=1.6 hints=1 gseed=N
 func opts_from_args() -> void:
+	var tut_given := false
+	var coal_given := false
+	var test_run := false
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("tut="):
+			tut_given = true
+		if String(a).begins_with("coal="):
+			coal_given = true
+		if String(a).begins_with("country="):
+			test_run = true
+	if test_run and not tut_given:
+		game_opts["tut"] = 0   # в тестах подсказки новичка не мешают щелчкам
+	if test_run and not coal_given:
+		game_opts["coal"] = 0  # v53: в тестах коалицию после выборов собирает ИИ (coal=1 — вручную)
 	for a in OS.get_cmdline_user_args():
 		var t := String(a)
 		if not t.contains("="):
@@ -524,6 +608,11 @@ func opts_from_args() -> void:
 			"socev": game_opts["socev"] = int(kv[1])
 			"exev": game_opts["exev"] = int(kv[1])
 			"milev": game_opts["milev"] = int(kv[1])
+			"revev": game_opts["revev"] = int(kv[1])
+			"rlev": game_opts["rlev"] = int(kv[1])
+			"bldev": game_opts["bldev"] = int(kv[1])
+			"tut": game_opts["tut"] = int(kv[1])
+			"coal": game_opts["coal"] = int(kv[1])
 			"observer": game_opts["observer"] = kv[1] != "0"
 
 
@@ -533,6 +622,13 @@ func show_country_menu(in_game: bool) -> void:
 	ov.name = "CountryMenu"
 	add_child(ov)
 	ov.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# v45_1: глубокий градиент и мягкое сияние за заголовком
+	ov.draw.connect(func() -> void:
+		Gfx.vgrad(ov, Rect2(Vector2.ZERO, ov.size), Color(0.06, 0.09, 0.16, 0.0), Color(0.0, 0.0, 0.02, 0.55))
+		var cx: float = ov.size.x * 0.5
+		for k in 6:
+			var rr: float = 60.0 + float(k) * 55.0
+			ov.draw_circle(Vector2(cx, 20.0), rr, Color(0.30, 0.50, 0.95, 0.018)))
 	var mg := MarginContainer.new()
 	for k in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
 		mg.add_theme_constant_override(k, 16)
@@ -542,8 +638,13 @@ func show_country_menu(in_game: bool) -> void:
 	root_v.add_theme_constant_override("separation", 8)
 	mg.add_child(root_v)
 	var title := Label.new()
-	title.text = "PolitGame — выберите страну на карте"
-	title.add_theme_font_size_override("font_size", 26)
+	title.text = "Symphony %s — выберите страну на карте" % game_version()
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0))
+	title.add_theme_constant_override("outline_size", 6)
+	title.add_theme_color_override("font_outline_color", Color(0.10, 0.20, 0.45, 0.85))
+	title.add_theme_constant_override("shadow_offset_y", 3)
+	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root_v.add_child(title)
 	var sub := Label.new()
@@ -552,6 +653,25 @@ func show_country_menu(in_game: bool) -> void:
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_color_override("font_color", C_DIM)
 	root_v.add_child(sub)
+	# v54_1: язык игры (русская и английская версии — разные деревья скриптов, смена перезапускает меню)
+	var boot = load("res://boot.gd")
+	var lang_row := HBoxContainer.new()
+	lang_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	root_v.add_child(lang_row)
+	var lang_lb := Label.new()
+	lang_lb.text = "🌐"
+	lang_row.add_child(lang_lb)
+	var lang_pick := OptionButton.new()
+	lang_pick.name = "LangPick"
+	var cur_lang: String = boot.lang()
+	for i in boot.LANGS.size():
+		lang_pick.add_item(String(boot.LANGS[i][1]), i)
+		if String(boot.LANGS[i][0]) == cur_lang:
+			lang_pick.select(i)
+	lang_pick.item_selected.connect(func(i: int):
+		boot.set_lang(String(boot.LANGS[i][0]))
+		get_tree().reload_current_scene())
+	lang_row.add_child(lang_pick)
 	var hs := HBoxContainer.new()
 	hs.add_theme_constant_override("separation", 12)
 	hs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -562,18 +682,47 @@ func show_country_menu(in_game: bool) -> void:
 	left.size_flags_stretch_ratio = 1.55
 	hs.add_child(left)
 	var cmap := CountryMap.new()
-	var codes: Array = WORLD.keys()
+	var codes: Array = WORLD.keys().filter(func(c) -> bool: return CDATA.has(c))
 	for code in codes:
 		var inf: Dictionary = CDATA[code]["INFO"] if CDATA[code].has("INFO") else INFO
-		cmap.cols[code] = diff_color(int(inf["difficulty"]))
 		cmap.names[code] = String(WORLD[code]["name"])
-		cmap.tips[code] = "%s — %s\nСложность %s · %.1f млн чел." % [WORLD[code]["name"], WORLD[code]["cap"], "★".repeat(int(inf["difficulty"])), float(inf["pop"])]
-	cmap.setup(WORLD_UNITS, WORLD_CTX, codes)
+		cmap.tips[code] = "%s — %s\nСложность %s · %.1f млн чел. · ВВП %.0f млрд\n%s%s · %s" % [WORLD[code]["name"], WORLD[code]["cap"], "★".repeat(int(inf["difficulty"])), float(inf["pop"]), menu_gdp(code),
+			"член ЕС" if menu_in_org(code, "eu") else "вне ЕС", " · НАТО" if menu_in_org(code, "nato") else "", String(MENU_GOVFORM_N[menu_govform(code)])]
+	# 0.56: фильтры над картой и раскраска «как на политической карте»
+	var flt_row := HFlowContainer.new()
+	flt_row.add_theme_constant_override("h_separation", 6)
+	flt_row.add_theme_constant_override("v_separation", 4)
+	flt_row.alignment = FlowContainer.ALIGNMENT_CENTER
+	left.add_child(flt_row)
+	for fk in MENU_FILTERS:
+		var fob := OptionButton.new()
+		fob.focus_mode = Control.FOCUS_NONE
+		fob.add_theme_font_size_override("font_size", 13)
+		var items: Array = fk[2]
+		for i in items.size():
+			fob.add_item(String(items[i]), i)
+		fob.select(int(menu_flt.get(fk[0], 0)))
+		fob.tooltip_text = String(fk[1])
+		var fkey: String = String(fk[0])
+		fob.item_selected.connect(func(i: int) -> void:
+			menu_flt[fkey] = i
+			menu_apply_filters(cmap, codes))
+		flt_row.add_child(fob)
+	menu_apply_filters(cmap, codes)
+	# v49: непризнанные образования (ПМР, ДНР, ЛНР) видны на карте, но не выбираются
+	var mtips := {}
+	for mc in WORLD.keys():
+		if w_unrec(String(mc)):
+			var mw: Dictionary = WORLD[mc]
+			mtips[mc] = "%s — непризнанное образование\nПод контролем: %s. Международно признано территорией: %s.\nИграть за него нельзя." % [mw["name"], WORLD[mw["patron"]]["name"] if WORLD.has(mw["patron"]) else "?", WORLD[mw["claim"]]["name"] if WORLD.has(mw["claim"]) else "?"]
+	cmap.setup(WORLD_UNITS, WORLD_CTX, codes, mtips)
 	left.add_child(cmap)
 	var leg := HBoxContainer.new()
 	leg.add_theme_constant_override("separation", 8)
 	leg.alignment = BoxContainer.ALIGNMENT_CENTER
 	left.add_child(leg)
+	menu_leg = leg
+	leg.visible = int(menu_flt.get("col", 0)) == 1
 	var ll := Label.new()
 	ll.text = "Сложность:"
 	ll.add_theme_color_override("font_color", C_DIM)
@@ -598,9 +747,16 @@ func show_country_menu(in_game: bool) -> void:
 	var cv := VBoxContainer.new()
 	cv.add_theme_constant_override("separation", 6)
 	card.add_child(cv)
+	# v49: флаг страны рядом с названием
+	var nmh := HBoxContainer.new()
+	nmh.add_theme_constant_override("separation", 10)
+	cv.add_child(nmh)
+	var mflag: TextureRect = Flags.make("DE", 30.0)
+	mflag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	nmh.add_child(mflag)
 	var nm := Label.new()
 	nm.add_theme_font_size_override("font_size", 26)
-	cv.add_child(nm)
+	nmh.add_child(nm)
 	var st := Label.new()
 	st.add_theme_font_size_override("font_size", 14)
 	cv.add_child(st)
@@ -612,6 +768,24 @@ func show_country_menu(in_game: bool) -> void:
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tabs.add_child(sc)
+	# 0.56: вкладка «Партия» — полукруг парламента и карточки партий
+	var psc := ScrollContainer.new()
+	psc.name = "Партия"
+	psc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	psc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(psc)
+	var pv := VBoxContainer.new()
+	pv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pv.add_theme_constant_override("separation", 6)
+	psc.add_child(pv)
+	menu_hemi = PartyHemi.new()
+	pv.add_child(menu_hemi)
+	menu_party_grid = GridContainer.new()
+	menu_party_grid.columns = 2
+	menu_party_grid.add_theme_constant_override("h_separation", 6)
+	menu_party_grid.add_theme_constant_override("v_separation", 6)
+	menu_party_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pv.add_child(menu_party_grid)
 	var ssc := ScrollContainer.new()
 	ssc.name = "Настройки игры"
 	ssc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -622,13 +796,24 @@ func show_country_menu(in_game: bool) -> void:
 	body.add_theme_constant_override("separation", 6)
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(body)
-	var pl := Label.new()
-	pl.text = "Играть за партию:"
-	pl.add_theme_color_override("font_color", C_DIM)
-	cv.add_child(pl)
-	var pick := OptionButton.new()
-	pick.custom_minimum_size = Vector2(0.0, 32.0)
-	cv.add_child(pick)
+	# 0.56: выбранная партия и кнопка перехода к карточкам партий
+	var prow := HBoxContainer.new()
+	prow.add_theme_constant_override("separation", 8)
+	cv.add_child(prow)
+	menu_party_lbl = RichTextLabel.new()
+	menu_party_lbl.bbcode_enabled = true
+	menu_party_lbl.fit_content = true
+	menu_party_lbl.scroll_active = false
+	menu_party_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	menu_party_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu_party_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	prow.add_child(menu_party_lbl)
+	var pbtn := Button.new()
+	pbtn.text = "Выбрать партию…"
+	pbtn.focus_mode = Control.FOCUS_NONE
+	pbtn.tooltip_text = "Играть можно за любую партию: правящую, партнёра по коалиции, оппозицию, партию вне парламента, региональную или протестную."
+	pbtn.pressed.connect(func() -> void: tabs.current_tab = 1)
+	prow.add_child(pbtn)
 	var play := Button.new()
 	play.theme_type_variation = "AccentButton"
 	play.custom_minimum_size = Vector2(0.0, 44.0)
@@ -639,14 +824,16 @@ func show_country_menu(in_game: bool) -> void:
 		menu_est_code = code
 		menu_update_est()
 		fill_country_card(code, body, nm, st)
-		fill_party_pick(code, pick)
-		update_menu_party(pick.get_selected_id())
+		mflag.texture = Flags.tex(code)
+		mflag.modulate.a = 0.0
+		mflag.create_tween().tween_property(mflag, "modulate:a", 1.0, 0.25)
+		menu_fill_parties(code, 0)
 		play.text = "Играть: %s" % String(WORLD[code]["name"])
 		sc.scroll_vertical = 0)
-	pick.item_selected.connect(func(i: int) -> void: update_menu_party(pick.get_item_id(i)))
+	menu_hemi.picked.connect(func(p: int) -> void: menu_fill_parties(menu_sit_code, p))
 	play.pressed.connect(func() -> void:
 		if cur_code[0] != "":
-			choose_country(cur_code[0], int(pick.get_selected_id())))
+			choose_country(cur_code[0], menu_party_sel))
 	if in_game:
 		var cb := Button.new()
 		cb.text = "Отмена"
@@ -660,27 +847,320 @@ func show_country_menu(in_game: bool) -> void:
 const OBSERVER_ID := 99
 
 
-func fill_party_pick(code: String, ob: OptionButton) -> void:
-	ob.clear()
+# ============================================================
+#  0.56: МЕНЮ — ЦВЕТА ПОЛИТИЧЕСКОЙ КАРТЫ, ФИЛЬТРЫ СТРАН, ВЫБОР ПАРТИИ КАРТОЧКАМИ
+# ============================================================
+const MENU_POL_COLS := {
+	"DE": Color(0.47, 0.49, 0.53), "FR": Color(0.32, 0.45, 0.76), "NL": Color(0.86, 0.56, 0.26), "BE": Color(0.80, 0.70, 0.32),
+	"LU": Color(0.47, 0.72, 0.86), "CH": Color(0.76, 0.33, 0.31), "AT": Color(0.74, 0.69, 0.62), "PL": Color(0.80, 0.43, 0.50),
+	"CZ": Color(0.36, 0.56, 0.76), "DK": Color(0.72, 0.36, 0.31), "NO": Color(0.62, 0.29, 0.36), "SE": Color(0.46, 0.63, 0.88),
+	"IT": Color(0.41, 0.66, 0.41), "ES": Color(0.86, 0.73, 0.31), "PT": Color(0.27, 0.53, 0.39), "GB": Color(0.79, 0.31, 0.36),
+	"IE": Color(0.47, 0.76, 0.46), "SI": Color(0.56, 0.73, 0.61), "SK": Color(0.57, 0.52, 0.77), "HU": Color(0.81, 0.56, 0.41),
+	"FI": Color(0.79, 0.81, 0.87), "HR": Color(0.41, 0.51, 0.79), "RS": Color(0.63, 0.36, 0.31), "BA": Color(0.81, 0.71, 0.41),
+	"ME": Color(0.66, 0.46, 0.31), "MK": Color(0.86, 0.56, 0.31), "AL": Color(0.71, 0.31, 0.41), "XK": Color(0.46, 0.61, 0.81),
+	"BG": Color(0.46, 0.63, 0.43), "RO": Color(0.81, 0.71, 0.31), "GR": Color(0.41, 0.66, 0.86), "EE": Color(0.41, 0.56, 0.81),
+	"LV": Color(0.66, 0.36, 0.41), "LT": Color(0.81, 0.71, 0.36), "MD": Color(0.71, 0.51, 0.36), "BY": Color(0.63, 0.76, 0.46),
+	"UA": Color(0.46, 0.61, 0.86), "RU": Color(0.31, 0.53, 0.37),
+}
+const MENU_GOVFORM := {"GB": 2, "NL": 2, "BE": 2, "LU": 2, "DK": 2, "NO": 2, "SE": 2, "ES": 2,
+	"FR": 1, "PT": 1, "RO": 1, "LT": 1, "UA": 1, "PL": 1, "RU": 3, "BY": 3}
+const MENU_GOVFORM_N := ["парламентская республика", "полупрезидентская республика", "конституционная монархия", "авторитарный режим"]
+const MENU_FILTERS := [
+	["diff", "Сложность страны", ["Сложность: все", "Сложность: ★–★★", "Сложность: ★★★", "Сложность: ★★★★", "Сложность: ★★★★★"]],
+	["eu", "Членство в Европейском союзе", ["ЕС: все", "В ЕС", "Вне ЕС"]],
+	["nato", "Членство в НАТО", ["НАТО: все", "В НАТО", "Вне НАТО"]],
+	["form", "Форма правления (Швейцария — директориальная республика, отнесена к парламентским)", ["Правление: любое", "Парламентская республика", "Полупрезидентская", "Монархия", "Авторитарный режим"]],
+	["size", "Размер экономики (ВВП)", ["Экономика: любая", "Крупная (больше 1000 млрд)", "Средняя (100–1000 млрд)", "Малая (меньше 100 млрд)"]],
+	["col", "Чем раскрашены страны", ["Цвета: политическая карта", "Цвета: сложность"]],
+]
+const MENU_ROLE_N := {"head": "во главе правительства", "gov": "в коалиции", "opp": "оппозиция", "out": "вне парламента", "obs": "наблюдатель"}
+var menu_flt := {}
+var menu_leg: Control = null
+var menu_hemi: Control = null
+var menu_party_grid: GridContainer = null
+var menu_party_lbl: RichTextLabel = null
+var menu_party_sel := 0
+
+
+# тёмные цвета партий (ХДС/ХСС — почти чёрный) на тёмном фоне не видны: осветлить
+func menu_vis_col(c: Color) -> Color:
+	return c.lightened(0.35) if c.get_luminance() < 0.22 else c
+
+
+func menu_seats_txt(n: int) -> String:
+	var m10 := n % 10
+	var m100 := n % 100
+	if m10 == 1 and m100 != 11:
+		return "%d место" % n
+	if m10 >= 2 and m10 <= 4 and (m100 < 12 or m100 > 14):
+		return "%d места" % n
+	return "%d мест" % n
+
+
+func menu_gdp(code: String) -> float:
+	return float(WORLD[code].get("gdp", 0.0))
+
+
+func menu_in_org(code: String, org: String) -> bool:
+	return ORGS.has(org) and (ORGS[org].get("mem", []) as Array).has(code)
+
+
+func menu_govform(code: String) -> int:
+	return int(MENU_GOVFORM.get(code, 0))
+
+
+func menu_country_ok(code: String) -> bool:
+	var inf: Dictionary = CDATA[code]["INFO"] if CDATA[code].has("INFO") else INFO
+	var d: int = int(inf["difficulty"])
+	match int(menu_flt.get("diff", 0)):
+		1:
+			if d > 2: return false
+		2:
+			if d != 3: return false
+		3:
+			if d != 4: return false
+		4:
+			if d != 5: return false
+	var fe: int = int(menu_flt.get("eu", 0))
+	if fe > 0 and menu_in_org(code, "eu") != (fe == 1):
+		return false
+	var fn: int = int(menu_flt.get("nato", 0))
+	if fn > 0 and menu_in_org(code, "nato") != (fn == 1):
+		return false
+	var ff: int = int(menu_flt.get("form", 0))
+	if ff > 0 and menu_govform(code) != ff - 1:
+		return false
+	var g: float = menu_gdp(code)
+	match int(menu_flt.get("size", 0)):
+		1:
+			if g < 1000.0: return false
+		2:
+			if g < 100.0 or g >= 1000.0: return false
+		3:
+			if g >= 100.0: return false
+	return true
+
+
+func menu_apply_filters(cmap, codes: Array) -> void:
+	var by_diff: bool = int(menu_flt.get("col", 0)) == 1
+	cmap.dim.clear()
+	for code in codes:
+		var inf: Dictionary = CDATA[code]["INFO"] if CDATA[code].has("INFO") else INFO
+		cmap.cols[code] = diff_color(int(inf["difficulty"])) if by_diff else (MENU_POL_COLS.get(code, Color(0.5, 0.55, 0.65)) as Color)
+		if not menu_country_ok(String(code)):
+			cmap.dim[code] = true
+	if menu_leg != null and is_instance_valid(menu_leg):
+		menu_leg.visible = by_diff
+	cmap.recolor()
+
+
+# партии страны для карточек: слот, имя, лидер, цвет, места, рейтинг ≈, положение слева направо, роль, сложность
+func menu_party_rows(code: String) -> Array:
 	var pnames: Array = cdat(code, "PARTY_NAMES")
 	var pseats: Array = cdat(code, "DE_START_SEATS")
+	var pcols: Array = cdat(code, "PARTY_COLORS")
+	var pleaders: Array = cdat(code, "PARTY_LEADERS")
 	var coal: Array = cdat(code, "COALITION0")
+	var hemi: Array = cdat(code, "HEMI_ORDER")
+	var lean: Dictionary = cdat(code, "LEAN")
+	var gw: Dictionary = cdat(code, "GROUP_WEIGHT")
+	var gb: Dictionary = cdat(code, "GROUP_BASE")
+	var traits: Array = cdat(code, "PARTY_TRAITS")
+	var seats_n: int = 630 if code == "DE" else int(cdat(code, "SEATS"))
+	var inf: Dictionary = CDATA[code]["INFO"] if CDATA[code].has("INFO") else INFO
+	var cd: int = int(inf["difficulty"])
+	var reg: int = int(cdat(code, "REGIONAL_P"))
+	# рейтинг на старте: та же основа, что и в выборах (веса групп × близость партии), без региональных поправок
+	var raw: Array = []
+	var tot := 0.0
 	for p in pnames.size():
-		if p in [6, 8, 9]:
+		var v := 0.0
+		for g in gw:
+			if not lean.has(g):
+				continue
+			var la: Array = lean[g]
+			var l: float = float(la[p]) if p < la.size() else 0.0
+			if p == 0:
+				l = 6.0 * pow(float(gb.get(g, 50.0)) / 50.0, 3.0)
+			v += l * float(gw[g])
+		raw.append(v)
+		tot += v
+	var out: Array = []
+	for p in pnames.size():
+		var nm: String = String(pnames[p]).replace(" (вы)", "")
+		if p in NO_PLAY_SLOTS or not party_name_playable(nm):
 			continue
 		var sv: int = int(pseats[p]) if p < pseats.size() else 0
-		var stt := ""
+		var role := "out"
 		if p == 0:
-			stt = "у власти (по умолчанию)"
+			role = "head"
 		elif p in coal:
-			stt = "в коалиции, %d мест" % sv
+			role = "gov"
 		elif sv > 0:
-			stt = "оппозиция, %d мест" % sv
+			role = "opp"
+		var sh: float = float(sv) / float(maxi(1, seats_n))
+		var d := cd
+		match role:
+			"gov":
+				d = cd + 1
+			"opp":
+				d = cd + (1 if sh >= 0.15 else 2)
+			"out":
+				d = 5
+		var cordon: bool = p > 0 and p < traits.size() and float((traits[p] as Dictionary).get("join", 0.0)) <= -50.0
+		if cordon:
+			d += 1
+		var hi: int = hemi.find(p)
+		var ld: String = String(pleaders[p]).replace(" (вы)", "").replace("Канцлер", "").strip_edges() if p < pleaders.size() else ""
+		out.append({"p": p, "name": nm, "leader": ld, "col": menu_vis_col(pcols[p] if p < pcols.size() else Color(0.5, 0.5, 0.5)), "seats": sv,
+			"rate": 100.0 * float(raw[p]) / maxf(0.001, tot), "lr": float(hi) / float(maxi(1, hemi.size() - 1)) if hi >= 0 else 0.5,
+			"role": role, "diff": clampi(d, 1, 5), "small": sh < 0.05, "cordon": cordon, "prot": p == 9, "reg": p == reg})
+	return out
+
+
+func menu_fill_parties(code: String, sel: int) -> void:
+	if menu_party_grid == null or not is_instance_valid(menu_party_grid) or code == "":
+		return
+	menu_party_sel = sel
+	var rows := menu_party_rows(code)
+	if sel != OBSERVER_ID and rows.filter(func(r) -> bool: return int(r["p"]) == sel).is_empty():
+		menu_party_sel = 0
+	var seats_n: int = 630 if code == "DE" else int(cdat(code, "SEATS"))
+	var hemi: Array = cdat(code, "HEMI_ORDER")
+	var pnames: Array = cdat(code, "PARTY_NAMES")
+	var pseats: Array = cdat(code, "DE_START_SEATS")
+	var pcols: Array = cdat(code, "PARTY_COLORS")
+	var ord: Array = []
+	for p in hemi:
+		var sv: int = int(pseats[p]) if int(p) < pseats.size() else 0
+		if sv > 0:
+			ord.append({"p": int(p), "col": menu_vis_col(pcols[p]), "seats": sv, "name": String(pnames[p]).replace(" (вы)", "")})
+	var mb: int = int(CDATA[code].get("MAJ_BASE", 0))
+	var mj: int = mb if mb > seats_n else seats_n
+	menu_hemi.set_data(ord, seats_n, mj / 2 + 1, menu_party_sel if menu_party_sel != OBSERVER_ID else -1)
+	for ch in menu_party_grid.get_children():
+		menu_party_grid.remove_child(ch)
+		ch.queue_free()
+	rows.sort_custom(func(a, b) -> bool: return int(a["seats"]) > int(b["seats"]) if int(a["seats"]) != int(b["seats"]) else float(a["rate"]) > float(b["rate"]))
+	for r in rows:
+		menu_party_card(r, code)
+	menu_party_card({"p": OBSERVER_ID, "name": "Никем — наблюдать", "leader": "", "col": Color(0.45, 0.5, 0.6), "seats": 0, "rate": 0.0, "lr": -1.0, "role": "obs", "diff": 0, "small": false, "cordon": false, "prot": false, "reg": false}, code)
+	update_menu_party(menu_party_sel)
+	var cur: Dictionary = {}
+	for r in rows:
+		if int(r["p"]) == menu_party_sel:
+			cur = r
+	if menu_party_lbl != null:
+		if menu_party_sel == OBSERVER_ID:
+			menu_party_lbl.text = "[color=#98a1b8]Партия:[/color] [b]никем — наблюдать[/b]"
+		elif not cur.is_empty():
+			menu_party_lbl.text = "[color=#98a1b8]Партия:[/color] [color=#%s]●[/color] [b]%s[/b] [color=#98a1b8]· %s · сложность %s[/color]" % [(cur["col"] as Color).to_html(false), String(cur["name"]), MENU_ROLE_N[String(cur["role"])], "★".repeat(int(cur["diff"]))]
+
+
+func menu_party_card(r: Dictionary, code: String) -> void:
+	var p: int = int(r["p"])
+	var on: bool = p == menu_party_sel
+	var col: Color = r["col"]
+	var pc := PanelContainer.new()
+	pc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pc.mouse_filter = Control.MOUSE_FILTER_STOP
+	pc.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var sb := sbox(C_PANEL2 if not on else C_PANEL2.lerp(col, 0.18), col if on else C_BORDER, 2 if on else 1, 8, 8.0, 6.0)
+	sb.border_width_left = 4
+	sb.border_color = col if on else col.darkened(0.35)
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+			menu_fill_parties(code, p))
+	menu_party_grid.add_child(pc)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 8)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pc.add_child(hb)
+	# заглушка портрета: силуэт в цветах партии и инициалы лидера
+	var por := Control.new()
+	por.custom_minimum_size = Vector2(40.0, 40.0)
+	por.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	por.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ini := ""
+	for wd in String(r["leader"]).split(" ", false):
+		var c0: String = wd.substr(0, 1)
+		if ini.length() < 2 and c0 != "(" and c0 == c0.to_upper() and c0 != c0.to_lower():
+			ini += c0
+	if ini == "":
+		ini = "?" if p == OBSERVER_ID else String(r["name"]).substr(0, 1)
+	por.draw.connect(func() -> void:
+		var c := Vector2(20.0, 20.0)
+		por.draw_circle(c, 19.0, col.darkened(0.55))
+		por.draw_circle(Vector2(20.0, 15.0), 7.0, col.darkened(0.2))
+		por.draw_circle(Vector2(20.0, 34.0), 12.0, col.darkened(0.2))
+		por.draw_arc(c, 19.0, 0.0, TAU, 32, col, 2.0, true)
+		var f: Font = por.get_theme_default_font()
+		por.draw_string_outline(f, Vector2(0.0, 25.0), ini, HORIZONTAL_ALIGNMENT_CENTER, 40.0, 14, 4, Color(0, 0, 0, 0.75))
+		por.draw_string(f, Vector2(0.0, 25.0), ini, HORIZONTAL_ALIGNMENT_CENTER, 40.0, 14, Color(1, 1, 1, 0.95)))
+	hb.add_child(por)
+	var vb := VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.add_theme_constant_override("separation", 1)
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.add_child(vb)
+	var nm := Label.new()
+	nm.text = String(r["name"])
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.add_theme_font_size_override("font_size", 13)
+	nm.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0) if on else C_TEXT)
+	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(nm)
+	var info := RichTextLabel.new()
+	info.bbcode_enabled = true
+	info.fit_content = true
+	info.scroll_active = false
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.add_theme_font_size_override("normal_font_size", 11)
+	info.add_theme_font_size_override("bold_font_size", 11)
+	var role: String = String(r["role"])
+	var rc: String = String({"head": COL_GOOD, "gov": "#8fd18f", "opp": COL_WARN}.get(role, "#98a1b8"))
+	var t := ""
+	if p == OBSERVER_ID:
+		t = "[color=#98a1b8]Всеми партиями управляет ИИ, вы смотрите за страной.[/color]"
+	else:
+		if String(r["leader"]) != "":
+			t += "[color=#98a1b8]%s[/color]\n" % String(r["leader"])
+		t += "[color=%s]%s[/color]" % [rc, MENU_ROLE_N[role]]
+		if int(r["seats"]) > 0:
+			t += " · %s · ≈%.0f%%" % [menu_seats_txt(int(r["seats"])), float(r["rate"])]
 		else:
-			stt = "вне парламента"
-		ob.add_item("«%s» — %s" % [String(pnames[p]).replace(" (вы)", ""), stt], p)
-	ob.add_item("Никем — наблюдать за игрой (всеми партиями управляет ИИ)", OBSERVER_ID)
-	ob.select(0)
+			t += " · опросы ≈%.0f%%" % float(r["rate"])
+		var tags: PackedStringArray = []
+		if bool(r["prot"]):
+			tags.append("протестная")
+		if bool(r["reg"]):
+			tags.append("региональная")
+		if bool(r["cordon"]):
+			tags.append("«санитарный кордон»")
+		if not tags.is_empty():
+			t += "\n[color=#98a1b8]%s[/color]" % ", ".join(tags)
+		t += "\n[color=#%s]%s[/color]" % [diff_color(int(r["diff"])).to_html(false), "★".repeat(int(r["diff"]))]
+		if bool(r["small"]) or int(r["diff"]) >= 5:
+			t += " [b][color=%s]сложно[/color][/b]" % COL_BAD
+	info.text = t
+	vb.add_child(info)
+	# шкала «левые — правые» (по месту в зале парламента)
+	if float(r["lr"]) >= 0.0:
+		var lr := Control.new()
+		lr.custom_minimum_size = Vector2(0.0, 12.0)
+		lr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var x: float = clampf(float(r["lr"]), 0.03, 0.97)
+		lr.draw.connect(func() -> void:
+			var w: float = lr.size.x
+			var n := 24
+			for i in n:
+				var a: float = float(i) / float(n)
+				lr.draw_rect(Rect2(w * a, 5.0, w / float(n) + 0.5, 3.0), Color(0.85, 0.32, 0.32).lerp(Color(0.32, 0.50, 0.90), a).darkened(0.25))
+			lr.draw_circle(Vector2(x * w, 6.5), 4.5, Color(1, 1, 1, 0.9))
+			lr.draw_circle(Vector2(x * w, 6.5), 3.2, col))
+		vb.add_child(lr)
 
 
 # v35: описание политической ситуации для выбранной партии
@@ -733,6 +1213,7 @@ func choose_country(code: String, party: int = 0) -> void:
 
 
 func _ready() -> void:
+	de_base_snap()
 	opts_from_args()
 	var sd := seed_arg()
 	if sd < 0 and int(game_opts["seed"]) > 0:
@@ -742,7 +1223,10 @@ func _ready() -> void:
 	else:
 		randomize()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings_load()
+	settings_apply_static()
 	theme = make_theme()
+	tip_setup()
 	audio_init()
 	var win := get_window()
 	win.min_size = Vector2i(1340, 700)
@@ -777,7 +1261,7 @@ func _ready() -> void:
 			"действуют бюджетные правила ЕС" if bool(MACRO.get("eu", true)) else "действуют свои бюджетные правила"])
 	if ccode == "DE": log_sys("[b][color=%s]Вы — федеральный канцлер Германии, январь 2026.[/color][/b] Время идёт по дням: скорость задают кнопки справа вверху, а экономика и политика считаются на границе месяцев. Налоги и расходы настраиваются на экране «Бюджет»; законы, коалиции и выборы — на экране «Политика»; земли — на экране «Карта земель»; соседи — на экране «Дипломатия»." % COL_HEAD)
 	if ccode == "DE": log_sys("Окна можно двигать за заголовок и менять им размер за край или угол. Выборы в Бундестаг пройдут через 3 года (%s %d). Валюта — евро, ставку задаёт ЕЦБ, действует долговой тормоз." % [MONTHS[0], START_YEAR + 3])
-	log_sys("Ваша партия — «%s». Для принятия законов нужна коалиция, у которой не меньше %d мест из %d." % [PARTY_NAMES[0], MAJORITY, SEATS])
+	log_sys("Ваша партия — %s. Для принятия законов нужна коалиция, у которой не меньше %d мест из %d." % [qn(PARTY_NAMES[0]), MAJORITY, SEATS])
 	# v38: для стран без евро (Польша, Сербия, Румыния…) не писать про ЕЦБ
 	log_sys("Совет: кнопка рядом с названием каждого ползунка переключает его между долей ВВП и суммой в млрд. %s" % ("Эмиссии нет: деньги печатает ЕЦБ." if bool(MACRO.get("euro", true)) else "Своя валюта: эмиссия на экране «Бюджет» даёт деньги, но разгоняет инфляцию."))
 	log_sys("[b]Правительство:[/b] у министров есть имена, навыки и бонусы, которые зависят от партии. Откройте «Политика» → «Правительство».")
@@ -788,6 +1272,9 @@ func _ready() -> void:
 	show_desk(2)
 	refresh()
 	call_deferred("layout_windows")
+	# v50: стартовое окно перед игрой
+	if not bool(game_opts.get("observer", false)):
+		call_deferred("show_start_window")
 
 
 # v35: пробел — пауза / пуск времени (если фокус не в поле ввода и не открыто меню стран)
@@ -795,7 +1282,13 @@ func _input(e: InputEvent) -> void:
 	if not (e is InputEventKey):
 		return
 	var ke := e as InputEventKey
-	if not ke.pressed or ke.echo or ke.keycode != KEY_SPACE or election_open or has_node("CountryMenu"):
+	# 0.56: пока открыты итоги выборов, пробел ничего не делает — окно закрывается только кнопкой
+	if election_open and ke.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+		get_viewport().set_input_as_handled()
+		return
+	if not ke.pressed or ke.echo or ke.keycode != KEY_SPACE or has_node("CountryMenu"):
+		return
+	if start_ov != null or (st_ov != null and st_ov.visible):
 		return
 	if play_btn == null or game_over:
 		return
@@ -814,9 +1307,10 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	var k: int = ke.keycode
 	if election_open:
-		if k == KEY_ENTER or k == KEY_KP_ENTER or k == KEY_SPACE:
-			election_continue()
-			get_viewport().set_input_as_handled()
+		return
+	if k == KEY_ESCAPE and bld_pick != "":
+		bld_cancel()
+		get_viewport().set_input_as_handled()
 		return
 	if current_event.is_empty() or not wins.has("event") or not (wins["event"] as FloatWindow).visible:
 		return

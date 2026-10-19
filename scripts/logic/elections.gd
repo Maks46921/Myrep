@@ -16,15 +16,60 @@ func ai_form_gov(allow0: bool) -> Dictionary:
 	return {}
 
 
+func au_after_election() -> void:
+	pass
+
+
+func au_control() -> float:
+	return 0.0
+
+
+func au_fraud_shares(sh: Array[float]) -> Array[float]:
+	var r: Array[float] = []
+	return r
+
+
+func au_on() -> bool:
+	return false
+
+
+func au_opp_mult(p: int, role: float) -> float:
+	return 0.0
+
+
+func church_vote_mult(ri: int, p: int) -> float:
+	return 0.0
+
+
+func coal_feasible() -> bool:
+	return false
+
+
+func coal_manual() -> bool:
+	return false
+
+
+func coal_talks_start() -> void:
+	pass
+
+
 func coalition_names() -> String:
 	return ""
 
 
-func decree_power() -> bool:
-	return false
+func cu_nat_tension() -> float:
+	return 0.0
+
+
+func cult_vote_mult(ri: int, p: int) -> float:
+	return 0.0
 
 
 func form_government(verbose: bool) -> bool:
+	return false
+
+
+func gov_ok() -> bool:
 	return false
 
 
@@ -32,8 +77,20 @@ func gov_seats() -> int:
 	return 0
 
 
+func is_cordon(p: int) -> bool:
+	return false
+
+
 func log_header(text: String, col: String) -> void:
 	pass
+
+
+func martial_blocks(reason: String) -> bool:
+	return false
+
+
+func mil_at_war() -> bool:
+	return false
 
 
 func opp_after_election() -> String:
@@ -80,6 +137,10 @@ func show_head_election(rep: Dictionary) -> void:
 	pass
 
 
+func swap_idx(v: int, k: int) -> int:
+	return 0
+
+
 func upper_renew(shares: Array) -> String:
 	return ""
 
@@ -87,26 +148,97 @@ func upper_renew(shares: Array) -> String:
 # --- конец заглушек ---
 
 
+# v50: насколько партия отвечает за работу власти: глава правительства — 1, партнёры по коалиции — 0.4, остальные — 0.
+# Раньше оценка власти группами (бюджет, события) всегда доставалась партии игрока — даже когда она в оппозиции.
+func gov_roles() -> Array[float]:
+	var out: Array[float] = []
+	var P := PARTY_NAMES.size()
+	for p in P:
+		out.append(0.0)
+	if opp_mode:
+		if opp_gov.is_empty():
+			return out
+		for q in (opp_gov.get("members", []) as Array):
+			if int(q) >= 0 and int(q) < P:
+				out[int(q)] = 0.4
+		var pmo: int = int(opp_gov.get("pm", -1))
+		if pmo >= 0 and pmo < P:
+			out[pmo] = 1.0
+		return out
+	for q in mini(P, in_coalition.size()):
+		if in_coalition[q]:
+			out[q] = 0.4
+	var pm: int = int(junior_info()["pm"])
+	out[clampi(pm, 0, P - 1)] = 1.0
+	return out
+
+
+func gov_pm_party() -> int:
+	var r := gov_roles()
+	for p in r.size():
+		if r[p] >= 1.0:
+			return p
+	return r.size()
+
+
 func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 	var w: Array[float] = []
 	var r: Dictionary = regions[ri]
-	var eff: float = clampf(float(support[g]) + (float(r["loy"]) - 50.0) * 0.5, 5.0, 100.0)
+	# 0.56: при игре не за стартовую партию вклад лояльности региона считается от стартового значения (а не от 50):
+	# иначе на старте партия власти и ваша получали не те веса, что в опросах (за СвДП АдГ на старте имела 39% вместо 26%)
+	var ref: bool = player_orig != 0
+	var loy0: float = reg_loy_start(ri) if ref else 50.0
+	var eff: float = clampf(float(support[g]) + (float(r["loy"]) - loy0) * 0.5, 5.0, 100.0)
 	var lean: Array = LEAN[g]
+	var roles := gov_roles()
+	var ex: float = 4.0 if pres else 3.0
+	# v53: в оппозиции (или если вы играете не за стартовую партию власти) support — поддержка ВАШЕЙ партии,
+	# а оценка власти правящими партиями считается отдельно (effg) и относительно старта: их LEAN уже содержит базу.
+	# Раньше партия власти получала множитель от вашей же поддержки, а ваша партия — постоянный вес: игра за
+	# оппозицию в России давала КПРФ ~49 %, а «Единой России» — 22 %.
+	var own_full: bool = opp_mode or player_orig != 0
+	var gb: float = maxf(5.0, float(GROUP_BASE[g]))
+	var effg: float = eff
+	if ref:
+		var g0: float = float(group_base0.get(g, gb)) + (loy0 - 50.0) * 0.5
+		effg = clampf(g0 - (eff - gb) / 0.6, 5.0, 100.0) if opp_mode else clampf(g0 + (eff - gb), 5.0, 100.0)
+	elif opp_mode:
+		effg = clampf(gb - (eff - gb) / 0.6, 5.0, 100.0)
 	for p in PARTY_NAMES.size():
 		var v: float = float(lean[p])
-		if p == 0:
-			v *= pow(eff / 50.0, 4.0 if pres else 3.0)
-		elif p == 9:
-			v *= pow(clampf((100.0 - eff) / 50.0, 0.2, 2.0), 2.0)
+		# 0.56: протестная партия растёт на недовольстве властью — и тогда, когда за неё играете вы (пока она в оппозиции)
+		if p == PROTEST_P and roles[p] <= 0.0 and (p != 0 or opp_mode):
+			v *= pow(clampf((100.0 - effg) / 50.0, 0.2, 2.0), 2.0)
+			if p == 0:
+				v *= pow(eff / 50.0, ex * 0.5)
+		elif p == 0 and own_full:
+			v *= pow(eff / 50.0, ex)
+		elif roles[p] > 0.0:
+			if ref:
+				# оценка власти — на шкале правящей партии (её стартовая поддержка групп); LEAN прежней партии власти подогнан под (поддержка / 50)^k
+				var gk: float = pow(effg / 50.0, ex * roles[p])
+				if p == player_orig:
+					gk /= pow(float(group_base0.get(g, gb)) / 50.0, ex)
+				v *= gk
+			else:
+				v *= pow((effg / gb) if own_full else (eff / 50.0), ex * roles[p])
 		elif p == REGIONAL_P:
 			v *= (1.0 + float(r["unrest"]) / 40.0) * lerpf(0.6, 1.5, float(REGIONS[ri]["reg"]))
 		v *= float(REG_BIAS[ri][p]) * funding_mult(p) * pact_mult(p)
+		v *= cult_vote_mult(ri, p) * church_vote_mult(ri, p) * au_opp_mult(p, roles[p]) * er_mig_mult(ri, p)
 		if p > 0:
 			v *= issue_multiplier(p)
 		if pres and p > 0:
 			v *= charisma[p]
 		w.append(v)
 	return w
+
+
+func reg_loy_start(ri: int) -> float:
+	var key := String(REGIONS[ri].get("uid", ccode + "-" + String(REGIONS[ri]["code"])))
+	if not reg_loy0.has(key):
+		reg_loy0[key] = float(regions[ri]["loy"])
+	return float(reg_loy0[key])
 
 
 func region_shares(ri: int, pres: bool, only: Array = []) -> Array[float]:
@@ -147,38 +279,70 @@ func region_shares_legacy(ri: int, pres: bool, only: Array = []) -> Array[float]
 func parl_shares() -> Array[float]:
 	var raw := national_shares(false)
 	var thr: float = mods["threshold"]
+	var exempt: Array = MACRO.get("thr_exempt", [])   # 0.55.5: списки меньшинств без барьера (Косово: гарантированные места общин)
 	var keep := 0.0
 	for p in raw.size():
-		if raw[p] < thr:
+		if raw[p] < thr and not (p in exempt):
 			raw[p] = 0.0
 		keep += raw[p]
+	if keep <= 0.0001:
+		return national_shares(false)   # барьер выше всех — защита от деления на ноль (никто не прошёл)
 	for p in raw.size():
 		raw[p] /= keep
 	return raw
 
 
-func allocate_seats(shares_in: Array[float]) -> Array[int]:
+# наибольшие остатки: n мест пропорционально весам
+func hare_seats(w_in: Array[float], n: int) -> Array[int]:
 	var shares: Array[float] = []
 	var ssum := 0.0
-	for x in shares_in:
+	for x in w_in:
 		ssum += x
-	for x in shares_in:
+	for x in w_in:
 		shares.append(x / maxf(ssum, 0.0001))
 	var res: Array[int] = []
 	var rem: Array = []
 	var used := 0
 	for p in shares.size():
-		var q: float = shares[p] * SEATS
+		var q: float = shares[p] * n
 		var fl := int(floor(q))
 		res.append(fl)
 		used += fl
 		rem.append([q - fl, p])
 	rem.sort_custom(func(a, c): return a[0] > c[0])
 	var i := 0
-	while used < SEATS:
+	while used < n and i < rem.size():
 		res[rem[i][1]] += 1
 		used += 1
 		i += 1
+	return res
+
+
+# v53: смешанная несвязанная система (Россия: 225 по спискам + 225 округов). Округа достаются почти целиком лидеру:
+# доля округов ~ доля голосов в степени k («закон куба»); при управляемых выборах (au_control) степень выше —
+# административный ресурс сильнее всего работает в одномандатных округах.
+func smd_frac() -> float:
+	return float(ELEC.get("smd", 0.0))
+
+
+func smd_power() -> float:
+	return 2.5 + au_control() * 1.5
+
+
+func allocate_seats(shares_in: Array[float]) -> Array[int]:
+	var res: Array[int] = []
+	var nsmd: int = int(round(float(SEATS) * smd_frac()))
+	if nsmd > 0 and nsmd < SEATS:
+		var lst: Array[int] = hare_seats(shares_in, SEATS - nsmd)
+		var kw: float = smd_power()
+		var w: Array[float] = []
+		for x in shares_in:
+			w.append(pow(maxf(float(x), 0.0), kw))
+		var sm: Array[int] = hare_seats(w, nsmd)
+		for p in lst.size():
+			res.append(lst[p] + sm[p])
+	else:
+		res = hare_seats(shares_in, SEATS)
 	var bonus: float = float(mods["seat_bonus"])
 	if bonus > 0.0:
 		var top := 0
@@ -281,18 +445,18 @@ func head_outcome(w: int) -> Array:
 	var t := ""
 	if w == 0:
 		vt = "Ваш кандидат избран"
-		capital = clampf(capital + 8.0, 0.0, 100.0)
+		capital = minf(100.0, capital + 8.0)
 		add_all_support(1.5)
 		t = "%s: [b]%s[/b] — человек вашего лагеря. У вас союзник на посту главы государства. Политкапитал +8." % [tt, nm]
 	elif in_coalition[w]:
 		vt = "Избран кандидат партнёра по коалиции"
-		capital = clampf(capital + 4.0, 0.0, 100.0)
+		capital = minf(100.0, capital + 4.0)
 		add_all_support(0.5)
 		t = "%s: [b]%s[/b] («%s»), партнёр по вашей коалиции. Отношения с главой государства дружественные. Политкапитал +4." % [tt, nm, PARTY_NAMES[w]]
 	else:
 		vt = "Избран оппонент: придётся сотрудничать"
 		vc = C_WARN
-		capital = clampf(capital - 8.0, 0.0, 100.0)
+		capital = minf(100.0, capital - 8.0)
 		add_all_support(-1.0)
 		t = "%s: [b]%s[/b] («%s»), политический оппонент. Правительству придётся работать с неприязненным главой государства. Политкапитал -8." % [tt, nm, PARTY_NAMES[w]]
 	if String(UPPER.get("kind", "")) == "veto":
@@ -327,7 +491,7 @@ func hold_head_direct(reason: String) -> void:
 		for p in n:
 			s1.append(base[p] / tot if p in cands else 0.0)
 	else:
-		s1 = national_shares(true, cands)
+		s1 = au_fraud_shares(national_shares(true, cands))
 	var order: Array = cands.duplicate()
 	order.sort_custom(func(a, b): return s1[a] > s1[b])
 	var runoff: bool = float(s1[order[0]]) <= 0.5
@@ -508,7 +672,7 @@ func hold_head_council(reason: String) -> void:
 				pm = p
 	if got[0] >= 1:
 		vt = "Вы сохранили место в правительстве" if not opp_mode else "Вы снова в правительстве"
-		capital = clampf(capital + 5.0, 0.0, 100.0)
+		capital = minf(100.0, capital + 5.0)
 		vtx = "Федеральное собрание подтвердило состав Федерального совета: у вашей партии %d из %d мест. Политкапитал +5." % [got[0], cn]
 		if opp_mode:
 			opp_to_gov(members, 0, "Федеральное собрание избрало представителей вашей партии в Федеральный совет.")
@@ -573,6 +737,8 @@ func head_campaign_check() -> void:
 
 
 func hold_parliament(reason: String) -> void:
+	if martial_blocks(reason):
+		return
 	ag_exact = true
 	hold_parliament_core(reason)
 	ag_exit_report(false, -1)
@@ -586,9 +752,14 @@ func hold_parliament_core(reason: String) -> void:
 		pres_due = turn + 2
 	crisis_months = 0
 	crisis_offered = false
+	coal_talks = false
 	minority_gov = false
 	techno_until = -1
 	pm_lead = false
+	coal_deal.clear()   # 0.56: после выборов прежнее коалиционное соглашение теряет силу
+	cn_draft.clear()
+	cn_pat.clear()
+	cn_out.clear()
 	extra_mins.clear()
 	impeach_warned = false
 	warned.clear()
@@ -600,6 +771,8 @@ func hold_parliament_core(reason: String) -> void:
 	if sham:
 		shares = sham_shares(shares)
 		reason = "выборы без выбора"
+	elif au_on():
+		shares = au_fraud_shares(shares)
 	var prev: Array = prev_vote
 	if prev.size() != PARTY_NAMES.size():
 		prev = []
@@ -611,6 +784,8 @@ func hold_parliament_core(reason: String) -> void:
 	seats = allocate_seats(shares)
 	log_header("ПАРЛАМЕНТСКИЕ ВЫБОРЫ — %s (%s)" % [date_text(), reason], COL_ELECT)
 	log_line("Система: %s%s, %d мест." % [low1(String(ELEC.get("sys", "пропорциональная"))), (", барьер %.0f%%" % (thr * 100.0)) if thr >= 0.005 else "", SEATS])
+	if not sham:
+		au_after_election()
 	var parts: PackedStringArray = []
 	for p in sorted_parties(shares):
 		if seats[p] > 0:
@@ -666,6 +841,10 @@ func hold_parliament_core(reason: String) -> void:
 		else:
 			opp_msg = "Правительство: %s. Вы остаётесь в оппозиции: %d мест из %d." % [opp_gov_text(), seats[0], SEATS]
 			log_line("[color=%s]%s[/color]" % [COL_WARN, opp_msg])
+	elif coal_manual() and not gov_ok() and coal_feasible():
+		# v53: коалицию собирает игрок — переговоры вместо автоматического «приглашения» партнёров
+		state = "talks"
+		coal_talks_start()
 	elif form_government(true):
 		deadlock = 0
 		# v35: новый мандат — после выборов у правительства есть капитал на первые шаги
@@ -683,6 +862,7 @@ func hold_parliament_core(reason: String) -> void:
 			state = "crisis"
 			capital = maxf(capital, 30.0)   # v35: капитал на переговоры о коалиции
 			log_line("[color=%s][b]Правительственный кризис![/b] В вашей коалиции %d мест из %d. У вас %d месяцев, чтобы найти партнёров, иначе будут назначены новые выборы.[/color]" % [COL_BAD, gov_seats(), SEATS, crisis_limit()])
+	prev_raw = raw.duplicate()   # 0.56: от этих выборов считается предел сдвига до следующих
 	var rep := {"reason": reason, "shares": shares, "raw": raw, "prev": prev, "old_seats": old_seats, "thr": thr, "sham": sham, "state": state,
 		"end": end_msg, "opp": opp_msg, "won": won, "best": best_r, "worst": worst_r}
 	prev_vote = shares.duplicate()
@@ -739,7 +919,7 @@ func party_attitude(p: int) -> float:
 	var att: float = num / den
 	if p == REGIONAL_P:
 		att = 0.5 * att + 0.5 * reg_avg("loy")
-	elif p == 9:
+	elif p == PROTEST_P:
 		att *= 0.7
 	return att
 
@@ -763,7 +943,10 @@ func national_shares(pres: bool, only: Array = []) -> Array[float]:
 		for p in out.size():
 			out[p] += pop_w[ri] * rs[p]
 	if only.is_empty():
-		return apply_competition(out, pres)
+		out = apply_competition(out, pres)
+		if not pres:
+			out = er_apply(out)
+		return out
 	return out
 
 
@@ -796,7 +979,7 @@ func apply_competition(sh: Array[float], pres: bool) -> Array[float]:
 	var cap: float = lerpf(0.55, 0.36, d) + (0.05 if pres else 0.0)
 	var keep: float = pow(1.0 - d, 1.5)
 	var t: float = s0 * (1.0 - fat)
-	if t > cap:
+	if t > cap and d < ER_DEM:
 		t = cap + (t - cap) * keep
 	var excess: float = s0 - t
 	comp_loss = maxf(0.0, excess)
@@ -834,7 +1017,7 @@ func sham_shares(raw: Array[float]) -> Array[float]:
 	out.append(s0)
 	for p in range(1, raw.size()):
 		var w: float = raw[p] / rest if rest > 0.0 else 0.0
-		if p == 9:
+		if p == PROTEST_P:
 			w *= 0.1
 		out.append((1.0 - s0) * w)
 	var tot := 0.0
@@ -843,3 +1026,237 @@ func sham_shares(raw: Array[float]) -> Array[float]:
 	for i in out.size():
 		out[i] = out[i] / tot
 	return out
+
+
+# ============================================================
+#  0.56 (доп. 6/9): РЕАЛИЗМ ВЫБОРОВ — МЯГКИЙ ПОТОЛОК ПАРТИИ И ПРЕДЕЛ СДВИГА ЗА ВЫБОРЫ
+#  Потолок: обычно 35%, в демократии не выше 60%; свой у каждой страны и партии (система, число партий, кризис,
+#  война, харизма, культурное напряжение, новая протестная волна; вниз — низкий барьер, раздробленность,
+#  усталость от власти, регионализм, «санитарный кордон»). Мягкий: чем ближе, тем труднее расти.
+#  Сдвиг от прошлых выборов: обычно до 10 п.п., при потрясениях до 30 п.п. (тоже мягко, через tanh).
+#  В автократиях (индекс демократии ниже ER_DEM) не действует: там работают конкуренция и подтасовки.
+# ============================================================
+const ER_DEM := 0.5
+const ER_CAP0 := 0.35
+const ER_CAP_MAX := 0.60
+const ER_SWING0 := 0.10
+const ER_SWING_MAX := 0.30
+# страны с низкой верностью избирателей (молодые партийные системы, частые новые партии)
+const ER_VOLATILE := ["PL", "CZ", "SK", "SI", "HU", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "EE", "LV", "LT", "MD", "UA", "GR", "IT"]
+
+
+func er_on() -> bool:
+	return democracy_index() >= ER_DEM
+
+
+func er_crisis() -> float:
+	return clampf(-growth / 3.0 + (unemployment - 8.0) / 8.0 + maxf(0.0, inflation - 6.0) / 10.0, 0.0, 1.0)
+
+
+func er_gov(p: int) -> bool:
+	if opp_mode:
+		return (opp_gov.get("members", []) as Array).has(p)
+	return p == 0 or (p < in_coalition.size() and in_coalition[p])
+
+
+func er_gov_years(p: int) -> float:
+	if not er_gov(p):
+		return 0.0
+	if opp_mode:
+		return float(turn - int(opp_gov.get("since", 0))) / 12.0
+	if p == 0:
+		return float(turn) / 12.0 + 2.0
+	return float(turn - int(joined.get(p, 0))) / 12.0
+
+
+# 0.56: архетип партии по исходному номеру (при игре за другую партию слоты 0 и player_orig поменяны местами, PARCH — нет)
+func er_arch(p: int) -> String:
+	var o: int = swap_idx(p, player_orig)
+	return String(PARCH[o]) if o >= 0 and o < PARCH.size() else ""
+
+
+func er_populist(p: int) -> bool:
+	return p == PROTEST_P or er_arch(p) in ["popr", "popl"]
+
+
+# 0.56: правые популисты растут вместе с миграционным и культурным напряжением региона (cut − cut0), протестная партия — вдвое слабее
+func er_mig_mult(ri: int, p: int) -> float:
+	var k := 0.0
+	if er_arch(p) == "popr":
+		k = 0.014
+	elif p == PROTEST_P:
+		k = 0.007
+	if k == 0.0:
+		return 1.0
+	var r: Dictionary = regions[ri]
+	return clampf(1.0 + k * (float(r.get("cut", 0.0)) - float(r.get("cut0", 0.0))), 0.8, 1.7)
+
+
+func er_neff(sh: Array) -> float:
+	var s2 := 0.0
+	for x in sh:
+		s2 += float(x) * float(x)
+	return 1.0 / maxf(0.0001, s2)
+
+
+# потолок партии p: [доля, причины]
+func er_ceiling(p: int, sh: Array) -> Array:
+	var c := ER_CAP0
+	var why: PackedStringArray = []
+	var smd: float = smd_frac()
+	if smd > 0.3:
+		c += 0.10 * smd
+		why.append("мажоритарная система +%.0f" % (10.0 * smd))
+	elif float(mods["threshold"]) < 0.03:
+		c -= 0.04
+		why.append("пропорциональная система с низким барьером −4")
+	var n := er_neff(sh)
+	if n < 3.5:
+		c += minf(0.08, (3.5 - n) * 0.04)
+		why.append("мало крупных партий +%.0f" % (minf(0.08, (3.5 - n) * 0.04) * 100.0))
+	elif n > 6.0:
+		c -= minf(0.04, (n - 6.0) * 0.01)
+		why.append("раздробленный парламент −%.0f" % (minf(0.04, (n - 6.0) * 0.01) * 100.0))
+	var cr := er_crisis()
+	if cr > 0.15 and not er_gov(p):
+		c += 0.07 * cr
+		why.append("экономический кризис +%.0f" % (7.0 * cr))
+	if mil_at_war():
+		if er_gov(p):
+			c += 0.06
+			why.append("война: сплочение вокруг власти +6")
+		else:
+			c += 0.02
+			why.append("война и угроза +2")
+	if p < charisma.size() and float(charisma[p]) > 1.05:
+		c += minf(0.05, (float(charisma[p]) - 1.0) * 0.25)
+		why.append("харизма лидера +%.0f" % (minf(0.05, (float(charisma[p]) - 1.0) * 0.25) * 100.0))
+	var ten: float = clampf(cu_nat_tension() / 60.0, 0.0, 1.0)
+	if ten > 0.15:
+		if er_populist(p):
+			c += 0.06 * ten
+			why.append("миграционное и культурное напряжение +%.0f" % (6.0 * ten))
+		else:
+			c -= 0.02 * ten
+			why.append("поляризация общества −%.0f" % (2.0 * ten))
+	if p < prev_raw.size() and float(prev_raw[p]) < 0.05 and er_populist(p) and cr > 0.3:
+		c += 0.04
+		why.append("новая партия на волне протеста +4")
+	# развал соперника: крупнейшая другая партия потеряла с прошлых выборов 5+ п.п.
+	if prev_raw.size() == sh.size():
+		for q in sh.size():
+			if q != p and float(prev_raw[q]) >= 0.15 and float(prev_raw[q]) - float(sh[q]) >= 0.05:
+				c += 0.03
+				why.append("развал крупного соперника +3")
+				break
+	var gy := er_gov_years(p)
+	if gy > 4.0:
+		c -= minf(0.05, (gy - 4.0) * 0.01)
+		why.append("усталость от власти −%.0f" % (minf(0.05, (gy - 4.0) * 0.01) * 100.0))
+	if p != REGIONAL_P and REGIONAL_P < sh.size() and float(sh[REGIONAL_P]) >= 0.05:
+		c -= 0.03
+		why.append("сильные региональные партии −3")
+	if is_cordon(p):
+		c -= 0.03
+		why.append("«санитарный кордон» −3")
+	# партия, уже набирающая много голосов, имеет запас роста над текущим результатом (избиратели привыкли за неё голосовать)
+	if p < prev_raw.size() and float(prev_raw[p]) > c:
+		c = float(prev_raw[p])
+		why.append("большая устойчивая база: потолок не ниже результата прошлых выборов")
+	return [clampf(c, 0.20, ER_CAP_MAX), why]
+
+
+# предел сдвига партии p от прошлых выборов: [доля, причины]
+func er_swing(p: int) -> Array:
+	var m := ER_SWING0
+	var why: PackedStringArray = []
+	if ER_VOLATILE.has(ccode):
+		m += 0.04
+		why.append("избиратели в стране мало верны партиям +4")
+	var vo: float = float(game_opts.get("volat", 1.0))
+	if absf(vo - 1.0) > 0.01:
+		m *= clampf(vo, 0.5, 2.0)
+		why.append("настройка «изменчивость» ×%.1f" % vo)
+	var cr := er_crisis()
+	if cr > 0.15:
+		m += 0.08 * cr
+		why.append("кризис +%.0f" % (8.0 * cr))
+	if mil_at_war():
+		m += 0.05
+		why.append("война +5")
+	if pact_has(p, "scandal") or ai_pen.has(p):
+		m += 0.04
+		why.append("скандал или атаки +4")
+	if p < prev_raw.size() and float(prev_raw[p]) < 0.03:
+		m += 0.06
+		why.append("новая партия +6")
+	elif p < prev_raw.size() and float(prev_raw[p]) < 0.08:
+		m += 0.02
+		why.append("слабая связь с избирателями +2")
+	if pact_has(p, "attack") or pact_has(p, "praise") or pact_has(p, "bloc"):
+		m += 0.03
+		why.append("кампания, похвала или атака +3")
+	return [clampf(m, 0.06, ER_SWING_MAX), why]
+
+
+func er_apply(sh: Array[float]) -> Array[float]:
+	if not er_on() or sh.size() < 2:
+		return sh
+	if prev_raw.size() != sh.size():
+		# старт игры: стартовые расклады — реальные опросы, их не трогаем; от них считаются предел сдвига и потолок
+		prev_raw = sh.duplicate()
+		return sh
+	var out: Array[float] = []
+	var fixed: Array[bool] = []
+	for p in sh.size():
+		var v: float = sh[p]
+		var moved := false
+		if p != 6:
+			var m: float = float(er_swing(p)[0])
+			var d: float = v - float(prev_raw[p])
+			if absf(d) > m * 0.5:
+				v = maxf(0.0, float(prev_raw[p]) + m * tanh(d / m))
+				moved = true
+			var c: float = float(er_ceiling(p, sh)[0])
+			# мягкий потолок: выше 0,8 c рост затухает; уже набранное на прошлых выборах не режется, а выше потолка расти нельзя
+			var pv: float = float(prev_raw[p])
+			var hi: float = maxf(c, pv)
+			var a: float = minf(hi, maxf(0.8 * c, pv))
+			if v > a:
+				v = a + (hi - a) * (1.0 - exp(-(v - a) / maxf(0.0001, hi - a))) if hi - a > 0.002 else a
+				moved = true
+		out.append(v)
+		fixed.append(moved)
+	# остаток раздаём «свободным» партиям пропорционально их доле (сжатые не трогаем, чтобы не вылезли за предел)
+	var tot := 0.0
+	var free_w := 0.0
+	for p in out.size():
+		tot += out[p]
+		if not fixed[p]:
+			free_w += out[p]
+	var res: float = 1.0 - tot
+	for p in out.size():
+		if free_w > 0.02:
+			if not fixed[p]:
+				out[p] = maxf(0.0, out[p] + res * out[p] / free_w)
+		else:
+			out[p] = out[p] / maxf(0.0001, tot)
+	return out
+
+
+# подсказка к рейтингу партии: почему у неё такой потолок и сдвиг
+func er_tip(p: int) -> String:
+	if not er_on():
+		return "Режим не вполне демократический: потолка и предела сдвига нет, работают конкуренция и административный ресурс."
+	var sh := national_shares(false)
+	var ce := er_ceiling(p, sh)
+	var sw := er_swing(p)
+	var t := "Потолок партии: ≈%.0f%% (обычно 35%%, в демократии не выше 60%%; чем ближе к нему, тем труднее расти)" % (float(ce[0]) * 100.0)
+	if not (ce[1] as PackedStringArray).is_empty():
+		t += "\n  " + "\n  ".join(ce[1] as PackedStringArray)
+	var pv: float = float(prev_raw[p]) * 100.0 if p < prev_raw.size() else 0.0
+	t += "\nСдвиг с прошлых выборов (%.1f%%): до ±%.0f п.п. (обычно 10, при потрясениях до 30)" % [pv, float(sw[0]) * 100.0]
+	if not (sw[1] as PackedStringArray).is_empty():
+		t += "\n  " + "\n  ".join(sw[1] as PackedStringArray)
+	return t
+

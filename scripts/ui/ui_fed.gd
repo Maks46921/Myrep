@@ -130,7 +130,7 @@ func build_fed_windows() -> void:
 	fw_btn_down = fed_btn("Реформа: усилить центр", w.body)
 	fw_btn_down.pressed.connect(on_fed_reform.bind(-1))
 	add_title(w.body, "Выравнивание бюджетов регионов")
-	add_note(w.body, "Богатые регионы делятся с бедными. Сильное выравнивание радует бедных и злит богатых; слабое — наоборот. Менять можно раз в год.")
+	add_note(w.body, "Богатые регионы делятся с бедными. Сильное выравнивание радует бедных и злит богатых; слабое — наоборот. Менять можно раз в год. Общий бюджет на это не тратится; доплаты бедным регионам из бюджета — программа «Выравнивание регионов» во вкладке «Бюджет».")
 	fw_eq_btns.clear()
 	var eqr := HBoxContainer.new()
 	eqr.add_theme_constant_override("separation", 4)
@@ -557,7 +557,7 @@ func update_terr_desk() -> void:
 		tu += " = [b]%s[/b]" % fed_pct(float(uq["p"]))
 		tw_un_rt.text = tu
 		tw_court_btn.disabled = game_over or fed_cd_get("court_" + String(tw_un_cc[tw_un_pick.selected])) > 0
-		tw_un_btn.disabled = not bool(uq["ok"]) or capital < float(uq["cap"]) or game_over
+		tw_un_btn.disabled = not bool(uq["ok"]) or cap_spendable() < float(uq["cap"]) or game_over
 	# --- продажа ---
 	var si := selected_region
 	var buyers: Array = terr_sell_buyers(si) if si >= 0 and si < regions.size() else []
@@ -581,7 +581,7 @@ func update_terr_desk() -> void:
 			ts += " × ваш референдум %s" % fed_pct(float(sq["p_dom"]))
 		ts += " = [b]%s[/b]\n[color=%s]Продажа территории бьёт по рейтингу.[/color]" % [fed_pct(float(sq["p"])), COL_DIM]
 		tw_sell_rt.text = ts
-		tw_sell_btn.disabled = not bool(sq["ok"]) or capital < float(sq["cap"]) or game_over
+		tw_sell_btn.disabled = not bool(sq["ok"]) or cap_spendable() < float(sq["cap"]) or game_over
 	# --- территории ---
 	tw_stat_rt.text = "Приобретено регионов за игру: [b]%d[/b] · продано: [b]%d[/b] · присоединено стран: [b]%d[/b]" % [int(fst["acq"]), int(fst["ceded"]), (fst["merged"] as Array).size()]
 	for ch in tw_terr_box.get_children():

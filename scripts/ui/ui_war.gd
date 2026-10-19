@@ -2,6 +2,7 @@
 # На большой карте: занятые АТЕ, линия фронта, значки соединений; на экране флота — морские пути и эскадры.
 extends "res://scripts/ui/ui_fleet.gd"
 
+const ArmySym := preload("res://scripts/classes/army_view.gd")
 const WAR_C0 := Color(0.32, 0.62, 1.0)       # своя сторона
 const WAR_C1 := Color(1.0, 0.36, 0.30)       # противник
 var war_army_rt: RichTextLabel = null
@@ -46,6 +47,14 @@ func build_war_windows() -> void:
 			mil_mobilize(lv)
 			refresh())
 		war_btn["mob%d" % lv] = b
+	# 0.55.4: военное положение
+	var rm := HBoxContainer.new()
+	w.body.add_child(rm)
+	war_btn["martial"] = fed_btn("Ввести военное положение (4)", rm, "Только на войне или при всеобщей мобилизации. Пока оно действует, выборы не проводятся, роспуск парламента и поправки к конституции запрещены. После отмены отложенные выборы пройдут через 6 месяцев.")
+	war_btn["martial"].pressed.connect(func() -> void:
+		war_msg = martial_check(not martial)
+		martial_set(not martial)
+		refresh())
 	add_title(w.body, "Соединения (щелчок — выбрать)")
 	war_list = VBoxContainer.new()
 	war_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -93,15 +102,65 @@ func build_war_windows() -> void:
 	# v38: переговоры и реакция мира
 	w = new_window("war_talk", "Переговоры и мир", 13, Rect2(0.22, 0.36, 0.19, 0.64))
 	war_talk_rt = make_rt(w.body)
-	add_title(w.body, "Требования")
-	for id in TALK_IDS:
+	# v50: условия мира — на «листе» договора, с названием
+	var sheet := PanelContainer.new()
+	var psb := StyleBoxFlat.new()
+	psb.bg_color = Color(0.94, 0.91, 0.83)
+	psb.border_color = Color(0.55, 0.45, 0.30)
+	psb.set_border_width_all(2)
+	psb.set_corner_radius_all(4)
+	psb.content_margin_left = 12.0
+	psb.content_margin_right = 12.0
+	psb.content_margin_top = 8.0
+	psb.content_margin_bottom = 8.0
+	sheet.add_theme_stylebox_override("panel", psb)
+	w.body.add_child(sheet)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 3)
+	sheet.add_child(sv)
+	var sh := Label.new()
+	sh.text = "МИРНЫЙ ДОГОВОР"
+	sh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sh.add_theme_font_size_override("font_size", 17)
+	sh.add_theme_color_override("font_color", Color(0.16, 0.14, 0.12))
+	sv.add_child(sh)
+	var pn := LineEdit.new()
+	pn.placeholder_text = "Название (необязательно)"
+	pn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pn.add_theme_color_override("font_color", Color(0.16, 0.14, 0.12))
+	pn.add_theme_color_override("font_placeholder_color", Color(0.45, 0.40, 0.33))
+	var lsb := StyleBoxFlat.new()
+	lsb.bg_color = Color(1, 1, 1, 0.0)
+	lsb.border_color = Color(0.45, 0.40, 0.33)
+	lsb.border_width_bottom = 1
+	pn.add_theme_stylebox_override("normal", lsb)
+	pn.add_theme_stylebox_override("focus", lsb)
+	pn.text_changed.connect(func(t: String) -> void: peace_name = t)
+	sv.add_child(pn)
+	var sl := Label.new()
+	sl.text = "Статьи (требования к противнику):"
+	sl.add_theme_font_size_override("font_size", 12)
+	sl.add_theme_color_override("font_color", Color(0.40, 0.36, 0.30))
+	sv.add_child(sl)
+	var ink := Color(0.16, 0.14, 0.12)
+	for id in TALK_IDS + ["-"] + TALK_GIVE:
+		if id == "-":
+			var gl := Label.new()
+			gl.text = "Наши уступки (облегчают согласие):"
+			gl.add_theme_font_size_override("font_size", 12)
+			gl.add_theme_color_override("font_color", Color(0.40, 0.36, 0.30))
+			gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			gl.custom_minimum_size = Vector2(40.0, 0.0)
+			sv.add_child(gl)
+			continue
 		if id == "repar":
 			var rr := HBoxContainer.new()
-			w.body.add_child(rr)
+			sv.add_child(rr)
 			var lb := Label.new()
 			lb.text = "Репарации:"
+			lb.add_theme_color_override("font_color", ink)
 			rr.add_child(lb)
-			war_repar = fed_opt(rr, ["нет", "1% ВВП", "2% ВВП", "3% ВВП", "5% ВВП"], String(TALK_INFO["repar"][1]))
+			war_repar = fed_opt(rr, ["нет", "1% ВВП", "2% ВВП", "3% ВВП", "5% ВВП", "8% ВВП"], String(TALK_INFO["repar"][1]))
 			war_repar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			war_repar.item_selected.connect(func(i: int) -> void:
 				talk_sel()["repar"] = i
@@ -117,7 +176,16 @@ func build_war_windows() -> void:
 		cb.toggled.connect(func(on: bool) -> void:
 			talk_sel()[id] = on
 			refresh())
-		w.body.add_child(cb)
+		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+			var em := StyleBoxFlat.new()
+			em.bg_color = Color(0.55, 0.45, 0.30, 0.10) if st.begins_with("hover") else Color(0, 0, 0, 0)
+			em.content_margin_left = 2.0
+			cb.add_theme_stylebox_override(st, em)
+		cb.add_theme_color_override("font_color", ink)
+		cb.add_theme_color_override("font_hover_color", Color(0.05, 0.05, 0.05))
+		cb.add_theme_color_override("font_pressed_color", Color(0.10, 0.25, 0.12))
+		cb.add_theme_color_override("font_hover_pressed_color", Color(0.10, 0.25, 0.12))
+		sv.add_child(cb)
 		war_talk_chk[id] = cb
 	var t0 := HBoxContainer.new()
 	w.body.add_child(t0)
@@ -184,7 +252,7 @@ func update_war_talk() -> void:
 		cb.disabled = why != ""
 		cb.text = "%s (%.0f)" % [String(TALK_INFO[id][0]), talk_cost(String(id))]
 		cb.tooltip_text = String(TALK_INFO[id][1]) + ("\n" + why if why != "" else "")
-	war_repar.select(clampi(int(sel.get("repar", 0)), 0, 4))
+	war_repar.select(clampi(int(sel.get("repar", 0)), 0, 5))
 	for k in ["white", "capit", "full"]:
 		var mq := mil_peace_quote(k)
 		var b5: Button = war_btn["p_" + k]
@@ -196,7 +264,7 @@ func update_war_talk() -> void:
 	(war_btn["cf"] as Button).disabled = talk_ceasefire_check() != ""
 	(war_btn["cf"] as Button).tooltip_text = String((war_btn["cf"] as Button).tooltip_text).split("\n")[0] + ("\n" + talk_ceasefire_check() if talk_ceasefire_check() != "" else "")
 	(war_btn["cf_break"] as Button).visible = cf_on
-	(war_btn["med"] as Button).disabled = String(w.get("med", "")) != "" or capital < 3.0
+	(war_btn["med"] as Button).disabled = String(w.get("med", "")) != "" or cap_spendable() < 3.0
 	war_intl_rt.text = war_intl_text()
 
 
@@ -229,6 +297,10 @@ func update_war_windows() -> void:
 		t += "Резервисты прибудут через [b]%d[/b] сут. (%.0f тыс.)\n" % [int(mil["mob_t"]), float(mil["mob_k"])]
 	if mil_mob_k() > 0.0:
 		t += "Мобилизовано %.0f тыс.: рост %+.2f п.п., безработица %+.2f п.п.\n" % [mil_mob_k(), mil_mob_g(), mil_unemp()]
+	if ar_on():
+		t += "Боеприпасы: [b]%.1f[/b] мес. боёв%s · готовность %.0f%% · оснащение ×%.2f\n" % [float(ar["ammo"]), (" [color=%s](снарядный голод!)[/color]" % COL_BAD) if float(ar["ammo"]) < 0.3 else "", ar_rd(), float(ar["eq"])]
+		if mil_at_war():
+			t += "Боевой дух: [b]%.0f[/b] (у противника %.0f) · воздух ×%.2f\n" % [ar_mor(0), ar_mor(1), ar_air_mult(0)]
 	if war_msg != "":
 		t += "[color=%s]%s[/color]" % [COL_WARN, war_msg]
 	war_army_rt.text = t
@@ -238,6 +310,9 @@ func update_war_windows() -> void:
 		var b: Button = war_btn["mob%d" % lv]
 		b.set_pressed_no_signal(int(mil["mob"]) == lv)
 		b.disabled = lv != int(mil["mob"]) and mil_mob_check(lv) != ""
+	var mb: Button = war_btn["martial"]
+	mb.text = "Отменить военное положение" if martial else "Ввести военное положение (4)"
+	mb.disabled = martial_check(not martial) != ""
 	# список соединений
 	var mine := mil_units_of(ccode)
 	var key := ""
@@ -254,6 +329,7 @@ func update_war_windows() -> void:
 			b2.toggle_mode = true
 			b2.focus_mode = Control.FOCUS_NONE
 			b2.clip_text = true
+			b2.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			b2.custom_minimum_size = Vector2(40.0, 0.0)
 			b2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			b2.set_meta("id", int(f["id"]))
@@ -267,12 +343,15 @@ func update_war_windows() -> void:
 		var where := "в море" if int(f2["a"]) < 0 else ate_name(int(f2["a"]))
 		var st := "бой" if int(f2["fight"]) >= 0 else ("идёт" if not (f2["path"] as Array).is_empty() else ("наступает" if String(f2["mode"]) == "auto" else ("обороняет" if String(f2["mode"]) == "def" else "стоит")))
 		(b3 as Button).text = "%s · %.1f тыс. · %s · %s" % [String(f2["nm"]), float(f2["str"]), where, st]
+		(b3 as Button).tooltip_text = (b3 as Button).text
 		(b3 as Button).set_pressed_no_signal(int(f2["id"]) == sel)
 	var fs := mil_unit(sel)
 	if fs.is_empty() or String(fs["cc"]) != ccode:
 		war_unit_rt.text = "Не выбрано. Щёлкните по соединению в списке или по его значку на карте."
 	else:
 		var u := "[b]%s[/b]: %.1f из %.1f тыс., боеспособность %.0f%%, выучка %.2f\n" % [String(fs["nm"]), float(fs["str"]), float(fs["max"]), float(fs["org"]) * 100.0, float(fs["q"])]
+		var tpi: Dictionary = ar_info(ar_tp(fs))
+		u += "Род войск: [b]%s[/b] — атака ×%.2f, оборона ×%.2f. %s\n" % [String(tpi["name"]), ar_att(fs), ar_def(fs, maxi(0, int(fs["a"]))), String(tpi["d"])]
 		u += "Где: %s" % ("в море, высадка через %d сут." % int(fs["sea"].get("days", 0)) if int(fs["a"]) < 0 else ate_name(int(fs["a"])))
 		if not (fs["path"] as Array).is_empty():
 			u += " → %s (%d АТЕ)" % [ate_name(int(fs["path"][-1])), (fs["path"] as Array).size()]
@@ -302,7 +381,7 @@ func update_war_windows() -> void:
 			var c2 := String(war_tgt_ids[ci])
 			var b4: Array = MIL_BASE.get(c2, [0.0, 0.0, 1.0])
 			o += "\n[b]%s[/b]: армия ≈ %.0f тыс. (боевых %.0f), резерв %.0f тыс., выучка %.2f. Ваша боевая армия %.0f тыс.\n" % [String(WORLD[c2]["name"]), float(b4[0]), float(b4[0]) * MIL_COMBAT * float((mil["loss"] as Dictionary).get(c2, 1.0)), float(b4[1]), float(b4[2]), mil_total(ccode)]
-			o += "Отношения: %.0f. %s%s\n" % [fed_rel(c2), "Общая граница по суше." if mil_land_neighbor(c2) else "Только по морю (нужен десант).", " Член НАТО." if c2 in MIL_NATO else ""]
+			o += "Отношения: %.0f. %s%s\n" % [fed_rel(c2), "Общая граница по суше." if mil_land_neighbor(c2) else "Только по морю (нужен десант).", " Член НАТО." if mil_is_nato(c2) else ""]
 			var al := mil_allies_for(c2, ccode)
 			if not al.is_empty():
 				var nms: PackedStringArray = []
@@ -470,10 +549,17 @@ func draw_war_tokens(c: Control, s: float, off: Vector2, font: Font) -> void:
 		var bh := 16.0
 		var rr := Rect2(p - Vector2(bw, bh) * 0.5, Vector2(bw, bh))
 		c.draw_rect(rr.grow(1.5), Color(0, 0, 0, 0.85))
-		c.draw_rect(rr, col.darkened(0.25))
-		# знак пехоты: крест в рамке
-		c.draw_line(rr.position + Vector2(2, 2), rr.end - Vector2(2, 2), Color(1, 1, 1, 0.55), 1.0)
-		c.draw_line(Vector2(rr.position.x + 2, rr.end.y - 2), Vector2(rr.end.x - 2, rr.position.y + 2), Color(1, 1, 1, 0.55), 1.0)
+		# v48_1: знак рода войск (НАТО): преобладающий по численности в этой АТЕ
+		var by_tp := {}
+		for f in lst:
+			by_tp[String(f.get("tp", "inf"))] = float(by_tp.get(String(f.get("tp", "inf")), 0.0)) + float(f["str"])
+		var tp0 := "inf"
+		var tv := -1.0
+		for k in by_tp:
+			if float(by_tp[k]) > tv:
+				tv = float(by_tp[k])
+				tp0 = String(k)
+		ArmySym.draw_symbol(c, rr, tp0, col.darkened(0.25), Color(1, 1, 1, 0.55))
 		var txt := "%.0f" % tot if tot >= 1.0 else "<1"
 		if lst.size() > 1:
 			txt = "%d×%s" % [lst.size(), txt]

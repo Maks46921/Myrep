@@ -14,9 +14,20 @@ func coal_members() -> Array:
 	return out
 
 
-# влияние в коалиции: доля мест партии среди мест коалиции
+# влияние в коалиции: v50 — по числу министерских портфелей (65%) и мест (35%); раньше только по местам
 func coal_share(p: int) -> float:
-	return float(seats[p]) / float(maxi(1, gov_seats()))
+	var seat_sh: float = float(seats[p]) / float(maxi(1, gov_seats()))
+	var held := 0
+	var tot := 0
+	for m in ministries.size():
+		var h: int = int(ministries[m])
+		if h >= 0 and h < in_coalition.size() and in_coalition[h]:
+			tot += 1
+			if h == p:
+				held += 1
+	if tot == 0:
+		return seat_sh
+	return 0.35 * seat_sh + 0.65 * float(held) / float(tot)
 
 
 func council_on() -> bool:
@@ -211,6 +222,25 @@ func council_invite_vote(p: int) -> Dictionary:
 	return {"ok": yes > 0.5, "yes": yes, "no": no_names}
 
 
+# v50: исключение партнёра тоже решает совет коалиции (голосуют остальные партнёры по своему влиянию)
+func council_expel_vote(p: int) -> Dictionary:
+	var yes := 0.0
+	var tot := 0.0
+	var no_names: PackedStringArray = []
+	for q in coal_members():
+		if q == p:
+			continue
+		var w := coal_share(q)
+		tot += w
+		var ok: bool = q == 0 or rel(q, p) < 48.0 or float(satis.get(q, 60.0)) < 40.0
+		if ok:
+			yes += w
+		else:
+			no_names.append(PARTY_NAMES[q])
+	var sh: float = yes / maxf(tot, 1e-6)
+	return {"ok": sh > 0.5, "yes": sh, "no": no_names}
+
+
 # ---------- выход из кризиса ----------
 # лучшая партия для правительства меньшинства (её терпимость снимает угрозу вотума)
 func crisis_tol_pick() -> int:
@@ -301,6 +331,7 @@ func resolve_crisis(opt: Dictionary) -> void:
 			return
 	crisis_months = 0
 	crisis_offered = false
+	coal_talks = false
 	deadlock = 0
 	recompute_mods()
 

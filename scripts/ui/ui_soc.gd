@@ -1,13 +1,27 @@
 # Интерфейс: «Религия и миграция» (desk 11) и «Влияние и зависимость» (desk 10).
 extends "res://scripts/ui/ui_fed.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func rm_dirty_all() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 var sw_rel_rt: RichTextLabel
 var sw_pol_rt: RichTextLabel
 var sw_mig_rt: RichTextLabel
 var sw_reg_rt: RichTextLabel
 var sw_btn: Dictionary = {}
 var xw_list_rt: RichTextLabel
+const XW_SORTS := ["Общая зависимость", "Мы зависим", "Они зависят", "Влияние", "Отношения", "Название"]
+var xw_sort := 0
+var xw_sort_desc := true
 var xw_info_rt: RichTextLabel
+var xw_fa_rt: RichTextLabel   # v47_1: «как к вам относятся» — под кнопками, чтобы они не уезжали
 var xw_btn: Dictionary = {}
 var sw_chart: Control
 var sw_regchart: Control
@@ -25,13 +39,13 @@ func soc_btn(key: String, text: String, parent: Control, cb: Callable, tip: Stri
 
 func build_soc_windows() -> void:
 	# ---- desk 11: религия и миграция ----
-	var w: FloatWindow = new_window("sw_rel", "Религиозный состав", 11, Rect2(0.0, 0.0, 0.36, 0.60))
+	var w: FloatWindow = new_window("sw_rel", "Религиозный состав", 11, Rect2(0.0, 0.0, 0.36, 0.38))
 	sw_chart = FaithChart.new()
 	w.body.add_child(sw_chart)
 	sw_rel_rt = make_rt(w.body)
 	add_note(w.body, "У каждого агента своя вера. Влияние зависит от того, насколько доля конфессии выше или ниже её обычного уровня в стране: чем больше её сторонников, тем сильнее эффект. Данные приблизительные.", true)
 
-	w = new_window("sw_pol", "Религия и государство", 11, Rect2(0.36, 0.0, 0.34, 0.60))
+	w = new_window("sw_pol", "Религия и государство", 11, Rect2(0.36, 0.0, 0.34, 0.38))
 	sw_pol_rt = make_rt(w.body)
 	var r1 := HBoxContainer.new()
 	w.body.add_child(r1)
@@ -43,7 +57,7 @@ func build_soc_windows() -> void:
 	soc_btn("fund+", "Больше поддержки общин (6)", r2, on_soc_fund.bind(1))
 	soc_btn("dial", "Межконфессиональный совет", w.body, on_soc_dialog, "Снижает напряжённость между общинами.")
 
-	w = new_window("sw_mig", "Миграционная политика", 11, Rect2(0.0, 0.60, 0.36, 0.40))
+	w = new_window("sw_mig", "Миграционная политика", 11, Rect2(0.0, 0.38, 0.36, 0.40))
 	sw_mig_rt = make_rt(w.body)
 	var r3 := HBoxContainer.new()
 	w.body.add_child(r3)
@@ -62,14 +76,41 @@ func build_soc_windows() -> void:
 	sw_spk_n = Spark.new()
 	w.body.add_child(sw_spk_n)
 
-	w = new_window("sw_reg", "Регионы: вера и напряжённость", 11, Rect2(0.36, 0.60, 0.34, 0.40))
+	w = new_window("sw_reg", "Регионы: вера и напряжённость", 11, Rect2(0.36, 0.38, 0.34, 0.40))
 	sw_regchart = FaithChart.new()
 	w.body.add_child(sw_regchart)
 	sw_reg_rt = make_rt(w.body)
 	sw_reg_rt.visible = false
 
 	# ---- desk 10: влияние и зависимость ----
-	w = new_window("xw_list", "Партнёры и зависимость", 10, Rect2(0.0, 0.0, 0.40, 1.0))
+	w = new_window("xw_list", "Партнёры и зависимость", 10, Rect2(0.0, 0.0, 0.40, 0.66))
+	# v52: сортировка списка партнёров
+	var sh := HFlowContainer.new()
+	sh.add_theme_constant_override("h_separation", 4)
+	sh.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(sh)
+	var sl := Label.new()
+	sl.text = "Сортировать:"
+	sl.add_theme_font_size_override("font_size", 12)
+	sl.add_theme_color_override("font_color", C_DIM)
+	sh.add_child(sl)
+	var sg := ButtonGroup.new()
+	for k in XW_SORTS.size():
+		var sb := Button.new()
+		sb.theme_type_variation = "SmallButton"
+		sb.text = String(XW_SORTS[k])
+		sb.toggle_mode = true
+		sb.button_group = sg
+		sb.focus_mode = Control.FOCUS_NONE
+		sb.set_pressed_no_signal(k == 0)
+		sb.pressed.connect(func() -> void:
+			if xw_sort == k:
+				xw_sort_desc = not xw_sort_desc
+			else:
+				xw_sort = k
+				xw_sort_desc = k != 5
+			refresh())
+		sh.add_child(sb)
 	xw_chart = DepChart.new()
 	xw_chart.picked.connect(on_ex_meta)
 	w.body.add_child(xw_chart)
@@ -77,7 +118,7 @@ func build_soc_windows() -> void:
 	xw_list_rt.visible = false
 	add_note(w.body, "Зависимость — доля торговли, энергии и долга в ВВП. «Мы зависим» — насколько ваша страна зависит от партнёра, «Они зависят» — насколько партнёр зависит от вас. Щёлкните по стране, чтобы действовать.", true)
 
-	w = new_window("xw_info", "Действия с выбранной страной", 10, Rect2(0.40, 0.0, 0.30, 1.0))
+	w = new_window("xw_info", "Действия с выбранной страной", 10, Rect2(0.40, 0.0, 0.30, 0.66))
 	xw_info_rt = make_rt(w.body)
 	var r6 := HBoxContainer.new()
 	w.body.add_child(r6)
@@ -91,7 +132,7 @@ func build_soc_windows() -> void:
 	xw_btn["tar-"].pressed.connect(on_ex_tar.bind(-1))
 	xw_btn["tar+"] = fed_btn("Пошлины + (6)", r7, "Защищают рабочих, бьют по бизнесу и отношениям; партнёр может ответить.")
 	xw_btn["tar+"].pressed.connect(on_ex_tar.bind(1))
-	xw_btn["aid"] = fed_btn("Помощь и инвестиции (3)", w.body, "0,1% ВВП в долг: растёт влияние на страну.")
+	xw_btn["aid"] = fed_btn("Помощь и инвестиции (3)", w.body, "0,1% ВВП из резерва бюджета на разовые меры: растёт влияние на страну.")
 	xw_btn["aid"].pressed.connect(on_ex_aid)
 	var r8 := HBoxContainer.new()
 	w.body.add_child(r8)
@@ -105,6 +146,7 @@ func build_soc_windows() -> void:
 	xw_btn["tariff"].pressed.connect(on_ex_favor.bind("tariff"))
 	xw_spk = Spark.new()
 	w.body.add_child(xw_spk)
+	xw_fa_rt = make_rt(w.body)
 
 
 func on_soc_sec(d: int) -> void:
@@ -121,7 +163,9 @@ func on_soc_sel(d: int) -> void:
 	soc_set_sel(d)
 func on_ex_meta(meta: Variant) -> void:
 	ex_sel = String(meta)
+	rm_dirty_all()
 	update_soc_windows()
+	update_realm_windows()
 func on_ex_deal(d: int) -> void:
 	if ex_sel != "": ex_deal_set(ex_sel, d)
 func on_ex_tar(d: int) -> void:
@@ -242,8 +286,21 @@ func update_ex_desk() -> void:
 	var t := "[table=6][cell][color=%s]Страна[/color][/cell][cell][color=%s] Мы зависим[/color][/cell][cell][color=%s] Они зависят[/color][/cell][cell][color=%s] Влияние[/color][/cell][cell][color=%s] Отнош.[/color][/cell][cell][color=%s] Пошлины/ответ[/color][/cell]" % [COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM, COL_DIM]
 	var rows: Array = []
 	for c in ps:
-		rows.append([c, float(ex_dep(c)["out"]) + float(ex_dep(c)["in"])])
-	rows.sort_custom(func(a, b): return float(a[1]) > float(b[1]))
+		var dd: Dictionary = ex_dep(c)
+		var key: Variant = 0.0
+		match xw_sort:
+			0: key = float(dd["out"]) + float(dd["in"])
+			1: key = float(dd["out"])
+			2: key = float(dd["in"])
+			3: key = ex_leverage(c)
+			4: key = fed_rel(c)
+			5: key = String(WORLD[c]["name"])
+		rows.append([c, key])
+	var desc: bool = xw_sort_desc
+	rows.sort_custom(func(a, b):
+		if a[1] is String:
+			return (String(a[1]) < String(b[1])) != desc
+		return (float(a[1]) > float(b[1])) if desc else (float(a[1]) < float(b[1])))
 	for rw in rows:
 		var c: String = rw[0]
 		var d: Dictionary = ex_dep(c)
@@ -266,6 +323,7 @@ func update_ex_desk() -> void:
 	xw_spk.queue_redraw()
 	if ex_sel == "":
 		xw_info_rt.text = "Нет партнёров."
+		xw_fa_rt.text = ""
 		return
 	var c2: String = ex_sel
 	var d2: Dictionary = ex_dep(c2)
@@ -280,6 +338,7 @@ func update_ex_desk() -> void:
 	s += "Соглашение: %s · пошлины: %s · ответ партнёра: %s\n" % [EX_DEAL[int(p2["deal"])], EX_TAR[int(p2["tar"])], EX_TAR[int(p2["ret"])]]
 	s += "[color=%s]Чем выше наше влияние, тем легче просить об услугах; чем выше их влияние на нас, тем сильнее они могут давить (пошлины, ставки, энергия).[/color]" % COL_DIM
 	xw_info_rt.text = s
+	xw_fa_rt.text = fa_explain(ex_sel)
 	var off: bool = game_over
 	xw_btn["deal-"].disabled = off or int(p2["deal"]) <= 0 or ex_cd_get(c2, "deal") > 0
 	xw_btn["deal+"].disabled = off or int(p2["deal"]) >= 3 or ex_cd_get(c2, "deal") > 0

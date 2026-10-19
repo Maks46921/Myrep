@@ -247,15 +247,30 @@ func _init():
 		if isl >= 0:
 			var why2: String = m.mil_order_move(int(fz["id"]), isl)
 			check(why2 == "", "переброска на остров: " + why2)
-			play_days(m, 25)
+			# дальние рейсы (у России — Северным морским путём) идут дольше: ждём до 150 суток
+			for k2 in 15:
+				play_days(m, 10)
+				if int(fz["a"]) == isl:
+					break
 			check(int(fz["a"]) == isl, "соединение доставлено на остров %s (game_over %s, sea %s, a %d)" % [m.ate_name(isl), m.game_over, fz["sea"], int(fz["a"])])
 			print("переброска на ", m.ate_name(isl), ": ", int(fz["a"]) == isl)
 	# нападение ИИ: плохие отношения и слабая армия
 	m.game_opts["milev"] = 1
 	var att := ""
+	# v49: демократии нападают редко — берём наименее демократичного соседа; на члена НАТО чужой не нападёт (статья 5),
+	# на Беларусь — только её покровитель
+	var nato_v: bool = m.mil_is_nato(cc)
+	var pat_v: String = String(m.MIL_PATRON.get(cc, ""))
 	for c in m.mil_targets():
+		if nato_v and not m.mil_is_nato(String(c)):
+			continue
+		if pat_v != "" and String(c) != pat_v:
+			continue
+		# сильнее нас хотя бы в 1,4 раза (своя сила в расчёте ИИ не меньше 1)
+		if m.ar_deterred(String(c)) or m.mil_country_power(String(c)) < 2.0:
+			continue
 		if m.mil_land_neighbor(c) and int((m.mil["truce"] as Dictionary).get(c, 0)) == 0 and m.wsim.has(c):
-			if att == "" or m.mil_country_power(c) > m.mil_country_power(att):
+			if att == "" or float(m.MIL_DEMO.get(c, 0.5)) < float(m.MIL_DEMO.get(att, 0.5)):
 				att = String(c)
 	if att != "" and not m.mil_at_war():
 		if m.dip.has(att):
@@ -265,12 +280,12 @@ func _init():
 		for f in m.mil_units_of(cc):
 			f["str"] = 0.05
 		m.turn = maxi(m.turn, 13)
-		for k in 800:
+		for k in 10000:
 			if m.election_open: m.election_continue()
 			if not m.current_event.is_empty(): m.choose(0)
 			m.mil_ai_declare()
 			if m.mil_at_war(): break
-		check(m.mil_at_war() and m.mil_side(String(m.mil["war"]["lead"])) == 1 if m.mil_at_war() else false, "ИИ объявил войну (%s): opp %s, rel %.0f, сила %.1f / %.1f, перемирие %s, событие %s, выборы %s, сосед %s, war %s" % [att, m.opp_mode, m.fed_rel(att), m.mil_country_power(att), m.mil_country_power(cc), m.mil["truce"], String(m.current_event.get("t", "")).left(80), m.election_open, m.mil_land_neighbor(att), m.mil_side(att)])
+		check(m.mil_at_war() and m.mil_side(String(m.mil["war"]["lead"])) == 1 if m.mil_at_war() else false, "ИИ объявил войну (%s): opp %s, rel %.0f, сила %.1f / %.1f, перемирие %s, событие %s, выборы %s, сосед %s, war %s, сдерживание %s, НАТО %s/%s, ход %d" % [att, m.opp_mode, m.fed_rel(att), m.mil_country_power(att), m.mil_country_power(cc), m.mil["truce"], String(m.current_event.get("t", "")).left(80), m.election_open, m.mil_land_neighbor(att), m.mil_side(att), m.ar_deterred(att), m.mil_is_nato(cc), m.mil_is_nato(att), m.turn])
 		if m.mil_at_war():
 			check(not m.current_event.is_empty() and String(m.current_event.get("special", "")) == "war", "событие о нападении")
 			m.choose(1)

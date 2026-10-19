@@ -86,7 +86,7 @@ func build_law_windows() -> void:
 		law_prog.append([pl, pb, pv])
 	law_effects_rt = make_rt(w.body)
 
-	w = new_window("law_detail", "Закон и его варианты", 3, Rect2(0.22, 0.0, 0.31, 1.0))
+	w = new_window("law_detail", "Закон и его варианты", 3, Rect2(0.22, 0.0, 0.26, 1.0))
 	law_detail_head = make_rt(w.body)
 	build_law_slider(w.body)
 	law_cards.clear()
@@ -127,7 +127,7 @@ func build_law_windows() -> void:
 		vb.add_child(btn)
 		law_cards.append({"panel": panel, "bar": bar, "title": title, "badge": badge, "desc": desc, "fx": fx, "vote": vote, "btn": btn})
 
-	w = new_window("law_votes", "Голосование", 3, Rect2(0.53, 0.0, 0.175, 0.46))
+	w = new_window("law_votes", "Голосование", 3, Rect2(0.48, 0.0, 0.222, 0.28))
 	lv_head = make_rt(w.body)
 	lv_bar = StatBar.new()
 	lv_bar.custom_minimum_size = Vector2(40.0, 16.0)
@@ -207,7 +207,7 @@ func first_other_variant(tid: String) -> int:
 		return cur_idx(tid)
 	var n: int = (law_index[tid]["v"] as Array).size()
 	var cur := cur_idx(tid)
-	for i in range(1, n):
+	for i in range(0, n):
 		if i != cur:
 			return i
 	return 0
@@ -234,6 +234,10 @@ func update_law_windows() -> void:
 	if law_list_box == null:
 		return
 	update_bill_window()
+	# v55_3: тема по умолчанию («Барьер») может быть убрана у страны (DE_REMOVE у Франции)
+	if not law_index.has(sel_topic) and not LAW_TOPICS.is_empty():
+		sel_topic = String(LAW_TOPICS[0]["id"])
+		sel_variant = first_other_variant(sel_topic)
 	var topic: Dictionary = law_index[sel_topic]
 	if int(topic["cat"]) != law_cat:
 		for t in LAW_TOPICS:
@@ -264,7 +268,7 @@ func update_law_windows() -> void:
 		var vis: bool = int(t["cat"]) == law_cat or law_query != ""
 		if law_query != "" and String(t["name"]).to_lower().find(law_query) < 0:
 			vis = false
-		if law_filter == 1 and cur == 0:
+		if law_filter == 1 and cur == law_start_idx(id):
 			vis = false
 		elif law_filter == 2 and not bool(t.get("fund", false)):
 			vis = false
@@ -283,7 +287,7 @@ func update_law_windows() -> void:
 			tag += "◆ "
 		if dem.has(id):
 			tag += "★ "
-		btn.text = "%s%s\n%s" % [tag, t["name"], line2]
+		btn.text = "      %s%s\n      %s" % [tag, t["name"], line2]
 		btn.tooltip_text = ("◆ фундаментальный закон (две трети голосов)\n" if bool(t.get("fund", false)) else "") + (("★ требуют партии: %s" % ", ".join(PackedStringArray(dem[id]))) if dem.has(id) else "")
 		btn.set_pressed_no_signal(id == sel_topic)
 		if cur > 0:
@@ -377,15 +381,21 @@ func update_law_votes() -> void:
 		var vl: Label = row["verdict"]
 		if has:
 			var it: Array = verdicts[p]
+			# v51: фракция голосует не единогласно — показываем ожидаемых отступников
+			var reb: int = 0
+			if it.size() > 5:
+				reb = (int(it[4]) + int(it[5])) if bool(it[2]) else (int(it[3]) + int(it[5]))
+			var tail: String = (" (−%d)" % reb) if reb > 0 else ""
 			if bool(it[2]):
-				vl.text = "ЗА"
+				vl.text = "ЗА" + tail
 				vl.add_theme_color_override("font_color", C_GOOD)
 			elif float(it[1]) >= -4.5:
-				vl.text = "колеблется"
+				vl.text = "колеблется" + tail
 				vl.add_theme_color_override("font_color", C_WARN)
 			else:
-				vl.text = "ПРОТИВ"
+				vl.text = "ПРОТИВ" + tail
 				vl.add_theme_color_override("font_color", C_BAD)
+			vl.tooltip_text = ("Ожидается: за %d, против %d, воздержатся %d. Часть депутатов может нарушить дисциплину; итог голосования случаен в пределах нескольких голосов." % [int(it[3]), int(it[4]), int(it[5])]) if it.size() > 5 else ""
 	var sw := {} if ok else variant_swing(tid, idx)
 	lv_neg.visible = not sw.is_empty()
 	if lv_neg.visible:
@@ -393,7 +403,7 @@ func update_law_votes() -> void:
 		for p in sw["parties"]:
 			names.append(PARTY_NAMES[p])
 		lv_neg.text = "Договориться: %s (капитал %.0f + закон %.0f)" % [", ".join(names), sw["cost"], law_cost(tid, idx)]
-		lv_neg.disabled = game_over or int(law_cd.get(tid, 0)) > 0 or capital < float(sw["cost"]) + law_cost(tid, idx)
+		lv_neg.disabled = game_over or int(law_cd.get(tid, 0)) > 0 or cap_spendable() < float(sw["cost"]) + law_cost(tid, idx)
 
 
 func build_law_slider(parent: Control) -> void:
@@ -495,6 +505,42 @@ func build_law_list(tgrp: ButtonGroup) -> void:
 				b.pressed.connect(on_topic_pressed.bind(t["id"]))
 				law_list_box.add_child(b)
 				law_topic_buttons[t["id"]] = b
+				# v50: значок закона
+				var ic: Control = Ico.make(law_icon(t), Color(LAW_CAT_COLORS[c]).lightened(0.15), 16.0)
+				ic.anchor_top = 0.5
+				ic.anchor_bottom = 0.5
+				ic.offset_left = 7.0
+				ic.offset_right = 23.0
+				ic.offset_top = -8.0
+				ic.offset_bottom = 8.0
+				ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				b.add_child(ic)
+
+
+# v50: значок закона — по ключевым словам названия и кода, иначе по сфере
+const LAW_ICON_KEYS := [
+	["налог|tax|ндс|vat|акциз", "coin"], ["пенси|pens", "person"], ["здрав|health|мед|больн|аборт|эвтан", "people"],
+	["образ|школ|edu|универ|наук", "flask"], ["арми|оборон|воен|призыв|army|draft|nato|нато", "shield"],
+	["полиц|police|безопас|оружи|gun|тюрьм|наказ|смерт", "shield"], ["сми|медиа|media|пресс|интернет|цензур", "scroll"],
+	["выбор|elect|голос|референд|партий|vote", "ballot"], ["суд|court|конституц|прав|const", "hall"],
+	["мигра|migr|граждан|убежищ|границ", "globe"], ["религ|церк|faith|relig|вер", "faith"], ["энерг|energy|климат|climate|атом|уголь|газ", "energy"],
+	["торг|trade|тариф|tariff|таможн|санкц", "tariff"], ["банк|bank|финанс|долг|debt|бюджет|валют|евро", "bank"],
+	["труд|работ|labor|зарплат|wage|профсоюз|забастов", "work"], ["регион|автоном|федер|region|местн", "map"],
+	["эколог|environ|природ|лес|отход", "globe"], ["жиль|housing|аренд|ипотек", "hall"], ["семь|брак|family|дет|материн", "people"],
+	["нарко|drug|алкогол|табак", "warn"], ["сельск|аграр|farm|agri|земл", "box"], ["транспорт|дорог|transport|желез", "grid"],
+	["собствен|property|приватиз|национализ|рынок|market", "handshake"], ["пособ|social|бедн|безработ|минимал", "person"],
+	["монарх|президент|президен|король|глава", "crown"], ["ес\b|евросоюз|\beu\b|союз", "star"],
+]
+
+
+func law_icon(t: Dictionary) -> String:
+	var hay: String = (String(t["id"]) + " " + String(t["name"])).to_lower()
+	for kv in LAW_ICON_KEYS:
+		var re := RegEx.new()
+		re.compile(String(kv[0]))
+		if re.search(hay) != null:
+			return String(kv[1])
+	return ["hall", "chart", "people"][clampi(int(t["cat"]), 0, 2)]
 
 
 func update_law_headers() -> void:
@@ -632,5 +678,5 @@ func update_law_detail() -> void:
 			btn.text = ("Внести законопроект (политкапитал %.0f)" if vi > 0 else "Вернуть действующий порядок (политкапитал %.0f)") % cost
 			if tweak:
 				btn.text = "Изменить силу действия до %.1f× (политкапитал %.0f)" % [pw_of(tid, true), cost]
-			btn.disabled = game_over or capital < cost + float(upc["extra"])
+			btn.disabled = game_over or cap_spendable() < cost + float(upc["extra"])
 	call_deferred("refit_law_cards")

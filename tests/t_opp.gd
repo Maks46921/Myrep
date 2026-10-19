@@ -30,15 +30,22 @@ func _init():
 	var orig_names: Array = base.PARTY_NAMES.duplicate()
 	var orig_coal: Array = base.COALITION0.duplicate()
 	var base_seats: Array = base.seats.duplicate()
+	# 0.56: играть можно и за региональную, и за протестную партию (не за сборные списки и «прочих»)
+	var ok_k: Array = []
+	for k in range(1, n):
+		if base.player_swap_ok(k): ok_k.append(k)
+	var prot0: int = base.PROTEST_P
+	var reg0: int = base.REGIONAL_P
 	base.queue_free()
 	var tried := 0
 	for k in range(1, n):
-		if k in [6, 8, 9]: continue
+		if not (k in ok_k): continue
 		tried += 1
 		var g = mk(k)
 		for i in 3: await process_frame
 		check(g.PARTY_NAMES[0] == orig_names[k], "имя партии %d" % k)
 		check(g.PARTY_NAMES[k] == orig_names[0], "прежняя партия власти на месте %d" % k)
+		check(g.PROTEST_P == g.swap_idx(prot0, k) and g.REGIONAL_P == g.swap_idx(reg0, k), "протестная/региональная партия не следует за обменом (%d)" % k)
 		var sp := 0
 		for s in g.seats: sp += int(s)
 		check(sp == g.SEATS, "сумма мест %d: %d/%d" % [k, sp, g.SEATS])

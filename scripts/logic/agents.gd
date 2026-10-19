@@ -1,7 +1,11 @@
 # Население: подключение агентов к голосованию, шагу и протестам.
-extends "res://scripts/logic/radical.gd"
+extends "res://scripts/logic/regime2.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func show_desk(i: int) -> void:
+	pass
 
 
 func update_pop_windows() -> void:
@@ -73,6 +77,9 @@ func ag_build() -> void:
 		return
 	var k := ag_k()
 	ag_make_pos()
+	if ag_shift.size() == 4 and ag_pos.size() > 0:
+		for a in 4:
+			ag_pos[0][a] = clampf(float(ag_pos[0][a]) + float(ag_shift[a]), -2.6, 2.6)
 	var counts: Array = []
 	var secw: Array = []
 	for ri in regions.size():
@@ -113,7 +120,7 @@ func ag_calibrate() -> void:
 			tab.resize(Gn * P)
 			var cnt := PackedInt32Array()
 			cnt.resize(Gn)
-			AG.tally(ri, bw, sup, loy, 3.0, 0, 9, 1, tab, cnt)
+			AG.tally(ri, bw, sup, loy, 3.0, gov_pm_party(), 9, 1, tab, cnt)
 			for gi in Gn:
 				if cnt[gi] < 1:
 					continue
@@ -159,7 +166,17 @@ func ag_zg() -> PackedFloat32Array:
 func ag_step() -> void:
 	if AG == null or not ag_on:
 		return
-	var ctx := {"z": ag_zs(), "zg": ag_zg(), "sup": ag_support_arr(), "ur": unemployment / 100.0, "gpos": ag_pos_raw[0]}
+	# v47_1: обстановка, которую агенты «переживают» сами: цены, рост, безопасность, природа, миграция, коррупция, регион
+	var rloy := PackedFloat32Array()
+	rloy.resize(regions.size())
+	for ri in regions.size():
+		rloy[ri] = clampf((float(regions[ri]["loy"]) - 50.0) * 0.25 - (float(regions[ri]["unrest"]) - 30.0) * 0.1 + au_ag_term(ri), -8.0, 8.0)
+	var mig := 0.0
+	if not soc.is_empty() and soc.has("in_now"):
+		mig = clampf(soc_din() / 3.0, -1.0, 2.0)
+	var ctx := {"z": ag_zs(), "zg": ag_zg(), "sup": ag_support_arr(), "ur": unemployment / 100.0, "gpos": ag_pos_raw[0],
+		"infl": inflation, "growth": growth, "sec": float(lvl["security_lvl"]), "env": float(lvl["env_lvl"]), "mig": mig,
+		"cor": float(lvl["corruption"]), "rloy": rloy}
 	AG.step(ctx, ag_phase % AG_STRIDE, AG_STRIDE)
 	ag_phase += 1
 	ag_ver += 1
@@ -190,10 +207,51 @@ func ag_region_table(ri: int, pres: bool, only: Array) -> Dictionary:
 	tab.resize(Gn * P)
 	var cnt := PackedInt32Array()
 	cnt.resize(Gn)
-	AG.tally(ri, bw, ag_support_arr(), loy, 4.0 if pres else 3.0, 0, 9, stride, tab, cnt)
+	AG.tally(ri, bw, ag_support_arr(), loy, 4.0 if pres else 3.0, gov_pm_party(), 9, stride, tab, cnt)
 	var d := {"sig": sig, "tab": tab, "cnt": cnt}
 	ag_cache[key] = d
 	return d
+
+
+# v50: симпатии групп к партиям — доля каждой партии среди сторонников группы по всей стране (опрос агентов)
+var gp_cache := {}
+
+
+func group_party_shares() -> Array:
+	var key := "%d|%d|%s" % [turn, ag_ver, str(opp_mode)]
+	if String(gp_cache.get("k", "")) == key:
+		return gp_cache["v"]
+	var P := PARTY_NAMES.size()
+	var Gn := GROUPS.size()
+	var acc: Array = []
+	for gi in Gn:
+		var row: Array = []
+		row.resize(P)
+		row.fill(0.0)
+		acc.append(row)
+	for ri in regions.size():
+		if AG != null and ag_on:
+			var t := ag_region_table(ri, false, [])
+			for gi in Gn:
+				for p in P:
+					acc[gi][p] += float(t["tab"][gi * P + p])
+		else:
+			for gi in Gn:
+				var w := vote_weights(ri, GROUPS[gi], false)
+				var tot := 0.0
+				for p in P:
+					tot += w[p]
+				var m: float = float(reg_mix[ri][GROUPS[gi]]) * float(regions[ri]["popm"])
+				for p in P:
+					acc[gi][p] += m * w[p] / maxf(tot, 1e-9)
+	for gi in Gn:
+		var tt := 0.0
+		for p in P:
+			tt += float(acc[gi][p])
+		for p in P:
+			acc[gi][p] = float(acc[gi][p]) / maxf(tt, 1e-9)
+	gp_cache = {"k": key, "v": acc}
+	return acc
 
 
 # экзит-пол: как голосовали группы (по всем агентам)
@@ -239,9 +297,55 @@ func ag_exit_report(pres: bool, only_party: int) -> void:
 	log_line("[b]Экзит-пол по агентам[/b] (%d агентов, 1 агент = %d чел.): %s." % [AG.n, AG.k, "; ".join(parts)])
 
 
+# v50: перемещение своей партии по идеологической карте: ось a (0–3), направление d (−1/+1).
+# Партия делает шаг к новым избирателям; часть старых, оставшихся «позади», охладеет. Капитал 4, раз в 3 месяца.
+func ag_party_shift_check() -> String:
+	if AG == null or not ag_on:
+		return "модель агентов выключена"
+	if game_over:
+		return "игра окончена"
+	if cap_spendable() < 4.0:
+		return "нужно 4 политкапитала"
+	if int(ag_shift_cd) > turn:
+		return "следующий шаг через %d мес." % (int(ag_shift_cd) - turn)
+	return ""
+
+
+var ag_shift_cd := 0
+var ag_shift: Array = []    # накопленный сдвиг партии игрока по осям (сохраняется: позиции пересчитываются при загрузке)
+
+
+func ag_party_shift(a: int, d: int) -> bool:
+	var why := ag_party_shift_check()
+	if why != "":
+		log_line("[color=%s]Сдвинуть партию нельзя: %s.[/color]" % [COL_WARN, why])
+		return false
+	capital -= 4.0
+	ag_shift_cd = turn + 3
+	var nv: float = clampf(float(ag_pos[0][a]) + 0.30 * float(d), -2.6, 2.6)
+	if ag_shift.size() < 4:
+		ag_shift = [0.0, 0.0, 0.0, 0.0]
+	ag_shift[a] = float(ag_shift[a]) + (nv - float(ag_pos[0][a]))
+	ag_pos[0][a] = nv
+	AG.pos[a] = nv
+	for i in AG.n:
+		AG.calc_aff(i)
+	ag_cache.clear()
+	ag_ver += 1
+	gp_cache = {}
+	var end_name: String = String(AgentPop.AXIS_ENDS[a][1 if d > 0 else 0])
+	log_tag("ПАРТИЯ", COL_PURPLE, "%s сдвигается по оси «%s» — к «%s». Новые избиратели присматриваются, часть прежних охладела." % [qn(PARTY_NAMES[0]), AgentPop.AXIS_SHORT[a], end_name])
+	refresh()
+	return true
+
+
 func ag_pick(i: int) -> void:
 	ag_sel = i
 	ag_ui_ver = -1
+	# v50: карточка агента по умолчанию закрыта — открываем её при выборе
+	if wins.has("pop_agent") and (wins["pop_agent"] as Control).get("closed") == true:
+		wins["pop_agent"].set("closed", false)
+		show_desk(current_desk)
 	update_pop_windows()
 
 

@@ -104,9 +104,9 @@ func build_econ_windows() -> void:
 	w = new_window("ec_st", "Сооружения страны", 5, Rect2(0.355, 0.60, 0.17, 0.40))
 	ec_st_rt = make_rt(w.body)
 	ec_st_fold = make_fold(w.body, "Сооружения подробнее")
-	ec_repair_btn = make_button("Отремонтировать всё", w.body)
-	ec_repair_btn.pressed.connect(repair_all)
-	add_note(w.body, "Строить сооружения нужно на экране «Карта» (карточка региона → «Проекты»).")
+	ec_repair_btn = make_button("Открыть строительство", w.body)
+	ec_repair_btn.tooltip_text = "Ремонт, улучшение и новые стройки — в окне «Строительство»."
+	ec_repair_btn.pressed.connect(bld_open)
 
 	# --- графики ---
 	w = new_window("ec_ch", "Графики", 5, Rect2(0.525, 0.60, 0.18, 0.40), false)
@@ -280,45 +280,32 @@ func update_econ_windows() -> void:
 		gl.append(hint_line(false, "Резервы почти кончились: валюта уязвима."))
 	if float(ec["tariff"]) > 12.0:
 		gl.append(hint_line(false, "Высокие пошлины: импорт дорог, цены растут, партнёры отвечают на них."))
+	# 0.55.5: какие товары страна вывозит и без чего не обходится (из подробных товаров и промышленности)
+	var exs := ind_exports()
+	if not exs.is_empty():
+		var ep: PackedStringArray = []
+		for it in exs:
+			if ep.size() >= 6:
+				break
+			ep.append("%s ×%.1f" % [String(it[1]).to_lower(), float(it[2])])
+		gl.append("[b]Вывозит[/b]: %s" % ", ".join(ep))
+	var ims := ind_imports()
+	if not ims.is_empty():
+		var ip: PackedStringArray = []
+		for it in ims:
+			if ip.size() >= 6:
+				break
+			ip.append("%s ×%.2f" % [String(it[1]).to_lower(), float(it[2])])
+		gl.append("[b]Ввозит[/b]: %s" % ", ".join(ip))
+	if not exs.is_empty() or not ims.is_empty():
+		gf_more.append("×N — самообеспеченность: производство к потреблению. Больше 1 — товар идёт на экспорт, меньше 1 — его приходится ввозить. Все 64 товара — «Экономика» → «Товары и цены» → окно «Все товары: подробно».")
 	ec_gf_rt.text = "\n".join(gl)
 	ec_gf_fold.text = "\n".join(gf_more)
 	# сооружения
-	var sl2: PackedStringArray = []
-	var total := 0
-	var cond_sum := 0.0
-	var by_cat := {}
-	for i in regions.size():
-		var bt: Dictionary = regions[i]["built"]
-		for id in bt:
-			var pd := find_by_id(PROJECTS, id)
-			var e2: Dictionary = bt[id]
-			total += int(e2["n"])
-			cond_sum += float(e2["cond"]) * float(e2["n"])
-			var cn: String = STRUCT_CATS[int(pd["cat"])]
-			by_cat[cn] = int(by_cat.get(cn, 0)) + int(e2["n"])
-	if total == 0:
-		sl2.append("Сооружений пока нет. Страна растёт на мощностях, которые строит бизнес: если спрос обгоняет предложение, возникает дефицит.")
-	else:
-		var avg: float = cond_sum / float(total)
-		sl2.append("Построено: [b]%d[/b]   Состояние: [color=%s][b]%.0f%%[/b][/color]   Содержание: [b]%s млрд[/b] в год" % [total, good_col(avg > 60.0), avg, fmt_n(float(ec["struct_up"]) * gdp / 100.0, 1)])
-		for cn in by_cat:
-			sl2.append("  %s: %d" % [cn, by_cat[cn]])
-		sl2.append("[b]Прирост мощностей[/b]")
-		for m in MARKETS:
-			var sk: float = float(mk[m["id"]]["sk"])
-			if sk > 0.0005:
-				sl2.append("  %s: +%.1f%% (от общей мощности)" % [m["name"], sk / float(mk[m["id"]]["K"]) * 100.0])
-		if float(ec["bc_struct"]) > 0.0:
-			sl2.append("Деловой климат от сооружений: +%.1f" % float(ec["bc_struct"]))
-		if float(ec["pr"]) > 0.0:
-			sl2.append("Рост производительности: +%.2f п.п. в год" % float(ec["pr"]))
-		if avg < 60.0:
-			sl2.append(hint_line(false, "Сооружения изнашиваются: их отдача падает. Отремонтируйте."))
+	var sl2 := struct_lines()
 	ec_st_rt.text = sl2[0] if sl2.size() > 0 else ""
 	ec_st_fold.text = "\n".join(sl2.slice(1))
-	var rc: float = repair_cost_pct()
-	ec_repair_btn.text = "Отремонтировать всё (%.1f млрд)" % (gdp * rc / 100.0)
-	ec_repair_btn.disabled = game_over or rc < 0.005
+
 	update_chart()
 
 
@@ -326,7 +313,7 @@ func update_econ_windows() -> void:
 
 
 func build_goods_windows() -> void:
-	var w: FloatWindow = new_window("gd_list", "Товары: цены и спрос", 7, Rect2(0.0, 0.0, 0.37, 1.0))
+	var w: FloatWindow = new_window("gd_list", "Товары: цены и спрос", 7, Rect2(0.0, 0.0, 0.37, 0.58))
 	gd_head_rt = make_rt(w.body)
 	gd_mode_opt = OptionButton.new()
 	gd_mode_opt.add_item("Цены за 12 месяцев")
@@ -336,17 +323,30 @@ func build_goods_windows() -> void:
 	gd_mode_opt.item_selected.connect(func(_i: int) -> void: update_goods_windows())
 	w.body.add_child(gd_mode_opt)
 	gv_goods = GoodsView.new()
+	gv_goods.connect("row_clicked", on_goods_row)
 	w.body.add_child(gv_goods)
 	add_note(w.body, "Цвет квадрата — отрасль-поставщик. Цена товара следует за ценой его отрасли, а ещё зависит от курса, пошлин, мировых цен на сырьё и НДС. Спрос зависит от доходов (роскошь реагирует сильнее еды) и от цены.")
 
-	w = new_window("gd_groups", "Корзины групп: кому дорожает", 7, Rect2(0.37, 0.0, 0.335, 0.52))
+	w = new_window("gd_groups", "Корзины групп: кому дорожает", 7, Rect2(0.37, 0.0, 0.335, 0.29))
 	gv_groups = GoodsView.new()
 	gv_groups.span = 6.0
 	w.body.add_child(gv_groups)
 	gd_grp_rt = make_rt(w.body)
 
-	w = new_window("gd_drv", "Что двигает цены сейчас", 7, Rect2(0.37, 0.52, 0.335, 0.48))
+	w = new_window("gd_drv", "Что двигает цены сейчас", 7, Rect2(0.37, 0.29, 0.335, 0.29))
 	gd_drv_rt = make_rt(w.body)
+
+
+# 0.55.5: щелчок по виду расходов раскрывает или сворачивает его подробные товары
+func on_goods_row(i: int) -> void:
+	if i < 0 or i >= gd_row_keys.size():
+		return
+	var id: String = String(gd_row_keys[i])
+	if gd_open.has(id):
+		gd_open.erase(id)
+	else:
+		gd_open[id] = true
+	update_goods_windows()
 
 
 func goods_market_color(mid: String) -> Color:
@@ -361,10 +361,11 @@ func update_goods_windows() -> void:
 	var cpi12 := 0.0
 	for g in GOODS:
 		cpi12 += float(g["kg"]) * float((ec["gh"][g["id"]] as Array)[0])
-	gd_head_rt.text = "[b]Корзина товаров и услуг[/b]: цены за последние %d мес. [b][color=%s]%s%%[/color][/b]\n[color=%s]Цены показаны относительно общего уровня: «+3%%» — товар дорожает быстрее остальных. Инфляция страны: %.1f%%. В корзине 18 видов расходов, у каждой страны своя структура.[/color]" % [
+	gd_head_rt.text = "[b]Корзина товаров и услуг[/b]: цены за последние %d мес. [b][color=%s]%s%%[/color][/b]\n[color=%s]Цены показаны относительно общего уровня: «+3%%» — товар дорожает быстрее остальных. Инфляция страны: %.1f%%. В корзине 18 видов расходов и 46 подробных товаров внутри них (▸ — щёлкните, чтобы раскрыть), у каждой страны своя структура.[/color]" % [
 		months, COL_BAD if cpi / cpi12 > 1.02 else COL_DIM, sg((cpi / cpi12 - 1.0) * 100.0, 1), COL_DIM, inflation]
 	var mode: int = gd_mode_opt.selected + 1
 	var rows: Array = []
+	var row_keys: Array = []
 	var order: Array = GOODS.duplicate()
 	for g in order:
 		var id: String = g["id"]
@@ -389,13 +390,35 @@ func update_goods_windows() -> void:
 			g["name"], String(mk_def(g["mk"])["name"]), float(g["kg"]) * 100.0, sg(good_yoy(id) * 100.0, 1), d * 100.0, float(g["ps"]) * 100.0,
 			"да" if float(g["xf"]) > 0.0 else "нет", "да" if float(g["tf"]) > 0.0 else "нет", "да" if float(g["dc"]) > 0.0 else "нет", "да" if float(g["vat"]) > 0.0 else "нет",
 			", ".join(best) if best.size() > 0 else "у всех примерно поровну"]
-		rows.append({"label": "%s  %.0f%%" % [g["short"], float(g["kg"]) * 100.0], "col": goods_market_color(g["mk"]), "v": v, "vt": vt, "tip": tip})
+		# 0.55.5: подробные товары (46 штук) раскрываются щелчком по виду расходов
+		var xs: Array = gx_of_cat(id) if ind_on() else []
+		var mark: String = ("▾ " if gd_open.has(id) else "▸ ") if xs.size() > 0 else ""
+		if xs.size() > 0:
+			tip += "\nЩёлкните, чтобы %s подробные товары (%d)." % ["свернуть" if gd_open.has(id) else "раскрыть", xs.size()]
+		rows.append({"label": "%s%s  %.0f%%" % [mark, g["short"], float(g["kg"]) * 100.0], "col": goods_market_color(g["mk"]), "v": v, "vt": vt, "tip": tip})
+		row_keys.append(id)
+		if gd_open.has(id):
+			for x in xs:
+				var xd: float = float(ind["x"][x]["d"])
+				var xv := 0.0
+				var xvt := ""
+				if mode == 1:
+					xv = ind_yoy(String(x)) * 100.0
+					xvt = "%s%%" % sg(xv, 1)
+				else:
+					xv = v
+					xvt = vt
+				var xtip := "%s (%s)\nДоля внутри вида расходов: %.0f%%.\nЦена к своему виду расходов: %s%%.\nЦена за 12 мес.: %s%%." % [
+					gx_name(String(x)), String(g["name"]).to_lower(), float(ind["w"][x]) * 100.0, sg(xd * 100.0, 1), sg(ind_yoy(String(x)) * 100.0, 1)]
+				rows.append({"label": "%s  %.0f%%" % [String(gx_def(String(x)).get("short", x)), float(ind["w"][x]) * 100.0], "col": goods_market_color(g["mk"]), "v": xv, "vt": xvt, "tip": xtip, "sub": true})
+				row_keys.append(id)
 	(gv_goods as Control).set("good_when_low", mode != 2)
 	var mx := 0.0
 	for r in rows:
 		mx = maxf(mx, absf(float(r["v"])))
 	(gv_goods as Control).set("span", clampf(mx * 1.35, 4.0, 40.0))
 	(gv_goods as Control).call("set_rows", rows)
+	gd_row_keys = row_keys
 	# группы
 	var grows: Array = []
 	var best_g := ""
@@ -455,3 +478,40 @@ func update_goods_windows() -> void:
 
 func _hot_txt(it: Array) -> String:
 	return "%s %s%%" % [String(good_def(it[0])["short"]).to_lower(), sg(float(it[1]) * 100.0, 1)]
+
+
+# 0.56: сводка сооружений страны (окно «Экономика» и окно «Строительство»)
+func struct_lines() -> PackedStringArray:
+	var sl2: PackedStringArray = []
+	var mk: Dictionary = ec.get("mk", {})
+	var total := 0
+	var cond_sum := 0.0
+	var by_cat := {}
+	for i in regions.size():
+		var bt: Dictionary = regions[i]["built"]
+		for id in bt:
+			var pd := find_by_id(PROJECTS, id)
+			var e2: Dictionary = bt[id]
+			total += int(e2["n"])
+			cond_sum += float(e2["cond"]) * float(e2["n"])
+			var cn: String = STRUCT_CATS[int(pd["cat"])]
+			by_cat[cn] = int(by_cat.get(cn, 0)) + int(e2["n"])
+	if total == 0:
+		sl2.append("Сооружений пока нет. Страна растёт на мощностях, которые строит бизнес: если спрос обгоняет предложение, возникает дефицит.")
+	else:
+		var avg: float = cond_sum / float(total)
+		sl2.append("Построено: [b]%d[/b]   Состояние: [color=%s][b]%.0f%%[/b][/color]   Содержание: [b]%s млрд[/b] в год" % [total, good_col(avg > 60.0), avg, fmt_n(float(ec["struct_up"]) * gdp / 100.0, 1)])
+		for cn in by_cat:
+			sl2.append("  %s: %d" % [cn, by_cat[cn]])
+		sl2.append("[b]Прирост мощностей[/b]")
+		for m in MARKETS:
+			var sk: float = float(mk[m["id"]]["sk"])
+			if sk > 0.0005:
+				sl2.append("  %s: +%.1f%% (от общей мощности)" % [m["name"], sk / float(mk[m["id"]]["K"]) * 100.0])
+		if float(ec["bc_struct"]) > 0.0:
+			sl2.append("Деловой климат от сооружений: +%.1f" % float(ec["bc_struct"]))
+		if float(ec["pr"]) > 0.0:
+			sl2.append("Рост производительности: +%.2f п.п. в год" % float(ec["pr"]))
+		if avg < 60.0:
+			sl2.append(hint_line(false, "Сооружения изнашиваются: их отдача падает. Отремонтируйте."))
+	return sl2

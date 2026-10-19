@@ -28,6 +28,10 @@ func ate_reset() -> void:
 	pass
 
 
+func au_init() -> void:
+	pass
+
+
 func autopilot_run() -> void:
 	pass
 
@@ -36,7 +40,43 @@ func bills_step() -> void:
 	pass
 
 
+func cap_mults() -> Array:
+	return []
+
+
+func cap_sources() -> Array:
+	return []
+
+
+func church_init() -> void:
+	pass
+
+
+func church_month() -> void:
+	pass
+
+
+func con_init() -> void:
+	pass
+
+
+func con_month() -> void:
+	pass
+
+
 func council_budget() -> void:
+	pass
+
+
+func cult_g() -> float:
+	return 0.0
+
+
+func cult_init() -> void:
+	pass
+
+
+func cult_month() -> void:
 	pass
 
 
@@ -45,6 +85,18 @@ func dip_init() -> void:
 
 
 func dip_step() -> void:
+	pass
+
+
+func diplo_month() -> void:
+	pass
+
+
+func dx_init() -> void:
+	pass
+
+
+func es_init() -> void:
 	pass
 
 
@@ -61,6 +113,14 @@ func ex_init() -> void:
 
 
 func ex_month() -> void:
+	pass
+
+
+func fa_init() -> void:
+	pass
+
+
+func fa_month() -> void:
 	pass
 
 
@@ -96,16 +156,24 @@ func h12_snap() -> void:
 	pass
 
 
-func idl_mult() -> float:
-	return 0.0
-
-
 func idl_step() -> void:
 	pass
 
 
-func junior_power() -> float:
+func ind_g() -> float:
 	return 0.0
+
+
+func ind_init() -> void:
+	pass
+
+
+func ind_month() -> void:
+	pass
+
+
+func io_init() -> void:
+	pass
 
 
 func junior_quit() -> void:
@@ -113,6 +181,14 @@ func junior_quit() -> void:
 
 
 func log_add(e: Dictionary) -> void:
+	pass
+
+
+func map_cam_step(delta: float) -> void:
+	pass
+
+
+func martial_step() -> void:
 	pass
 
 
@@ -136,6 +212,10 @@ func mil_month() -> void:
 	pass
 
 
+func mil_start_ongoing() -> void:
+	pass
+
+
 func mil_unemp() -> float:
 	return 0.0
 
@@ -152,7 +232,47 @@ func opp_step() -> void:
 	pass
 
 
+func pa_month() -> void:
+	pass
+
+
 func radical_step() -> void:
+	pass
+
+
+func realism_month() -> void:
+	pass
+
+
+func revolt_g() -> float:
+	return 0.0
+
+
+func revolt_init() -> void:
+	pass
+
+
+func revolt_month() -> void:
+	pass
+
+
+func revolt_nationwide_uprising() -> bool:
+	return false
+
+
+func revolt_unemp() -> float:
+	return 0.0
+
+
+func rl_g() -> float:
+	return 0.0
+
+
+func rl_infl() -> float:
+	return 0.0
+
+
+func rl_init() -> void:
 	pass
 
 
@@ -170,6 +290,18 @@ func soc_month() -> void:
 
 func soc_unemp() -> float:
 	return 0.0
+
+
+func tech_init() -> void:
+	pass
+
+
+func tech_month() -> void:
+	pass
+
+
+func ui_anim_step(delta: float) -> void:
+	pass
 
 
 func world_init() -> void:
@@ -268,6 +400,8 @@ func advance_month() -> void:
 
 
 func _process(delta: float) -> void:
+	map_cam_step(delta)
+	ui_anim_step(delta)
 	if play_idx <= 0 or blocked():
 		return
 	day_acc += delta * float(PLAY_SPEEDS[play_idx])
@@ -326,9 +460,13 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		- maxf(0.0, reg_avg("unrest") - 30.0) * 0.015
 		+ world_spill_g()
 		+ soc_g()
+		+ cult_g()
+		+ ind_g()
 		+ ex_g()
 		+ fleet_g()
 		+ mil_g()
+		+ revolt_g()
+		+ rl_g()
 	)
 	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
@@ -346,8 +484,8 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl()) / 12.0 * dt, 0.0, 40.0)
-	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp()
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl()) / 12.0 * dt, 0.0, 40.0)
+	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp()
 	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
 	for i in regions.size():
@@ -357,12 +495,18 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	# --- поддержка групп и политический капитал ---
 	for g in GROUPS:
 		support[g] = clampf(lerpf(float(support[g]), target_support(g), rt(mrate(0.5), dt)), 0.0, 100.0)
-	capital = clampf(capital + cap_rate() * dt, 0.0, 100.0)
+	capital = minf(100.0, capital + cap_rate() * dt)
 
 
 # прирост политического капитала в месяц (v35: показывается рядом с капиталом в верхней панели)
+# 0.56 (п.18): сумма источников (места, пост главы правительства, министерства, экономическая власть…) × множители
 func cap_rate() -> float:
-	return (0.7 + (0.2 if approval() >= 55.0 else 0.0) + float(mods["capital_bonus"])) * idl_mult() * junior_power() * (0.5 if techno_until > turn else 1.0)
+	var s := 0.0
+	for r in cap_sources():
+		s += float(r[1])
+	for r in cap_mults():
+		s *= float(r[1])
+	return s
 
 
 
@@ -412,7 +556,7 @@ func week_tick() -> void:
 	if not blocked() and not game_over:
 		if randf() < 0.22 * float(game_opts["news"]) * dt:
 			show_news()
-		if not fire_scripted() and randf() < 0.17 * float(game_opts["ev"]) * dt:
+		if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * dt:
 			show_event()
 
 
@@ -424,6 +568,13 @@ func take_month_snap() -> void:
 func next_turn() -> void:
 	if game_over or not current_event.is_empty() or election_open:
 		return
+	# v50: неутверждённый черновик бюджета в месячный расчёт не входит
+	var bud_h := bud_hold_begin()
+	next_turn_core()
+	bud_hold_end(bud_h)
+
+
+func next_turn_core() -> void:
 	recompute_mods()
 	top_prev = {"appr": approval(), "infl": inflation, "unemp": unemployment, "debt": debt / gdp * 100.0}
 	council_budget()
@@ -443,6 +594,10 @@ func next_turn() -> void:
 		var cd: Dictionary = reg_cd[i]
 		for k in cd:
 			cd[k] = maxi(0, int(cd[k]) - 1)
+	# v49: наступившее продолжение истории (цепочка событий) показывается первым — иначе его месяцами
+	# вытесняют дипломатические события, инициативы стран и вотумы
+	if _ev_chain_due():
+		ev_tick()
 
 	var old_infl := inflation
 	var old_unemp := unemployment
@@ -472,10 +627,19 @@ func next_turn() -> void:
 	update_regions()
 	fed_month()
 	adm_month()
+	revolt_month()
 	fleet_month()
 	mil_month()
 	soc_month()
+	cult_month()
+	church_month()
+	ind_month()
+	tech_month()
+	realism_month()
+	diplo_month()
+	fa_month()
 	ex_month()
+	con_month()
 
 	# --- экономика ---
 	var ecf := economy_step()
@@ -490,6 +654,7 @@ func next_turn() -> void:
 	prev_pol = pol.duplicate()
 	if month == 12:
 		log_year_summary()
+		oneoff_year_reset()
 
 	# --- крах государства ---
 	if debt / gdp > 1.5:
@@ -510,8 +675,11 @@ func next_turn() -> void:
 		if float(r["unrest"]) >= 90.0:
 			riots += 1
 	if riots >= 4:
-		end_game("Волна региональных восстаний охватила страну. Центральная власть потеряла контроль.")
-		return
+		if revolt_nationwide_uprising():
+			pass
+		else:
+			end_game("Волна региональных восстаний охватила страну. Центральная власть потеряла контроль.")
+			return
 
 	# --- выборы и правительство ---
 	if game_over:
@@ -519,7 +687,8 @@ func next_turn() -> void:
 	radical_step()
 	if game_over:
 		return
-	if turn - last_parl >= parl_term():
+	martial_step()
+	if turn - last_parl >= parl_term() and not martial_on():
 		hold_parliament("плановые выборы")
 	elif opp_mode:
 		opp_step()
@@ -528,13 +697,14 @@ func next_turn() -> void:
 	if game_over:
 		return
 	ai_parties_step()
+	pa_month()
 	observer_step()
 	bills_step()
 	idl_step()
 	if game_over:
 		return
 
-	if pres_due >= 0 and turn >= pres_due and not election_open and current_event.is_empty():
+	if pres_due >= 0 and turn >= pres_due and not martial_on() and not election_open and current_event.is_empty():
 		hold_head("плановые выборы")
 	if game_over:
 		return
@@ -545,7 +715,7 @@ func next_turn() -> void:
 	dip_events()
 	if randf() < 0.22 * float(game_opts["news"]) * rest:
 		show_news()
-	if not fire_scripted() and randf() < 0.17 * float(game_opts["ev"]) * rest:
+	if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * rest:
 		show_event()
 	refresh()
 
@@ -691,9 +861,22 @@ func init_state() -> void:
 	world_init()
 	fed_init()
 	soc_init()
+	cult_init()
+	church_init()
+	tech_init()
+	revolt_init()
+	au_init()
+	es_init()
+	con_init()
+	rl_init()
+	io_init()
+	dx_init()
+	fa_init()
 	ex_init()
 	fleet_init()
 	mil_init()
+	mil_start_ongoing()
+	ind_init()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}

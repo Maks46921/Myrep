@@ -12,6 +12,78 @@ func ag_unrest_term(i: int) -> float:
 	return 0.0
 
 
+func ate_name(a: int) -> String:
+	return ""
+
+
+func au_unr_term(i: int) -> float:
+	return 0.0
+
+
+func bld_money_month() -> float:
+	return 0.0
+
+
+func bq_add(pid: String, i: int, ate: int, cost_bn: float, months: int, upg: bool = false, auto: bool = false) -> Dictionary:
+	return {}
+
+
+func bq_cancel(uid: int) -> void:
+	pass
+
+
+func bq_has(i: int, id: String) -> bool:
+	return false
+
+
+func bq_in_region(i: int) -> Dictionary:
+	return {}
+
+
+func bq_migrate() -> void:
+	pass
+
+
+func bq_month() -> void:
+	pass
+
+
+func bq_rate(it: Dictionary) -> float:
+	return 0.0
+
+
+func church_loy_term(i: int) -> float:
+	return 0.0
+
+
+func church_unr_term(i: int) -> float:
+	return 0.0
+
+
+func con_mega_done(i: int, id: String) -> void:
+	pass
+
+
+func con_start_check(i: int, pd: Dictionary) -> String:
+	return ""
+
+
+func con_unr_term(i: int) -> float:
+	return 0.0
+
+
+func con_upgrade_done(i: int, id: String) -> void:
+	pass
+
+
+func cult_loy_term(i: int) -> float:
+	return 0.0
+
+
+func cult_unr_term(i: int) -> float:
+	return 0.0
+
+
 func fed_auto_term(i: int) -> float:
 	return 0.0
 
@@ -124,14 +196,14 @@ func update_regions() -> void:
 			gl = 4.0 * gs
 		elif gk == 3:
 			gl = -2.0
-		var lt: float = region_support(i) + gl - (ud[i] - 20.0) * 0.15 + tr * 3.0 + (float(r["infra"]) - float(d["infra"])) * 0.03 + float(loy_off[i]) + fed_loy_term(i) + soc_loy_term(i)
+		var lt: float = region_support(i) + gl - (ud[i] - 20.0) * 0.15 + tr * 3.0 + (float(r["infra"]) - float(d["infra"])) * 0.03 + float(loy_off[i]) + fed_loy_term(i) + soc_loy_term(i) + cult_loy_term(i) + church_loy_term(i)
 		r["loy"] = clampf(float(r["loy"]) + (lt - float(r["loy"])) * mrate(0.35), 0.0, 100.0)
 		var ur: float = clampf(unemployment * (1.7 - 0.9 * float(r["dev"]) / 100.0) + (50.0 - float(r["infra"])) * 0.02 - (sec_idx(i) - 1.0) * 20.0, 1.0, 40.0)
 		r["unemp"] = ur
 		var ut: float = (20.0 + (50.0 - float(r["loy"])) * 0.45 + (ur - 6.5) * 1.8 + (inflation - 4.0) * 0.8
 			+ lvl_unrest + float(mods["reg_unrest_shift"]) - (float(r["dev"]) - float(d["dev"])) * 0.12
 			- float(r["auto"]) * 0.15 + float(d["reg"]) * 8.0 - tr * 2.0 + maxf(0.0, nb_u - 40.0) * 0.12 + float(unr_off[i]) + ag_unrest_term(i))
-		ut += fed_unr_term(i) + soc_unr_term(i)
+		ut += fed_unr_term(i) + soc_unr_term(i) + cult_unr_term(i) + church_unr_term(i) + con_unr_term(i) + au_unr_term(i)
 		if gk == 2:
 			ut -= 3.0 * gs
 		elif gk == 3:
@@ -172,56 +244,131 @@ func update_regions() -> void:
 		rh.append(gdp * gdp_w[i])
 		if rh.size() > 13:
 			rh.pop_front()
-	for i in n:
-		var pr: Dictionary = regions[i]["proj"]
-		if pr.is_empty():
-			continue
-		pr["left"] = int(pr["left"]) - 1
-		if int(pr["left"]) <= 0:
-			complete_project(i)
+	bq_month()   # 0.56: стройки идут очередью (construct.gd)
 
 
+# 0.56: завершить первую госстройку региона i (для проверок и событий)
 func complete_project(i: int) -> void:
-	var pr: Dictionary = regions[i]["proj"]
+	bq_migrate()
+	for k in bq.size():
+		if int(bq[k]["i"]) == i:
+			var it: Dictionary = bq[k]
+			bq.remove_at(k)
+			complete_project_pr(i, it)
+			return
+
+
+func complete_project_pr(i: int, pr: Dictionary) -> void:
 	var pd := find_by_id(PROJECTS, pr["id"])
-	regions[i]["proj"] = {}
 	if pd.is_empty():
 		return
+	if bool(pr.get("upg", false)):
+		con_upgrade_done(i, String(pd["id"]))
+		return
 	var eff := effective_reg(i, pd["reg"])
-	complete_struct(i, String(pd["id"]))
+	complete_struct(i, String(pd["id"]), int(pr.get("ate", -1)))
 	apply_reg_delta(i, pd["reg"], true)
 	var nat := apply_fx(pd["nat"])
 	log_tag("ПРОЕКТ", COL_GOOD, "завершён «%s» в регионе «%s». Регион: %s%s." % [
 		pd["name"], REGIONS[i]["name"], describe_reg(eff), (", страна: " + nat) if nat != "" else ""])
+	con_mega_done(i, String(pd["id"]))
+
+
+# v50: стройка не стоит политкапитала, зато на неё реагируют группы интересов (экологи против угля и газа и т. п.)
+const PROJ_GROUP_FX := {
+	"power_coal": {"Экологи": -2.0, "Рабочие": 0.6, "Бизнес": 0.3}, "power_gas": {"Экологи": -1.0, "Бизнес": 0.4},
+	"power_nuke": {"Экологи": -1.4, "Бизнес": 0.6, "Силовики": 0.3}, "solar_wind": {"Экологи": 1.4, "Молодёжь": 0.4, "Село": -0.4},
+	"grid": {"Бизнес": 0.5}, "road": {"Бизнес": 0.4, "Село": 0.3, "Экологи": -0.4}, "rail": {"Бизнес": 0.4, "Экологи": 0.3},
+	"port": {"Бизнес": 0.6, "Экологи": -0.4}, "factory": {"Рабочие": 0.8, "Бизнес": 0.4, "Экологи": -0.8},
+	"indpark": {"Бизнес": 0.7}, "refinery": {"Рабочие": 0.5, "Бизнес": 0.4, "Экологи": -0.9}, "mine": {"Рабочие": 0.6, "Экологи": -1.5, "Село": -0.3},
+	"agro": {"Село": 0.8}, "irrig": {"Село": 0.6, "Экологи": -0.2}, "granary": {"Село": 0.5, "Пенсионеры": 0.2},
+	"hospital": {"Пенсионеры": 0.8, "Бюджетники": 0.4}, "university": {"Молодёжь": 0.8, "Бюджетники": 0.3},
+	"techpark": {"Молодёжь": 0.6, "Бизнес": 0.4}, "telecom": {"Бизнес": 0.4, "Молодёжь": 0.4},
+	"housing": {"Молодёжь": 0.6, "Рабочие": 0.3}, "eco": {"Экологи": 1.2, "Бизнес": -0.2},
+}
+
+
+func proj_group_fx(pid: String) -> Dictionary:
+	if PROJ_GROUP_FX.has(pid):
+		return PROJ_GROUP_FX[pid]
+	return find_by_id(PROJECTS, pid).get("grp", {})
+
+
+func proj_group_text(pid: String) -> String:
+	var fx: Dictionary = proj_group_fx(pid)
+	var parts: PackedStringArray = []
+	for g in fx:
+		var v: float = float(fx[g])
+		parts.append("[color=%s]%s %s[/color]" % [COL_GOOD if v > 0.0 else COL_BAD, g, sg(v, 1)])
+	return ", ".join(parts) if parts.size() > 0 else "группы равнодушны"
+
+
+# начать стройку pid в регионе i (ate — АТЕ, где будет сооружение; -1 — выбрать самую населённую АТЕ региона). "" — успех
+# 0.56: стройка встаёт в очередь госстроек; в регионе их может быть несколько
+func project_start_at(i: int, pid: String, ate: int = -1, auto: bool = false) -> String:
+	if game_over:
+		return "игра окончена"
+	if opp_mode:
+		return "стройкой распоряжается правительство"
+	if i < 0 or i >= regions.size():
+		return "выберите свой регион"
+	bq_migrate()
+	var pd := find_by_id(PROJECTS, pid)
+	if pd.is_empty():
+		return "нет такого сооружения"
+	var why_c := con_start_check(i, pd)
+	if why_c != "":
+		return why_c
+	if bool(pd.get("mega", false)) and bq_has(i, pid):
+		return "мегапроект уже строится"
+	if bq.size() >= 40:
+		return "в очереди уже 40 строек"
+	if ate < 0:
+		ate = region_main_ate(i)
+	var cost_pct := project_cost_pct(i, pd)
+	var it := bq_add(String(pd["id"]), i, ate, gdp * cost_pct / 100.0, int(pd["months"]), false, auto)
+	var eta: int = int(ceil(float(it["cost"]) / maxf(0.0001, minf(bq_rate(it), bld_money_month()))))
+	var fx: Dictionary = proj_group_fx(pid)
+	for g in fx:
+		add_support(String(g), float(fx[g]))
+	var where: String = ("«%s», %s" % [REGIONS[i]["name"], ate_name(ate)]) if ate >= 0 else "«%s»" % REGIONS[i]["name"]
+	log_tag("ПРОЕКТ", COL_TEAL, "%s — %s: «%s» поставлен в очередь строек%s (не меньше %d мес., всего %.1f млрд; место в очереди %d). Реакция: %s. %s" % [
+		date_text(), where, pd["name"], " по плану министерств" if auto else "", pd["months"], gdp * cost_pct / 100.0, bq.size(), proj_group_text(pid), roi_text(i, pd["reg"], cost_pct)])
+	refresh()
+	return ""
+
+
+func region_main_ate(i: int) -> int:
+	if ate_n <= 0 or i < 0:
+		return -1
+	var best := -1
+	var bp := -1.0
+	for ui in map_unit_local:
+		if int(map_unit_local[ui]) != i or int(ui) >= ate_lists.size():
+			continue
+		for a in (ate_lists[int(ui)] as PackedInt32Array):
+			var pp: float = ate_pw[a] if a < ate_pw.size() else 0.0
+			if pp > bp:
+				bp = pp
+				best = a
+	return best
 
 
 func start_project() -> void:
+	if pl_deny(): return
 	if game_over or proj_option == null:
 		return
-	var i := selected_region
-	if not (regions[i]["proj"] as Dictionary).is_empty() or capital < 2.0:
-		return
-	var pd: Dictionary = PROJECTS[proj_option.selected]
-	var cost_pct := project_cost_pct(i, pd)
-	capital -= 2.0
-	regions[i]["proj"] = {"id": pd["id"], "left": int(pd["months"]), "months": int(pd["months"]), "cost": cost_pct}
-	log_tag("ПРОЕКТ", COL_TEAL, "%s — в регионе «%s» начат «%s» (%d мес., всего %.1f млрд, политкапитал -2). %s" % [
-		date_text(), REGIONS[i]["name"], pd["name"], pd["months"], gdp * cost_pct / 100.0, roi_text(i, pd["reg"], cost_pct)])
-	refresh()
+	var why := project_start_at(selected_region, String(PROJECTS[proj_option.selected]["id"]), -1)
+	if why != "":
+		log_line("[color=%s]Стройка не начата: %s.[/color]" % [COL_WARN, why])
 
 
 func cancel_project() -> void:
 	if game_over:
 		return
-	var i := selected_region
-	var pr: Dictionary = regions[i]["proj"]
-	if pr.is_empty():
-		return
-	var pd := find_by_id(PROJECTS, pr["id"])
-	regions[i]["proj"] = {}
-	apply_reg_delta(i, {"loyalty": -3.0, "unrest": 3.0})
-	log_line("[color=%s]%s: проект «%s» в регионе «%s» остановлен. Жители недовольны (лояльность -3, недовольство +3).[/color]" % [COL_BAD, date_text(), pd["name"], REGIONS[i]["name"]])
-	refresh()
+	var it := bq_in_region(selected_region)
+	if not it.is_empty():
+		bq_cancel(int(it["uid"]))
 
 
 func appoint_governor(kind: int) -> void:
@@ -229,7 +376,7 @@ func appoint_governor(kind: int) -> void:
 		return
 	var ri := selected_region
 	var cd: Dictionary = reg_cd[ri]
-	if int(cd.get("gov", 0)) > 0 or capital < 8.0:
+	if int(cd.get("gov", 0)) > 0 or cap_spendable() < 8.0:
 		return
 	capital -= 8.0
 	cd["gov"] = 18
@@ -249,7 +396,7 @@ func appoint_governor(kind: int) -> void:
 
 
 func set_transfer(i: int, v: float) -> void:
-	regions[i]["transfer"] = clampf(v, 0.0, 5.0)
+	regions[i]["transfer"] = maxf(0.0, v)   # 0.55.5: без верхнего предела
 	update_transfer_ui()
 	update_forecast()
 
@@ -269,7 +416,7 @@ func equalize_transfers(mode: int) -> void:
 			raw.append(rv)
 			tot += gdp_w[i] * rv
 		for i in regions.size():
-			regions[i]["transfer"] = clampf(raw[i] * 0.8 / tot, 0.0, 5.0)
+			regions[i]["transfer"] = maxf(0.0, raw[i] * 0.8 / tot)
 		log_line("%s: трансферты перераспределены в пользу бедных регионов (общая сумма прежняя)." % date_text())
 	else:
 		for i in regions.size():
@@ -288,18 +435,24 @@ func do_region_action(id: String) -> void:
 	var cd: Dictionary = reg_cd[ri]
 	if int(cd.get(id, 0)) > 0:
 		return
-	if capital < float(a["cap"]):
+	if cap_spendable() < float(a["cap"]):
 		log_line("[color=%s]Не хватает политического капитала для действия «%s».[/color]" % [COL_BAD, a["name"]])
 		return
+	var bn: float = gdp * float(a["money"]) / 100.0
+	var ow := oneoff_why(bn)
+	if ow != "":
+		log_line("[color=%s]«%s»: %s.[/color]" % [COL_WARN, a["name"], ow])
+		return
 	capital -= float(a["cap"])
-	debt += gdp * float(a["money"]) / 100.0
+	if bn > 0.0:
+		oneoff_pay(bn, "%s — «%s»" % [a["name"], REGIONS[ri]["name"]])
 	cd[id] = int(a["cd"])
 	var eff := effective_reg(ri, a["reg"])
 	apply_reg_delta(ri, a["reg"], true)
 	var nat := apply_fx(a["nat"])
 	var cost_txt := ""
 	if float(a["money"]) > 0.0:
-		cost_txt = ", расходы %.1f млрд (в долг)" % (gdp * float(a["money"]) / 100.0)
+		cost_txt = ", расходы %.1f млрд из резерва бюджета" % bn
 	log_line("[b]%s: «%s» — %s.[/b] Регион: %s%s%s." % [date_text(), REGIONS[ri]["name"], a["name"], describe_reg(eff), cost_txt, (", страна: " + nat) if nat != "" else ""])
 	refresh()
 
@@ -619,7 +772,7 @@ func reg_tool_buy() -> void:
 	var r: Dictionary = regions[i]
 	var cd: Dictionary = reg_cd[i]
 	var key := "tool_" + String(t["id"])
-	if int(cd.get(key, 0)) > 0 or capital < float(t["cap"]) or tool_req(t, i) != "":
+	if int(cd.get(key, 0)) > 0 or cap_spendable() < float(t["cap"]) or tool_req(t, i) != "":
 		return
 	if int(t["months"]) > 0:
 		if (r["zones"] as Array).size() >= 3:
@@ -628,8 +781,12 @@ func reg_tool_buy() -> void:
 			if String(z["id"]) == String(t["id"]):
 				return
 	var cost_pct := tool_cost_pct(i, t)
+	var ow := oneoff_why(gdp * cost_pct / 100.0)
+	if ow != "":
+		log_line("[color=%s]«%s»: %s.[/color]" % [COL_WARN, t["name"], ow])
+		return
 	capital -= float(t["cap"])
-	debt += gdp * cost_pct / 100.0
+	oneoff_pay(gdp * cost_pct / 100.0, "%s — «%s»" % [t["name"], REGIONS[i]["name"]])
 	cd[key] = 18
 	var f := reg_tool_factor(i) * maxf(0.4, 1.0 - 0.25 * float((r["zones"] as Array).size()))
 	if int(t["months"]) > 0:
@@ -643,6 +800,6 @@ func reg_tool_buy() -> void:
 		r["rdebt"] = clampf(float(r["rdebt"]) + float(t["rdebt"]), 0.0, 160.0)
 	apply_reg_delta(i, t["reg"], false)
 	var nat := apply_fx(t["nat"])
-	log_tag("РЕГИОН", COL_TEAL, "%s — «%s»: запущено «%s» (%.1f млрд в долг, политкапитал -%.0f). %s%s." % [
+	log_tag("РЕГИОН", COL_TEAL, "%s — «%s»: запущено «%s» (%.1f млрд из резерва бюджета, политкапитал -%.0f). %s%s." % [
 		date_text(), REGIONS[i]["name"], t["name"], gdp * cost_pct / 100.0, float(t["cap"]), tool_effect_text(t, i), (", страна: " + nat) if nat != "" else ""])
 	refresh()

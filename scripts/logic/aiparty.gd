@@ -12,6 +12,18 @@ func autopilot_step() -> void:
 	pass
 
 
+func corp_state_share() -> float:
+	return 0.0
+
+
+func gov_style_step() -> void:
+	pass
+
+
+func tip_make(title: String, secs: Array = []) -> String:
+	return ""
+
+
 # --- конец заглушек ---
 
 
@@ -110,7 +122,7 @@ func party_arch(p: int) -> String:
 	if ideo_c.has(ck):
 		return ideo_c[ck]
 	var res := "conserv"
-	if p == 9:
+	if p == PROTEST_P:
 		res = "populist"
 	else:
 		var avg := {}
@@ -314,6 +326,13 @@ func junior_info() -> Dictionary:
 	for p in PARTY_NAMES.size():
 		if in_coalition[p] and seats[p] > seats[pm]:
 			pm = p
+	# 0.56: глава правительства по коалиционному соглашению
+	if not coal_deal.is_empty():
+		var dp: int = int(coal_deal.get("pm", -1))
+		if dp == 0:
+			return res
+		if dp > 0 and dp < in_coalition.size() and in_coalition[dp]:
+			pm = dp
 	if pm == 0 or pm_lead:
 		return res
 	var share: float = float(seats[0]) / float(maxi(1, gov_seats()))
@@ -325,6 +344,80 @@ func junior_info() -> Dictionary:
 
 func junior_power() -> float:
 	return float(junior_info()["power"])
+
+
+# ============================================================
+#  0.56 (п.18): ИСТОЧНИКИ ПОЛИТИЧЕСКОГО КАПИТАЛА
+#  Правящая партия получает капитал от мест, поста главы правительства, министерств и «экономической власти»
+#  (доля госсектора и поддержка бизнеса); неправящая — по доле голосов. Таблица весов — CAP_W.
+# ============================================================
+# 0.56 (доп. 8): капитал растёт в 1,5 раза быстрее (было: основа 0,2, места 1,2, глава правительства 0,2, младший партнёр 0,05,
+# министерство 0,025, экономика 0,15, голоса 1,5, глава государства 0,15, рейтинг 0,2)
+const CAP_K := 1.5
+const CAP_W := {"base": 0.30, "seats": 1.80, "pm": 0.30, "junior": 0.075, "min": 0.0375, "econ": 0.225, "votes": 2.25, "pres": 0.225, "appr": 0.30}
+var cap_vs_turn := -1
+var cap_vs := 0.0
+
+
+func cap_vote_share() -> float:
+	if cap_vs_turn != turn:
+		cap_vs_turn = turn
+		var sh := national_shares(false)
+		cap_vs = float(sh[0]) if sh.size() > 0 else 0.0
+	return cap_vs
+
+
+func cap_sources() -> Array:
+	var out: Array = [["Основа", CAP_W["base"]]]
+	var gov: bool = not opp_mode and in_coalition.size() > 0 and in_coalition[0]
+	if gov:
+		var sh: float = float(seats[0]) / float(maxi(1, SEATS))
+		out.append(["Места в парламенте (%.0f%%)" % (sh * 100.0), float(CAP_W["seats"]) * sh])
+		if bool(junior_info()["junior"]):
+			out.append(["Младший партнёр в коалиции", CAP_W["junior"]])
+		else:
+			out.append(["Пост главы правительства", CAP_W["pm"]])
+		var nm := 0
+		for m in ministries.size():
+			if ministries[m] == 0:
+				nm += 1
+		if nm > 0:
+			out.append(["Министерства (%d)" % nm, float(CAP_W["min"]) * float(nm)])
+		var ep: float = 0.5 * corp_state_share() + 0.5 * float(support.get("Бизнес", 50.0)) / 100.0
+		out.append(["Экономическая власть", float(CAP_W["econ"]) * ep])
+		if approval() >= 55.0:
+			out.append(["Рейтинг выше 55%", CAP_W["appr"]])
+	else:
+		var vs: float = cap_vote_share()
+		out.append(["Доля голосов (%.0f%%)" % (vs * 100.0), float(CAP_W["votes"]) * vs])
+	if pres_party == 0:
+		out.append(["Глава государства из вашей партии", CAP_W["pres"]])
+	var mb: float = float(mods["capital_bonus"]) * CAP_K
+	if absf(mb) > 0.001:
+		out.append(["Законы и устройство власти", mb])
+	return out
+
+
+func cap_mults() -> Array:
+	var out: Array = [["Верность линии партии", idl_mult()]]
+	if techno_until > turn:
+		out.append(["Техническое правительство", 0.5])
+	return out
+
+
+# подсказка к капиталу: источники с цифрами
+func cap_tip() -> String:
+	var rows: Array = []
+	for r in cap_sources():
+		rows.append([String(r[0]), "%+.2f" % float(r[1])])
+	var mrows: Array = []
+	for r in cap_mults():
+		mrows.append([String(r[0]), "×%.2f" % float(r[1])])
+	var secs: Array = [["Источники в месяц", rows], ["Множители", mrows], ["Итого", [["Прирост в месяц", "%+.2f" % cap_rate()]]],
+		["", "Капитал тратится на законы, действия и переговоры; за выполненные обещания партнёрам он возвращается. Тратить можно и в минус."]]
+	if capital < 0.0:
+		secs.append(["", "Внимание: капитал в минусе, риск отставки правительства %.0f%% в месяц." % (cap_neg_risk() * 100.0)])
+	return tip_make("Политический капитал: %.1f" % capital, secs)
 
 
 # ============================================================
@@ -355,7 +448,7 @@ func rel_add(a: int, b: int, d: float) -> void:
 
 func prm_base(p: int, q: int) -> float:
 	var b := 22.0 + 75.0 * clampf((party_sim(p, q) - 0.35) / 0.65, 0.0, 1.0)
-	if p == 9 or q == 9:
+	if p == PROTEST_P or q == PROTEST_P:
 		b -= 18.0
 	if in_coalition[p] and in_coalition[q]:
 		b += 6.0
@@ -409,12 +502,14 @@ func cap_swap(p: int) -> float:
 	var old := capital
 	if pcap.size() > p:
 		capital = float(pcap[p])
+		cap_ai = true
 	return old
 
 
 func cap_unswap(p: int, old: float) -> void:
 	if pcap.size() > p:
 		pcap[p] = clampf(capital, 0.0, 100.0)
+	cap_ai = false
 	capital = old
 
 
@@ -422,6 +517,7 @@ func autopilot_run() -> void:
 	if opp_mode and not opp_gov.is_empty():
 		var pm: int = int(opp_gov["pm"])
 		var old := cap_swap(pm)
+		gov_style_step()
 		autopilot_step()
 		cap_unswap(pm, old)
 	else:
@@ -443,7 +539,7 @@ func ai_parties_step() -> void:
 			continue
 		var sh: float = float(seats[p]) / float(maxi(1, SEATS))
 		var gain := 0.45 + 5.5 * sh + (0.7 if in_coalition[p] else 0.0)
-		if p == 9:
+		if p == PROTEST_P:
 			gain = 0.8
 		pcap[p] = minf(100.0, float(pcap[p]) + gain)
 	# срок штрафов от атак
@@ -468,7 +564,7 @@ func ai_parties_step() -> void:
 	for p in range(1, n):
 		if p == 6 or pcap.size() <= p:
 			continue
-		if seats[p] <= 0 and p != 9:
+		if seats[p] <= 0 and p != PROTEST_P:
 			continue
 		ai_party_act(p)
 	ai_bloc_plan()
@@ -686,7 +782,7 @@ func ai_pick_law(pm: int, members_in: Array = []) -> void:
 		propose_variant(best_t, best_i)
 		return
 	bill_seq += 1
-	bills.append({"id": bill_seq, "tid": best_t, "idx": best_i, "sponsor": pm, "start": turn, "due": turn + 2 + randi() % 2, "forced": [], "pow": 1.0, "req": [], "paid": 0.0})
+	bills.append({"id": bill_seq, "tid": best_t, "idx": best_i, "sponsor": pm, "start": turn, "due": turn + 2 + randi() % 2, "forced": [], "pow": 1.0, "req": [], "paid": 0.0, "pv": "line"})
 	ai_note("bill_proposed")
 	log_tag("ЗАКОНОПРОЕКТ", COL_PURPLE, "правительство («%s») внесло законопроект «%s»: %s." % [PARTY_NAMES[pm], law_index[best_t]["name"], variant_of(best_t, best_i)["n"]])
 
@@ -733,7 +829,10 @@ func bill_preview(b: Dictionary) -> Dictionary:
 func propose_variant(tid: String, idx: int, forced: Array = []) -> void:
 	if game_over:
 		return
-	if radical_bypass(tid, idx) or decree_power():
+	# v50: законопроекты вносят только партии, представленные в парламенте; указом — только правительство
+	if not observer and pl_deny("parl"):
+		return
+	if radical_bypass(tid, idx) or (decree_power() and pl_gov()):
 		adopt_variant(tid, idx, forced)
 		return
 	if idx == cur_idx(tid) and not law_tweak(tid):
@@ -760,7 +859,7 @@ func propose_variant(tid: String, idx: int, forced: Array = []) -> void:
 		log_line("[color=%s]В работе уже три ваших законопроекта: дождитесь решения.[/color]" % COL_WARN)
 		return
 	var cost := law_cost(tid, idx)
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Для законопроекта «%s» не хватает политкапитала: нужно %.0f.[/color]" % [COL_BAD, topic["name"], cost])
 		return
 	var up := cost * 0.35
@@ -825,7 +924,7 @@ func bill_request(bid: int, ri: int, accept: bool) -> bool:
 	var r: Dictionary = reqs[ri]
 	var p: int = int(r["p"])
 	if accept:
-		if capital < float(r["cost"]):
+		if cap_spendable() < float(r["cost"]):
 			return false
 		capital -= float(r["cost"])
 		r["state"] = 1
@@ -876,7 +975,7 @@ func bill_amend(bid: int, kind: String) -> bool:
 			var y1: int = int(bill_preview(b)["yes"])
 			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s» %s: сила действия %.1f×; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], "смягчён" if kind == "soft" else "ужесточён", float(b["pow"]), y0, y1, law_need(tid)])
 		"sweet":
-			if bool(did.get("sweet", false)) or capital < 4.0:
+			if bool(did.get("sweet", false)) or cap_spendable() < 4.0:
 				return false
 			var added: PackedStringArray = []
 			for p in range(1, PARTY_NAMES.size()):
@@ -891,11 +990,9 @@ func bill_amend(bid: int, kind: String) -> bool:
 			did["sweet"] = true
 			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s»: компенсации и смягчающие поправки — %s согласны голосовать за." % [law_index[tid]["name"], ", ".join(added) if added.size() > 0 else "новых сторонников нет"])
 		"fast":
-			if bool(did.get("fast", false)) or capital < 4.0 or int(b["due"]) <= turn + 1:
-				return false
-			capital -= 4.0
-			b["due"] = int(b["due"]) - 1
-			did["fast"] = true
+			# v50: ускорение принятия закона отменено — парламент рассматривает законопроект в свой срок
+			log_line("[color=%s]Ускорить рассмотрение нельзя: парламент работает в своём темпе.[/color]" % COL_WARN)
+			return false
 		"slow":
 			if int(did.get("slow", 0)) >= 2:
 				return false
@@ -909,6 +1006,139 @@ func bill_amend(bid: int, kind: String) -> bool:
 			return false
 	refresh()
 	return true
+
+
+# ---------- v50: поправки-оговорки: в пользу группы интересов, показателя страны или партии ----------
+const RIDER_CHARS := {
+	"env_lvl": ["Экологическая оговорка", "env", "Экологи"], "equality": ["Социальная оговорка", "benefits", "Рабочие"],
+	"security_lvl": ["Оговорка о безопасности", "police", "Силовики"], "corruption": ["Антикоррупционная оговорка", "", ""],
+	"edu_lvl": ["Оговорка об образовании", "edu", "Молодёжь"], "health_lvl": ["Оговорка о здравоохранении", "health", "Пенсионеры"],
+	"infra_lvl": ["Оговорка о региональной инфраструктуре", "infra", "Село"],
+}
+const RIDER_MAX := 4
+
+
+func bill_rider_list(b: Dictionary) -> Array:
+	if not b.has("riders"):
+		b["riders"] = []
+	return b["riders"]
+
+
+# kind: "group" (arg — группа), "char" (arg — показатель), "party" (arg — номер партии)
+func bill_rider_check(b: Dictionary, kind: String, arg: String) -> String:
+	if int(b["sponsor"]) != 0:
+		return "это чужой законопроект"
+	if bill_rider_list(b).size() >= RIDER_MAX:
+		return "не больше %d оговорок в одном законе" % RIDER_MAX
+	for r in bill_rider_list(b):
+		if String(r["k"]) == kind and String(r["a"]) == arg:
+			return "такая оговорка уже есть"
+	var cost: float = 4.0 if kind == "party" else 3.0
+	if cap_spendable() < cost:
+		return "нужно %.0f политкапитала" % cost
+	if kind == "party":
+		var p := int(arg)
+		if p <= 0 or p >= PARTY_NAMES.size() or seats[p] <= 0:
+			return "партии нет в парламенте"
+	return ""
+
+
+func bill_rider_add(bid: int, kind: String, arg: String) -> bool:
+	var bi := bill_index(bid)
+	if bi < 0:
+		return false
+	var b: Dictionary = bills[bi]
+	var why := bill_rider_check(b, kind, arg)
+	if why != "":
+		log_line("[color=%s]Поправка невозможна: %s.[/color]" % [COL_WARN, why])
+		return false
+	var tid: String = String(b["tid"])
+	var y0: int = int(bill_preview(b)["yes"])
+	var won: PackedStringArray = []
+	var lost: PackedStringArray = []
+	var title := ""
+	match kind:
+		"group":
+			capital -= 3.0
+			title = "в пользу группы «%s»" % arg
+			# партии, чей электорат — эта группа, охотнее голосуют «за»
+			for p in range(1, PARTY_NAMES.size()):
+				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+					continue
+				var lean_sh: float = float(LEAN[arg][p]) / maxf(0.001, _lean_sum(arg))
+				if lean_sh > 1.4 / float(PARTY_NAMES.size()) and variant_stance(p, tid, int(b["idx"])) >= -3.0:
+					(b["forced"] as Array).append(p)
+					won.append(PARTY_NAMES[p])
+		"char":
+			capital -= 3.0
+			var ch: Array = RIDER_CHARS.get(arg, ["Оговорка", "", ""])
+			title = String(ch[0]).to_lower()
+			var pk: String = String(ch[1])
+			for p in range(1, PARTY_NAMES.size()):
+				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+					continue
+				var st: float = ideo_stance(p, pk) if policy_by_key.has(pk) else (0.4 if arg == "corruption" else 0.0)
+				if st > 0.25 and variant_stance(p, tid, int(b["idx"])) >= -3.5:
+					(b["forced"] as Array).append(p)
+					won.append(PARTY_NAMES[p])
+		"party":
+			capital -= 4.0
+			var q := int(arg)
+			title = "с учётом требований «%s»" % PARTY_NAMES[q]
+			if not (q in b["forced"]) and variant_stance(q, tid, int(b["idx"])) >= -5.0:
+				(b["forced"] as Array).append(q)
+				won.append(PARTY_NAMES[q])
+			rel_add(0, q, 3.0)
+			# противники этой партии отходят
+			for p in (b["forced"] as Array).duplicate():
+				if int(p) != q and int(p) != 0 and rel(int(p), q) < 32.0:
+					(b["forced"] as Array).erase(p)
+					lost.append(PARTY_NAMES[int(p)])
+	bill_rider_list(b).append({"k": kind, "a": arg, "t": title})
+	var y1: int = int(bill_preview(b)["yes"])
+	var t := "законопроект «%s»: оговорка %s; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], title, y0, y1, law_need(tid)]
+	if won.size() > 0:
+		t += " Поддержат: %s." % ", ".join(won)
+	if lost.size() > 0:
+		t += " Отвернулись: %s." % ", ".join(lost)
+	log_tag("ПОПРАВКА", COL_TEAL, t)
+	refresh()
+	return true
+
+
+func _lean_sum(g: String) -> float:
+	var t := 0.0
+	for v in (LEAN[g] as Array):
+		t += float(v)
+	return t
+
+
+# после принятия закона оговорки действуют: группы, показатели, партии
+func bill_riders_apply(b: Dictionary) -> void:
+	for r in (b.get("riders", []) as Array):
+		match String(r["k"]):
+			"group":
+				add_support(String(r["a"]), 2.0)
+				conc_all_groups_cost(0.04)
+			"char":
+				var key: String = String(r["a"])
+				if lvl.has(key):
+					lvl[key] = clampf(float(lvl[key]) + (-2.0 if key == "corruption" else 2.0), 0.0, 100.0)
+				var g: String = String((RIDER_CHARS.get(key, ["", "", ""]) as Array)[2])
+				if g != "":
+					add_support(g, 1.0)
+				conc_all_groups_cost(0.03)
+			"party":
+				var q := int(r["a"])
+				if q > 0 and q < PARTY_NAMES.size():
+					rel_add(0, q, 4.0)
+					if in_coalition[q]:
+						conc[q] = float(conc.get(q, 0.0)) + 6.0
+
+
+# оговорки стоят денег: небольшой разовый расход (доля ВВП)
+func conc_all_groups_cost(pp: float) -> void:
+	debt += gdp * pp / 100.0
 
 
 func bills_step() -> void:
@@ -926,6 +1156,8 @@ func bills_step() -> void:
 		if turn >= int(b["due"]):
 			if int(b["sponsor"]) == 0:
 				bill_vote(b)
+			elif bool(b.get("pa", false)):
+				pa_bill_vote(b)
 			else:
 				ai_bill_vote(b)
 
@@ -947,6 +1179,8 @@ func bill_vote(b: Dictionary) -> void:
 	var ok: bool = int(law_cd.get(tid, 0)) > 0
 	if not ok:
 		law_cd[tid] = saved_cd
+	else:
+		bill_riders_apply(b)
 	for r in b["req"]:
 		if int(r["state"]) == 0:
 			rel_add(0, int(r["p"]), -2.0)
@@ -966,11 +1200,13 @@ func ai_bill_vote(b: Dictionary) -> void:
 		return
 	var old := cap_swap(pm)
 	vote_sponsor = pm
+	vote_pl = String(b.get("pv", "line"))
 	var was: int = int(law_cd.get(tid, 0))
 	law_cd[tid] = 0
 	var before := cur_idx(tid)
 	adopt_variant(tid, idx, bill_forced(b))
 	vote_sponsor = 0
+	vote_pl = ""
 	var ok: bool = cur_idx(tid) == idx and before != idx
 	if not ok:
 		law_cd[tid] = was
@@ -978,3 +1214,341 @@ func ai_bill_vote(b: Dictionary) -> void:
 	ai_note("bill_passed" if ok else "bill_failed")
 	if not ok:
 		log_tag("ЗАКОНОПРОЕКТ", COL_NEUTRAL, "законопроект правительства «%s» не набрал голосов." % law_index[tid]["name"])
+	pa_vote_after(b, pm)
+
+
+# ============================================================
+#  0.56 (п.15): ПАРТНЁРЫ И ОППОЗИЦИЯ ДЕЙСТВУЮТ САМИ
+#  Раз в квартал каждая партия делает 1–3 действия ради своих целей: министры-партнёры предлагают сдвинуть
+#  статьи бюджета своих министерств (нужно согласие коалиции, игрок может наложить вето за капитал), партии вносят
+#  законопроекты, оппозиция выводит людей на митинги. По чужим законопроектам игрок сам решает, как голосует его фракция.
+# ============================================================
+const MIN_BUD := {1: ["army"], 2: ["police"], 3: ["health"], 4: ["edu"], 5: ["subs"], 6: ["subs"], 7: ["eco"], 8: ["infra"], 9: ["pensions", "benefits"], 10: ["police"]}
+const PA_VOTE_NAMES := {"line": "по линии партии", "yes": "за", "no": "против", "abst": "воздержаться", "free": "свободное голосование"}
+
+
+func pa_power(p: int) -> float:
+	return float(seats[p]) / float(maxi(1, SEATS))
+
+
+# цена вето на действие партии: чем сильнее партия, тем дороже
+func pa_veto_cost(p: int) -> float:
+	return roundf(3.0 + 40.0 * pa_power(p))
+
+
+func pa_month() -> void:
+	pl_disc = maxf(0.0, pl_disc - 0.02)
+	var keep: Array = []
+	for pr in pa_props:
+		var p: int = int(pr["p"])
+		var m: int = int(pr["m"])
+		if opp_mode or not in_coalition[p] or int(ministries[m]) != p:
+			continue
+		if turn < int(pr["due"]):
+			keep.append(pr)
+			continue
+		var key: String = String(pr["key"])
+		var d: Dictionary = policy_by_key[key]
+		var old: float = float(pol[key])
+		var nv: float = clampf(old + float(pr["d"]), float(d["min"]), float(d["max"]))
+		nv = lock_allowed_share(key, nv)
+		if absf(nv - old) < 0.01:
+			continue
+		set_policy(key, nv)
+		prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
+		pa_drift[key] = float(pa_drift.get(key, 0.0)) + (float(pol[key]) - old)
+		conc[p] = float(conc.get(p, 0.0)) + 3.0
+		log_tag("МИНИСТР", COL_TEAL, "вступило в силу предложение министра «%s» (%s): «%s» %.1f → %.1f%% ВВП." % [MINISTRIES[m]["name"], party_abbr(p), policy_title(key), old, float(pol[key])])
+	pa_props = keep
+	if month == 1:
+		pa_drift.clear()
+	if month % 3 == 0:
+		pa_quarter()
+
+
+func pa_quarter() -> void:
+	if game_over or PARTY_NAMES.size() < 3 or pcap.size() != PARTY_NAMES.size():
+		return
+	for p in range(1, PARTY_NAMES.size()):
+		if p == 6 or seats[p] <= 0:
+			continue
+		var opts := pa_options(p)
+		var n: int = 1 + int(pa_power(p) >= 0.12) + int(float(pcap[p]) >= 45.0)
+		for i in n:
+			if opts.is_empty():
+				break
+			var tot := 0.0
+			for o in opts:
+				tot += float(o[0])
+			var r := randf() * tot
+			var pick: Array = opts[0]
+			for o in opts:
+				r -= float(o[0])
+				if r <= 0.0:
+					pick = o
+					break
+			# одно предложение по бюджету на партию за квартал
+			for o in opts.duplicate():
+				if String(o[1]) == String(pick[1]) and String(pick[1]) == "bud":
+					opts.erase(o)
+			opts.erase(pick)
+			pa_do(p, String(pick[1]), pick[2])
+
+
+func pa_options(p: int) -> Array:
+	var out: Array = []
+	if opp_mode and not opp_gov.is_empty() and p in (opp_gov["members"] as Array):
+		return out   # правительство без игрока действует по своим правилам (ai_gov_rule)
+	var aggr: float = float((ARCH[party_arch(p)] as Dictionary)["aggr"])
+	if in_coalition[p] and not opp_mode:
+		for m in MINISTRIES.size():
+			if int(ministries[m]) != p or not MIN_BUD.has(m):
+				continue
+			for key in (MIN_BUD[m] as Array):
+				var busy := false
+				for pr in pa_props:
+					if String(pr["key"]) == key:
+						busy = true
+				if busy:
+					continue
+				var dd: float = ideo_target(p, key) - float(pol[key])
+				# за год министр сдвигает статью не больше чем на 0,5 п.п.; при большом дефиците не просит денег
+				if absf(dd) < 0.2 or absf(float(pa_drift.get(key, 0.0))) >= 0.5:
+					continue
+				var step: float = 0.2 if absf(dd) >= 0.6 else 0.1
+				step *= signf(dd)
+				var wgt: float = 0.5 + 0.5 * minf(absf(dd), 1.5)
+				if step > 0.0 and last_deficit_pct > 3.5:
+					continue   # 0.56: при дефиците выше 3,5% ВВП партнёры денег не просят
+				if step > 0.0 and last_deficit_pct > 2.5:
+					wgt *= 0.3
+				out.append([wgt, "bud", {"m": m, "key": key, "d": step}])
+		var lb := pa_pick_bill(p)
+		if not lb.is_empty():
+			out.append([1.2, "bill", lb])
+		out.append([0.6, "say", {}])
+	else:
+		var lb2 := pa_pick_bill(p) if pa_power(p) >= 0.05 else {}
+		if not lb2.is_empty():
+			out.append([0.5, "bill", lb2])
+		out.append([(0.3 + aggr) * (0.5 + 4.0 * pa_power(p)), "rally", {}])
+	return out
+
+
+# законопроект партии: сначала её закон-условие, иначе вариант, который ей ближе всего
+func pa_pick_bill(p: int) -> Dictionary:
+	var ld := law_demand_of(p)
+	if not ld.is_empty() and not ld.has("val") and not law_demand_met(p):
+		var tid0: String = String(ld["tid"])
+		if law_index.has(tid0) and int(law_cd.get(tid0, 0)) <= 0 and bill_of(tid0) < 0 and turn - int(pa_fail.get(tid0, -99)) >= 12 and law_locked(tid0) == "" and radical_req(tid0, int(ld["idx"])) == "":
+			return {"tid": tid0, "idx": int(ld["idx"])}
+	var best := {}
+	var bs := 1.0
+	var topics: Array = LAW_TOPICS.duplicate()
+	topics.shuffle()
+	for t in topics.slice(0, 30):
+		var tid: String = String(t["id"])
+		if not law_index.has(tid) or law_index[tid].has("param") or int(law_cd.get(tid, 0)) > 0 or law_locked(tid) != "" or bill_of(tid) >= 0 or turn - int(pa_fail.get(tid, -99)) < 12:
+			continue
+		var cur := cur_idx(tid)
+		var vs: Array = law_index[tid]["v"]
+		for idx in [cur - 1, cur + 1]:
+			if idx < 0 or idx >= vs.size():
+				continue
+			if radical_req(tid, idx) != "" or String((vs[idx] as Dictionary).get("rid", "")) != "":
+				continue
+			# 0.56: при большом дефиците партнёры не вносят законы, которые добавляют бюджетные программы
+			if last_deficit_pct > 3.0 and float(((vs[idx] as Dictionary).get("a", {}) as Dictionary).get("extra_spend", 0.0)) > float((((vs[cur] as Dictionary).get("a", {})) as Dictionary).get("extra_spend", 0.0)):
+				continue
+			var s := variant_stance(p, tid, idx)
+			if s > bs:
+				bs = s
+				best = {"tid": tid, "idx": idx}
+	return best
+
+
+func pa_do(p: int, kind: String, o: Dictionary) -> void:
+	match kind:
+		"bud":
+			var key: String = String(o["key"])
+			var d: float = float(o["d"])
+			# согласие коалиции: остальные партнёры по своему влиянию
+			var against := 0.0
+			var tot := 0.0
+			var no_names: PackedStringArray = []
+			for q in coal_members():
+				if q == p or q == 0:
+					continue
+				var w := coal_share(q)
+				tot += w
+				var dq: float = ideo_target(q, key) - float(pol[key])
+				if absf(dq) >= 0.15 and signf(dq) != signf(d):
+					against += w
+					no_names.append(party_abbr(q))
+			if tot > 0.0 and against / tot > 0.5:
+				log_tag("МИНИСТР", COL_DIM, "министр «%s» (%s) хотел изменить «%s» на %s п.п. ВВП, но совет коалиции против (%s)." % [MINISTRIES[int(o["m"])]["name"], party_abbr(p), policy_title(key), sg(d, 1), ", ".join(no_names)])
+				return
+			pa_seq += 1
+			pa_props.append({"id": pa_seq, "p": p, "m": int(o["m"]), "key": key, "d": d, "due": turn + 1})
+			pcap[p] = maxf(0.0, float(pcap[p]) - 2.0)
+			log_tag("МИНИСТР", COL_TEAL, "министр «%s» (%s) предлагает изменить «%s» на %s п.п. ВВП. Если вы не наложите вето (политкапитал −%.0f, окно «Правительство» → «Обязательства и предложения»), изменение вступит в силу в конце следующего месяца." % [
+				MINISTRIES[int(o["m"])]["name"], party_abbr(p), policy_title(key), sg(d, 1), pa_veto_cost(p)])
+		"bill":
+			var tid: String = String(o["tid"])
+			var idx: int = int(o["idx"])
+			if bill_of(tid) >= 0:
+				return
+			bill_seq += 1
+			bills.append({"id": bill_seq, "tid": tid, "idx": idx, "sponsor": p, "start": turn, "due": turn + 3, "forced": [], "pow": 1.0, "req": [], "paid": 0.0, "did": {}, "pa": true, "pv": "line"})
+			pcap[p] = maxf(0.0, float(pcap[p]) - 3.0)
+			var who := "партнёр по коалиции" if in_coalition[p] and not opp_mode else "оппозиция"
+			log_tag("ЗАКОНОПРОЕКТ", COL_TEAL, "«%s» (%s) внесла законопроект «%s»: %s. Голосование через 3 мес. Как голосует ваша фракция, решите в окне «Законопроекты» (сейчас — %s)." % [
+				PARTY_NAMES[p], who, law_index[tid]["name"], variant_of(tid, idx)["n"], "за" if pa_line(bills[bills.size() - 1]) else "против"])
+		"say":
+			var st: float = float(satis.get(p, 55.0))
+			if st >= 62.0:
+				add_all_support(0.1)
+				log_tag("ПАРТНЁР", COL_GOOD, "«%s» публично хвалит работу правительства." % PARTY_NAMES[p])
+			elif st < 47.0:
+				add_all_support(-0.12)
+				log_tag("ПАРТНЁР", COL_WARN, "«%s» публично критикует правительство: %s." % [PARTY_NAMES[p], sat_reason(p)])
+		"rally":
+			var w: float = 0.5 + 4.0 * pa_power(p)
+			pcap[p] = maxf(0.0, float(pcap[p]) - 2.0)
+			if opp_mode and not opp_gov.is_empty():
+				opp_gov["stab"] = clampf(float(opp_gov["stab"]) - 0.6 * w, 0.0, 100.0)
+				if pa_power(p) >= 0.08:
+					log_tag("ОППОЗИЦИЯ", COL_DIM, "«%s» вывела сторонников на митинги против правительства." % PARTY_NAMES[p])
+			else:
+				add_all_support(-0.06 * w)
+				if pa_power(p) >= 0.06:
+					log_tag("ОППОЗИЦИЯ", COL_WARN, "«%s» провела митинги против вашего правительства: рейтинг власти −%.1f." % [PARTY_NAMES[p], 0.06 * w])
+
+
+# линия партии игрока по чужому законопроекту: true — «за»
+func pa_line(b: Dictionary) -> bool:
+	var s := variant_stance(0, String(b["tid"]), int(b["idx"]))
+	var sp: int = int(b["sponsor"])
+	return s >= 0.0 or (in_coalition[0] and sp > 0 and sp < in_coalition.size() and in_coalition[sp] and s >= -1.0)
+
+
+func pa_set_vote(bid: int, v: String) -> void:
+	var bi := bill_index(bid)
+	if bi < 0 or not PA_VOTE_NAMES.has(v):
+		return
+	if pl_deny("parl"):
+		return
+	bills[bi]["pv"] = v
+	refresh()
+
+
+func pa_bill_vote(b: Dictionary) -> void:
+	var tid: String = String(b["tid"])
+	var idx: int = int(b["idx"])
+	var p: int = int(b["sponsor"])
+	bills.erase(b)
+	if p <= 0 or p >= PARTY_NAMES.size() or seats[p] <= 0:
+		return
+	var old := cap_swap(p)
+	capital = maxf(capital, 40.0)
+	vote_sponsor = p
+	vote_pl = String(b.get("pv", "line"))
+	cost_mult = 0.25
+	var was: int = int(law_cd.get(tid, 0))
+	law_cd[tid] = 0
+	var before := cur_idx(tid)
+	adopt_variant(tid, idx, [])
+	vote_sponsor = 0
+	vote_pl = ""
+	cost_mult = 1.0
+	var ok: bool = cur_idx(tid) == idx and before != idx
+	if not ok:
+		law_cd[tid] = was
+	cap_unswap(p, old)
+	if not ok:
+		pa_fail[tid] = turn
+		log_tag("ЗАКОНОПРОЕКТ", COL_NEUTRAL, "законопроект «%s» партии «%s» не принят." % [law_index[tid]["name"], party_abbr(p)])
+	pa_vote_after(b, p)
+
+
+# последствия выбора фракции: против линии — слабеет дисциплина и недовольны избиратели; против партнёра — он обижен
+func pa_vote_after(b: Dictionary, p: int) -> void:
+	if seats[0] <= 0:
+		return
+	var pv: String = String(b.get("pv", "line"))
+	var line := pa_line(b)
+	var eff: String = pv if pv != "line" else ("yes" if line else "no")
+	var nm: String = String(law_index[String(b["tid"])]["name"])
+	if (eff == "yes" and not line) or (eff == "no" and line):
+		pl_disc = minf(1.0, pl_disc + 0.15)
+		add_all_support(-0.2)
+		log_tag("ФРАКЦИЯ", COL_WARN, "по закону «%s» ваша фракция проголосовала против линии партии: дисциплина слабеет, часть избирателей недовольна." % nm)
+	elif eff == "free":
+		pl_disc = minf(1.0, pl_disc + 0.05)
+	if opp_mode:
+		if p < prel.size():
+			rel_add(0, p, 3.0 if eff == "yes" else (-2.0 if eff == "no" else 0.0))
+		return
+	if in_coalition[p]:
+		if eff == "no":
+			satis[p] = clampf(float(satis.get(p, 50.0)) - 6.0, 0.0, 100.0)
+			rel_add(0, p, -4.0)
+			log_tag("КОАЛИЦИЯ", COL_WARN, "«%s» обижена: ваша фракция голосовала против её законопроекта «%s»." % [PARTY_NAMES[p], nm])
+		elif eff == "abst":
+			satis[p] = clampf(float(satis.get(p, 50.0)) - 3.0, 0.0, 100.0)
+		elif eff == "yes":
+			conc[p] = float(conc.get(p, 0.0)) + 2.0
+	elif eff == "yes":
+		var angry: PackedStringArray = []
+		for q in coal_members():
+			if q != 0 and variant_stance(q, String(b["tid"]), int(b["idx"])) < -1.0:
+				satis[q] = clampf(float(satis.get(q, 50.0)) - 3.0, 0.0, 100.0)
+				angry.append(party_abbr(q))
+		if angry.size() > 0:
+			log_tag("КОАЛИЦИЯ", COL_WARN, "партнёры (%s) недовольны: вы поддержали законопроект оппозиции «%s»." % [", ".join(angry), nm])
+
+
+# вето: снять чужой законопроект с повестки (правительство управляет повесткой)
+func pa_veto_bill(bid: int) -> void:
+	var bi := bill_index(bid)
+	if bi < 0 or pl_deny():
+		return
+	var b: Dictionary = bills[bi]
+	var p: int = int(b["sponsor"])
+	if p == 0 or not bool(b.get("pa", false)):
+		return
+	var cost := pa_veto_cost(p)
+	if cap_spendable() < cost:
+		log_line("[color=%s]Для вето нужно %.0f политкапитала.[/color]" % [COL_WARN, cost])
+		return
+	capital -= cost
+	bills.remove_at(bi)
+	if in_coalition[p]:
+		satis[p] = clampf(float(satis.get(p, 50.0)) - 5.0, 0.0, 100.0)
+	rel_add(0, p, -3.0)
+	log_tag("ВЕТО", COL_PURPLE, "вы сняли с повестки законопроект «%s» партии «%s» (политкапитал −%.0f)." % [law_index[String(b["tid"])]["name"], PARTY_NAMES[p], cost])
+	refresh()
+
+
+func pa_veto_prop(id: int) -> void:
+	if pl_deny():
+		return
+	for i in pa_props.size():
+		var pr: Dictionary = pa_props[i]
+		if int(pr["id"]) != id:
+			continue
+		var p: int = int(pr["p"])
+		var cost := pa_veto_cost(p)
+		if cap_spendable() < cost:
+			log_line("[color=%s]Для вето нужно %.0f политкапитала.[/color]" % [COL_WARN, cost])
+			return
+		capital -= cost
+		conc[p] = float(conc.get(p, 0.0)) - 4.0
+		pa_props.remove_at(i)
+		log_tag("ВЕТО", COL_PURPLE, "вы запретили министру «%s» (%s) менять «%s» (политкапитал −%.0f)." % [MINISTRIES[int(pr["m"])]["name"], party_abbr(p), policy_title(String(pr["key"])), cost])
+		refresh()
+		return
+
+
+func pa_prop_text(pr: Dictionary) -> String:
+	return "Министр «%s» (%s): «%s» %s п.п. ВВП — вступит в силу в конце %s" % [MINISTRIES[int(pr["m"])]["name"], party_abbr(int(pr["p"])), policy_title(String(pr["key"])), sg(float(pr["d"]), 1), "этого месяца" if int(pr["due"]) <= turn else "следующего месяца"]

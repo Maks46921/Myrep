@@ -110,6 +110,12 @@ static func draw_icon(k: String, o: Vector2, u: float, w: float, c: Color, d: Ca
 			d.draw_line(P(o, u, 0.86, 0.3), P(o, u, 0.7, 0.12), c, w * 0.8)
 			d.draw_line(P(o, u, 0.3, 0.12), P(o, u, 0.7, 0.12), c, w * 0.8)
 			d.draw_line(P(o, u, 0.5, 0.3), P(o, u, 0.5, 0.52), c, w * 0.7)
+		"flask":
+			d.draw_line(P(o, u, 0.4, 0.12), P(o, u, 0.4, 0.4), c, w * 0.8)
+			d.draw_line(P(o, u, 0.6, 0.12), P(o, u, 0.6, 0.4), c, w * 0.8)
+			d.draw_line(P(o, u, 0.34, 0.12), P(o, u, 0.66, 0.12), c, w * 0.8)
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.4, 0.4), P(o, u, 0.14, 0.82), P(o, u, 0.86, 0.82), P(o, u, 0.6, 0.4)]), c, w * 0.8)
+			d.draw_line(P(o, u, 0.26, 0.62), P(o, u, 0.74, 0.62), c, w * 0.7)
 		"ship":
 			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.1, 0.55), P(o, u, 0.9, 0.55), P(o, u, 0.72, 0.8), P(o, u, 0.28, 0.8)]), c)
 			d.draw_line(P(o, u, 0.5, 0.55), P(o, u, 0.5, 0.15), c, w * 0.8)
@@ -147,5 +153,71 @@ static func draw_icon(k: String, o: Vector2, u: float, w: float, c: Color, d: Ca
 				var an: float = -PI / 2.0 + float(i) * PI / 5.0
 				pts.append(P(o, u, 0.5 + cos(an) * r, 0.52 + sin(an) * r))
 			d.draw_colored_polygon(pts, c)
+		# v55_1: значки сооружений: культура, образование, здравоохранение, госуправление
+		"masks":
+			d.draw_arc(P(o, u, 0.5, 0.48), u * 0.38, 0.0, TAU, 24, c, w * 0.8)
+			d.draw_circle(P(o, u, 0.36, 0.4), u * 0.06, c)
+			d.draw_circle(P(o, u, 0.64, 0.4), u * 0.06, c)
+			d.draw_arc(P(o, u, 0.5, 0.52), u * 0.2, 0.35, PI - 0.35, 12, c, w * 0.8)
+		"book":
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.5, 0.28), P(o, u, 0.12, 0.2), P(o, u, 0.12, 0.8), P(o, u, 0.5, 0.88), P(o, u, 0.88, 0.8), P(o, u, 0.88, 0.2), P(o, u, 0.5, 0.28), P(o, u, 0.5, 0.88)]), c, w * 0.8)
+		"medcross":
+			d.draw_rect(Rect2(P(o, u, 0.4, 0.14), Vector2(0.2, 0.72) * u), c)
+			d.draw_rect(Rect2(P(o, u, 0.14, 0.4), Vector2(0.72, 0.2) * u), c)
+		"scales":
+			d.draw_line(P(o, u, 0.5, 0.12), P(o, u, 0.5, 0.86), c, w)
+			d.draw_line(P(o, u, 0.3, 0.86), P(o, u, 0.7, 0.86), c, w)
+			d.draw_line(P(o, u, 0.14, 0.26), P(o, u, 0.86, 0.26), c, w)
+			d.draw_arc(P(o, u, 0.2, 0.5), u * 0.14, 0.0, PI, 10, c, w * 0.8)
+			d.draw_arc(P(o, u, 0.8, 0.5), u * 0.14, 0.0, PI, 10, c, w * 0.8)
+		# v49: новые значки (верхняя панель, паспорт страны, разделы)
+		"calendar":
+			d.draw_rect(Rect2(P(o, u, 0.14, 0.2), Vector2(u * 0.72, u * 0.66)), c, false, w * 0.8)
+			d.draw_rect(Rect2(P(o, u, 0.14, 0.2), Vector2(u * 0.72, u * 0.16)), c)
+			d.draw_line(P(o, u, 0.32, 0.1), P(o, u, 0.32, 0.27), c, w * 0.8)
+			d.draw_line(P(o, u, 0.68, 0.1), P(o, u, 0.68, 0.27), c, w * 0.8)
+			for i in 3:
+				for j in 2:
+					d.draw_rect(Rect2(P(o, u, 0.24 + 0.2 * float(i), 0.48 + 0.18 * float(j)), Vector2(u * 0.1, u * 0.09)), c)
+		"ballot":
+			d.draw_rect(Rect2(P(o, u, 0.14, 0.46), Vector2(u * 0.72, u * 0.42)), c, false, w * 0.8)
+			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.34, 0.1), P(o, u, 0.66, 0.1), P(o, u, 0.66, 0.5), P(o, u, 0.34, 0.5)]), c)
+			d.draw_line(P(o, u, 0.4, 0.3), P(o, u, 0.48, 0.38), Color(0.1, 0.12, 0.18), w * 0.6)
+			d.draw_line(P(o, u, 0.48, 0.38), P(o, u, 0.6, 0.2), Color(0.1, 0.12, 0.18), w * 0.6)
+		"percent":
+			d.draw_line(P(o, u, 0.78, 0.16), P(o, u, 0.22, 0.84), c, w)
+			d.draw_arc(P(o, u, 0.3, 0.28), u * 0.12, 0.0, TAU, 14, c, w * 0.8)
+			d.draw_arc(P(o, u, 0.7, 0.72), u * 0.12, 0.0, TAU, 14, c, w * 0.8)
+		"work":
+			d.draw_rect(Rect2(P(o, u, 0.12, 0.34), Vector2(u * 0.76, u * 0.5)), c, false, w * 0.8)
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.36, 0.34), P(o, u, 0.36, 0.2), P(o, u, 0.64, 0.2), P(o, u, 0.64, 0.34)]), c, w * 0.8)
+			d.draw_line(P(o, u, 0.12, 0.54), P(o, u, 0.88, 0.54), c, w * 0.6)
+		"person":
+			d.draw_circle(P(o, u, 0.5, 0.3), u * 0.16, c)
+			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.2, 0.9), P(o, u, 0.26, 0.6), P(o, u, 0.5, 0.52), P(o, u, 0.74, 0.6), P(o, u, 0.8, 0.9)]), c)
+		"crown":
+			d.draw_colored_polygon(PackedVector2Array([P(o, u, 0.14, 0.76), P(o, u, 0.1, 0.3), P(o, u, 0.32, 0.52), P(o, u, 0.5, 0.18), P(o, u, 0.68, 0.52), P(o, u, 0.9, 0.3), P(o, u, 0.86, 0.76)]), c)
+			d.draw_rect(Rect2(P(o, u, 0.14, 0.8), Vector2(u * 0.72, u * 0.08)), c)
+		"map":
+			d.draw_polyline(PackedVector2Array([P(o, u, 0.08, 0.22), P(o, u, 0.36, 0.12), P(o, u, 0.64, 0.22), P(o, u, 0.92, 0.12), P(o, u, 0.92, 0.78), P(o, u, 0.64, 0.88), P(o, u, 0.36, 0.78), P(o, u, 0.08, 0.88), P(o, u, 0.08, 0.22)]), c, w * 0.8)
+			d.draw_line(P(o, u, 0.36, 0.12), P(o, u, 0.36, 0.78), c, w * 0.6)
+			d.draw_line(P(o, u, 0.64, 0.22), P(o, u, 0.64, 0.88), c, w * 0.6)
+		"gauge":
+			d.draw_arc(P(o, u, 0.5, 0.62), u * 0.38, PI, TAU, 20, c, w)
+			d.draw_line(P(o, u, 0.5, 0.62), P(o, u, 0.72, 0.36), c, w)
+			d.draw_circle(P(o, u, 0.5, 0.62), u * 0.07, c)
+		"globe":
+			d.draw_arc(P(o, u, 0.5, 0.5), u * 0.38, 0.0, TAU, 24, c, w * 0.8)
+			d.draw_line(P(o, u, 0.12, 0.5), P(o, u, 0.88, 0.5), c, w * 0.6)
+			var eq := PackedVector2Array()
+			for i in 17:
+				var an2: float = -PI / 2.0 + PI * float(i) / 16.0
+				eq.append(P(o, u, 0.5 + cos(an2) * 0.16, 0.5 + sin(an2) * 0.38))
+			d.draw_polyline(eq, c, w * 0.6)
+			var eq2 := PackedVector2Array()
+			for i in 17:
+				var an3: float = -PI / 2.0 + PI * float(i) / 16.0
+				eq2.append(P(o, u, 0.5 - cos(an3) * 0.16, 0.5 + sin(an3) * 0.38))
+			d.draw_polyline(eq2, c, w * 0.6)
 		_:
 			d.draw_circle(P(o, u, 0.5, 0.5), u * 0.3, c)

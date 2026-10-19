@@ -2,12 +2,23 @@ config_version=5
 
 [application]
 
-config/name="PolitGame v32"
-run/main_scene="res://main.tscn"
+config/name="Symphony"
+config/version="0.56.0"
+run/main_scene="res://boot.tscn"
 config/features=PackedStringArray("4.3")
+config/icon="res://icon.svg"
+config/windows_native_icon="res://icon.ico"
+boot_splash/bg_color=Color(0.067, 0.082, 0.118, 1)
+boot_splash/image="res://splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
 
 [display]
 
 window/size/viewport_width=1400
 window/size/viewport_height=820
 window/size/resizable=true
+
+[gui]
+
+timers/tooltip_delay_sec=0.1

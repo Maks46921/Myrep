@@ -8,6 +8,14 @@ func ate_unit_has_capital(cc: String, ui: int) -> bool:
 	return false
 
 
+func church_init_region(i: int, pie: float = -1.0) -> void:
+	pass
+
+
+func cult_init_region(i: int, cc: String, code: String, at_start: bool = false) -> void:
+	pass
+
+
 func map_rebuild() -> void:
 	pass
 
@@ -63,7 +71,8 @@ func fed_cfg() -> Dictionary:
 func fed_reset_world() -> void:
 	ate_reset()
 	for ui in fed_u0:
-		WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
+		if int(ui) < WORLD_UNITS.size():          # единицы, созданные реформой АТЕ, ate_reset уже убрал
+			WORLD_UNITS[int(ui)]["cc"] = String(fed_u0[ui])
 	for cc in fed_w0:
 		WORLD[cc]["regions"] = (fed_w0[cc] as Array).duplicate(true)
 	fed_u0.clear()
@@ -265,7 +274,7 @@ func fed_cd_get(k: String) -> int:
 func fed_cap_ok(cost: float) -> bool:
 	if game_over:
 		return false
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Не хватает политического капитала (нужно %.0f).[/color]" % [COL_BAD, cost])
 		return false
 	return true
@@ -710,7 +719,7 @@ func fed_adjacent_units() -> Array:
 func fed_rel(cc: String) -> float:
 	if dip.has(cc):
 		return float(dip[cc]["rel"])
-	return 45.0 + float((fst["rel_x"] as Dictionary).get(cc, 0.0))
+	return clampf(45.0 + float((fst["rel_x"] as Dictionary).get(cc, 0.0)) + fa_rel_term(cc), 0.0, 100.0)
 
 
 func fed_court(cc: String) -> bool:
@@ -806,6 +815,8 @@ func fed_take_unit(ui: int, how: String, k0: float, status: int = 0) -> int:
 	loy_off.append(0.0)
 	unr_off.append(0.0)
 	soc_init_region(i, cc, String(nd["code"]))
+	cult_init_region(i, cc, String(nd["code"]))
+	church_init_region(i)
 	fed_region_init(i, how == "territory", status)
 	regions[i]["since"] = 0
 	if status > 0:
@@ -916,7 +927,7 @@ func terr_buy_quote(ui: int, mult: float, how: String = "subject") -> Dictionary
 	var cap: float = 12.0 + mult * 6.0
 	q.merge({"price": price, "gdp_r": g_r, "p_gov": p_gov, "p_loc": p_loc, "p_dom": p_dom, "p": p_gov * p_loc * p_dom, "cap": cap, "pop": float(wr["popm"]),
 		"name": String(wr["name"]), "country": String(WORLD[cc]["name"]), "admit_blocked": admit_blocked, "rel": rel, "need_dom": dm, "gdp_pct": gdp_pct}, true)
-	if capital < cap:
+	if cap_spendable() < cap:
 		q["afford"] = false
 	else:
 		q["afford"] = true

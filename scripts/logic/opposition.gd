@@ -12,15 +12,20 @@ func prm_init() -> void:
 	pass
 
 
-func rel_add(a: int, b: int, d: float) -> void:
-	pass
-
-
 # --- конец заглушек ---
 
 
-# роли партий по слотам: 0 — ваша, 6 — «прочие», 8 — региональная, 9 — протестная
-const NO_PLAY_SLOTS := [6, 8, 9]
+# роли партий по слотам: 0 — ваша, 6 — «прочие», REGIONAL_P (обычно 8) — региональная, PROTEST_P (обычно 9) — протестная.
+# 0.56: играть можно за любую настоящую партию, в том числе региональную и протестную; не за сборные списки
+const NO_PLAY_SLOTS := [6]
+const NO_PLAY_NAMES := ["Прочие", "Прочая", "Местные списки", "Малые ", "Самовыдвиженцы", "Беспартийные", "Избирательные союзы", "Внепарламентские", "Независимые депутаты", "Внефракционные"]
+
+
+func party_name_playable(nm: String) -> bool:
+	for pre in NO_PLAY_NAMES:
+		if nm.begins_with(pre):
+			return false
+	return nm.strip_edges() != ""
 const NO_GOV_SLOTS := [6]     # v35: партии «кордона» (бывший слот 9) тоже договариваются, но неохотно
 
 const OPP_ACTS := [
@@ -84,7 +89,7 @@ func prel_base(p: int) -> float:
 	if p == 0:
 		return 100.0
 	var b := 22.0 + 75.0 * clampf((party_sim(0, p) - 0.35) / 0.65, 0.0, 1.0)
-	if p == 9:
+	if p == PROTEST_P:
 		b -= 22.0
 	if not opp_mode and in_coalition[p]:
 		b += 6.0
@@ -139,7 +144,7 @@ func cd_left(id: String) -> int:
 
 # ---------- обмен идентичностями с прежней партией власти ----------
 func player_swap_ok(k: int) -> bool:
-	return k > 0 and k < PARTY_NAMES.size() and not (k in NO_PLAY_SLOTS)
+	return k > 0 and k < PARTY_NAMES.size() and not (k in NO_PLAY_SLOTS) and party_name_playable(String(PARTY_NAMES[k]))
 
 
 func swap_idx(v: int, k: int) -> int:
@@ -173,12 +178,15 @@ func apply_player_party(k: int) -> void:
 	PARTY_DESC[0] = "Ваша партия. " + dk
 	PARTY_DESC[k] = d0
 	# --- профили электората ---
+	group_base0 = GROUP_BASE.duplicate()
 	var newbase := {}
 	for g in GROUPS:
 		var arr: Array = LEAN[g]
 		var lk: float = float(arr[k])
-		newbase[g] = clampf(50.0 * pow(maxf(0.0001, lk) / 6.0, 1.0 / 3.0), 14.0, 66.0)
-		arr[k] = 6.0 * pow(float(GROUP_BASE[g]) / 50.0, 3.0)
+		# 0.56: у протестной партии вес растёт как (поддержка / 50)^1,5, а не ^3 (см. vote_weights) — иначе за АдГ на старте 34% вместо 26%
+		newbase[g] = clampf(50.0 * pow(maxf(0.0001, lk) / 6.0, (2.0 / 3.0) if k == PROTEST_P else (1.0 / 3.0)), 14.0, 66.0)
+		# 0.56: у прежней партии власти свой исходный LEAN (в Польше 3 и 5, а не 6): его и нужно сохранить
+		arr[k] = float(arr[0]) * pow(float(GROUP_BASE[g]) / 50.0, 3.0)
 		arr[0] = 6.0
 	for g in GROUPS:
 		GROUP_BASE[g] = newbase[g]
@@ -199,6 +207,9 @@ func apply_player_party(k: int) -> void:
 		DE_START_MIN[m] = swap_idx(int(DE_START_MIN[m]), k)
 	for i in HEMI_ORDER.size():
 		HEMI_ORDER[i] = swap_idx(int(HEMI_ORDER[i]), k)
+	# 0.56: региональная и протестная партии остаются собой, даже если теперь это ваша партия (слот 0)
+	REGIONAL_P = swap_idx(REGIONAL_P, k)
+	PROTEST_P = swap_idx(PROTEST_P, k)
 	var ms := {}
 	for key in MIN_SPECIAL:
 		var parts: PackedStringArray = String(key).split(":")
@@ -237,6 +248,8 @@ func apply_player_party(k: int) -> void:
 				for key in ps:
 					nps[swap_idx(int(key), k)] = ps[key]
 				v["ps"] = nps
+	# 0.56: доли прошлых выборов (предел сдвига и потолок) считались до смены номеров партий — начать заново
+	prev_raw = []
 
 
 # ---------- создание правительства без вас ----------
@@ -333,8 +346,10 @@ func opp_init() -> void:
 	offer_pending = false
 	prel_init()
 	pm_lead = false
+	coal_deal = {}
 	if 0 in COALITION0:
 		pm_lead = player_orig == 0 and ccode in PM_LEAD_START
+		prev_raw = []   # 0.56: стартовые доли для предела сдвига берутся уже при готовой власти
 		return
 	opp_mode = true
 	var members: Array = []
@@ -349,6 +364,7 @@ func opp_init() -> void:
 	opp_set_gov({"members": members, "pm": best, "seats": 0, "ok": true, "stab": 64.0})
 	opp_gov["seats"] = opp_gov_seats()
 	prel_init()
+	prev_raw = []   # 0.56: стартовые доли для предела сдвига берутся уже при готовой власти
 
 
 func opp_ap_force() -> void:
@@ -400,6 +416,11 @@ func junior_quit() -> void:
 
 func opp_to_gov(members: Array, pm: int, why: String) -> void:
 	opp_mode = false
+	# v50: автобаланс и автоответ на события включались на время оппозиции (ими правило чужое правительство);
+	# вернувшись к власти, бюджет и решения — снова ваши (в автопилоте игрока остались только стройка и ремонт)
+	if not observer:
+		ap["bal"] = false
+		ap["events"] = false
 	for p in PARTY_NAMES.size():
 		in_coalition[p] = false
 	in_coalition[0] = true
@@ -469,7 +490,7 @@ func opp_act(id: String) -> bool:
 	for x in OPP_ACTS:
 		if String(x["id"]) == id:
 			a = x
-	if a.is_empty() or cd_left(id) > 0 or capital < float(a["cap"]):
+	if a.is_empty() or cd_left(id) > 0 or cap_spendable() < float(a["cap"]):
 		return false
 	if bool(a["seats"]) and seats[0] <= 0:
 		return false
@@ -550,15 +571,18 @@ func pact_can(p: int, kind: String) -> String:
 		return "нельзя"
 	if p in NO_GOV_SLOTS and kind != "attack":
 		return "партия не заключает соглашений"
-	if seats[p] <= 0 and kind != "talk" and kind != "attack":
+	# v50: предвыборный блок, помощь, похвала и прочее доступны и партиям без мест; в парламенте нужны места только для голосов
+	if seats[p] <= 0 and (kind == "tol" or kind == "votes"):
 		return "у партии нет мест в парламенте"
+	if int(seats[0]) <= 0 and (kind == "tol" or kind == "votes"):
+		return "у вашей партии нет мест в парламенте"
 	var pk: Dictionary = {}
 	for x in PACT_KINDS:
 		if String(x["id"]) == kind:
 			pk = x
 	if pk.is_empty():
 		return "нельзя"
-	if capital < float(pk["cap"]):
+	if cap_spendable() < float(pk["cap"]):
 		return "не хватает политкапитала"
 	if cd_left("p%d_%s" % [p, kind]) > 0:
 		return "ещё %d мес." % cd_left("p%d_%s" % [p, kind])

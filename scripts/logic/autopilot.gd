@@ -6,7 +6,8 @@ func ap_can_adj(key: String, d: float) -> bool:
 		return false
 	var def: Dictionary = policy_by_key[key]
 	var nv: float = float(pol[key]) + d
-	return nv >= float(def["min"]) - 0.0001 and nv <= float(def["max"]) + 0.0001
+	# 0.55.5: пределов нет; помощник не выходит за обычный диапазон сам, но может вернуть ставку в него
+	return nv >= -0.0001 and (nv <= float(def["max"]) + 0.0001 or d < 0.0)
 
 
 func ap_note_change(key: String, d: float) -> void:
@@ -49,6 +50,7 @@ func autobalance_step(target: float = -1.0, big: bool = false) -> bool:
 
 
 func balance_now() -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var n := 0
@@ -64,6 +66,7 @@ func balance_now() -> void:
 
 
 func apply_preset(id: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var pr: Dictionary = PRESETS[id]
@@ -139,44 +142,9 @@ func auto_resolve_event() -> void:
 		cap_unswap(gov_pm, old_cap)
 
 
+# 0.56: автостроительство — годовой план министерств в очереди строек (construct.gd: bld_plan_step)
 func autobuild_step() -> void:
-	if ec.is_empty() or capital < 8.0 or debt / gdp * 100.0 > 85.0:
-		return
-	var active := 0
-	for r in regions:
-		if not (r["proj"] as Dictionary).is_empty():
-			active += 1
-	if active >= 3:
-		return
-	var mk: Dictionary = ec["mk"]
-	var best := ""
-	var bu := 0.0
-	for id in mk:
-		var u: float = float(mk[id]["u"]) + float(mk[id]["short"]) * 3.0
-		if u > bu:
-			bu = u
-			best = id
-	if best == "" or bu < 0.96:
-		return
-	var pid: String = AP_BUILD_MAP[best]
-	var ri := -1
-	var bd := 1000.0
-	for i in regions.size():
-		if (regions[i]["proj"] as Dictionary).is_empty() and float(regions[i]["dev"]) < bd:
-			bd = float(regions[i]["dev"])
-			ri = i
-	if ri < 0:
-		return
-	var old_sel := selected_region
-	var old_opt: int = proj_option.selected
-	selected_region = ri
-	for k in PROJECTS.size():
-		if PROJECTS[k]["id"] == pid:
-			proj_option.select(k)
-	start_project()
-	selected_region = old_sel
-	proj_option.select(old_opt)
-	log_tag("АВТОПИЛОТ", COL_TEAL, "спрос на рынке «%s» превышает мощности — начато строительство в регионе «%s»." % [String(mk_def(best)["name"]).to_lower(), REGIONS[ri]["name"]])
+	pass
 
 
 func autopilot_step() -> void:
@@ -197,13 +165,89 @@ func autopilot_step() -> void:
 			autobuild_step()
 
 
+# ---------- v50: стиль правления партий ----------
+# Стиль выводится из электората партии (идеология) и черты лидера; сила стиля — от власти лидера:
+# черта («идеолог» жёстче, «прагматик» мягче) и вес партии в правительстве.
+const GOV_STYLES := ["Осторожный", "Народный", "Деловой"]
+
+
+func party_style(p: int) -> Dictionary:
+	var soc := 0.0
+	var biz := 0.0
+	var tot := 0.0
+	for g in GROUPS:
+		var w: float = float(LEAN[g][p]) * float(GROUP_WEIGHT[g])
+		tot += w
+		if g == "Рабочие" or g == "Пенсионеры" or g == "Бюджетники" or g == "Село":
+			soc += w
+		elif g == "Бизнес":
+			biz += w * 2.2
+	var st := 0
+	if soc / maxf(tot, 1e-6) > 0.62 and soc > biz * 1.5:
+		st = 1
+	elif biz > soc * 0.55:
+		st = 2
+	var tr: String = String((PARTY_TRAITS[p] as Dictionary).get("trait", "")) if p < PARTY_TRAITS.size() else ""
+	var k: float = 1.3 if tr == "идеолог" else (0.75 if tr == "прагматик" else 1.0)
+	var gs: float = float(seats[p]) / float(maxi(1, gov_seats() if not opp_mode else int(opp_gov.get("seats", SEATS))))
+	var power: float = clampf(k * (0.55 + 0.7 * gs), 0.3, 1.5)
+	var desc: String = ["бережёт бюджет: держит дефицит ниже, резких шагов не делает",
+		"щедр к людям: поднимает пенсии и пособия, при нехватке денег — налог на прибыль",
+		"за рост и бизнес: снижает налог на прибыль и подоходный, урезает пособия при дефиците"][st]
+	return {"st": st, "name": GOV_STYLES[st], "power": power, "desc": desc, "trait": tr}
+
+
+func party_style_text(p: int) -> String:
+	var d := party_style(p)
+	return "Стиль правления: [b]%s[/b] (сила %.1f) — %s." % [d["name"], float(d["power"]), d["desc"]]
+
+
+# ИИ-правительство (вы вне власти) правит в своём стиле: раз в месяц один небольшой шаг, суммарно не больше «силы» п.п. ВВП на статью
+var gs_drift := {}
+
+
+func gov_style_step() -> void:
+	if not opp_mode or opp_gov.is_empty() or game_over:
+		return
+	var pm: int = int(opp_gov["pm"])
+	if int(gs_drift.get("_pm", -1)) != pm:
+		gs_drift = {"_pm": pm}
+	var d := party_style(pm)
+	var st: int = int(d["st"])
+	ap["style"] = st
+	ap["target"] = 0.3 if st == 0 else (1.2 if st == 1 else 0.8)
+	var lim: float = float(d["power"])
+	var b := compute_budget()
+	var def: float = -float(b["balance"]) / gdp * 100.0
+	var moves: Array = []
+	if st == 1:
+		moves = [["pensions", 0.05], ["benefits", 0.05]]
+		if def > 3.0:
+			moves = [["corp", 0.05]]
+	elif st == 2:
+		moves = [["corp", -0.05], ["income", -0.05]]
+		if def > 3.0:
+			moves = [["benefits", -0.05]]
+	for mv in moves:
+		var key: String = mv[0]
+		var dv: float = mv[1]
+		if not policy_by_key.has(key):
+			continue
+		var cur: float = float(gs_drift.get(key, 0.0))
+		if absf(cur + dv) > lim or not ap_can_adj(key, dv):
+			continue
+		set_policy(key, float(pol[key]) + dv)
+		gs_drift[key] = cur + dv
+		return
+
+
 func advisor_lines() -> Array:
 	var out: Array = []
 	var b := compute_budget()
 	var def: float = -float(b["balance"]) / gdp * 100.0
 	var dr: float = debt / gdp * 100.0
 	if def > 3.0:
-		out.append([3, "Дефицит бюджета %.1f%% ВВП. Нажмите «Сбалансировать» или включите автобаланс." % def])
+		out.append([3, "Дефицит бюджета %.1f%% ВВП. Поднимите налоги или урежьте расходы (кнопка «Сбалансировать налоги сейчас» в окне бюджета)." % def])
 	elif def > 1.5:
 		out.append([2, "Дефицит %.1f%% ВВП: долг растёт." % def])
 	if dr > 100.0:

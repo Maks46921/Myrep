@@ -4,6 +4,10 @@ extends "res://scripts/state/state.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func log_line(s: String) -> void:
+	pass
+
+
 func rt(r: float, dt: float) -> float:
 	return 0.0
 
@@ -36,12 +40,41 @@ func build_loc() -> void:
 	]
 	if String(UPPER.get("name", "")) != "":
 		pairs.insert(0, ["Бундесрат", UPPER["name"]])
-	for pr in pairs:
-		LOC_RULES.append([String(pr[0]), String(pr[1])])
+	# v55_3: замена только с начала слова («приземлились», «сельхозземли» не трогаем); целые слова (земли…, латиница: «German» ≠ «Germany») — и с конца слова
+	var whole := {}
+	for k in 4:  # последние четыре пары — «земель», «землям», «землях», «земли»
+		whole[String(pairs[pairs.size() - 1 - k][0])] = true
+	for pi in pairs.size():
+		var pr: Array = pairs[pi]
 		var a := String(pr[0])
+		# в английском разные падежи («Бундестага», «Бундестагу»…) переводятся одним словом — берём последнюю пару (именительный падеж)
+		var dup := false
+		for pj in range(pi + 1, pairs.size()):
+			if String(pairs[pj][0]) == a:
+				dup = true
+		if dup:
+			continue
+		var w: bool = whole.has(a) or loc_latin_end(a)
+		LOC_RULES.append([a, String(pr[1]), loc_rx(a, w)])
 		if a.begins_with("в "):
 			continue
-		LOC_RULES.append([cap1(a), cap1(String(pr[1]))])
+		LOC_RULES.append([cap1(a), cap1(String(pr[1])), loc_rx(cap1(a), w)])
+
+
+func loc_latin_end(a: String) -> bool:
+	if a == "":
+		return false
+	var c := a.unicode_at(a.length() - 1)
+	return (c >= 65 and c <= 90) or (c >= 97 and c <= 122)
+
+
+func loc_rx(a: String, whole_word: bool) -> RegEx:
+	var esc := ""
+	for ch in a:
+		esc += ("\\" + ch) if "\\^$.|?*+()[]{}".contains(ch) else ch
+	var rx := RegEx.new()
+	rx.compile("(?<![\\p{L}\\p{N}])" + esc + ("(?![\\p{L}\\p{N}])" if whole_word else ""))
+	return rx
 
 
 func loc(s: String) -> String:
@@ -49,7 +82,7 @@ func loc(s: String) -> String:
 		return s
 	for r in LOC_RULES:
 		if s.contains(r[0]):
-			s = s.replace(r[0], r[1])
+			s = (r[2] as RegEx).sub(s, String(r[1]).replace("$", "$$"), true)
 	return s
 
 
@@ -92,6 +125,39 @@ func jag_edge(a: Vector2, b: Vector2, depth: int) -> Array:
 # ============================================================
 #  ПОСТРОЕНИЕ ИНТЕРФЕЙСА
 # ============================================================
+
+
+# v50: права партии игрока. Государством (бюджет, разовые меры, министры, дипломатия, влияние, договоры, автопилот)
+# распоряжается только правящая коалиция; вносить законопроекты могут только партии, представленные в парламенте.
+func pl_gov() -> bool:
+	return not opp_mode
+
+
+func pl_parl() -> bool:
+	return not seats.is_empty() and int(seats[0]) > 0
+
+
+# причина запрета ("" — можно): kind "gov" — действие правительства, "parl" — действие депутатов
+func pl_why(kind: String = "gov") -> String:
+	if kind == "parl":
+		return "" if pl_parl() else "Ваша партия не представлена в парламенте: вносить законопроекты и поправки она не может."
+	if opp_mode:
+		return "Это решает правительство, а ваша партия в него не входит." if pl_parl() else "Ваша партия не прошла в парламент и не входит в правительство: государством она не распоряжается."
+	return ""
+
+
+# отказ с записью в журнал; true — действие запрещено
+func pl_deny(kind: String = "gov") -> bool:
+	var why := pl_why(kind)
+	if why == "":
+		return false
+	log_line("[color=%s]%s[/color]" % [COL_WARN, why])
+	return true
+
+
+# v49: название в кавычках «…», если в нём своих кавычек ещё нет (иначе получилось бы ««Слуга народа»»)
+func qn(s: String) -> String:
+	return s if s.contains("«") else "«%s»" % s
 
 
 func sg(v: float, digits: int = 1) -> String:

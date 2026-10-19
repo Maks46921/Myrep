@@ -1,12 +1,54 @@
 # Радикальные законы: форма правления, строй, выход из ЕС и т.д.
 extends "res://scripts/logic/council.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func au_dyn() -> void:
+	pass
+
+
+func au_fat_months() -> int:
+	return 0
+
+
+func au_risk_add() -> float:
+	return 0.0
+
+
+func au_step() -> void:
+	pass
+
+
+func es_dyn() -> void:
+	pass
+
+
+func es_step() -> void:
+	pass
+
+
+func hist_dyn() -> void:
+	pass
+
+
+func io_dyn() -> void:
+	pass
+
+
+func io_step() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 func arch_ps(tbl: Dictionary) -> Dictionary:
 	var out := {}
 	for p in PARTY_NAMES.size():
 		var a: String = String(ARCHS[p]) if p < ARCHS.size() else "oth"
 		var key := a
-		if p == 9:
+		if p == PROTEST_P:
 			key = "prot"
 		elif a == "none":
 			key = "oth"
@@ -73,6 +115,8 @@ func radical_req(tid: String, idx: int) -> String:
 
 
 func law_locked(tid: String) -> String:
+	if martial_on() and is_fund(tid):
+		return "при военном положении конституцию менять нельзя"
 	if decree_power() and tid in RAD_AUTH_TOPICS and tid != "gov_form":
 		return "заморожен режимом «%s»" % String(variant_of("gov_form", cur_idx("gov_form"))["n"]) if rid_of("gov_form") in RAD_AUTH else "заморожен религиозным режимом"
 	for rt in ["gov_form", "econ_model", "civil_rights", "trade_policy", "state_church", "military_state"]:
@@ -188,6 +232,10 @@ func radical_dyn() -> void:
 		mods["growth_bonus"] = float(mods["growth_bonus"]) - 0.12 * (1.0 - float(turn - eu_left_t) / 60.0)
 	if decree_power() and regime_risk > 40.0:
 		mods["mood_shift"] = float(mods["mood_shift"]) - (regime_risk - 40.0) * 0.004
+	au_dyn()
+	es_dyn()
+	hist_dyn()
+	io_dyn()
 
 
 func radical_step() -> void:
@@ -211,7 +259,7 @@ func radical_step() -> void:
 	if decree_power():
 		crisis_months = 0
 		var force: float = float(support["Силовики"])
-		var tgt: float = 22.0 + minf(12.0, float(regime_t) * 0.1) + maxf(0.0, 48.0 - approval()) * 1.6 + maxf(0.0, reg_avg("unrest") - 20.0) * 1.2 + shortage * 0.3 - maxf(0.0, force - 45.0) * 0.4
+		var tgt: float = 22.0 + minf(12.0, float(au_fat_months()) * 0.1) + au_risk_add() + maxf(0.0, 48.0 - approval()) * 1.6 + maxf(0.0, reg_avg("unrest") - 20.0) * 1.2 + shortage * 0.3 - maxf(0.0, force - 45.0) * 0.4
 		regime_risk += (clampf(tgt, 0.0, 100.0) - regime_risk) * 0.15
 		if turn % 6 == 0:
 			dip_all(-1.5, true)
@@ -221,6 +269,9 @@ func radical_step() -> void:
 			show_uprising()
 	else:
 		regime_risk *= 0.9
+	au_step()
+	es_step()
+	io_step()
 
 
 func show_uprising() -> void:

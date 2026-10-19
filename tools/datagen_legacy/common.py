@@ -1,4 +1,4 @@
-# Общие построители данных стран для PolitGame v13
+# Общие построители данных стран для Symphony v13
 import math, json
 GROUPS = ["Рабочие","Бизнес","Пенсионеры","Молодёжь","Бюджетники","Село","Силовики","Экологи"]
 POLICY_KEYS = ["income","social","corp","vat","emit","pensions","benefits","edu","health","army","police","infra","eco","subs","admin"]

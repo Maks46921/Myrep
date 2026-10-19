@@ -5,7 +5,7 @@ static var pending_code := ""
 static var pending_party := 0
 
 # Настройки новой игры (задаются в меню перед стартом и не меняются во время игры; переживают перезагрузку сцены)
-static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "observer": false, "music": 0.45, "sfx": 0.6}
+static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "bldev": 1, "tut": 1, "coal": 1, "observer": false, "music": 0.45, "sfx": 0.6}
 
 var ccode := "DE"
 var map_reg_pick: OptionButton = null   # список регионов в окне карты
@@ -55,6 +55,16 @@ var mods: Dictionary = BASE_MODS.duplicate()
 var cooldown := {}
 
 var capital := 40.0
+var cap_ai := false   # 0.55.5: капитал сейчас «одолжен» ИИ-партии (cap_swap) — ей в минус нельзя
+var ev_hist := {}             # v46_1: id события -> {"t": последний месяц, "n": сколько раз было, "o": выбранный вариант}
+var ev_queue: Array = []      # v46_1: продолжения цепочек [{"id", "due", "rid"}]
+var ev_later: Array = []      # v46_1: отложенные последствия [{"due", "fx", "t", "rid"}]
+var ev_log: Array = []        # v46_1: последние решения
+var noc_constr := false       # v44_1: конструктивный вотум недоверия (нужен преемник)
+var tech_adj := 1.0           # v44_1: множитель скорости исследований (договоры, этика, утечка умов)
+var tech_pas_mult := 1.0      # v44_1: множитель пассивного изучения (совместные проекты)
+var nato_ovr := -1            # v44_1: членство игрока в НАТО (-1 по данным мира, 0 вышел/не член, 1 член)
+var free_adj := 0.0           # v44_1: поправка свободы слова от состояния СМИ
 
 var seats: Array[int] = []
 
@@ -68,9 +78,17 @@ var h12 := {}                 # v35: помесячная история пок�
 var observer := false         # v35: режим наблюдателя — вашей партией управляет ИИ
 var deadlock := 0             # v35: досрочных выборов подряд из-за несформированного правительства
 var minority_gov := false     # v35: правительство меньшинства на терпимости (выход из кризиса)
+var coal_talks := false       # v53: после выборов идут коалиционные переговоры (коалицию собирает игрок)
+var coal_tried: Array = []    # v53: партии, с которыми уже говорили в этом раунде переговоров
 var pm_lead := false          # v38: глава правительства — игрок, хотя его партия в коалиции не крупнейшая (до первых выборов)
 var techno_until := -1        # v35: техническое правительство до этого месяца
 var extra_mins := {}          # v35: p -> обещанные министерства сверх квоты
+var cn_draft := {}            # 0.56: проект коалиционного соглашения в окне переговоров
+var cn_pat := {}              # 0.56: терпение партий на переговорах (p -> раундов до ухода)
+var cn_ans := {}              # 0.56: последний ответ партии на проект (p -> текст)
+var cn_out := {}              # 0.56: партия ушла из переговоров (p -> ход)
+var cn_round := 0             # 0.56: номер раунда переговоров
+var coal_deal := {}           # 0.56: подписанное коалиционное соглашение (министерства, глава правительства, программа)
 var neg_offer_mins := 0       # v35: министерства сверх квоты в текущем предложении
 var crisis_offered := false   # v35: событие выхода из кризиса уже показано
 
@@ -116,7 +134,11 @@ var selected_party := 1
 
 var last_nocon := -100
 # --- оппозиция и выбор партии (opposition.gd) ---
+var group_base0 := {}            # 0.56: стартовая поддержка групп до смены партии игрока (для нейтрального старта)
+var reg_loy0 := {}               # 0.56: лояльность регионов на старте (uid -> число)
 var player_orig := 0            # какая партия была выбрана игроком (0 — по умолчанию)
+var martial := false            # 0.55.4: военное положение (выборы откладываются, роспуск и поправки к конституции запрещены)
+var martial_calm := 0           # 0.55.4: месяцев без войны при военном положении (правительство ИИ снимает его через 6)
 var opp_mode := false           # вы в оппозиции: бюджет и министерства у других
 var opp_gov := {}               # правительство без вас: members, pm, seats, stab
 var opp_cd := {}                # перезарядка действий оппозиции и переговоров
@@ -139,6 +161,23 @@ var bills: Array = []           # законопроекты в работе
 var bill_seq := 0
 var vote_sponsor := 0           # чья партия вносит закон при голосовании
 var cost_mult := 1.0
+var vote_pl := ""              # 0.56: как голосует фракция игрока по чужому законопроекту ("" / line / yes / no / abst / free)
+var pl_disc := 0.0             # 0.56: ослабление дисциплины фракции после голосований против линии партии (0..1)
+var pa_props: Array = []       # 0.56: предложения министров-партнёров по их статьям бюджета (ждут вето игрока)
+var pa_seq := 0
+var bq: Array = []             # 0.56: очередь госстроек {uid, id, i, ate, cost, done, months, upg, auto}
+var bq_priv: Array = []        # 0.56: стройки частных инвесторов {uid, id, i, cost, done, months, corp, brk}
+var bq_uid := 0
+var bld_budget := -1.0         # 0.56: линия бюджета «Строительство», % ВВП в год (в черновике — новое значение)
+var bld_budget0 := -1.0        # 0.56: утверждённое значение, пока в плане бюджета есть правка
+var bld_breaks := {}           # 0.56: pid -> налоговая льгота частным инвесторам
+var bld_plan: Array = []       # 0.56: годовой план автостроительства министерств
+var bld_plan_year := -1
+var bq_spent := 0.0            # 0.56: потрачено на госстройки за прошлый месяц, млрд
+var bq_priv_spent := 0.0
+var bq_brk_spent := 0.0
+var pa_fail := {}              # 0.56: tid -> ход, когда чужой законопроект провалился (год его не вносят снова)
+var pa_drift := {}             # 0.56: на сколько министры-партнёры сдвинули статьи за этот год
 var bill_sel := -1
 
 var pop_w: Array[float] = []
@@ -233,6 +272,9 @@ var map_layer := 0
 # ============================================================
 
 var workspace: Control
+var meas_q := -1                   # 0.56: квартал, в котором считаются разовые меры
+var meas_qn := 0                   # сколько мер проведено в этом квартале
+var modal_layer: Control = null   # 0.56: слой поверх «Технологий» и «Кризисов» — окна события и выборов
 
 var wins := {}
 
@@ -285,6 +327,7 @@ var fold_nodes: Array = []
 var stats_label: RichTextLabel
 
 var measure_rows := {}
+var meas_note_rt: RichTextLabel = null   # 0.56: сводка в окне «Разовые меры» на вкладке «Бюджет»
 
 var action_rows := {}
 
@@ -296,10 +339,15 @@ var pol_header: Label
 
 var polls_rt: RichTextLabel
 
-var log_box: RichTextLabel
+var log_box: VBoxContainer       # 0.56: журнал — список рамок месяцев (раньше RichTextLabel)
+var log_scroll: ScrollContainer = null
+var log_open := {}               # 0.56: месяц журнала -> раскрыт ли (выбор игрока; по умолчанию открыты последние 3)
+var log_ui_gs: Array = []        # 0.56: рамки месяцев на экране: {key, title, closed, fr, head, body, es, n, nbig, open}
 
 var event_label: RichTextLabel
 
+var ev_art: Control = null      # v46_1: иллюстрированная шапка события
+var ev_adv: RichTextLabel = null # v46_1: совет и память о прошлых решениях
 var ev_banner: PanelContainer
 
 var ev_glyph: Label
@@ -317,6 +365,7 @@ var election_open := false
 var elec_end := ""
 
 var prev_vote: Array = []
+var prev_raw: Array = []      # 0.56: голоса партий (до барьера) на прошлых выборах — от них считается предел сдвига
 
 var camp_turn := -100
 
@@ -355,6 +404,10 @@ var reg_action_rows := {}
 var reg_table := {}
 
 var hemi_ctl: Control
+var upper_ctl: Control = null
+var upper_pos: Array = []
+var upper_rad := 0.04
+var upper_lay_n := -1
 
 var hemi_legend: RichTextLabel
 
@@ -389,6 +442,13 @@ var reg_transfer_label: Label
 var transfer_sliders: Array = []
 
 var transfer_labels: Array = []
+
+var bud_tr_slider: HSlider = null   # 0.55.5: «Трансферты регионам» — строка с ползунком в бюджете
+
+var bud_tr_label: Label = null
+var bud_oo_label: Label = null          # 0.56: резерв на разовые меры
+var bud_oo_rt: RichTextLabel = null
+var bud_eq_box: VBoxContainer = null    # 0.56: место для программы «Выравнивание регионов» в «Бюджете»
 
 var level_fx_rt: RichTextLabel
 
@@ -438,10 +498,15 @@ var law_prog: Array = []
 var law_demand_rt: RichTextLabel = null
 var subbar2: HBoxContainer = null
 var subbar3: HBoxContainer = null
+var subbar4: HBoxContainer = null     # v55_1: рамка «Общество»
+var sub4_buttons: Array = []
+var society_page := 11
 var sub3_buttons: Array = []
 var map_page := 2
 var sub2_buttons: Array = []
 var gv_goods: Control = null
+var gd_open := {}                # 0.55.5: раскрытые виды расходов (подробные товары) в окне «Товары: цены и спрос»
+var gd_row_keys: Array = []      # 0.55.5: какой вид расходов в какой строке списка
 var gv_groups: Control = null
 var gd_head_rt: RichTextLabel = null
 var gd_drv_rt: RichTextLabel = null
@@ -531,6 +596,13 @@ var end_reason := ""
 var map_zoom := 1.0
 
 var map_center := Vector2(300.0, 250.0)
+
+# v49: плавная камера карты — цель, к которой масштаб и центр подтягиваются каждый кадр
+var map_zoom_t := 1.0
+
+var top_flag: TextureRect = null      # v49: флаг своей страны на кнопке смены страны
+
+var map_center_t := Vector2(300.0, 250.0)
 
 var map_inited := false
 
@@ -640,6 +712,8 @@ var log_filter_btns: Array = []
 #  ПОМОЩНИК И АВТОПИЛОТ
 # ============================================================
 var auto_floor_on := false
+var bld_pick := ""               # v50: выбранное в окне «Строительство» сооружение (щелчок по карте ставит его)
+var floor_keys := {}            # v50: авто-подъём отдельных статей расходов
 var floor_check: CheckButton
 var ap := {"bal": false, "target": 0.5, "events": false, "style": 0, "repair": false, "build": false}
 

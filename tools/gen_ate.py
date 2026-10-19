@@ -60,7 +60,37 @@ CITIES = [
     (59.91, 10.75, 1.0), (60.39, 5.32, 0.3), (63.43, 10.39, 0.2), (58.97, 5.73, 0.2),
     (60.17, 24.94, 1.3), (61.50, 23.76, 0.25), (60.45, 22.27, 0.2), (65.01, 25.47, 0.2),
     (49.61, 6.13, 0.13),
+    # v49: Молдова, Беларусь, Украина, Россия и непризнанные образования
+    (47.01, 28.86, 0.65), (47.76, 27.93, 0.1), (46.84, 29.63, 0.13), (46.31, 28.66, 0.03),
+    (53.90, 27.56, 2.0), (52.43, 31.00, 0.5), (53.90, 30.33, 0.36), (55.19, 30.20, 0.36), (53.68, 23.83, 0.36), (52.10, 23.69, 0.34),
+    (50.45, 30.52, 2.9), (49.99, 36.23, 1.3), (46.48, 30.72, 1.0), (48.46, 35.05, 0.95), (49.84, 24.03, 0.72), (47.84, 35.14, 0.7),
+    (47.91, 33.39, 0.6), (46.98, 31.99, 0.45), (49.23, 28.47, 0.37), (49.59, 34.55, 0.28), (50.91, 34.80, 0.25), (51.50, 31.29, 0.28),
+    (48.74, 37.58, 0.15), (48.02, 37.80, 0.9), (48.04, 37.96, 0.33), (48.30, 38.03, 0.24), (47.10, 37.55, 0.3), (48.57, 39.33, 0.4),
+    (55.75, 37.62, 13.0), (59.94, 30.31, 5.6), (55.03, 82.92, 1.6), (56.84, 60.60, 1.5), (55.79, 49.12, 1.3), (56.33, 44.00, 1.2),
+    (55.16, 61.40, 1.2), (53.20, 50.15, 1.15), (54.73, 55.95, 1.15), (47.24, 39.71, 1.14), (45.04, 38.98, 1.1), (54.99, 73.37, 1.1),
+    (51.67, 39.18, 1.05), (58.01, 56.25, 1.03), (48.71, 44.51, 1.0), (56.01, 92.85, 1.2), (51.53, 46.03, 0.9), (57.15, 65.53, 0.85),
+    (53.51, 49.42, 0.68), (56.85, 53.20, 0.64), (53.35, 83.78, 0.63), (52.29, 104.28, 0.62), (48.48, 135.08, 0.62), (43.12, 131.89, 0.6),
+    (57.63, 39.87, 0.57), (42.98, 47.50, 0.6), (56.48, 84.95, 0.57), (51.77, 55.10, 0.55), (55.35, 86.09, 0.55), (53.76, 87.14, 0.54),
+    (54.63, 39.74, 0.53), (46.35, 48.04, 0.47), (55.74, 52.40, 0.55), (53.20, 45.00, 0.5), (58.60, 49.66, 0.47), (52.61, 39.60, 0.5),
+    (54.71, 20.51, 0.49), (44.62, 33.52, 0.55), (44.95, 34.10, 0.34), (43.32, 45.69, 0.33), (68.97, 33.08, 0.27), (64.54, 40.54, 0.3),
+    (62.03, 129.73, 0.36), (61.25, 73.40, 0.38), (51.83, 107.58, 0.43), (52.03, 113.50, 0.35), (50.29, 127.53, 0.24), (53.02, 158.65, 0.16),
 ]
+# v49: размер АТЕ по регионам России (км²): огромные малонаселённые регионы делятся крупнее, иначе карта утяжелилась бы вчетверо
+KM2_UNIT = {}
+# v50: у 89 субъектов России размер ячейки — по площади субъекта (≈ 18 АТЕ на субъект), из набора классов
+RU_KM2_CLASSES = [300.0, 600.0, 1000.0, 1500.0, 2500.0, 4000.0, 6000.0, 10000.0, 15000.0, 25000.0]
+
+
+def ru_unit_km2(poly):
+    import math as _m
+    lat = (2192.0 - poly.centroid.y) / 38.6135
+    km2 = poly.area * (111.32 * _m.cos(_m.radians(lat)) / 25.7085) * (111.32 / 38.6135)
+    want = km2 / 18.0
+    best = RU_KM2_CLASSES[0]
+    for c in RU_KM2_CLASSES:
+        if c <= want:
+            best = c
+    return best
 
 
 def proj_xy(lon, lat):
@@ -83,12 +113,13 @@ def km2_of(g):
 
 
 class Noise:
-    """гладкое смещение плоскости: сумма синусоид со случайными фазами (детерминировано)"""
-    def __init__(self, seed):
+    """гладкое смещение плоскости: сумма синусоид со случайными фазами (детерминировано); sc — масштаб (крупные ячейки)"""
+    def __init__(self, seed, sc=1.0):
         r = random.Random(seed)
         self.w = []
+        self.sc = sc
         for k in range(6):
-            lam = r.uniform(11.0, 22.0)
+            lam = r.uniform(11.0, 22.0) * sc
             a = r.uniform(0, math.pi)
             self.w.append((math.cos(a) * 2 * math.pi / lam, math.sin(a) * 2 * math.pi / lam, r.uniform(0, 6.283), r.uniform(0, 6.283)))
 
@@ -98,7 +129,7 @@ class Noise:
             t = fx * x + fy * y
             dx += math.sin(t + p1)
             dy += math.sin(t + p2)
-        k = AMP / math.sqrt(len(self.w) / 2)
+        k = AMP * self.sc / math.sqrt(len(self.w) / 2)
         return dx * k, dy * k
 
 
@@ -117,15 +148,17 @@ def unit_polys(units):
     return P
 
 
-def grid_lines(land, nz):
+def grid_lines(land, nz, side=SIDE, bounds=None):
     """отрезки сетки (уже изогнутые) рядом с сушей; каждый отрезок чуть длиннее нужного — висячие концы polygonize отбросит"""
-    lp = prep(land.buffer(16.0))
+    dlat = side / 111.32
+    sc = side / SIDE
+    lp = prep(land.buffer(16.0 * sc))
     lon0, lat0, lon1, lat1 = -32.0, 26.0, 36.0, 72.0
-    x0, y0, x1, y1 = land.bounds
+    x0, y0, x1, y1 = land.bounds if bounds is None else bounds
     lon0, lat1 = unproj(x0, y0)
     lon1, lat0 = unproj(x1, y1)
     lon0 -= 1; lon1 += 1; lat0 -= 0.5; lat1 += 0.5
-    nb = int((lat1 - lat0) / DLAT) + 1
+    nb = int((lat1 - lat0) / dlat) + 1
     segs = []
 
     def bend(pts):
@@ -135,17 +168,17 @@ def grid_lines(land, nz):
             out.append((x + dx, y + dy))
         return out
 
-    def dense(a, b, step=2.2):
+    def dense(a, b, step=2.2 * sc):
         n = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) / step))
         return [(a[0] + (b[0] - a[0]) * t / n, a[1] + (b[1] - a[1]) * t / n) for t in range(n + 1)]
 
     for j in range(nb + 1):
-        la = lat0 + j * DLAT
+        la = lat0 + j * dlat
         # горизонтальная линия на широте la: точки на общей сетке по x, берутся только участки у суши
         ya = proj_xy(0, la)[1]
         xs = proj_xy(lon0, 0)[0]
         xe = proj_xy(lon1, 0)[0]
-        st = 2.2
+        st = 2.2 * sc
         nx = int((xe - xs) / st) + 1
         run = []
         for k in range(nx):
@@ -161,17 +194,17 @@ def grid_lines(land, nz):
             segs.append(LineString(bend(run)))
         if j == nb:
             break
-        lc = la + DLAT / 2
-        dlon = SIDE / (111.32 * math.cos(math.radians(lc)))
+        lc = la + dlat / 2
+        dlon = side / (111.32 * math.cos(math.radians(lc)))
         off = (0.5 * dlon) if j % 2 else 0.0
-        yb = proj_xy(0, la + DLAT)[1]
+        yb = proj_xy(0, la + dlat)[1]
         k = math.floor((lon0 - off) / dlon)
         while True:
             lo = off + k * dlon
             if lo > lon1:
                 break
             xv = proj_xy(lo, 0)[0]
-            a, b = (xv, ya + 3.0), (xv, yb - 3.0)
+            a, b = (xv, ya + 3.0 * sc), (xv, yb - 3.0 * sc)
             ln = LineString([a, b])
             if lp.intersects(ln):
                 segs.append(LineString(bend(dense(a, b))))
@@ -196,13 +229,36 @@ def main():
     land = unary_union(clean)
     closed = land.buffer(0.6, join_style=2).buffer(-0.6, join_style=2)
     print("суша", round(land.area), "регионов", n_u, file=sys.stderr)
-    nz = Noise(36)
-    segs = grid_lines(land, nz)
-    print("отрезков сетки", len(segs), file=sys.stderr)
-    # ячейки сетки отдельно — чтобы знать, какой ячейке принадлежит каждый кусок
-    cells = list(polygonize(unary_union(segs)))
-    print("ячеек", len(cells), file=sys.stderr)
-    cell_tree = STRtree(cells)
+    # v49: классы размера ячеек — обычные 600 км² и крупные для регионов России; сетка класса режется по его суше
+    ukm = [KM2_UNIT.get(u["id"], ru_unit_km2(clean[i]) if u["cc"] == "RU" else KM2) for i, u in enumerate(units)]
+    classes = sorted(set(ukm))
+    big = unary_union([clean[i] for i in range(n_u) if ukm[i] != KM2]) if len(classes) > 1 else None
+    land0 = unary_union([clean[i] for i in range(n_u) if ukm[i] == KM2])
+    segs = []
+    cell_trees = {}
+    cells_k = {}
+    for k in classes:
+        lk = land0 if k == KM2 else unary_union([clean[i] for i in range(n_u) if ukm[i] == k])
+        sk = grid_lines(lk, Noise(36, math.sqrt(k / KM2)), math.sqrt(k), land.bounds if k == KM2 else None)
+        cl = list(polygonize(unary_union(sk)))
+        cells_k[k] = cl
+        cell_trees[k] = STRtree(cl)
+        if k == KM2:
+            if big is not None:
+                bp = prep(big.buffer(0.02))
+                sk2 = []
+                for sg in sk:
+                    if bp.intersects(sg):
+                        d = sg.difference(big)
+                        sk2 += [q for q in getattr(d, "geoms", [d]) if isinstance(q, LineString) and q.length > 1e-6]
+                    else:
+                        sk2.append(sg)
+                sk = sk2
+        else:
+            d = unary_union(sk).intersection(lk)
+            sk = [q for q in getattr(d, "geoms", [d]) if isinstance(q, LineString) and q.length > 1e-6]
+        segs += sk
+        print("класс %.0f км²: отрезков %d, ячеек %d" % (k, len(sk), len(cl)), file=sys.stderr)
     lines = [g.boundary for g in clean] + segs
     noded = unary_union(lines)
     # упрощение цепочек между узлами (концы цепочек неподвижны — общие границы остаются общими)
@@ -218,9 +274,11 @@ def main():
         cand = utree.query(rp[fi], predicate="within")
         if len(cand):
             f_reg[fi] = int(min(cand, key=lambda i: area_u[i]))
-        cc = cell_tree.query(rp[fi], predicate="within")
-        if len(cc):
-            f_cell[fi] = int(cc[0])
+        if f_reg[fi] >= 0:
+            kk = ukm[f_reg[fi]]
+            cc = cell_trees[kk].query(rp[fi], predicate="within")
+            if len(cc):
+                f_cell[fi] = int(cc[0]) + 1000000 * classes.index(kk)
     # щели между полигонами регионов: мелкие грани внутри «закрытой» суши достаются соседу с самой длинной общей границей
     ftree = STRtree(faces)
     cp = prep(closed)
@@ -242,6 +300,12 @@ def main():
         gaps = left
         if not gaps:
             break
+    for fi in range(len(faces)):
+        if f_reg[fi] >= 0 and f_cell[fi] < 0:
+            kk = ukm[f_reg[fi]]
+            cc = cell_trees[kk].query(rp[fi], predicate="within")
+            if len(cc):
+                f_cell[fi] = int(cc[0]) + 1000000 * classes.index(kk)
     # куски: (регион, ячейка) -> связные компоненты
     groups = {}
     for fi in range(len(faces)):
@@ -268,7 +332,8 @@ def main():
             if not alive[i] or i in dirty:
                 continue
             a = km2_of(pieces[i][1])
-            if a >= SMALL * KM2:
+            K = ukm[pieces[i][0]]
+            if a >= SMALL * K:
                 continue
             best, bl, bd = -1, 0.0, 1e18
             for j in tree.query(pieces[i][1].buffer(0.01)):
@@ -277,12 +342,12 @@ def main():
                     continue
                 l = pieces[i][1].boundary.intersection(pieces[j][1].boundary).length
                 aj = km2_of(pieces[j][1])
-                score = l / (1.0 + max(0.0, a + aj - 1.5 * KM2) / KM2)
+                score = l / (1.0 + max(0.0, a + aj - 1.5 * K) / K)
                 if score > bl:
                     best, bl = j, score
             if best < 0:
                 # остров: к ближайшему куску того же региона, если сам очень мал
-                if a >= 0.12 * KM2:
+                if a >= 0.12 * K:
                     continue
                 for j in range(len(pieces)):
                     if j == i or not alive[j] or j in dirty or pieces[j][0] != pieces[i][0]:
@@ -290,7 +355,7 @@ def main():
                     d = pieces[i][1].distance(pieces[j][1])
                     if d < bd:
                         best, bd = j, d
-                if best < 0 or bd > 12.0:
+                if best < 0 or bd > 12.0 * math.sqrt(K / KM2):
                     continue
             pieces[best][1] = unary_union([pieces[best][1], pieces[i][1]])
             alive[i] = False

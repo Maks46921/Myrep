@@ -6,6 +6,10 @@ extends "res://scripts/logic/admin.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func cult_mig(i: int, imm: float, emi: float, p: float) -> void:
+	pass
+
+
 func ex_fx(d: Dictionary) -> void:
 	pass
 
@@ -268,6 +272,8 @@ func soc_month() -> void:
 			for f in 7:
 				var s: float = float(r["rel"][f])
 				r["rel"][f] = (s * p + imm * float(mf[f]) - emi * s) / nn
+			if dyn:
+				cult_mig(i, imm, emi, p)
 			r["popm"] = nn
 			r["mnet"] = float(r["mnet"]) + imm - emi
 			net_m += imm - emi
@@ -421,7 +427,7 @@ func soc_cd_get(k: String) -> int:
 func soc_spend(cost: float) -> bool:
 	if game_over:
 		return false
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Не хватает политического капитала (нужно %.0f).[/color]" % [COL_BAD, cost])
 		return false
 	capital -= cost

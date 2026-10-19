@@ -26,8 +26,10 @@ func _draw() -> void:
 	var pad_b := 16.0
 	var pad_t := 6.0
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.055, 0.067, 0.098)
-	bg.set_corner_radius_all(6)
+	bg.bg_color = Color(0.050, 0.062, 0.094)
+	bg.border_color = Color(1, 1, 1, 0.05)
+	bg.set_border_width_all(1)
+	bg.set_corner_radius_all(7)
 	draw_style_box(bg, Rect2(Vector2.ZERO, size))
 	if vals.size() < 2:
 		draw_string(f, Vector2(10.0, h * 0.5), "Данные появятся после первых месяцев.", HORIZONTAL_ALIGNMENT_LEFT, w - 20.0, 13, Color(0.6, 0.65, 0.78))
@@ -58,8 +60,22 @@ func _draw() -> void:
 	var pts := PackedVector2Array()
 	for i in n:
 		pts.append(Vector2(pad_l + pw * float(i) / float(n - 1), pad_t + ph * (hi - float(vals[i])) / span))
+	var poly := pts.duplicate()
+	var by: float = pad_t + ph
+	poly.append(Vector2(pts[n - 1].x, by))
+	poly.append(Vector2(pts[0].x, by))
+	var cols := PackedColorArray()
+	for k in n:
+		var tt: float = clampf((by - pts[k].y) / maxf(1.0, ph), 0.0, 1.0)
+		cols.append(Color(col.r, col.g, col.b, 0.06 + 0.22 * tt))
+	cols.append(Color(col.r, col.g, col.b, 0.0))
+	cols.append(Color(col.r, col.g, col.b, 0.0))
+	if Geometry2D.triangulate_polygon(poly).size() > 0:
+		draw_polygon(poly, cols)
+	draw_polyline(pts, Color(col.r, col.g, col.b, 0.25), 5.0, true)
 	draw_polyline(pts, col, 2.0, true)
 	var last: Vector2 = pts[n - 1]
+	draw_circle(last, 7.0, Color(col.r, col.g, col.b, 0.22))
 	draw_circle(last, 3.5, col)
 	draw_string(f, Vector2(pad_l, h - 3.0), "%d мес. назад" % (n - 1), HORIZONTAL_ALIGNMENT_LEFT, 120.0, 11, Color(0.6, 0.65, 0.78))
 	draw_string(f, Vector2(w - 128.0, h - 3.0), "сейчас: %.1f" % float(vals[n - 1]), HORIZONTAL_ALIGNMENT_RIGHT, 120.0, 11, col.lightened(0.2))

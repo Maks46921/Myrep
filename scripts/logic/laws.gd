@@ -4,6 +4,18 @@ extends "res://scripts/logic/policy.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func ch_law_label(vs: Array) -> void:
+	pass
+
+
+func decree_power() -> bool:
+	return false
+
+
+func democracy_index() -> float:
+	return 0.0
+
+
 func hold_parliament(reason: String) -> void:
 	pass
 
@@ -16,12 +28,8 @@ func law_locked(tid: String) -> String:
 	return ""
 
 
-func log_line(s: String) -> void:
-	pass
-
-
-func log_tag(tag: String, col: String, text: String) -> void:
-	pass
+func martial_on() -> bool:
+	return false
 
 
 func national_shares(pres: bool, only: Array = []) -> Array[float]:
@@ -65,24 +73,122 @@ func sfx(name: String) -> void:
 	pass
 
 
+func vote_show() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
+# ============================================================
+#  0.56 (п.14, 20): РАЗОВЫЕ МЕРЫ — ответственные и лимит
+#  У каждой меры есть ответственный: министерство (если оно у партнёра и партнёр против — мера заблокирована)
+#  или глава государства (подпишет ли он — зависит от конституции). Кроме своей перезарядки — общий лимит в квартал.
+# ============================================================
+# id -> [министерство (-1 — глава государства), статья, к которой близка мера, направление]
+const MEAS_RESP := {"privatize": [0, "subs", -1], "amnesty": [0, "corp", -1], "stimulus": [0, "infra", 1], "pension_bonus": [9, "pensions", 1],
+	"price_freeze": [5, "benefits", 1], "reserves": [0, "", 0], "cheap_credit": [5, "subs", 1], "fx_intervention": [0, "", 0],
+	"food_import": [6, "benefits", 1], "food_cap": [6, "benefits", 1], "fuel_aid": [0, "eco", -1], "med_support": [3, "health", 1],
+	"housing_aid": [8, "benefits", 1], "pardon": [-1, "police", -1], "unity": [-1, "", 0]}
+const MEAS_Q_LIMIT := 2
+
+
+func meas_quarter() -> int:
+	return year * 4 + (month - 1) / 3
+
+
+func meas_q_used() -> int:
+	return meas_qn if meas_q == meas_quarter() else 0
+
+
+func meas_min(id: String) -> int:
+	return int((MEAS_RESP.get(id, [0, "", 0]) as Array)[0])
+
+
+# партия, держащая министерство меры (0 — вы); -1 — министерство свободно
+func meas_holder(id: String) -> int:
+	var mi := meas_min(id)
+	if mi < 0 or mi >= ministries.size():
+		return 0
+	return ministries[mi]
+
+
+# против ли партнёр p меры (по его отношению к близкой статье бюджета)
+func meas_partner_against(id: String, p: int) -> bool:
+	var r: Array = MEAS_RESP.get(id, [0, "", 0])
+	if String(r[1]) == "" or p <= 0:
+		return false
+	return ideo_stance(p, String(r[1])) * float(r[2]) < -0.25
+
+
+func meas_resp_text(id: String) -> String:
+	var mi := meas_min(id)
+	if mi < 0:
+		return "Глава государства (%s)" % String(ELEC.get("title_n", "глава государства")).to_lower()
+	var h := meas_holder(id)
+	var who: String = "ваша партия" if h == 0 else "партия «%s»" % PARTY_NAMES[h]
+	return "Министерство «%s» — %s" % [String(MINISTRIES[mi]["name"]), who]
+
+
+# подпишет ли глава государства (по конституции): монарх и коллегиальный совет — по совету правительства,
+# избранный президент — только если он из вашей партии (прямые выборы) или из коалиции (выбран парламентом)
+func meas_head_why() -> String:
+	if decree_power():
+		return ""
+	var hk: String = String(ELEC.get("head", "monarch"))
+	if hk == "monarch" or hk == "council" or hk == "none":
+		return ""
+	if pres_party == 0:
+		return ""
+	if hk != "direct" and pres_party > 0 and pres_party < in_coalition.size() and in_coalition[pres_party]:
+		return ""
+	if pres_party < 0:
+		return ""
+	return "это решает %s от партии «%s», а она не поддерживает ваше правительство" % [String(ELEC.get("title_n", "глава государства")).to_lower(), PARTY_NAMES[pres_party]]
+
+
+func meas_why(id: String) -> String:
+	var why := pl_why("gov")
+	if why != "":
+		return why
+	if game_over:
+		return "игра окончена"
+	var cd: int = int(cooldown.get(id, 0))
+	if cd > 0:
+		return "мера недавно проводилась: ещё %d мес." % cd
+	if meas_q_used() >= MEAS_Q_LIMIT:
+		return "в этом квартале уже проведено %d меры — правительство не успевает больше" % MEAS_Q_LIMIT
+	if meas_min(id) < 0:
+		return meas_head_why()
+	var h := meas_holder(id)
+	if h > 0 and in_coalition.size() > h and in_coalition[h] and meas_partner_against(id, h):
+		return "министерство «%s» у партии «%s», и она против этой меры" % [String(MINISTRIES[meas_min(id)]["name"]), PARTY_NAMES[h]]
+	return ""
+
+
 func do_measure(id: String) -> void:
-	if game_over or int(cooldown.get(id, 0)) > 0:
+	if pl_deny(): return
+	var why := meas_why(id)
+	if why != "":
+		log_line("[color=%s]Мера недоступна: %s.[/color]" % [COL_WARN, why])
 		return
 	var m := find_by_id(MEASURES, id)
 	cooldown[id] = int(m["cd"])
+	if meas_q != meas_quarter():
+		meas_q = meas_quarter()
+		meas_qn = 0
+	meas_qn += 1
 	var eff := apply_fx(m["fx"])
-	log_line("[b]%s: разовая мера «%s».[/b] Последствия: %s." % [date_text(), m["name"], eff])
+	log_line("[b]%s: разовая мера «%s».[/b] Отвечает: %s. Последствия: %s." % [date_text(), m["name"], meas_resp_text(id), eff])
 	refresh()
 
 
 func do_action(id: String) -> void:
+	if pl_deny(): return
 	if game_over or int(cooldown.get(id, 0)) > 0:
 		return
 	var a := find_by_id(ACTIONS, id)
-	if capital < float(a["cost"]):
+	if cap_spendable() < float(a["cost"]):
 		log_line("[color=%s]Не хватает политического капитала для действия «%s».[/color]" % [COL_BAD, a["name"]])
 		return
 	if id == "snap":
@@ -199,6 +305,8 @@ func fx_items(fx: Dictionary, rid: int = -1) -> Array:
 			out.append(["зоны региона сворачиваются", 0])
 	if fx.has("coal_sat"):
 		out.append(["довольство партнёров %s" % sg(fx["coal_sat"], 0), 1 if float(fx["coal_sat"]) > 0.0 else -1])
+	if fx.has("dip_all") and absf(float(fx["dip_all"])) > 0.001:
+		out.append(["отношения с другими странами %s" % sg(fx["dip_all"], 1), 1 if float(fx["dip_all"]) > 0.0 else -1])
 	if fx.get("coal_demands", false):
 		out.append(["выполнить требования партнёров", -1])
 	if fx.has("psat") and event_party > 0:
@@ -329,10 +437,12 @@ func cur_idx(tid: String) -> int:
 
 
 func law_cost(tid: String, idx: int) -> float:
-	if idx == 0:
+	if idx == law_start_idx(tid):
 		return 6.0
 	var k := 0.6 + 0.4 * pw_of(tid, true)
-	return float(variant_of(tid, idx)["c"]) * (1.3 if is_fund(tid) else 1.0) * k
+	# 0.55.4: у прежнего «нынешнего порядка» (вариант 0 при LAW_START) нет цены — берём цену стартового варианта
+	var c0: float = float(variant_of(tid, law_start_idx(tid)).get("c", 6.0))
+	return float(variant_of(tid, idx).get("c", c0)) * (1.3 if is_fund(tid) else 1.0) * k
 
 
 func dict_diff(a: Dictionary, b: Dictionary) -> Dictionary:
@@ -365,6 +475,9 @@ func variant_stance(p: int, tid: String, idx: int) -> float:
 	return s
 
 
+var last_vote := {}    # v51: итог последнего голосования (для окна с анимацией)
+
+
 func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 	var yes := 0
 	var per: Array = []
@@ -375,15 +488,97 @@ func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 				var s0 := variant_stance(p, tid, idx)
 				per.append([p, s0, p == vote_sponsor or s0 >= 0.0])
 		return {"yes": SEATS, "no": 0, "per": per, "bypass": true}
+	# v51: фракции голосуют не единогласно: часть депутатов идёт против линии партии (зависит от того, насколько
+	# партии близок вариант, от дисциплины и характера лидера). per: [партия, позиция, линия «за», за, против, воздержались]
+	var no := 0
+	var ab := 0
 	for p in PARTY_NAMES.size():
 		if seats[p] == 0:
 			continue
 		var s := variant_stance(p, tid, idx)
 		var ok: bool = p == vote_sponsor or s >= 0.0 or (in_coalition[p] and s >= -1.0) or (p in forced) or (s >= -3.0 and pact_has(p, "votes"))
-		per.append([p, s, ok])
-		if ok:
-			yes += seats[p]
-	return {"yes": yes, "no": SEATS - yes, "per": per}
+		# 0.56: по чужому законопроекту фракция игрока голосует так, как он решил
+		if p == 0 and vote_sponsor != 0 and vote_pl != "" and vote_pl != "line":
+			if vote_pl == "yes":
+				ok = true
+			elif vote_pl == "no":
+				ok = false
+			elif vote_pl == "abst":
+				per.append([p, s, false, 0, 0, seats[0]])
+				ab += seats[0]
+				continue
+			else:
+				var fy: float = clampf(0.5 + 0.08 * s, 0.1, 0.9)
+				var fyes: int = int(round(float(seats[0]) * fy))
+				per.append([p, s, fy >= 0.5, fyes, seats[0] - fyes, 0])
+				yes += fyes
+				no += seats[0] - fyes
+				continue
+		var cnt := party_vote_split(p, s, ok)
+		per.append([p, s, ok, cnt[0], cnt[1], cnt[2]])
+		yes += cnt[0]
+		no += cnt[1]
+		ab += cnt[2]
+	return {"yes": yes, "no": no, "abst": ab, "per": per}
+
+
+# доля депутатов партии p, голосующих против линии партии
+func party_dissent(p: int, s: float, line_yes: bool) -> float:
+	var r := 0.02
+	if line_yes:
+		r += clampf(0.10 - 0.04 * s, 0.0, 0.22)
+	else:
+		r += clampf(0.08 + 0.03 * s, 0.0, 0.16)
+	var m := 1.0
+	if p == vote_sponsor:
+		m *= 0.3
+	elif p < in_coalition.size() and in_coalition[p]:
+		m *= 0.6
+	if p == 0:
+		m *= 0.6 * (1.0 + 2.0 * pl_disc)   # 0.56: голосования против линии партии расшатывают дисциплину
+	var tr: String = String((PARTY_TRAITS[p] as Dictionary).get("trait", "")) if p < PARTY_TRAITS.size() else ""
+	if tr == "идеолог":
+		m *= 0.75
+	elif tr == "прагматик":
+		m *= 1.25
+	# несвободные режимы: «партийная дисциплина» почти полная
+	m *= clampf(democracy_index() * 1.6, 0.15, 1.0)
+	return clampf(r * m, 0.0, 0.35)
+
+
+# [за, против, воздержались] у партии; vote_live — настоящее голосование (случайные отступники и редкие случайные голоса)
+var vote_live := false
+
+
+func party_vote_split(p: int, s: float, line_yes: bool) -> Array:
+	var n: int = seats[p]
+	var fr := party_dissent(p, s, line_yes)
+	var reb: int
+	if vote_live:
+		reb = clampi(int(round(randfn(float(n) * fr, sqrt(maxf(0.0, float(n) * fr * (1.0 - fr)))))), 0, n)
+	else:
+		reb = int(round(float(n) * fr))
+	var loyal: int = n - reb
+	var reb_no: int = int(ceil(float(reb) * 0.6))
+	var reb_ab: int = reb - reb_no
+	var yes: int
+	var no: int
+	if line_yes:
+		yes = loyal
+		no = reb_no
+	else:
+		yes = reb_no
+		no = loyal
+	var ab: int = reb_ab
+	# редко — единичный случайный голос (ошибка, личные мотивы)
+	if vote_live and n >= 3 and randf() < 0.10:
+		if line_yes and yes > 0:
+			yes -= 1
+			no += 1
+		elif not line_yes and no > 0:
+			no -= 1
+			yes += 1
+	return [yes, no, ab]
 
 
 func upper_check(tid: String, idx: int, forced: Array = []) -> Dictionary:
@@ -449,10 +644,11 @@ func upper_text(up: Dictionary) -> String:
 
 
 func negotiate_variant(tid: String, idx: int) -> void:
+	if pl_deny("parl"): return
 	if game_over or idx == cur_idx(tid):
 		return
 	var sw := variant_swing(tid, idx)
-	if sw.is_empty() or capital < float(sw["cost"]) + law_cost(tid, idx):
+	if sw.is_empty() or cap_spendable() < float(sw["cost"]) + law_cost(tid, idx):
 		return
 	capital -= float(sw["cost"])
 	var names: PackedStringArray = []
@@ -477,7 +673,7 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		log_line("[color=%s]Закон «%s» не принят: %s[/color]" % [COL_BAD, topic["name"], rq])
 		return
 	var cost := law_cost(tid, idx) * cost_mult
-	if capital < cost:
+	if cap_spendable() < cost:
 		return
 	var jn: Dictionary = junior_info()
 	if bool(jn["junior"]) and vote_sponsor == 0 and not (int(jn["pm"]) in forced) and variant_stance(int(jn["pm"]), tid, idx) < -0.8:
@@ -489,13 +685,25 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		log_line("[color=%s]Закон «%s» не вынесен на голосование: нужно %d голосов, есть %d.[/color]" % [COL_BAD, topic["name"], law_need(tid), v["yes"]])
 		refresh()
 		return
+	# v51: само голосование — с отступниками и случайными голосами; итог может разойтись с прогнозом
+	vote_live = true
+	var live := variant_votes(tid, idx, forced)
+	vote_live = false
+	last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(live["yes"]), "no": int(live.get("no", 0)), "abst": int(live.get("abst", 0)),
+		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false))}
+	if not bool(live.get("bypass", false)) and int(live["yes"]) < law_need(tid):
+		capital -= cost * 0.5
+		log_line("[color=%s]Закон «%s» провален при голосовании: за %d, против %d, воздержались %d — нужно %d. Часть депутатов нарушила дисциплину (политкапитал -%.0f).[/color]" % [COL_BAD, topic["name"], int(live["yes"]), int(live["no"]), int(live["abst"]), law_need(tid), cost * 0.5])
+		vote_show()
+		refresh()
+		return
 	var upc := upper_check(tid, idx, forced)
 	if bool(upc["block"]):
 		log_line("[color=%s]Закон «%s» не прошёл: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
 		refresh()
 		return
 	cost += float(upc["extra"])
-	if capital < cost:
+	if cap_spendable() < cost:
 		log_line("[color=%s]Для закона «%s» не хватает капитала: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
 		refresh()
 		return
@@ -508,7 +716,7 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		if in_coalition[p]:
 			partner_stance[p] = variant_stance(p, tid, idx)
 	capital -= cost
-	var ksup := 1.0 if vote_sponsor == 0 else -0.6
+	var ksup := 1.0 if vote_sponsor == 0 else (0.5 if not opp_mode else -0.6)   # 0.56: закон партнёра или оппозиции при вашей власти
 	for g in sd:
 		add_support(g, float(sd[g]) * ksup)
 		bias[g] = float(bias[g]) + float(sd[g]) * 0.4 * ksup
@@ -538,8 +746,10 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	recompute_mods()
 	if vote_sponsor == 0:
 		sfx("good")
-	log_tag("ЗАКОН", COL_GOOD, "%s%s — «%s»: %s → [b]%s[/b] [color=%s](за %d, против %d; политкапитал -%.0f)[/color]. %s" % [
-		date_text(), "" if vote_sponsor == 0 else " (правительство «%s»)" % PARTY_NAMES[vote_sponsor], topic["name"], old_v["n"], new_v["n"], COL_DIM, v["yes"], v["no"], cost, new_v["d"]])
+	var lv: Dictionary = last_vote if (not last_vote.is_empty() and String(last_vote.get("tid", "")) == tid and int(last_vote.get("turn", -1)) == turn) else {"yes": v["yes"], "no": v["no"], "abst": int(v.get("abst", 0))}
+	log_tag("ЗАКОН", COL_GOOD, "%s%s — «%s»: %s → [b]%s[/b] [color=%s](за %d, против %d, воздержались %d; политкапитал -%.0f)[/color]. %s" % [
+		date_text(), "" if vote_sponsor == 0 else " (правительство «%s»)" % PARTY_NAMES[vote_sponsor], topic["name"], old_v["n"], new_v["n"], COL_DIM, int(lv["yes"]), int(lv["no"]), int(lv.get("abst", 0)), cost, new_v["d"]])
+	vote_show()
 	refresh()
 
 
@@ -627,7 +837,7 @@ func pres_needs_runoff(s1: Array[float], order: Array) -> bool:
 func law_reform_count(cat: int) -> int:
 	var n := 0
 	for t in LAW_TOPICS:
-		if int(t["cat"]) == cat and cur_idx(t["id"]) > 0:
+		if int(t["cat"]) == cat and cur_idx(t["id"]) != law_start_idx(t["id"]):
 			n += 1
 	return n
 
@@ -889,6 +1099,81 @@ func variant_swing(tid: String, idx: int) -> Dictionary:
 
 
 # --- слияние с базовыми законами ---
+# v55_3: общие темы «Срок парламента» и «Избирательный барьер» написаны под Германию (4 года, 5 %);
+# у страны с другим сроком или барьером действующий вариант подписывается её значением, а совпадающий с ним — заменяется немецким
+func law_years(n: int) -> String:
+	return "%d %s" % [n, "год" if n % 10 == 1 and n % 100 != 11 else ("года" if n % 10 in [2, 3, 4] and not (n % 100 in [12, 13, 14]) else "лет")]
+
+
+func law_scaled(v: Dictionary, k: float) -> Dictionary:
+	var o := {}
+	for key in ["s", "ps", "a"]:
+		if not v.has(key):
+			continue
+		var d := {}
+		for x in v[key]:
+			d[x] = float(v[key][x]) * k
+		o[key] = d
+	return o
+
+
+func law_fit_generic() -> void:
+	for t in LAW_TOPICS:
+		var vs: Array = t["v"]
+		if String(t["id"]) == "parl_term_law" and String(vs[0]["n"]) == "4 года":
+			var n: int = int(round(float(BASE_MODS["parl_term"]) / 12.0))
+			if n == 4:
+				continue
+			vs[0]["n"] = law_years(n)
+			for i in range(1, vs.size()):
+				if int((vs[i].get("set", {}) as Dictionary).get("parl_term", -1)) == n * 12:
+					var src: Dictionary = vs[1] if n > 4 else vs[vs.size() - 1]
+					var nv := law_scaled(src, 0.6)
+					nv["n"] = "4 года"
+					nv["d"] = "Выборы чаще: власть ближе к избирателям, но предвыборная гонка почти не прекращается." if n > 4 else "Выборы реже: больше стабильности, меньше подотчётности."
+					nv["c"] = 14.0
+					nv["set"] = {"parl_term": 48}
+					vs[i] = nv
+		elif String(t["id"]) == "elect_threshold" and String(vs[0]["n"]) == "Барьер 5%":
+			var thr: float = float(BASE_MODS["threshold"])
+			if absf(thr - 0.05) < 0.001:
+				continue
+			vs[0]["n"] = ("Барьер %s%%" % str(snappedf(thr * 100.0, 0.1)).trim_suffix(".0").replace(".", ",")) if thr >= 0.005 else "Без барьера"
+			for i in range(1, vs.size()):
+				if absf(float((vs[i].get("set", {}) as Dictionary).get("threshold", -1.0)) - thr) < 0.001:
+					var nv2 := law_scaled(vs[1] if thr > 0.05 else vs[2], 0.6)
+					nv2["n"] = "Барьер 5%"
+					nv2["d"] = "Барьер ниже нынешнего: мелким партиям проще пройти в парламент." if thr > 0.05 else "Барьер выше нынешнего: мелкие партии отсеиваются, у крупных больше мест."
+					nv2["c"] = 14.0
+					nv2["set"] = {"threshold": 0.05}
+					vs[i] = nv2
+		elif String(t["id"]) == "state_church" and String(vs[0]["n"]).begins_with("Светское государство"):
+			ch_law_label(vs)
+
+
+# v55_3: правки текстов и вариантов общих законов под страну (LAW_TEXT из данных страны)
+func law_text_apply() -> void:
+	law_fit_generic()
+	if LAW_TEXT.is_empty():
+		return
+	for t in LAW_TOPICS:
+		var id: String = String(t["id"])
+		if not LAW_TEXT.has(id):
+			continue
+		var o: Dictionary = LAW_TEXT[id]
+		for k in ["name", "desc"]:
+			if o.has(k):
+				t[k] = o[k]
+		var vs: Dictionary = o.get("v", {})
+		for vi in vs:
+			var i: int = int(vi)
+			if i < 0 or i >= (t["v"] as Array).size():
+				continue
+			var nv: Dictionary = vs[vi]
+			for k in nv:
+				t["v"][i][k] = nv[k]
+
+
 func de_law_params() -> Array:
 	var out: Array = []
 	for p in LAW_PARAMS_V11:
@@ -981,9 +1266,9 @@ func brake_step(deficit_pct: float) -> void:
 		else:
 			risk_prem = maxf(0.0, risk_prem - 0.05)
 		if brake_over == 3:
-			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else "Еврокомиссия предупреждает правительство, инвесторы требуют премию за риск."])
+			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else ("Еврокомиссия предупреждает" if bool(MACRO.get("eu", false)) else "Рейтинговые агентства предупреждают") + " правительство, инвесторы требуют премию за риск."])
 		elif brake_over >= 6:
-			capital = maxf(0.0, capital - (0.8 if strict else 0.15))
+			capital -= (0.8 if strict else 0.15)
 			if brake_over % 6 == 0:
 				log_line("[color=%s][b]Нарушение бюджетного правила (%s).[/b] Рынки и партнёры давят на правительство (политкапитал -%s в месяц, ставка по долгу выше).[/color]" % [COL_BAD, fname, "0.8" if strict else "0.15"])
 			apply_fx({"support": {"Бизнес": -0.3 if not strict else -0.4}})
@@ -991,7 +1276,7 @@ func brake_step(deficit_pct: float) -> void:
 	if brake_over == 3:
 		log_line("[color=%s][b]Долговой тормоз:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. Федеральное министерство финансов и Конституционный суд предупреждают правительство.[/color]" % [COL_WARN, deficit_pct, brake_allowed()])
 	elif brake_over >= 6:
-		capital = maxf(0.0, capital - 0.8)
+		capital -= 0.8
 		if brake_over % 6 == 0:
 			log_line("[color=%s][b]Нарушение долгового тормоза.[/b] Суд требует сократить дефицит (политкапитал -0.8 в месяц, доверие рынков падает).[/color]" % COL_BAD)
 		apply_fx({"support": {"Бизнес": -0.4, "Пенсионеры": -0.2}})
@@ -1053,6 +1338,8 @@ const SNAP_RULES := {
 
 
 func snap_info() -> Dictionary:
+	if martial_on():
+		return {"name": "Досрочные выборы невозможны", "desc": "Действует военное положение: роспуск парламента запрещён.", "need": 0.0, "vote": "", "ok": false, "why": "Действует военное положение: роспуск парламента и выборы запрещены."}
 	var r: Array = SNAP_RULES.get(ccode, SNAP_RULES["DE"])
 	var ok: bool = float(r[2]) >= 0.0
 	return {"name": String(r[0]) if ok else "Досрочные выборы невозможны", "desc": String(r[1]), "need": maxf(0.0, float(r[2])), "vote": String(r[3]), "ok": ok,

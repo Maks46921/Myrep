@@ -1,6 +1,16 @@
 # Интерфейс: дипломатия.
 extends "res://scripts/ui/ui_econ.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func treaty_sheet_open() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 # ---------- (карта Европы объединена с картой страны) ----------
 func select_dip(code: String) -> void:
 	dip_sel = code
@@ -20,7 +30,54 @@ func build_dip_windows() -> void:
 	make_tail(dip_mod_rt, "О саммитах ЕС")
 
 	w = new_window("dinfo", "Страна: сведения", 2, Rect2(0.0, 0.19, 0.25, 0.81))
+	# v49: флаг и название выбранной страны над сведениями
+	var fh := HBoxContainer.new()
+	fh.add_theme_constant_override("separation", 8)
+	w.body.add_child(fh)
+	dip_flag = Flags.make("DE", 24.0)
+	dip_flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	fh.add_child(dip_flag)
+	dip_flag_lbl = Label.new()
+	dip_flag_lbl.add_theme_font_size_override("font_size", 19)
+	dip_flag_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dip_flag_lbl.clip_text = true
+	fh.add_child(dip_flag_lbl)
+	# v50: быстрые действия со страной
+	var qa := HFlowContainer.new()
+	qa.add_theme_constant_override("h_separation", 4)
+	qa.add_theme_constant_override("v_separation", 4)
+	w.body.add_child(qa)
+	var q1 := Button.new()
+	q1.theme_type_variation = "SmallButton"
+	q1.text = "📜 Договор"
+	q1.focus_mode = Control.FOCUS_NONE
+	q1.tooltip_text = "Составить и предложить этой стране договор."
+	q1.pressed.connect(func() -> void:
+		ex_sel = dip_sel
+		treaty_sheet_open())
+	qa.add_child(q1)
+	var q2 := Button.new()
+	q2.theme_type_variation = "SmallButton"
+	q2.text = "Влияние и торговля"
+	q2.focus_mode = Control.FOCUS_NONE
+	q2.pressed.connect(on_dip_far_ex)
+	qa.add_child(q2)
+	var q3 := Button.new()
+	q3.theme_type_variation = "SmallButton"
+	q3.text = "Армия и война"
+	q3.focus_mode = Control.FOCUS_NONE
+	q3.pressed.connect(func() -> void: show_desk(13))
+	qa.add_child(q3)
 	dip_info_rt = make_rt(w.body)
+	# v50: финансирование партии этой страны (доступно и вне власти — из денег партии)
+	add_title(w.body, "Финансировать партию")
+	dip_fund_opt = fed_opt(w.body, [], "Партия, которую вы поддержите деньгами до ближайших выборов.")
+	dip_fund_btn = fed_btn("Финансировать (6 капитала)", w.body, "Шансы партии на выборах вырастут, настроение избирателей сдвинется к её взглядам. Каждый месяц ~3% риск разоблачения: скандал и обида страны.")
+	dip_fund_btn.pressed.connect(func() -> void:
+		var i := dip_fund_opt.selected
+		if i >= 0:
+			w_fund(dip_sel, dip_fund_opt.get_item_id(i)))
+	dip_fund_rt = make_rt(w.body)
 
 	w = new_window("dact", "Взаимодействие со страной", 2, Rect2(0.45, 0.0, 0.255, 1.0))
 	add_title(w.body, "Быстрые действия")
@@ -60,9 +117,57 @@ func build_dip_windows() -> void:
 	add_note(w.body, "Каждое соглашение даёт эффект, пока отношения достаточно тёплые. Уровни выше обычных усиливают экономику и безопасность; в кризисе отношений соглашения рушатся.")
 
 
+var dip_fund_opt: OptionButton = null
+var dip_fund_btn: Button = null
+var dip_fund_rt: RichTextLabel = null
+var dip_fund_cc := ""
+
+
+func update_dip_fund() -> void:
+	if dip_fund_opt == null:
+		return
+	if dip_fund_cc != dip_sel:
+		dip_fund_cc = dip_sel
+		dip_fund_opt.clear()
+		for pi in w_fund_parties(dip_sel):
+			dip_fund_opt.add_item(w_party_name(dip_sel, int(pi)).left(46), int(pi))
+	var f: Dictionary = (wsim[dip_sel].get("fund", {}) as Dictionary) if wsim.has(dip_sel) else {}
+	var why := w_fund_check(dip_sel, dip_fund_opt.get_item_id(dip_fund_opt.selected) if dip_fund_opt.selected >= 0 else -1)
+	dip_fund_btn.disabled = why != ""
+	dip_fund_btn.tooltip_text = why if why != "" else "Шансы партии на выборах вырастут, настроение избирателей сдвинется к её взглядам. Каждый месяц ~3% риск разоблачения: скандал и обида страны."
+	if not f.is_empty():
+		dip_fund_rt.text = "[font_size=13]Вы финансируете «%s»: ещё %d мес. или до выборов.[/font_size]" % [w_party_name(dip_sel, int(f["p"])), int(f["left"])]
+	elif dip_fund_opt.item_count == 0:
+		dip_fund_rt.text = "[font_size=13][color=%s]Партии этой страны в игре не представлены.[/color][/font_size]" % COL_DIM
+	else:
+		dip_fund_rt.text = ""
+
+
+var dip_flag: TextureRect = null
+var dip_flag_lbl: Label = null
+
+
+# v49: название страны уже в шапке с флагом — убираем его первую строку из сведений
+func dip_nohead(t: String) -> String:
+	if dip_flag != null and t.begins_with("[b][font_size=18]"):
+		var k: int = t.find("\n")
+		if k >= 0:
+			return t.substr(k + 1)
+	return t
+
+
 func update_dip_windows() -> void:
 	if dip_info_rt == null or dip.is_empty():
 		return
+	update_dip_fund()
+	if dip_flag != null and WORLD.has(dip_sel):
+		if String(dip_flag.get_meta("cc", "")) != dip_sel:
+			dip_flag.set_meta("cc", dip_sel)
+			dip_flag.texture = Flags.tex(dip_sel) if Flags.has(dip_sel) else null
+			dip_flag.visible = Flags.has(dip_sel)
+			dip_flag.modulate.a = 0.0
+			dip_flag.create_tween().tween_property(dip_flag, "modulate:a", 1.0, 0.25)
+		dip_flag_lbl.text = String(WORLD[dip_sel]["name"])
 	var far: bool = not (DIP_C.has(dip_sel) and dip.has(dip_sel))
 	if wins.has("dact"):
 		for ch in (wins["dact"] as FloatWindow).body.get_children():
@@ -71,7 +176,7 @@ func update_dip_windows() -> void:
 		dip_far_box.visible = far
 	if far:
 		if WORLD.has(dip_sel):
-			dip_info_rt.text = world_info(dip_sel) + foreign_region_text() + "\nОтношения с вами: [b]%.0f[/b] (%s)\n" % [fed_rel(dip_sel), dip_rel_name(fed_rel(dip_sel))]
+			dip_info_rt.text = dip_nohead(world_info(dip_sel)) + foreign_region_text() + "\nОтношения с вами: [b]%.0f[/b] (%s)\n" % [fed_rel(dip_sel), dip_rel_name(fed_rel(dip_sel))] + hist_text_rel(dip_sel)
 			dip_far_lbl.text = "С этой страной нет двусторонних соглашений: она не входит в круг ближайших соседей. Доступны торговля, влияние, помощь и пошлины."
 		return
 	var d: Dictionary = DIP_C[dip_sel]
@@ -80,6 +185,8 @@ func update_dip_windows() -> void:
 	var tg := dip_target(dip_sel)
 	var t := world_info(dip_sel) + foreign_region_text()
 	t += "\nОтношения: [b][color=#%s]%.0f[/color][/b] — %s   (тенденция к %.0f)\n" % [scale_color(clampf(rel / 100.0, 0.0, 1.0)).to_html(false), rel, dip_rel_name(rel), tg]
+	if hist_rel(dip_sel) != 0:
+		t += hist_text_rel(dip_sel) + " Добрые дела здесь весят больше, обиды — меньше (или наоборот).\n"
 	t += "[color=%s]Ценит:[/color] %s\n[color=%s]Не любит:[/color] %s\n" % [COL_GOOD, d["likes"], COL_BAD, d["dislikes"]]
 	var lv: Dictionary = st["lv"]
 	t += "\n[b]Соглашения:[/b] торговля %d/3 · безопасность %d/3 · энергия и инфраструктура %d/3" % [int(lv["trade"]), int(lv["sec"]), int(lv["energy"])]
@@ -94,7 +201,7 @@ func update_dip_windows() -> void:
 			shown = true
 	if shown:
 		t += "\n\n[b]Ваши законы влияют на отношения:[/b]\n" + reasons.strip_edges()
-	dip_info_rt.text = t
+	dip_info_rt.text = dip_nohead(t)
 	# действия
 	var cd: Dictionary = st["cd"]
 	for a in DIP_ACTIONS:
@@ -104,7 +211,7 @@ func update_dip_windows() -> void:
 		if left > 0:
 			txt += " — ещё %d мес." % left
 		b.text = txt
-		b.disabled = left > 0 or game_over or capital < float(a["cap"])
+		b.disabled = left > 0 or game_over or cap_spendable() < float(a["cap"])
 	for tr in DIP_TRACKS:
 		var tid: String = tr["id"]
 		var L: int = int(lv[tid])
@@ -121,7 +228,7 @@ func update_dip_windows() -> void:
 			up.text = "Углубить: капитал %.0f, %.2f%% ВВП (отношения от %.0f)" % [cost[0], cost[1], cost[2]]
 			if tl > 0:
 				up.text = "Углубить через %d мес." % tl
-			up.disabled = game_over or capital < float(cost[0]) or rel < float(cost[2]) or tl > 0
+			up.disabled = game_over or cap_spendable() < float(cost[0]) or rel < float(cost[2]) or tl > 0
 		dn.disabled = game_over or L <= 0
 	# таблица
 	var tb := "[b]Страны на карте[/b]\n[table=7]"

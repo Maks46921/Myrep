@@ -1,6 +1,20 @@
 # Экономическое влияние и зависимость: ваша страна ⇄ остальные страны мира (боты).
 # Зависимость считается от торговли (w_share), энергии и долга; рычаги — торговые соглашения, пошлины, помощь, выкуп долга.
-extends "res://scripts/logic/society.gd"
+extends "res://scripts/logic/tech.gd"
+
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func fa_notify(kind: String, c: String, mag: float) -> void:
+	pass
+
+
+func fa_sanctioning(c: String) -> bool:
+	return false
+
+
+# --- конец заглушек ---
+
 
 const EX_DEAL := ["нет", "базовое", "расширенное", "полный союз"]
 const EX_TAR := ["нет", "лёгкие", "заметные", "торговая война"]
@@ -159,7 +173,7 @@ func ex_month() -> void:
 				p["ret"] = int(p["ret"]) + 1
 				ex_rel_change(c, -4.0)
 				log_tag("ТОРГОВЛЯ", COL_WARN, "%s — «%s» вводит ответные пошлины (уровень %d)." % [date_text(), WORLD[c]["name"], int(p["ret"])])
-			elif int(p["tar"]) < int(p["ret"]) and ex_rng.randf() < 0.12:
+			elif int(p["tar"]) < int(p["ret"]) and not fa_sanctioning(c) and ex_rng.randf() < 0.12:
 				p["ret"] = int(p["ret"]) - 1
 				log_tag("ТОРГОВЛЯ", COL_GOOD, "%s — «%s» смягчает ответные пошлины (уровень %d)." % [date_text(), WORLD[c]["name"], int(p["ret"])])
 		# рейтинг влияния
@@ -242,6 +256,7 @@ func ex_cap(cost: float) -> bool:
 
 
 func ex_deal_set(c: String, dir: int) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	var v: int = int(p["deal"]) + dir
 	if v < 0 or v > 3 or ex_cd_get(c, "deal") > 0:
@@ -256,11 +271,13 @@ func ex_deal_set(c: String, dir: int) -> bool:
 	ex_rel_change(c, 4.0 if dir > 0 else -3.0)
 	add_support("Бизнес", 1.5 if dir > 0 else -1.0)
 	log_line("[b]%s: торговое соглашение с «%s» — %s.[/b]" % [date_text(), WORLD[c]["name"], EX_DEAL[v]])
+	fa_notify("deal", c, float(dir))
 	refresh()
 	return true
 
 
 func ex_tariff_set(c: String, dir: int) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	var v: int = int(p["tar"]) + dir
 	if v < 0 or v > 3 or ex_cd_get(c, "tar") > 0:
@@ -276,22 +293,29 @@ func ex_tariff_set(c: String, dir: int) -> bool:
 	else:
 		ex_rel_change(c, 3.0)
 	log_line("[b]%s: пошлины против «%s» — %s.[/b]" % [date_text(), WORLD[c]["name"], EX_TAR[v]])
+	fa_notify("tariff", c, float(dir))
 	refresh()
 	return true
 
 
 func ex_aid_give(c: String) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	if ex_cd_get(c, "aid") > 0:
 		return false
+	var ow := oneoff_why(gdp * 0.1 / 100.0)
+	if ow != "":
+		log_line("[color=%s]Помощь и инвестиции: %s.[/color]" % [COL_WARN, ow])
+		return false
 	if not ex_cap(3.0):
 		return false
-	debt += gdp * 0.1 / 100.0
+	oneoff_pay(gdp * 0.1 / 100.0, "Помощь и инвестиции: %s" % WORLD[c]["name"])
 	p["aid"] = minf(40.0, float(p["aid"]) + 8.0)
 	p["cd"]["aid"] = 6
 	ex_rel_change(c, 3.0)
 	add_support("Бизнес", -0.5)
-	log_line("%s: помощь и инвестиции в «%s» (0.1%% ВВП в долг): влияние растёт." % [date_text(), WORLD[c]["name"]])
+	log_line("%s: помощь и инвестиции в «%s» (0.1%% ВВП из резерва бюджета): влияние растёт." % [date_text(), WORLD[c]["name"]])
+	fa_notify("aid", c, 1.0)
 	refresh()
 	return true
 
@@ -302,6 +326,7 @@ func ex_dbuy_amt(c: String) -> float:
 
 
 func ex_dbuy_set(c: String, dir: int) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	var v: int = int(p["dbuy"]) + dir
 	if v < 0 or v > 3 or ex_cd_get(c, "dbuy") > 0:
@@ -322,6 +347,7 @@ func ex_dbuy_set(c: String, dir: int) -> bool:
 
 
 func ex_favor(c: String, kind: String) -> bool:
+	if pl_deny(): return false
 	var p: Dictionary = ex["p"][c]
 	if ex_cd_get(c, "favor") > 0 or float(p["infl"]) < 60.0:
 		return false

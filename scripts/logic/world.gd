@@ -4,8 +4,32 @@ extends "res://scripts/logic/turn.gd"
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
 
+func con_ai_g(c: String) -> float:
+	return 0.0
+
+
 func ex_bot_g(c: String) -> float:
 	return 0.0
+
+
+func fa_explain(c: String) -> String:
+	return ""
+
+
+func fa_hit(c: String, v: float, why: String) -> void:
+	pass
+
+
+func fa_rel_term(c: String) -> float:
+	return 0.0
+
+
+func hist_mult(c: String, delta: float) -> float:
+	return 0.0
+
+
+func hist_rel(c: String) -> int:
+	return 0
 
 
 func mil_dip_term(c: String) -> float:
@@ -58,7 +82,7 @@ func dip_rel_name(r: float) -> String:
 
 func dip_target(c: String) -> float:
 	var d: Dictionary = DIP_C[c]
-	var t: float = float(d["rel0"]) + 4.0 * (float(mods["dip_bonus"]) - dip_bonus0)
+	var t: float = float(d["rel0"]) + 4.0 * (float(mods["dip_bonus"]) - dip_bonus0) + 1.5 * float(hist_rel(c))
 	var likes: Dictionary = DIP_LIKES[c]
 	for tid in likes:
 		var idx: int = cur_idx(tid)
@@ -68,7 +92,7 @@ func dip_target(c: String) -> float:
 	var dl := 0
 	for k in lv:
 		dl += int(lv[k]) - int((d["lv0"] as Dictionary)[k])
-	t += 2.0 * float(dl) + mil_dip_term(c)
+	t += 2.0 * float(dl) + mil_dip_term(c) + fa_rel_term(c)
 	return clampf(t, 5.0, 98.0)
 
 
@@ -130,7 +154,7 @@ func dip_apply_mods() -> void:
 func dip_change(c: String, delta: float) -> void:
 	if not dip.has(c):
 		return
-	dip[c]["rel"] = clampf(float(dip[c]["rel"]) + delta, 0.0, 100.0)
+	dip[c]["rel"] = clampf(float(dip[c]["rel"]) + delta * hist_mult(c, delta), 0.0, 100.0)
 
 
 func dip_step() -> void:
@@ -176,11 +200,12 @@ func dip_fx_text(dd: Dictionary) -> String:
 
 
 func dip_do_action(id: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var a: Dictionary = find_by_id(DIP_ACTIONS, id)
 	var cd: Dictionary = dip[dip_sel]["cd"]
-	if int(cd.get(id, 0)) > 0 or capital < float(a["cap"]):
+	if int(cd.get(id, 0)) > 0 or cap_spendable() < float(a["cap"]):
 		return
 	capital -= float(a["cap"])
 	if float(a["money"]) > 0.0:
@@ -198,6 +223,7 @@ func dip_track_cost(c: String, tid: String) -> Array:
 
 
 func dip_upgrade(tid: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var L: int = int(dip[dip_sel]["lv"][tid])
@@ -205,7 +231,7 @@ func dip_upgrade(tid: String) -> void:
 		return
 	var cost := dip_track_cost(dip_sel, tid)
 	var cd: Dictionary = dip[dip_sel]["cd"]
-	if capital < float(cost[0]) or float(dip[dip_sel]["rel"]) < float(cost[2]) or int(cd.get("t_" + tid, 0)) > 0:
+	if cap_spendable() < float(cost[0]) or float(dip[dip_sel]["rel"]) < float(cost[2]) or int(cd.get("t_" + tid, 0)) > 0:
 		return
 	capital -= float(cost[0])
 	debt += gdp * float(cost[1]) / 100.0
@@ -217,6 +243,7 @@ func dip_upgrade(tid: String) -> void:
 
 
 func dip_downgrade(tid: String) -> void:
+	if pl_deny(): return
 	if game_over:
 		return
 	var L: int = int(dip[dip_sel]["lv"][tid])
@@ -233,6 +260,16 @@ func w_codes() -> Array:
 	for c in WORLD:
 		out.append(String(c))
 	return out
+
+
+# v49: непризнанные образования (ПМР, ДНР, ЛНР) и новые государства из отделившихся регионов (SEP…): есть на карте и в мировой
+# симуляции, но не играбельны, без пакета данных, торговых соглашений, разведки и внешнеполитического ИИ
+func w_unrec(c: String) -> bool:
+	return WORLD.has(c) and bool((WORLD[c] as Dictionary).get("unrec", false))
+
+
+func w_minor(c: String) -> bool:
+	return c.begins_with("SEP") or w_unrec(c)
 
 
 func world_init() -> void:
@@ -268,15 +305,34 @@ func w_stance_name(s: float) -> String:
 
 
 # вес торговли страны a со страной b (для спилловеров)
+# v49: стартовые санкции: торговля страны под санкциями с ЕС и присоединившимися к санкциям сократилась примерно вчетверо
+const W_SANCT0 := ["RU", "BY"]
+const W_SANCT_JOIN := ["GB", "NO", "CH", "AL", "ME", "MK", "XK", "UA", "MD"]
+
+
+# v49: насколько экономики связаны: санкции режут связь (на 75%), непризнанные образования торгуют через покровителя
+func w_link(a: String, b: String) -> float:
+	if w_unrec(a) or w_unrec(b):
+		return 0.15
+	var sa: bool = a in W_SANCT0
+	var sb: bool = b in W_SANCT0
+	if sa == sb:
+		return 1.0
+	var o: String = b if sa else a
+	if bool((WORLD[o] as Dictionary).get("eu", false)) or o in W_SANCT_JOIN:
+		return 0.25
+	return 1.0
+
+
 func w_share(a: String, b: String) -> float:
 	var tot := 0.0
 	for c in wsim:
 		if c == a:
 			continue
-		tot += pow(float(wsim[c]["gdp"]), 0.7)
+		tot += pow(float(wsim[c]["gdp"]), 0.7) * w_link(a, c)
 	if tot <= 0.0:
 		return 0.0
-	return float(W_OPEN.get(a, 0.4)) * open_mult(a) * pow(float(wsim[b]["gdp"]), 0.7) / tot
+	return float(W_OPEN.get(a, 0.4)) * open_mult(a) * pow(float(wsim[b]["gdp"]), 0.7) * w_link(a, b) / tot
 
 
 func w_cur_growth(c: String) -> float:
@@ -387,11 +443,26 @@ func w_election(c: String) -> void:
 	var old: float = float(w["stance"])
 	var swing: float = randf_range(-0.45, 0.45) - (float(w["appr"]) - 45.0) / 100.0 * 0.5 * signf(old if absf(old) > 0.05 else 0.1)
 	w["stance"] = clampf(old * 0.5 + swing, -0.9, 0.9)
+	# v50: профинансированная партия тянет настроение к своим взглядам и чаще побеждает
+	var fd: Dictionary = w.get("fund", {})
+	var fp: int = int(fd.get("p", -1)) if not fd.is_empty() else -1
+	var archs0: Array = CDATA[c].get("PARCH", []) if CDATA.has(c) else []
+	if fp >= 0 and fp < archs0.size():
+		var fs: float = float(W_ARCH_STANCE.get(String(archs0[fp]), 0.0))
+		w["stance"] = clampf(lerpf(float(w["stance"]), fs, 0.35), -0.9, 0.9)
 	var term: int = int(CDATA[c]["MACRO"]["parl_term"]) if CDATA.has(c) else 48
 	w["next_elec"] = term
 	w["appr"] = clampf(50.0 + randf_range(-6.0, 8.0), 15.0, 80.0)
 	w["stab"] = clampf(float(w["stab"]) + 8.0, 0.0, 100.0)
 	var pi: int = w_party_for(c, float(w["stance"]), (50.0 - float(w["appr"])) / 50.0 + 0.3)
+	if fp >= 0 and randf() < 0.35:
+		pi = fp
+	if fp >= 0:
+		w["fund"] = {}
+		if pi == fp:
+			log_tag("ВЛИЯНИЕ", COL_GOOD, "%s: партия «%s», которую вы финансировали, пришла к власти." % [WORLD[c]["name"], w_party_name(c, fp)])
+			if dip.has(c):
+				dip_change(c, 8.0)
 	if pi >= 0:
 		w["gov"] = "правительство партии «%s» (выборы %s %d)" % [w_party_name(c, pi), MONTHS[month - 1], year]
 	else:
@@ -471,6 +542,74 @@ func w_party_for(c: String, stance: float, discontent: float) -> int:
 	return int(cand[randi() % cand.size()])
 
 
+# ---------- v50: финансирование партий за рубежом ----------
+# Партия игрока (во власти — и государство) тайно финансирует партию другой страны: на ближайших выборах её шансы выше,
+# а настроение избирателей сдвигается к её взглядам. Каждый месяц есть риск разоблачения — тогда скандал и обида страны.
+const W_ARCH_STANCE := {"left": -0.7, "popl": -0.6, "soc": -0.35, "green": -0.3, "lib": 0.1, "own": 0.0, "euro": 0.0, "region": 0.0, "cons": 0.35, "popr": 0.7, "none": 0.0}
+const W_FUND_CAP := 6.0
+const W_FUND_MONTHS := 12
+
+
+func w_fund_parties(c: String) -> Array:
+	var out: Array = []
+	if not CDATA.has(c):
+		return out
+	var n: int = 10 if c == "DE" else (CDATA[c].get("PARTY_NAMES", []) as Array).size()
+	for i in n:
+		if i == 6:
+			continue
+		out.append(i)
+	return out
+
+
+func w_fund_check(c: String, pi: int) -> String:
+	if game_over:
+		return "игра окончена"
+	if c == ccode or not wsim.has(c) or not CDATA.has(c):
+		return "выберите другую страну из игры"
+	if w_minor(c):
+		return "здесь нет нормальных выборов"
+	if not (pi in w_fund_parties(c)):
+		return "выберите партию"
+	var f: Dictionary = wsim[c].get("fund", {})
+	if not f.is_empty():
+		return "вы уже финансируете «%s» (ещё %d мес.)" % [w_party_name(c, int(f["p"])), int(f["left"])]
+	if cap_spendable() < W_FUND_CAP:
+		return "нужно %.0f политкапитала" % W_FUND_CAP
+	return ""
+
+
+func w_fund(c: String, pi: int) -> bool:
+	var why := w_fund_check(c, pi)
+	if why != "":
+		log_line("[color=%s]Финансирование невозможно: %s.[/color]" % [COL_WARN, why])
+		return false
+	capital -= W_FUND_CAP
+	wsim[c]["fund"] = {"p": pi, "left": W_FUND_MONTHS}
+	if not opp_mode:
+		debt += gdp * 0.02 / 100.0
+	log_tag("ВЛИЯНИЕ", COL_PURPLE, "%s: вы начали финансировать партию «%s» (%s) на %d мес. Её шансы на выборах выше; если это раскроется — скандал." % [date_text(), w_party_name(c, pi), WORLD[c]["name"], W_FUND_MONTHS])
+	refresh()
+	return true
+
+
+func w_fund_step(c: String) -> void:
+	var w: Dictionary = wsim[c]
+	var f: Dictionary = w.get("fund", {})
+	if f.is_empty():
+		return
+	f["left"] = int(f["left"]) - 1
+	# разоблачение: 3% в месяц, в странах со свободной прессой выше
+	if randf() < 0.03:
+		w["fund"] = {}
+		fa_hit(c, -14.0, "финансирование партии «%s»" % w_party_name(c, int(f["p"])))
+		add_all_support(-0.6)
+		log_tag("СКАНДАЛ", COL_BAD, "в %s раскрыто, что вы финансировали партию «%s»: правительство страны возмущено, партия теряет доверие." % [WORLD[c]["name"], w_party_name(c, int(f["p"]))])
+		return
+	if int(f["left"]) <= 0:
+		w["fund"] = {}
+
+
 func wsim_step() -> void:
 	if wsim.is_empty():
 		return
@@ -514,7 +653,7 @@ func wsim_step() -> void:
 		gt -= maxf(0.0, float(w["def"]) - float(WORLD[c]["def"]) - 1.0) * 0.0
 		if not ck.is_empty():
 			gt += float(ck["g"])
-		gt += w_shock_g(c) + ex_bot_g(c)
+		gt += w_shock_g(c) + ex_bot_g(c) + con_ai_g(c)
 		gt -= w_stress * (0.30 if float(w["debt"]) > 90.0 else 0.10)
 		var consol: bool = float(w["debt"]) > 100.0 and float(w["def"]) > 3.5 and ck.is_empty()
 		if consol:
@@ -574,6 +713,7 @@ func wsim_step() -> void:
 					if r <= 0.0:
 						w_start_crisis(c, k)
 						break
+		w_fund_step(c)
 		# --- выборы ---
 		w["next_elec"] = int(w["next_elec"]) - 1
 		if int(w["next_elec"]) <= 0:
@@ -637,6 +777,8 @@ func world_info(c: String) -> String:
 	if not is_me and dip.has(c):
 		t += "Отношения с вами: [b]%.0f[/b] (%s) · торговля %s млрд € в год\n" % [float(dip[c]["rel"]), dip_rel_name(float(dip[c]["rel"])), fmt_n(float((DIP_C[c] as Dictionary)["trade"]))]
 		t += "Влияние на вашу экономику: рост %s п.п., связано с темпом их роста\n" % sg(w_share(ccode, c) * (float(w["growth"]) - float(w["pot"])) * 0.30, 2)
+	if not is_me:
+		t += fa_explain(c)
 	return t
 
 

@@ -21,6 +21,15 @@ func click(c: Control) -> void:
 	await process_frame
 	await process_frame
 
+# кнопка может быть ниже видимой части окна: прокрутить к ней
+func reveal(c: Control) -> void:
+	var sc = c.get_parent()
+	while sc != null and not (sc is ScrollContainer):
+		sc = sc.get_parent()
+	if sc != null:
+		(sc as ScrollContainer).ensure_control_visible(c)
+	for i in 3: await process_frame
+
 func _init():
 	g = load("res://main.gd").new()
 	root.add_child(g)
@@ -28,8 +37,12 @@ func _init():
 	g.capital = 300.0
 	g.show_desk(1)
 	for i in 6: await process_frame
-	check(g.subbar.visible and g.sub_buttons.size() == 6, "подпанель политики без кнопки «Религия и миграция»")
-	await click(g.sub_buttons[4])
+	check(g.subbar.visible and g.sub_buttons.size() == 5, "подпанель политики: ждали 5 вкладок")
+	# v55_1: «Религия и миграция» — в рамке «Общество»
+	await click(g.desk_buttons[5])
+	for i in 4: await process_frame
+	check(g.subbar4.visible and g.sub4_buttons.size() == 3, "нет подпанели рамки «Общество»")
+	await click(g.sub4_buttons[0])
 	for i in 4: await process_frame
 	check(g.current_desk == 11, "вкладка «Религия и миграция» не открылась (desk %d)" % g.current_desk)
 	check(g.sw_rel_rt.get_parsed_text().length() > 60, "таблица религий пуста")
@@ -38,13 +51,31 @@ func _init():
 	check(not b.disabled, "кнопка «Мягче границы» недоступна")
 	await click(b)
 	check(int(g.soc["lvl"]) == lv0 + 1, "щелчок «Мягче границы» не сработал")
+	await click(g.sub4_buttons[1])
+	for i in 4: await process_frame
+	check(g.current_desk == 20, "вкладка «Церковь и государство» не открылась (desk %d)" % g.current_desk)
 	await click(g.sw_btn["sec+"])
 	check(int(g.soc["sec"]) == 2, "щелчок «Больше секуляризма» не сработал")
+	check(g.chw_main_rt.get_parsed_text().length() > 60, "окно церкви пусто")
+	var r0: float = float(g.ch["rel"])
+	check(not g.chw_btn["meet"].disabled, "кнопка встречи с церковью недоступна")
+	await reveal(g.chw_btn["meet"])
+	await click(g.chw_btn["meet"])
+	check(float(g.ch["rel"]) > r0, "щелчок «Встреча с главой церкви» не сработал")
+	await click(g.sub4_buttons[2])
+	for i in 4: await process_frame
+	check(g.current_desk == 19, "вкладка «Культура» не открылась (desk %d)" % g.current_desk)
+	check(g.cw_nat_rt.get_parsed_text().length() > 60, "таблица народов пуста")
+	var f0: int = int(g.cu["pol"]["fund"])
+	check(not g.cw_btn["fund+"].disabled, "кнопка поддержки культур недоступна")
+	await reveal(g.cw_btn["fund+"])
+	await click(g.cw_btn["fund+"])
+	check(int(g.cu["pol"]["fund"]) == f0 + 1, "щелчок «Больше поддержки» культур не сработал")
 	g.show_desk(1)
 	for i in 4: await process_frame
 	g.show_desk(5)
 	for i in 6: await process_frame
-	check(g.subbar2.visible and g.sub2_buttons.size() == 3, "подпанель экономики без «Влияния и зависимости»")
+	check(g.subbar2.visible and g.sub2_buttons.size() >= 3, "подпанель экономики без «Влияния и зависимости»")
 	await click(g.sub2_buttons[2])
 	for i in 4: await process_frame
 	check(g.current_desk == 10, "вкладка «Влияние и зависимость» не открылась (desk %d)" % g.current_desk)
