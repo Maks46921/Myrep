@@ -1478,6 +1478,11 @@ func law_text_apply() -> void:
 			if i < 0 or i >= (t["v"] as Array).size():
 				continue
 			var nv: Dictionary = vs[vi]
+			# 0.59: у законов-ползунков варианты строятся по сетке, из страны берём только описание действующего порядка
+			if t.has("param"):
+				if i == 0 and nv.has("d"):
+					t["v"][0]["d"] = nv["d"]
+				continue
 			for k in nv:
 				t["v"][i][k] = nv[k]
 

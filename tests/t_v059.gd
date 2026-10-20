@@ -66,5 +66,31 @@ func _init():
 		check(float(g.pol[kk]) - prev <= 1.02, "п.6: шаг в месяц не больше 1 п.п.")
 		prev = float(g.pol[kk])
 	check(not g.bud_glide.has(kk) and absf(float(g.pol[kk]) - (o0 + 4.0)) < 0.02, "п.6: цель достигнута за несколько месяцев (%.2f)" % (float(g.pol[kk]) - o0))
+	# --- п.13: законы-ползунки: барьер, сроки, налоги ---
+	for tid in ["elect_threshold", "parl_term_law", "pres_term_law", "income_tax_law", "corp_tax_law", "vat_law"]:
+		if not g.law_index.has(tid):
+			continue
+		var lt: Dictionary = g.law_index[tid]
+		if not lt.has("param"):
+			print("п.13: у страны свой закон «%s», не ползунок" % tid)
+			continue
+		var vs13: Array = lt["v"]
+		check(vs13.size() >= 5, "п.13: у «%s» есть значения по сетке" % tid)
+		check(g.cur_idx(tid) == 0, "п.13: «%s» стоит на действующем значении" % tid)
+		for vv in vs13:
+			check(not String(vv["n"]).contains("%!") and String(vv["n"]) != "", "п.13: у значения «%s» есть подпись" % tid)
+	if g.law_index.has("elect_threshold") and g.law_index["elect_threshold"].has("param"):
+		var thr0: float = float(g.mods["threshold"])
+		var vsT: Array = g.law_index["elect_threshold"]["v"]
+		var pick := -1
+		for i in range(1, vsT.size()):
+			if vsT[i].has("set") and float(vsT[i]["set"]["threshold"]) > thr0 + 0.01:
+				pick = i
+				break
+		check(pick >= 0, "п.13: есть значение барьера выше нынешнего")
+		if pick >= 0:
+			g.adopt_variant("elect_threshold", pick)
+			g.recompute_mods()
+			check(float(g.mods["threshold"]) > thr0 + 0.01, "п.13: барьер изменился (%.3f -> %.3f)" % [thr0, float(g.mods["threshold"])])
 	print("t_v059: проблем ", bad)
 	quit(1 if bad > 0 else 0)
