@@ -4166,9 +4166,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"referendum_law",
 		"sami_rights",
 		"aland_autonomy"

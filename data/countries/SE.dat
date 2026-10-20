@@ -1233,6 +1233,7 @@
 		"elapsed": 40,
 		"parl_term": 48,
 		"threshold": 0.04,
+		"const_need": 0.5,
 		"fixed_cycle": true,
 		"impeach_seats": 175,
 		"constr": 0,
@@ -4325,14 +4326,9 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"euro_membership",
-		"state_structure",
-		"nuke_deterrent",
-		"welfare_profit",
-		"municipal_reform"
+		"state_structure"
 	],
 	"DIP_ORDER": [
 		"DE",

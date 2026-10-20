@@ -42,11 +42,16 @@ const RL_GREEN := {"DE": 58, "FR": 92, "NL": 45, "BE": 70, "LU": 80, "AT": 85, "
 	"SE": 98, "GB": 65, "IE": 45, "SI": 70, "SK": 85, "HU": 70, "FI": 90, "HR": 65, "RS": 30, "BA": 40, "ME": 55, "MK": 30, "AL": 100, "XK": 10, "BG": 55,
 	"RO": 65, "GR": 50, "EE": 40, "LV": 70, "LT": 65}
 
-const RL_CONSTR := ["DE", "ES", "HU", "PL", "SI", "BE"]   # конструктивный вотум недоверия
+const RL_CONSTR := ["DE", "ES", "HU", "PL", "SI", "BE", "AL"]   # конструктивный вотум недоверия
 const RL_HIST_MAX := 480
 # уровни программ (0–3): семья, миграция, пенсионный возраст, зелёный переход, запасы газа, выравнивание регионов
 const RL_LEVELS := ["fam", "imm", "ret", "grn", "gas", "eq"]
 
+
+
+# 0.58: независимость судов (для конституционного контроля в laws.gd)
+func rl_jud() -> float:
+	return float((rl["l"] as Dictionary)["jud"]) if rl_on() else 50.0
 
 
 func rl_on() -> bool:

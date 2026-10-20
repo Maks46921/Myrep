@@ -1124,6 +1124,7 @@
 		"elapsed": 39,
 		"parl_term": 48,
 		"threshold": 0.02,
+		"const_need": 0.5,
 		"impeach_seats": 90,
 		"constr": 0,
 		"minority_ok": true,
@@ -4491,14 +4492,11 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"greenland",
 		"eu_optouts",
 		"echr_reform",
 		"grundlov_reform",
-		"electoral_reform",
 		"nordic_security"
 	],
 	"DIP_ORDER": [

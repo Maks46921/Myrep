@@ -261,7 +261,7 @@ func vote_plan_open(bid: int) -> void:
 	var tid: String = String(b["tid"])
 	var sp: int = int(b["sponsor"])
 	vt_title.text = "День голосования: «%s»" % String(law_index[tid]["name"])
-	vt_sub.text = "Вариант: %s · вносит: %s · нужно %d голосов из %d" % [String(variant_of(tid, int(b["idx"]))["n"]), "ваша партия" if sp == 0 else String(PARTY_NAMES[sp]), law_need(tid), SEATS]
+	vt_sub.text = "Вариант: %s · вносит: %s · нужно %d голосов из %d" % [String(variant_of(tid, int(b["idx"]))["n"]), "ваша партия" if sp == 0 else String(PARTY_NAMES[sp]), law_need(tid, bill_preview(b)), SEATS]
 	vt_later_btn.visible = sp == 0 and int((b["did"] as Dictionary).get("slow", 0)) < 2
 	vt_ov.visible = true
 	win_fade_in(vt_ov, 0.2)
@@ -303,7 +303,6 @@ func vote_plan_refresh() -> void:
 	var b: Dictionary = bills[bi]
 	var tid: String = String(b["tid"])
 	var own: bool = int(b["sponsor"]) == 0
-	var need: int = law_need(tid)
 	# прогноз
 	var extra: Array = []
 	var pvm := ""
@@ -313,6 +312,7 @@ func vote_plan_refresh() -> void:
 		pvm = "yes" if vt_pv == "trade" else vt_pv
 	var v := bill_plan_preview(b, extra, pvm)
 	var yes: int = int(v["yes"])
+	var need: int = law_need(tid, v)
 	var ok: bool = yes >= need
 	vt_fc_lbl.text = "[center][font_size=18][color=%s]за %d[/color]   [color=%s]против %d[/color]   [color=%s]воздержатся %d[/color][/font_size]\n[font_size=13][color=%s]прогноз: нужно %d — [b]%s[/b][/color][/font_size][/center]" % [
 		COL_GOOD, yes, COL_BAD, int(v.get("no", 0)), COL_DIM, int(v.get("abst", 0)), COL_GOOD if ok else COL_BAD, need, "пройдёт" if ok else "не пройдёт"]

@@ -3237,9 +3237,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"constitutional_court",
 		"electoral_system",
 		"senate_reform",

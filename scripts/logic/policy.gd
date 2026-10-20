@@ -1101,6 +1101,7 @@ func compute_mods(state: Dictionary, include_cabinet: bool = true, cand_tid: Str
 func recompute_mods() -> void:
 	sync_ministers()
 	mods = compute_mods(law_state, true)
+	noc_constr = int(mods["constr"]) == 1 and int(game_opts.get("rlev", 1)) > 0   # 0.58: конструктивный вотум — по действующему закону, а не по списку стран
 	radical_dyn()
 	dip_apply_mods()
 	tech_apply_mods()

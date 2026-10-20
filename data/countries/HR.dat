@@ -1226,7 +1226,7 @@
 		"reserved": {7: 8},
 		"impeach_seats": 76,
 		"constr": 0,
-		"minority_ok": true,
+		"minority_ok": false,
 		"def_target": 2.9,
 		"euro": true,
 		"eu": true,
@@ -4421,15 +4421,12 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"referendum_law",
 		"judiciary",
 		"minority_rights",
-		"electoral_system",
 		"istria_bilingual"
 	],
 	"LAW_TAGS": {

@@ -1346,6 +1346,7 @@
 		"elapsed": 18,
 		"parl_term": 60,
 		"threshold": 0.0,
+		"const_need": 0.6,
 		"others_pass": true,
 		"impeach_seats": 289,
 		"constr": 0,
@@ -3323,9 +3324,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"sixth_republic",
 		"electoral_system",
 		"citizen_referendum",

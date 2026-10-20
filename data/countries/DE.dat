@@ -55,7 +55,7 @@
 		"elapsed": 11,
 		"parl_term": 48,
 		"threshold": 0.05,
-		"thr_exempt": [6],
+		"reserved": {6: 1},
 		"impeach_seats": 316,
 		"constr": 1,
 		"minority_ok": false,

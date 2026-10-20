@@ -1197,6 +1197,7 @@
 		"elapsed": 28,
 		"parl_term": 48,
 		"threshold": 0.05,
+		"const_need": 0.6,
 		"impeach_seats": 76,
 		"constr": 0,
 		"minority_ok": false,
@@ -4071,9 +4072,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"referendum_law",

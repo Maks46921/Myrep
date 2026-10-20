@@ -4523,12 +4523,9 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"citizenship_law",
-		"fiscal_rule",
 		"eu_policy",
 		"referendum_law",
 		"fund_charter",
-		"electoral_system",
 		"nordic_union",
 		"crown_reform"
 	],

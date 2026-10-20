@@ -4478,28 +4478,10 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"referendum_law",
-		"energy_policy",
-		"defence_spending",
-		"rail_baltica",
-		"airbaltic",
-		"forest_land",
-		"agri_policy",
-		"health_funding",
-		"pension_pillar",
-		"tax_reform",
-		"demography",
-		"school_network",
-		"state_admin",
-		"ukraine_aid",
-		"ports_transit",
-		"latgale_dev",
-		"alcohol_excise",
 		"electoral_law"
 	],
 	"LAW_TAGS": {

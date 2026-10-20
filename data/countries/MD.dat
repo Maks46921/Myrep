@@ -4312,9 +4312,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"neutrality",

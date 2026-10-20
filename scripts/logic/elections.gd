@@ -935,8 +935,38 @@ func head_campaign_check() -> void:
 	present_event()
 
 
+# 0.58: в Норвегии, Боснии и Герцеговине и Швейцарии парламент нельзя распустить досрочно: при потере доверия или отставке
+# правительство меняется без выборов (Норвегия, Босния), а Федеральный совет Швейцарии вообще не уходит в отставку.
+func dissolve_blocked(reason: String) -> bool:
+	var r: Array = SNAP_RULES.get(ccode, [])
+	if r.is_empty() or float(r[2]) >= 0.0:
+		return false
+	return not (reason in ["плановые выборы", "роспуск парламента режимом", "выборы после мирного соглашения", "досрочные выборы после массовых протестов"])
+
+
+func no_dissolution_outcome(reason: String) -> void:
+	crisis_months = 0
+	crisis_offered = false
+	deadlock = 0
+	if ccode == "CH" or opp_mode:
+		log_line("[color=%s]Парламент не распускается: %s. Правительство продолжает работать.[/color]" % [COL_WARN, String(SNAP_RULES[ccode][1]).to_lower() if ccode == "CH" else "досрочных выборов здесь нет"])
+		return
+	var alt := ai_form_gov(false)
+	if not alt.is_empty() and bool(alt["ok"]):
+		in_coalition[0] = false
+		log_line("[color=%s][b]Досрочных выборов не будет:[/b] парламент нельзя распустить, и другие партии сформировали правительство без выборов.[/color]" % COL_BAD)
+		opp_enter("Парламент нельзя распустить досрочно: большинство собрало новое правительство без выборов.")
+	else:
+		minority_gov = true
+		log_line("[color=%s][b]Досрочных выборов не будет:[/b] парламент нельзя распустить, правительство продолжает работу как правительство меньшинства.[/color]" % COL_WARN)
+	refresh()
+
+
 func hold_parliament(reason: String) -> void:
 	if martial_blocks(reason):
+		return
+	if dissolve_blocked(reason):
+		no_dissolution_outcome(reason)
 		return
 	ag_exact = true
 	hold_parliament_core(reason)

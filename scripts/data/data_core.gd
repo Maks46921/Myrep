@@ -643,9 +643,11 @@ const EC_CHART_COLORS := {
 	"growth": "#58c887", "infl": "#ee6b6b", "unemp": "#f0b64a", "rate": "#7fb0ff", "bconf": "#a58af0", "cconf": "#45c4bc",
 	"inv": "#7ad06b", "util": "#e08a5a", "ppi": "#58c887", "cpi": "#ee6b6b", "fxs": "#7fb0ff", "nx": "#f0b64a"}
 
-const FUND_IDS := ["gov_form", "state_structure", "civil_rights", "seat_system", "pres_vote_rule", "regional_gov", "judiciary",
-	"impeach_rule", "pres_term_law", "parl_term_law", "econ_model", "property_rights", "central_bank", "state_property",
-	"social_model", "healthcare", "education_law"]
+# 0.58: только по-настоящему конституционные темы (экономическая модель, соцмодель, здравоохранение, образование, госсобственность
+# в конституциях обычно нет); избирательные законы — «органические» (ORGANIC_IDS: нужно абсолютное большинство всех мест)
+const FUND_IDS := ["gov_form", "state_structure", "civil_rights", "pres_vote_rule", "regional_gov", "judiciary",
+	"impeach_rule", "pres_term_law", "parl_term_law", "property_rights", "central_bank"]
+const ORGANIC_IDS := ["seat_system", "electoral_law", "electoral_system", "electoral_reform"]
 
 # сдвиг индекса демократии для вариантов существующих законов: {закон: {номер варианта: сдвиг}}
 const DEM_LAW := {

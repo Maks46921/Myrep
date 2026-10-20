@@ -69,8 +69,20 @@ func rid_of(tid: String) -> String:
 	return ""
 
 
+func rl_jud() -> float:
+	return 0.0
+
+
+func rl_on() -> bool:
+	return false
+
+
 func sfx(name: String) -> void:
 	pass
+
+
+func tolerates(p: int) -> bool:
+	return false
 
 
 func vote_show() -> void:
@@ -515,6 +527,12 @@ func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 				yes += fyes
 				no += seats[0] - fyes
 				continue
+		# 0.58: партия, которая терпит правительство меньшинства, при неприятном ей законе воздерживается, а не голосует «против»
+		# (воздержание не считается голосом «против»: так правительства меньшинства проводят обычные законы)
+		if not ok and p != 0 and not is_fund(tid) and s >= -2.0 and (tolerates(p) or pact_has(p, "tol")):
+			per.append([p, s, false, 0, 0, seats[p]])
+			ab += seats[p]
+			continue
 		var cnt := party_vote_split(p, s, ok)
 		per.append([p, s, ok, cnt[0], cnt[1], cnt[2]])
 		yes += cnt[0]
@@ -616,15 +634,41 @@ func upper_check(tid: String, idx: int, forced: Array = []) -> Dictionary:
 			yes += int(bl[0])
 	var passed: bool = yes >= need
 	var binding := true
+	# 0.58: конституционные законы почти везде требуют согласия обеих палат; отлагательное вето верхней палаты на них не действует
+	# (исключения: Великобритания, Ирландия, Словения, где верхняя палата может лишь задержать закон)
+	var fund_bind: bool = is_fund(tid) and kind in ["override", "consent"] and not (ccode in ["GB", "IE", "SI"])
 	if kind == "consent":
-		binding = tid in (UPPER.get("consent", []) as Array)
+		binding = fund_bind or tid in (UPPER.get("consent", []) as Array)
 	var res := {"on": true, "yes": yes, "need": need, "total": total, "passed": passed, "kind": kind, "name": String(UPPER["name"]), "block": false, "extra": 0.0, "binding": binding}
 	if not passed:
-		if kind == "full" or (kind == "consent" and binding):
+		if kind == "full" or (kind == "consent" and binding) or fund_bind:
 			res["block"] = true
 		else:
 			res["extra"] = 5.0
 	return res
+
+
+# 0.58: конституционный контроль. Страны, где суд реально может остановить закон (предварительно или после принятия);
+# в остальных (Великобритания, Нидерланды, Швейцария, Скандинавия, Люксембург, автократии) суд закон не отменяет.
+const REVIEW_STRONG := ["DE", "FR", "IT", "ES", "AT", "PT", "PL", "CZ", "SK", "SI", "HR", "RO", "BG", "HU", "LT", "LV", "EE", "IE", "BE", "GR", "MK",
+	"AL", "RS", "ME", "XK", "MD", "UA", "BA"]
+
+
+# шанс, что суд остановит закон: основа 12 % для конституционных и «правовых» законов, растёт с независимостью судов и с отходом от прав
+func court_chance(tid: String, idx: int) -> float:
+	if not (ccode in REVIEW_STRONG) or democracy_index() < 0.5 or not rl_on():
+		return 0.0
+	var dl: Dictionary = DEM_LAW.get(tid, {})
+	var bad: bool = float(dl.get(idx, 0.0)) < -0.05
+	if not is_fund(tid) and not bad:
+		return 0.0
+	var jud: float = rl_jud()
+	var p: float = 0.12 * clampf(jud / 65.0, 0.2, 1.5)
+	if bad:
+		p *= 1.8
+	if is_fund(tid) and idx != cur_idx(tid) and absf(float(dl.get(idx, 0.0))) < 0.02:
+		p *= 0.8
+	return clampf(p, 0.0, 0.4)
 
 
 func upper_text(up: Dictionary) -> String:
@@ -682,10 +726,10 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		refresh()
 		return
 	var v := variant_votes(tid, idx, forced)
-	if int(v["yes"]) < law_need(tid):
-		log_line("[color=%s]Закон «%s» не вынесен на голосование: нужно %d голосов, есть %d.[/color]" % [COL_BAD, topic["name"], law_need(tid), v["yes"]])
+	if int(v["yes"]) < law_need(tid, v):
+		log_line("[color=%s]Закон «%s» не вынесен на голосование: нужно %d голосов, есть %d.[/color]" % [COL_BAD, topic["name"], law_need(tid, v), v["yes"]])
 		# 0.57.1: окно показывает и этот исход — зал с прогнозом и «ОТКЛОНЁН»
-		last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(v["yes"]), "no": int(v.get("no", 0)), "abst": int(v.get("abst", 0)),
+		last_vote = {"tid": tid, "idx": idx, "need": law_need(tid, v), "yes": int(v["yes"]), "no": int(v.get("no", 0)), "abst": int(v.get("abst", 0)),
 			"per": v["per"], "passed": false, "sponsor": vote_sponsor, "turn": turn, "bypass": bool(v.get("bypass", false)), "noconv": true,
 			"notes": vote_notes.duplicate(), "next": "Закон не вынесен на голосование: не хватало голосов уже по прогнозу."}
 		vote_notes.clear()
@@ -696,19 +740,27 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	vote_live = true
 	var live := variant_votes(tid, idx, forced)
 	vote_live = false
-	last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(live["yes"]), "no": int(live.get("no", 0)), "abst": int(live.get("abst", 0)),
-		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false)),
-		"notes": vote_notes.duplicate(), "next": vote_next_text(tid, idx, int(live["yes"]) >= law_need(tid), cost)}
+	last_vote = {"tid": tid, "idx": idx, "need": law_need(tid, live), "yes": int(live["yes"]), "no": int(live.get("no", 0)), "abst": int(live.get("abst", 0)),
+		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid, live), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false)),
+		"notes": vote_notes.duplicate(), "next": vote_next_text(tid, idx, int(live["yes"]) >= law_need(tid, live), cost)}
 	vote_notes.clear()
-	if not bool(live.get("bypass", false)) and int(live["yes"]) < law_need(tid):
+	if not bool(live.get("bypass", false)) and int(live["yes"]) < law_need(tid, live):
 		capital -= cost * 0.5
-		log_line("[color=%s]Закон «%s» провален при голосовании: за %d, против %d, воздержались %d — нужно %d. Часть депутатов нарушила дисциплину (политкапитал -%.0f).[/color]" % [COL_BAD, topic["name"], int(live["yes"]), int(live["no"]), int(live["abst"]), law_need(tid), cost * 0.5])
+		log_line("[color=%s]Закон «%s» провален при голосовании: за %d, против %d, воздержались %d — нужно %d. Часть депутатов нарушила дисциплину (политкапитал -%.0f).[/color]" % [COL_BAD, topic["name"], int(live["yes"]), int(live["no"]), int(live["abst"]), law_need(tid, live), cost * 0.5])
 		vote_show()
 		refresh()
 		return
 	var upc := upper_check(tid, idx, forced)
 	if bool(upc["block"]):
 		log_line("[color=%s]Закон «%s» не прошёл: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
+		refresh()
+		return
+	var cch := court_chance(tid, idx)
+	if cch > 0.0 and randf() < cch:
+		if vote_sponsor == 0:
+			capital -= cost * 0.4
+		law_cd[tid] = 6
+		log_line("[color=%s][b]Суд остановил закон «%s»:[/b] конституционный контроль признал его несовместимым с основным законом (независимость судов %.0f). Политкапитал -%.0f; вернуться к вопросу можно через полгода.[/color]" % [COL_BAD, topic["name"], rl_jud(), cost * 0.4])
 		refresh()
 		return
 	cost += float(upc["extra"])
@@ -1204,8 +1256,31 @@ func is_fund(tid: String) -> bool:
 	return bool(law_index[tid].get("fund", false))
 
 
-func law_need(tid: String) -> int:
-	return SUPER if is_fund(tid) else MAJORITY
+# 0.58: сколько голосов «за» нужно. Конституционные темы — доля состава палаты по стране (MACRO.const_need, обычно 2/3);
+# избирательные законы — абсолютное большинство состава; обычные законы — больше голосов «за», чем «против»
+# (воздержавшиеся не считаются «против»), кроме стран, где нужно большинство состава (MACRO.law_all: Россия, Украина, Беларусь).
+# Без итогов голосования (v пуст) показываем большинство состава как ориентир.
+func super_need() -> int:
+	return int(ceil(float(SEATS) * float(MACRO.get("const_need", 0.667)) - 0.0001))
+
+
+func super_text() -> String:
+	var f := float(MACRO.get("const_need", 0.667))
+	if absf(f - 0.667) < 0.01:
+		return "2/3"
+	if absf(f - 0.6) < 0.01:
+		return "3/5"
+	if absf(f - 0.75) < 0.01:
+		return "3/4"
+	return "больше половины" if f <= 0.5 else "%d%%" % int(round(f * 100.0))
+
+
+func law_need(tid: String, v: Dictionary = {}) -> int:
+	if is_fund(tid):
+		return super_need()
+	if tid in ORGANIC_IDS or bool(MACRO.get("law_all", false)) or v.is_empty():
+		return MAJORITY
+	return mini(MAJORITY, maxi(int(v.get("no", 0)) + 1, int(ceil(float(SEATS) / 3.0))))
 
 
 func demand_idx(d: Dictionary) -> int:
@@ -1242,8 +1317,8 @@ func param_scale_text(tid: String) -> String:
 
 
 func variant_swing(tid: String, idx: int) -> Dictionary:
-	var need := law_need(tid)
 	var v := variant_votes(tid, idx)
+	var need := law_need(tid, v)
 	if int(v["yes"]) >= need:
 		return {}
 	var cands: Array = []
@@ -1483,7 +1558,7 @@ const SNAP_RULES := {
 	"IT": ["Досрочный роспуск парламента", "Президент республики распускает палаты, если правительство не может работать.", 0.0, ""],
 	"ES": ["Роспуск Генеральных кортесов", "Председатель правительства предлагает королю распустить Кортесы.", 0.0, ""],
 	"PT": ["Роспуск Ассамблеи республики", "Президент распускает Ассамблею после консультаций (не в первые 6 месяцев).", 0.0, ""],
-	"GB": ["Досрочные всеобщие выборы", "Премьер-министр просит короля распустить парламент.", 0.0, ""],
+	"GB": ["Досрочные всеобщие выборы", "Премьер-министр просит короля распустить парламент; по истечении пяти лет парламент распускается автоматически.", 0.0, ""],
 	"IE": ["Роспуск Дойла", "Премьер (тишах) просит президента распустить Дойл.", 0.0, ""],
 	"SI": ["Досрочные выборы в Государственное собрание", "Президент распускает собрание, если правительство проигрывает вотум доверия.", 0.0, ""],
 	"SK": ["Сокращение срока Национального совета", "Национальный совет может сократить свой срок решением 3/5 депутатов.", 0.6, "нужно 3/5 совета"],
@@ -1501,6 +1576,10 @@ const SNAP_RULES := {
 	"LT": ["Досрочные выборы в Сейм", "Сейм может объявить досрочные выборы решением 3/5 своих членов (85 голосов из 141). Президент вправе распустить Сейм, если тот в течение 30 дней не рассмотрел программу нового правительства или дважды подряд её не одобрил, а также по предложению правительства, которому отказано в доверии; вновь избранный Сейм в таком случае может назначить досрочные выборы президента.", 0.6, "нужно 3/5 Сейма"],
 	"GR": ["Досрочные выборы в Парламент", "Президент распускает Парламент по предложению правительства, получившего вотум доверия, «для обновления мандата по вопросу национальной важности» или если правительства подряд уходят в отставку и Парламент не может обеспечить стабильность. На практике выборы назначает премьер-министр.", 0.0, ""],
 	"BA": ["", "Конституция БиГ не знает роспуска государственного парламента: Палата представителей и Президиум работают до конца четырёхлетнего срока, а при кризисе Совет министров остаётся исполняющим обязанности. Досрочные выборы возможны только в энтити (так было в Республике Сербской в 2025 году).", -1.0, ""],
+	"MD": ["Роспуск Парламента", "Президент распускает Парламент, если тот в течение 45 дней не выразил доверия правительству и отклонил не менее двух запросов о доверии; в последние 6 месяцев мандата президента роспуск запрещён.", 0.0, ""],
+	"UA": ["Досрочное прекращение полномочий Рады", "Президент прекращает полномочия Верховной Рады, если за месяц не сформирована коалиция депутатских фракций; при военном положении выборы невозможны.", 0.0, ""],
+	"BY": ["Роспуск Палаты представителей", "Президент после консультаций с председателями палат распускает Палату представителей и назначает выборы.", 0.0, ""],
+	"RU": ["Роспуск Государственной думы", "Президент распускает Думу, если она трижды отклонила кандидатуру премьера или выразила недоверие правительству повторно.", 0.0, ""],
 	"MK": ["Самороспуск Собрания", "Собрание может распустить себя решением большинства от общего числа депутатов (61 из 120); по договорённости партий за 100 дней до выборов формируется «техническое» правительство с министрами внутренних дел и труда от оппозиции.", 0.5, "нужно большинство депутатов (61 из 120)"],
 }
 
@@ -1510,6 +1589,10 @@ func snap_info() -> Dictionary:
 		return {"name": "Досрочные выборы невозможны", "desc": "Действует военное положение: роспуск парламента запрещён.", "need": 0.0, "vote": "", "ok": false, "why": "Действует военное положение: роспуск парламента и выборы запрещены."}
 	var r: Array = SNAP_RULES.get(ccode, SNAP_RULES["DE"])
 	var ok: bool = float(r[2]) >= 0.0
+	# 0.58: в Италии и Португалии президент не может распускать парламент в последние 6 месяцев своего мандата
+	if ok and ccode in ["IT", "PT"] and pres_due >= 0 and pres_due - turn <= 6:
+		return {"name": "Досрочные выборы невозможны", "desc": String(r[1]), "need": 0.0, "vote": "", "ok": false,
+			"why": "В последние 6 месяцев мандата президента парламент распустить нельзя (осталось %d мес.)." % maxi(0, pres_due - turn)}
 	return {"name": String(r[0]) if ok else "Досрочные выборы невозможны", "desc": String(r[1]), "need": maxf(0.0, float(r[2])), "vote": String(r[3]), "ok": ok,
 		"why": String(r[1])}
 

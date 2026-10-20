@@ -1391,6 +1391,7 @@
 		"elapsed": 40,
 		"parl_term": 60,
 		"threshold": 0.05,
+		"law_all": true,
 		"impeach_seats": 226,
 		"constr": 0,
 		"minority_ok": false,
@@ -4487,7 +4488,6 @@
 	],
 	"DE_FUND_ADD": [
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"peace_deal",

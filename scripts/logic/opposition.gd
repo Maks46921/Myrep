@@ -223,6 +223,9 @@ func apply_player_party(k: int) -> void:
 			var lst: Array = bl[1]
 			for i in lst.size():
 				lst[i] = swap_idx(int(lst[i]), k)
+	# 0.58: партия президента с правом вето (Польша) тоже меняет номер: иначе вето «переходило» к вашей партии
+	if UPPER.has("veto_p"):
+		UPPER["veto_p"] = swap_idx(int(UPPER["veto_p"]), k)
 	# --- договорные характеристики: у вас их нет, у прежней партии власти — обычные ---
 	var loyal: Dictionary = PARTY_TRAITS[0].duplicate(true)
 	for p in range(1, n):

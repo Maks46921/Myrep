@@ -1363,6 +1363,7 @@
 		"elapsed": 30,
 		"parl_term": 48,
 		"threshold": 0.0,
+		"const_need": 0.6,
 		"impeach_seats": 176,
 		"constr": 1,
 		"minority_ok": true,
@@ -4386,15 +4387,11 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"catalan_referendum",
 		"monarchy",
-		"electoral_reform",
-		"senate_reform",
-		"nato_policy"
+		"senate_reform"
 	],
 	"DIP_ORDER": [
 		"DE",
