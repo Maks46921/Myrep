@@ -660,3 +660,17 @@
 - **Региональные сдвиги закона** (`rg`) копятся в `rg_drip` (состояние) и применяются по 1/12 в месяц функцией `rg_drip_step()` (вызов из `bills_step`). Сброс в `init_laws()`.
 - **`rgrel`** (в `fxnow` варианта): сдвиг региональных показателей, умноженный на `reg_rel_k(i)` (в регионах с меньшей долей села и пенсионеров реакция сильнее).
 - **Барьер:** `thr_party_info(thr)` по `national_shares(false)` считает число партий и долю потерянных голосов для окна последствий.
+
+## 0.58 (места по методам, пороги законов, суд, референдум)
+- **`allocate_seats(shares)`** (elections.gd): метод по `ELEC.alloc` (`hare` по умолчанию, `dhondt`, `sl`, `fptp`, `two_round`, `stv`), магнитуда `ELEC.mag`, региональный порог `ELEC.thr_reg`, округа — регионы игры (`regional_seats`, места между регионами по `pop_w`), смешанные системы `ELEC.smd` + `smd_reg`/`smd_method`/`k` (степень «закона куба»), бонус `ELEC.bonus_rule` (Греция), гарантированные места `MACRO.reserved = {слот: мест}`; `nat_raw_cache` хранит национальные доли до барьера.
+- **`parl_shares()`**: слот 6 («Прочие») барьер не проходит, если `thr >= 0.005`, кроме стран с `MACRO.others_pass` или `thr_exempt`; `thr_party_info()` (laws.gd) считает так же.
+- **Президентский второй тур**: сжатие 0,85, штраф «кордона» 8 п.п.; `ELEC.round1_reg` — победа в 1-м туре по доле зарегистрированных (Северная Македония).
+- **Календарь Швеции:** `MACRO.fixed_cycle`; **«медовый месяц»:** `gov_born` (месяц формирования правительства), множитель в `vote_weights()`.
+- **`law_need(tid, v)`** (laws.gd): конституционные — `ceil(SEATS * MACRO.const_need)` (по умолчанию 0,667), органические (`ORGANIC_IDS`) — `MAJORITY`, обычные — `max(против + 1, SEATS/3)` (не больше `MAJORITY`) либо `MAJORITY`, если `MACRO.law_all`. Воздерживаются партии, терпящие правительство (`tolerates` или договор `tol`), если закон им неприятен и позиция не хуже −2.
+- **`FUND_IDS`** сокращён; `DE_FUND_ADD` по умолчанию `["debt_brake", "eu_policy"]`, списки стран очищены.
+- **`upper_check`**: для `override`/`consent` конституционный закон требует согласия верхней палаты (`fund_bind`), кроме GB, IE, SI.
+- **Референдум** `MACRO.amend_ref` (IE, CH, RO, DK): доля «за» из `national_shares` и позиций партий, шум 3 п.п.
+- **Суд:** `court_chance(tid, idx)` и `REVIEW_STRONG`; основа 12 %, растёт с независимостью судов (`rl_jud()`), для законов со сдвигом демократии ниже −0,05 умножается на 1,8.
+- **Вотум недоверия:** `noc_constr` пересчитывается в `recompute_mods()` из `mods["constr"]`; `resolve_no_confidence()` берёт порог из `impeach_seats()`; при конструктивном вотуме — `ai_form_gov(false)` и `opp_enter()` без выборов.
+- **Роспуск:** `dissolve_blocked(reason)` / `no_dissolution_outcome()` для стран с `SNAP_RULES[..][2] < 0` (NO, BA, CH); `snap_info()` блокирует роспуск в последние 6 месяцев мандата президента (IT, PT); новые `SNAP_RULES` для MD, UA, BY, RU.
+- **Польша:** `UPPER["veto_p"]` меняет номер вместе с `swap_idx` в `apply_player_party`.

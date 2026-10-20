@@ -1197,9 +1197,10 @@
 		"debt_base": 0.026,
 		"debt_thr": 80.0,
 		"debt_slope": 0.0005,
-		"elapsed": 45,
+		"elapsed": 46,
 		"parl_term": 48,
 		"threshold": 0.04,
+		"reserved": {8: 2},
 		"impeach_seats": 46,
 		"constr": 1,
 		"minority_ok": true,
@@ -4408,6 +4409,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",
@@ -4422,9 +4425,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"referendum_law",

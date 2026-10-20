@@ -4507,6 +4507,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",
@@ -4521,12 +4523,9 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"citizenship_law",
-		"fiscal_rule",
 		"eu_policy",
 		"referendum_law",
 		"fund_charter",
-		"electoral_system",
 		"nordic_union",
 		"crown_reform"
 	],

@@ -56,7 +56,7 @@ func _init():
 	if desk == 6: g.ag_random_agent()
 	for i in 12: await process_frame
 	await create_timer(0.8).timeout
-	if outp == "": outp = "/tmp/shot_%s.png" % g.ccode
+	if outp == "": outp = "user://shot_%s.png" % g.ccode
 	var img: Image = root.get_viewport().get_texture().get_image()
 	img.save_png(outp)
 	print("saved ", outp)

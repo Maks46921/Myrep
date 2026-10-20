@@ -534,6 +534,7 @@ func show_no_confidence() -> void:
 func resolve_no_confidence() -> void:
 	var against := 0
 	var rebels: PackedStringArray = []
+	var need: int = impeach_seats()   # 0.58: порог берётся из действующего закона страны (а не всегда половина мест)
 	for p in range(1, PARTY_NAMES.size()):
 		if not in_coalition[p]:
 			if not tolerates(p):
@@ -541,16 +542,25 @@ func resolve_no_confidence() -> void:
 		elif float(satis.get(p, 50.0)) < 34.0 + maxf(0.0, -capital) * 0.4:   # 0.55.5: при капитале в минусе партнёры бунтуют охотнее
 			against += seats[p]
 			rebels.append(PARTY_NAMES[p])
-	var txt := "Голосование о недоверии: против правительства %d, нужно %d." % [against, MAJORITY]
+	var txt := "Голосование о недоверии: против правительства %d, нужно %d." % [against, need]
 	if rebels.size() > 0:
 		txt += " К оппозиции присоединились: %s." % ", ".join(rebels)
 	log_line("[b]%s[/b]" % txt)
-	if against >= MAJORITY and noc_constr and randf() >= clampf(0.35 + float(against - MAJORITY) / float(MAJORITY) * 3.0, 0.1, 0.9):
+	if against >= need and noc_constr:
+		# 0.58: конструктивный вотум: недоверие действует, только если оппозиция сразу выбрала нового главу правительства;
+		# тогда выборов нет, правительство меняется (Германия, Испания, Венгрия, Польша, Словения, Бельгия, Албания)
+		var alt := ai_form_gov(false)
+		if not alt.is_empty() and bool(alt["ok"]) and randf() < clampf(0.35 + float(against - need) / float(need) * 3.0, 0.1, 0.9):
+			capital -= 10.0
+			in_coalition[0] = false
+			log_line("[color=%s][b]Конструктивный вотум недоверия:[/b] парламент избрал нового главу правительства без выборов.[/color]" % COL_BAD)
+			opp_enter("Парламент выразил конструктивное недоверие и избрал нового главу правительства: выборов не будет.")
+			return
 		log_line("[color=%s]Конструктивный вотум: оппозиция набрала голоса против правительства, но не смогла договориться о преемнике. Правительство остаётся.[/color]" % COL_GOOD)
 		add_all_support(1.0)
-	elif against >= MAJORITY:
+	elif against >= need:
 		capital -= 10.0
-		log_line("[color=%s][b]Парламент выразил недоверие правительству.[/b] Назначены досрочные выборы.[/color]" % COL_BAD)
+		log_line("[color=%s][b]Парламент выразил недоверие правительству.[/b] Правительство уходит в отставку, назначены досрочные выборы.[/color]" % COL_BAD)
 		hold_parliament("вотум недоверия")
 	else:
 		log_line("[color=%s]Правительство выдержало вотум недоверия.[/color]" % COL_GOOD)

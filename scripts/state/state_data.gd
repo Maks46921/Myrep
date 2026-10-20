@@ -437,7 +437,7 @@ var REG_INDEX := ""
 var AID0 := 0.0
 var AID_NOTE := ""
 
-var DE_FUND_ADD := ["debt_brake", "eu_policy", "citizenship_law"]
+var DE_FUND_ADD := ["debt_brake", "eu_policy"]
 
 var DE_TOPICS := [
 	{"id": "gov_form", "cat": 0, "name": "Модель власти", "desc": "Как устроена исполнительная власть Германии: канцлерская демократия по Основному закону.", "v": [

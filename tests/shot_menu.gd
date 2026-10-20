@@ -2,7 +2,7 @@ extends SceneTree
 # Скриншот меню выбора страны: pick=XX out=путь.png (под xvfb); проверяет, что карточка строится для выбранной страны.
 func _init():
 	var pick := "DE"
-	var outp := "/tmp/shot_menu_%s.png"
+	var outp := "user://" + "shot_menu_%s.png"
 	for a in OS.get_cmdline_user_args():
 		if String(a).begins_with("pick="): pick = String(a).substr(5)
 		if String(a).begins_with("country="): pick = String(a).substr(8)

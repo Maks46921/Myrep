@@ -19,10 +19,6 @@ func rl_do(id: String) -> bool:
 	return false
 
 
-func rl_on() -> bool:
-	return false
-
-
 func rl_pc() -> float:
 	return 0.0
 

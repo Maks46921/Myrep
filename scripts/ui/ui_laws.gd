@@ -345,11 +345,11 @@ func update_law_votes() -> void:
 	var idx := sel_variant
 	var topic: Dictionary = law_index[tid]
 	var vt := variant_votes(tid, idx)
-	var need := law_need(tid)
+	var need := law_need(tid, vt)
 	var upc := upper_check(tid, idx)
 	var ok: bool = int(vt["yes"]) >= need and not bool(upc["block"])
 	lv_bar.marker = float(need) * 100.0 / float(SEATS)
-	lv_head.text = "[b]%s[/b]%s\n[color=%s]%s → [/color][b]%s[/b]" % [topic["name"], " [color=%s](фундаментальный: 2/3)[/color]" % COL_WARN if is_fund(tid) else "", COL_DIM, variant_of(tid, cur_idx(tid))["n"], variant_of(tid, idx)["n"]]
+	lv_head.text = "[b]%s[/b]%s\n[color=%s]%s → [/color][b]%s[/b]" % [topic["name"], " [color=%s](фундаментальный: %s)[/color]" % [COL_WARN, super_text()] if is_fund(tid) else "", COL_DIM, variant_of(tid, cur_idx(tid))["n"], variant_of(tid, idx)["n"]]
 	lv_bar.set_state(float(vt["yes"]) * 100.0 / float(SEATS), 0.85 if ok else 0.08)
 	lv_sum.text = "За %d · против %d · нужно %d" % [vt["yes"], vt["no"], need]
 	if bool(vt.get("bypass", false)):
@@ -559,7 +559,7 @@ func update_law_detail() -> void:
 	var t := "[b][font_size=19]%s[/font_size][/b]   [color=%s]%s[/color]\n[color=%s]%s[/color]\nСейчас действует: [b]%s[/b]" % [
 		topic["name"], LAW_CAT_COLORS[int(topic["cat"])], LAW_CATS[int(topic["cat"])].to_lower(), COL_DIM, topic["desc"], variant_of(tid, cur)["n"]]
 	if is_fund(tid):
-		t += "\n[color=%s][b]Фундаментальный закон:[/b] для изменения нужно %d голосов из %d (две трети). Смена обходится дороже, а следующую можно проводить не раньше чем через 2 года.[/color]" % [COL_WARN, need, SEATS]
+		t += "\n[color=%s][b]Фундаментальный закон:[/b] для изменения нужно %d голосов из %d (%s). Смена обходится дороже, а следующую можно проводить не раньше чем через 2 года.[/color]" % [COL_WARN, need, SEATS, super_text()]
 	if cd > 0:
 		t += "\n[color=%s]Закон недавно меняли: следующая смена возможна через %s.[/color]" % [COL_WARN, months_text(cd)]
 	var pst := param_scale_text(tid)

@@ -5449,6 +5449,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",
@@ -5463,28 +5465,11 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"referendum_law",
-		"energy_policy",
-		"defence_fund",
-		"belarus_border",
-		"kaliningrad_transit",
-		"tax_reform",
-		"pension_index",
-		"lrt_law",
-		"minority_law",
-		"istanbul_convention",
-		"china_taiwan",
-		"ukraine_aid",
-		"judiciary",
-		"electoral_law",
-		"president_powers",
-		"russian_speakers",
-		"protest_rules"
+		"president_powers"
 	],
 	"LAW_TAGS": {
 		"fiscal_rule": {

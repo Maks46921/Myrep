@@ -4175,6 +4175,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",
@@ -4189,9 +4191,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"electoral_law",
 		"impeach_rule",

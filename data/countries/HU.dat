@@ -1211,6 +1211,7 @@
 		"elapsed": 45,
 		"parl_term": 48,
 		"threshold": 0.05,
+		"thr_exempt": [8],
 		"impeach_seats": 100,
 		"constr": 1,
 		"minority_ok": false,
@@ -4469,6 +4470,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",
@@ -4483,9 +4486,7 @@
 		"regional_gov_x"
 	],
 	"DE_FUND_ADD": [
-		"fiscal_rule",
 		"eu_policy",
-		"citizenship_law",
 		"state_structure",
 		"impeach_rule",
 		"referendum_law",

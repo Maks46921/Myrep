@@ -1289,6 +1289,8 @@
 		"elapsed": 18,
 		"parl_term": 60,
 		"threshold": 0.0,
+		"const_need": 0.5,
+		"others_pass": true,
 		"impeach_seats": 326,
 		"constr": 0,
 		"minority_ok": true,

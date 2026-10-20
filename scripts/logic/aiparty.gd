@@ -786,7 +786,7 @@ func ai_pick_law(pm: int, members_in: Array = []) -> void:
 	vote_sponsor = pm
 	for c in cand.slice(0, 8):
 		var vv := variant_votes(String(c[1]), int(c[2]), [])
-		if int(vv["yes"]) >= law_need(String(c[1])) and not bool(upper_check(String(c[1]), int(c[2]), [])["block"]):
+		if int(vv["yes"]) >= law_need(String(c[1]), vv) and not bool(upper_check(String(c[1]), int(c[2]), [])["block"]):
 			best_t = String(c[1])
 			best_i = int(c[2])
 			break
@@ -989,7 +989,7 @@ func bill_amend(bid: int, kind: String) -> bool:
 			var y0: int = int(bill_preview(b)["yes"])
 			b["pow"] = snappedf(float(b["pow"]) + (-0.2 if kind == "soft" else 0.2), 0.1)
 			var y1: int = int(bill_preview(b)["yes"])
-			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s» %s: сила действия %.1f×; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], "смягчён" if kind == "soft" else "ужесточён", float(b["pow"]), y0, y1, law_need(tid)])
+			log_tag("ПОПРАВКА", COL_TEAL, "законопроект «%s» %s: сила действия %.1f×; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], "смягчён" if kind == "soft" else "ужесточён", float(b["pow"]), y0, y1, law_need(tid, bill_preview(b))])
 		"sweet":
 			if bool(did.get("sweet", false)) or cap_spendable() < 4.0:
 				return false
@@ -1112,7 +1112,7 @@ func bill_rider_add(bid: int, kind: String, arg: String) -> bool:
 					lost.append(PARTY_NAMES[int(p)])
 	bill_rider_list(b).append({"k": kind, "a": arg, "t": title})
 	var y1: int = int(bill_preview(b)["yes"])
-	var t := "законопроект «%s»: оговорка %s; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], title, y0, y1, law_need(tid)]
+	var t := "законопроект «%s»: оговорка %s; голосов «за» %d → %d (нужно %d)." % [law_index[tid]["name"], title, y0, y1, law_need(tid, bill_preview(b))]
 	if won.size() > 0:
 		t += " Поддержат: %s." % ", ".join(won)
 	if lost.size() > 0:
@@ -1184,8 +1184,9 @@ func bills_step() -> void:
 func bill_warn_short(b: Dictionary) -> void:
 	if int(b["sponsor"]) != 0 or int(b["due"]) - turn != 1 or bool(b.get("warned", false)):
 		return
-	var need: int = law_need(String(b["tid"]))
-	var yes: int = int(bill_preview(b)["yes"])
+	var pv0: Dictionary = bill_preview(b)
+	var need: int = law_need(String(b["tid"]), pv0)
+	var yes: int = int(pv0["yes"])
 	if yes >= need:
 		return
 	b["warned"] = true
@@ -1210,9 +1211,10 @@ func bills_attention() -> Array:
 					sev = 3
 					break
 			if why == "":
-				var yes: int = int(bill_preview(b)["yes"])
-				if yes < law_need(tid):
-					why = "не хватает голосов: %d из %d" % [yes, law_need(tid)]
+				var pv1: Dictionary = bill_preview(b)
+				var yes: int = int(pv1["yes"])
+				if yes < law_need(tid, pv1):
+					why = "не хватает голосов: %d из %d" % [yes, law_need(tid, pv1)]
 					sev = 2
 		elif seats[0] > 0 and String(b.get("pv", "line")) == "line" and left <= 2:
 			why = "решите, как голосует ваша фракция"

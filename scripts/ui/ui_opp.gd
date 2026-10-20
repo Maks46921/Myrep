@@ -216,7 +216,7 @@ func update_bill_window() -> void:
 		t += "Внесла: [b]%s[/b]. Линия вашей партии: [b]%s[/b]. Ваша фракция: [b]%s[/b].
 " % [PARTY_NAMES[int(b["sponsor"])], "за" if lyes else "против", PA_VOTE_NAMES.get(String(b.get("pv", "line")), "по линии партии")]
 	t += "Голосование через %d мес. Сейчас «за» %d из нужных %d.
-" % [maxi(0, int(b["due"]) - turn), int(v["yes"]), law_need(String(b["tid"]))]
+" % [maxi(0, int(b["due"]) - turn), int(v["yes"]), law_need(String(b["tid"]), v)]
 	if is_hybrid(String(b["tid"])):
 		t += "Сила действия: %.1f×
 " % float(b["pow"])
@@ -314,8 +314,9 @@ func bill_make_card(b: Dictionary, att: Dictionary) -> PanelContainer:
 	var bid: int = int(b["id"])
 	var tid: String = String(b["tid"])
 	var sp: int = int(b["sponsor"])
-	var need: int = law_need(tid)
-	var yes: int = int(bill_preview(b)["yes"])
+	var pv0: Dictionary = bill_preview(b)
+	var need: int = law_need(tid, pv0)
+	var yes: int = int(pv0["yes"])
 	var left: int = maxi(0, int(b["due"]) - turn)
 	var pc := PanelContainer.new()
 	var border: Color = C_WARN if not att.is_empty() else C_PANEL2.lightened(0.18)
