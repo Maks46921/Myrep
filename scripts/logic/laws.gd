@@ -1195,6 +1195,13 @@ func make_param_topic(p: Dictionary) -> Dictionary:
 			st[key] = snappedf(float(p["st"][key]) * k, 0.1)
 		if not st.is_empty():
 			one["st"] = st
+		if p.has("ps"):
+			var ps: Dictionary = {}
+			for q in p["ps"]:
+				ps[q] = snappedf(float(p["ps"][q]) * k, 0.1)
+			one["ps"] = ps
+		if p.has("setk"):
+			one["set"] = {String(p["setk"]): (int(roundf(v * float(p["setm"]))) if float(p["setm"]) >= 1.0 else v * float(p["setm"]))}
 		vars.append(one)
 		grid.append(vars.size() - 1)
 	return {"id": p["id"], "cat": int(p["cat"]), "name": p["name"], "desc": p["desc"], "v": vars,
@@ -1205,6 +1212,11 @@ func build_law_topics() -> Array:
 	var LAW_PARAMS: Array = de_law_params()
 	var pidx := {}
 	for p in LAW_PARAMS:
+		if p.has("refk"):
+			var rv: float = snappedf(float(BASE_MODS[String(p["refk"])]) * float(p["refm"]), 0.5)
+			p["ref"] = rv
+			p["lo"] = minf(float(p["lo"]), rv)
+			p["hi"] = maxf(float(p["hi"]), rv)
 		pidx[p["id"]] = p
 	var out: Array = []
 	var used := {}
