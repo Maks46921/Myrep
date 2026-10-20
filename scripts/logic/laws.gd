@@ -761,8 +761,25 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 			capital -= cost * 0.4
 		law_cd[tid] = 6
 		log_line("[color=%s][b]Суд остановил закон «%s»:[/b] конституционный контроль признал его несовместимым с основным законом (независимость судов %.0f). Политкапитал -%.0f; вернуться к вопросу можно через полгода.[/color]" % [COL_BAD, topic["name"], rl_jud(), cost * 0.4])
+		vote_show()
 		refresh()
 		return
+	# 0.58: обязательный референдум по конституционным поправкам (Ирландия, Швейцария, Румыния, Дания)
+	if is_fund(tid) and bool(MACRO.get("amend_ref", false)) and idx != cur_idx(tid) and vote_sponsor >= 0:
+		var yes_sh := 0.0
+		var nsh := national_shares(false)
+		for it in v["per"]:
+			if bool(it[2]) or int(it[0]) == 0:
+				yes_sh += float(nsh[int(it[0])])
+		yes_sh = clampf(yes_sh + randfn(0.0, 0.03) - 0.02, 0.0, 1.0)   # избиратели чуть осторожнее депутатов
+		if yes_sh <= 0.5:
+			capital -= cost * 0.6
+			law_cd[tid] = 12
+			log_line("[color=%s][b]Референдум отклонил поправку «%s»:[/b] за %.0f%% голосов, нужно больше половины. Политкапитал -%.0f; повторить можно через год.[/color]" % [COL_BAD, topic["name"], yes_sh * 100.0, cost * 0.6])
+			vote_show()
+			refresh()
+			return
+		log_line("[color=%s]Референдум одобрил поправку «%s»: за %.0f%% голосов.[/color]" % [COL_GOOD, topic["name"], yes_sh * 100.0])
 	cost += float(upc["extra"])
 	if cap_spendable() < cost:
 		log_line("[color=%s]Для закона «%s» не хватает капитала: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])

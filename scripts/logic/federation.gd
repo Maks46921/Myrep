@@ -424,6 +424,8 @@ func fed_reform_check(dir: int) -> String:
 	var lv: int = int(fst["lvl"]) + dir
 	if lv < 0 or lv > 2:
 		return "Дальше менять устройство нельзя."
+	if ccode == "DE" and dir < 0:
+		return "Статья 79(3) Основного закона запрещает отменять федеративное устройство: «вечная гарантия» не меняется даже двумя третями."
 	if fed_cd_get("lvl") > 0:
 		return "Реформа недавно проводилась (ещё %d мес.)." % fed_cd_get("lvl")
 	var dm := fed_dom(true)

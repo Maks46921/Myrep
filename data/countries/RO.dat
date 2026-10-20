@@ -1217,6 +1217,7 @@
 		"elapsed": 13,
 		"parl_term": 48,
 		"threshold": 0.05,
+		"amend_ref": true,
 		"thr_exempt": [7],
 		"reserved": {7: 17},
 		"impeach_seats": 166,

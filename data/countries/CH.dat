@@ -1192,6 +1192,7 @@
 		"elapsed": 27,
 		"parl_term": 48,
 		"threshold": 0.0,
+		"amend_ref": true,
 		"const_need": 0.5,
 		"impeach_seats": 200,
 		"constr": 0,
