@@ -480,6 +480,8 @@ var law_state := {}
 
 var law_cd := {}
 
+var rg_drip: Array = []   # 0.57.2: региональные сдвиги закона, растянутые на 12 месяцев: {d, n}
+
 var law_index := {}
 
 var sel_topic := "elect_threshold"

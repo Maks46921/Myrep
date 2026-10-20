@@ -1,0 +1,22 @@
+{
+ "c9e41afa2b3b": "Covert lobbying and gifts to officials are banned; open consultations remain. Corporations lose leverage and corruption falls noticeably, but growth is weaker.",
+ "d9198ef7b1f9": "Ban on covert lobbying and gifts",
+ "033a70d89998": "Based on current polls; real elections will differ. The higher the threshold, the more votes for small parties yield no seats.",
+ "05740e07d5e3": "Regions with more villagers and pensioners take the law more calmly.",
+ "2675980f9d56": "parties in parliament by current polls: %d → %d, wasted votes: %d%% → %d%%",
+ "27b9bebb9ec7": "tax receipts depend on how taxpayers react",
+ "2a47b4ef5325": "public mood is the shakiest channel",
+ "37de391b53a9": "%s in regions on adoption: %s, stronger in secular regions, weaker in religious ones",
+ "423eba4bb0c0": "Channel: %s. The spread shows how imprecise the estimate is: %s.",
+ "84fa15b5b26e": "This is a game rule or index: it changes exactly, with no spread.",
+ "8a8c31bd9358": "in all regions (gradually, 12 months)",
+ "9f58e1e00d4c": "institutions change slowly and unevenly",
+ "aed43b4135dd": "the effect follows the law's rule, but the economy does not respond at once",
+ "c5a2bfe1ad81": "returns on spending depend on the quality of government",
+ "cfee22f4cf7e": "the effect depends on circumstances",
+ "d7284fee2bbe": " Weak institutions in the country (corruption %d) widen it.",
+ "dd8c384b22f1": "Growth is computed by one formula from the loss of democracy (at most -%.2f pp a year), not by a separate number for each form of government.",
+ "e67f329de7b2": "A one-off shift in the level when the law is adopted.",
+ "f0158d602b30": "Of which: %s permanent adjustment by the law, %s one-off level shift on adoption.",
+ "66986d66737b": "regions: %s (stronger in secular, weaker in religious ones)"
+}

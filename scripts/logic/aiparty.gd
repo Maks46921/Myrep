@@ -1160,6 +1160,7 @@ func conc_all_groups_cost(pp: float) -> void:
 func bills_step() -> void:
 	if game_over:
 		return
+	rg_drip_step()
 	for b in bills.duplicate():
 		if turn > int(b["start"]) and randf() < 0.6 and (b["req"] as Array).size() < 4:
 			bill_request_new(b)
