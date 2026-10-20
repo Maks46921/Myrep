@@ -1064,8 +1064,17 @@ func build_budget_windows() -> void:
 	var hv := VBoxContainer.new()
 	hv.add_theme_constant_override("separation", 4)
 	bud_head.add_child(hv)
-	bud_head_rt = make_rt(hv)
-	bud_prev_rt = make_rt(hv)
+	# 0.59: блок плана всегда одной высоты, внутри прокрутка: ползунки ниже не прыгают, когда план появляется и растёт
+	var hsc := ScrollContainer.new()
+	hsc.custom_minimum_size = Vector2(0.0, 150.0)
+	hsc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	hv.add_child(hsc)
+	var hin := VBoxContainer.new()
+	hin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hin.add_theme_constant_override("separation", 4)
+	hsc.add_child(hin)
+	bud_head_rt = make_rt(hin)
+	bud_prev_rt = make_rt(hin)
 	bud_prev_rt.visible = false
 	bud_tbl_btn = CheckButton.new()
 	bud_tbl_btn.text = "Таблица «было → станет»"
@@ -1073,8 +1082,8 @@ func build_budget_windows() -> void:
 	bud_tbl_btn.focus_mode = Control.FOCUS_NONE
 	bud_tbl_btn.visible = false
 	bud_tbl_btn.toggled.connect(func(_on: bool) -> void: update_bud_head())
-	hv.add_child(bud_tbl_btn)
-	bud_tbl_rt = make_rt(hv)
+	hin.add_child(bud_tbl_btn)
+	bud_tbl_rt = make_rt(hin)
 	bud_tbl_rt.visible = false
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 6)
