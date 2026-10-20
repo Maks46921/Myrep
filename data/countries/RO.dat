@@ -1217,6 +1217,8 @@
 		"elapsed": 13,
 		"parl_term": 48,
 		"threshold": 0.05,
+		"thr_exempt": [7],
+		"reserved": {7: 17},
 		"impeach_seats": 166,
 		"constr": 0,
 		"minority_ok": true,
@@ -4588,6 +4590,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",

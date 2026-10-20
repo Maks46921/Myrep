@@ -95,6 +95,7 @@ var crisis_offered := false   # v35: событие выхода из кризи
 var impeach_warned := false
 
 var last_parl := -11
+var gov_born := -99   # 0.58: месяц, когда после выборов сложилось новое правительство («медовый месяц» поддержки)
 
 var last_pres := 0
 

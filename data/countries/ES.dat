@@ -1362,7 +1362,7 @@
 		"debt_slope": 0.0003,
 		"elapsed": 30,
 		"parl_term": 48,
-		"threshold": 0.015,
+		"threshold": 0.0,
 		"impeach_seats": 176,
 		"constr": 1,
 		"minority_ok": true,
@@ -4370,6 +4370,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",

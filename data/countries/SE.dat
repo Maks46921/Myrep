@@ -1233,6 +1233,7 @@
 		"elapsed": 40,
 		"parl_term": 48,
 		"threshold": 0.04,
+		"fixed_cycle": true,
 		"impeach_seats": 175,
 		"constr": 0,
 		"minority_ok": true,

@@ -1121,7 +1121,7 @@
 		"debt_base": 0.016,
 		"debt_thr": 80.0,
 		"debt_slope": 0.0007,
-		"elapsed": 38,
+		"elapsed": 39,
 		"parl_term": 48,
 		"threshold": 0.02,
 		"impeach_seats": 90,
@@ -4475,6 +4475,8 @@
 	},
 	"DE_NEW_PARAMS": [],
 	"DE_REMOVE": [
+		"elect_threshold",
+		"seat_system",
 		"central_bank",
 		"pres_term_law",
 		"pres_vote_rule",

@@ -857,10 +857,14 @@ func range_tip(chan: String, extra: String = "") -> String:
 func thr_party_info(thr: float) -> Array:
 	var raw := national_shares(false)
 	var exempt: Array = MACRO.get("thr_exempt", [])
+	var reserved: Dictionary = MACRO.get("reserved", {})
+	# 0.58: то же правило, что в parl_shares: слот «Прочие» барьер не проходит, зарезервированные места остаются
+	var lump_out: bool = thr >= 0.005 and not bool(MACRO.get("others_pass", false)) and not (6 in exempt)
 	var n := 0
 	var wasted := 0.0
 	for p in raw.size():
-		if raw[p] >= thr or (p in exempt and raw[p] > 0.0):
+		var ex: bool = (p in exempt) or reserved.has(p) or reserved.has(str(p))
+		if (raw[p] >= thr and not (p == 6 and lump_out and not ex)) or (ex and raw[p] > 0.0):
 			n += 1
 		else:
 			wasted += raw[p]

@@ -225,6 +225,9 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 		elif p == REGIONAL_P:
 			v *= (1.0 + float(r["unrest"]) / 40.0) * lerpf(0.6, 1.5, float(REGIONS[ri]["reg"]))
 		v *= float(REG_BIAS[ri][p]) * funding_mult(p) * pact_mult(p)
+		# 0.58: «медовый месяц» нового правительства: около +2 п.п. у партии премьера, спад за 9 месяцев (Мюллер и Штрём; Stimson)
+		if roles[p] > 0.0 and not pres:
+			v *= 1.0 + 0.08 * roles[p] * clampf(1.0 - float(turn - gov_born) / 9.0, 0.0, 1.0)
 		v *= cult_vote_mult(ri, p) * church_vote_mult(ri, p) * au_opp_mult(p, roles[p]) * er_mig_mult(ri, p)
 		if p > 0:
 			v *= issue_multiplier(p)
@@ -278,11 +281,17 @@ func region_shares_legacy(ri: int, pres: bool, only: Array = []) -> Array[float]
 
 func parl_shares() -> Array[float]:
 	var raw := national_shares(false)
+	nat_raw_cache = raw.duplicate()
 	var thr: float = mods["threshold"]
 	var exempt: Array = MACRO.get("thr_exempt", [])   # 0.55.5: списки меньшинств без барьера (Косово: гарантированные места общин)
+	var reserved: Dictionary = MACRO.get("reserved", {})
+	# 0.58: слот «Прочие» — это несколько мелких партий сразу: он не проходит барьер как одна партия (кроме стран,
+	# где независимые и местные списки реально берут места: MACRO.others_pass, и стран без барьера)
+	var lump_out: bool = thr >= 0.005 and not bool(MACRO.get("others_pass", false)) and not (6 in exempt)
 	var keep := 0.0
 	for p in raw.size():
-		if raw[p] < thr and not (p in exempt):
+		var ex: bool = (p in exempt) or reserved.has(p) or reserved.has(str(p))
+		if (raw[p] < thr and not ex) or (p == 6 and lump_out and not ex):
 			raw[p] = 0.0
 		keep += raw[p]
 	if keep <= 0.0001:
@@ -329,46 +338,224 @@ func smd_power() -> float:
 	return 2.5 + au_control() * 1.5
 
 
-func allocate_seats(shares_in: Array[float]) -> Array[int]:
+# 0.58: метод распределения мест по ELEC.alloc: hare (по умолчанию), dhondt, sl (Сент-Лагё), fptp (округа: победитель
+# получает больше своей доли, «закон куба» Кендалла и Стюарта), two_round (два тура: то же, но слабее и с барьером для «кордона»).
+# Регионы игры служат округами; места между ними делятся по населению (pop_w).
+var nat_raw_cache: Array[float] = []   # национальные доли до барьера (последний parl_shares): нужны региональному подсчёту мест
+
+
+func divisor_seats(w: Array[float], n: int, sl: bool) -> Array[int]:
 	var res: Array[int] = []
-	var nsmd: int = int(round(float(SEATS) * smd_frac()))
-	if nsmd > 0 and nsmd < SEATS:
-		var lst: Array[int] = hare_seats(shares_in, SEATS - nsmd)
-		var kw: float = smd_power()
+	for _p in w.size():
+		res.append(0)
+	for _s in n:
+		var best := -1
+		var bq := 0.0
+		for p in w.size():
+			if w[p] <= 0.0:
+				continue
+			var div: float = (1.4 if res[p] == 0 else float(res[p] * 2 + 1)) if sl else float(res[p] + 1)
+			var q: float = w[p] / div
+			if q > bq:
+				bq = q
+				best = p
+		if best < 0:
+			break
+		res[best] += 1
+	return res
+
+
+func elec_method(smd_part: bool) -> String:
+	if smd_part:
+		return String(ELEC.get("smd_method", "fptp"))
+	return String(ELEC.get("alloc", "hare"))
+
+
+func elec_power(method: String) -> float:
+	if method == "two_round":
+		return float(ELEC.get("k", 1.7))
+	return float(ELEC.get("k", 3.0))
+
+
+func region_alloc(w: Array[float], n: int, method: String) -> Array[int]:
+	var tot := 0.0
+	for x in w:
+		tot += x
+	if tot <= 0.0 or n <= 0:
+		var z: Array[int] = []
+		for _p in w.size():
+			z.append(0)
+		return z
+	match method:
+		"dhondt":
+			return divisor_seats(w, n, false)
+		"sl":
+			return divisor_seats(w, n, true)
+		"fptp", "two_round":
+			var k := elec_power(method)
+			var wk: Array[float] = []
+			for p in w.size():
+				var x: float = w[p]
+				# 0.58: во втором туре голоса проигравших плохо передаются партиям «кордона» (Франция: Нацобъединение)
+				if method == "two_round" and is_cordon(p):
+					x *= float(ELEC.get("cordon_k", 0.85))
+				wk.append(pow(maxf(x, 0.0), k))
+			return hare_seats(wk, n)
+		"stv":
+			# приближение единого передаваемого голоса: крупные получают небольшую премию, нижним кандидатам голоса передаются
+			var ws: Array[float] = []
+			for x in w:
+				ws.append(pow(maxf(x, 0.0), 1.1))
+			return hare_seats(ws, n)
+	return hare_seats(w, n)
+
+
+# места по регионам: shares_in — итоговые национальные доли (после барьера, сдвигов), nat_raw — доли до барьера
+func regional_seats(shares_in: Array[float], nseats: int, method: String, smd_part: bool) -> Array[int]:
+	var P := shares_in.size()
+	var res: Array[int] = []
+	for _p in P:
+		res.append(0)
+	if nseats <= 0 or regions.is_empty() or pop_w.size() != regions.size():
+		return hare_seats(shares_in, nseats)
+	var quota: Array[int] = hare_seats(pop_w, nseats)
+	var rsh: Array = []
+	var plain: Array[float] = []
+	for _p in P:
+		plain.append(0.0)
+	for ri in regions.size():
+		var rs := region_shares(ri, false)
+		rsh.append(rs)
+		for p in P:
+			plain[p] += pop_w[ri] * rs[p]
+	var thr_reg: float = float(ELEC.get("thr_reg", 0.0)) if not smd_part else 0.0
+	var reserved: Dictionary = MACRO.get("reserved", {})
+	for ri in regions.size():
+		if quota[ri] <= 0:
+			continue
+		var rs2: Array[float] = rsh[ri]
 		var w: Array[float] = []
-		for x in shares_in:
-			w.append(pow(maxf(float(x), 0.0), kw))
-		var sm: Array[int] = hare_seats(w, nsmd)
+		for p in P:
+			var ref: float = shares_in[p]
+			if smd_part and ref <= 0.0 and p < nat_raw_cache.size():
+				ref = float(nat_raw_cache[p])   # в округах барьер не действует
+			var m: float = ref / maxf(plain[p], 0.0001) if plain[p] > 0.0001 else 0.0
+			if reserved.has(p) or reserved.has(str(p)):
+				m = 0.0
+			w.append(rs2[p] * m)
+		if thr_reg > 0.0:
+			var tt := 0.0
+			for x in w:
+				tt += x
+			for p in P:
+				if tt > 0.0 and w[p] / tt < thr_reg:
+					w[p] = 0.0
+		# 0.58: средняя магнитуда округа (Испания 6,7, Польша 11, Финляндия 15...): регион делится на несколько равных округов
+		# с теми же долями: чем меньше округ, тем выше естественный барьер
+		var mag: float = float(ELEC.get("mag", 0.0)) if not smd_part else 0.0
+		var nd := 1
+		if mag > 0.0 and float(quota[ri]) > mag * 1.5:
+			nd = maxi(1, int(round(float(quota[ri]) / mag)))
+		var base: int = quota[ri] / nd
+		var rem: int = quota[ri] - base * nd
+		for d in nd:
+			var got := region_alloc(w, base + (1 if d < rem else 0), method)
+			for p in P:
+				res[p] += got[p]
+	return res
+
+
+func apply_seat_bonus(res: Array[int], extra_in: int) -> void:
+	var top := 0
+	for p in res.size():
+		if res[p] > res[top]:
+			top = p
+	var others: int = SEATS - res[top]
+	var extra: int = mini(extra_in, others)
+	if others <= 0 or extra <= 0:
+		return
+	var taken := 0
+	for p in res.size():
+		if p != top:
+			var cut: int = int(floor(float(res[p]) * float(extra) / float(others)))
+			res[p] -= cut
+			taken += cut
+	while taken < extra:
+		var big := -1
+		for p in res.size():
+			if p != top and res[p] > 0 and (big < 0 or res[p] > res[big]):
+				big = p
+		if big < 0:
+			break
+		res[big] -= 1
+		taken += 1
+	res[top] += taken
+
+
+func allocate_seats(shares_in_all: Array[float]) -> Array[int]:
+	var P := shares_in_all.size()
+	var shares_in: Array[float] = shares_in_all.duplicate()
+	# 0.58: закреплённые места меньшинств (Косово, Хорватия, Словения): раздаются первыми, остальные делятся без них
+	var reserved: Dictionary = MACRO.get("reserved", {})
+	var fixed: Array[int] = []
+	var nres := 0
+	for _p in P:
+		fixed.append(0)
+	for k in reserved:
+		var slot := int(k)
+		if slot >= 0 and slot < P:
+			fixed[slot] = int(reserved[k])
+			nres += fixed[slot]
+			shares_in[slot] = 0.0
+	var n_main: int = SEATS - nres
+	var tot0 := 0.0
+	for x in shares_in:
+		tot0 += x
+	if nres > 0 and tot0 > 0.0:
+		for p in P:
+			shares_in[p] /= tot0
+	var res: Array[int] = []
+	var smd: float = smd_frac()
+	var nsmd: int = int(round(float(n_main) * smd))
+	var method := elec_method(false)
+	var reg_method: bool = method in ["dhondt", "sl", "fptp", "two_round", "stv"]
+	if nsmd > 0 and nsmd < n_main:
+		var lst: Array[int] = hare_seats(shares_in, n_main - nsmd)
+		var sm: Array[int]
+		if bool(ELEC.get("smd_reg", false)):
+			sm = regional_seats(shares_in, nsmd, elec_method(true), true)
+		else:
+			var kw: float = smd_power()
+			var w: Array[float] = []
+			for x in shares_in:
+				w.append(pow(maxf(float(x), 0.0), kw))
+			sm = hare_seats(w, nsmd)
 		for p in lst.size():
 			res.append(lst[p] + sm[p])
+	elif nsmd >= n_main and n_main > 0 and bool(ELEC.get("smd_reg", false)):
+		res = regional_seats(shares_in, n_main, elec_method(true), true)
+	elif reg_method and float(ELEC.get("mag", 0.0)) >= float(SEATS) * 0.8:
+		res = region_alloc(shares_in, n_main, method)   # один общенациональный округ
+	elif reg_method:
+		res = regional_seats(shares_in, n_main, method, false)
 	else:
-		res = hare_seats(shares_in, SEATS)
+		res = hare_seats(shares_in, n_main)
+	for p in P:
+		res[p] += fixed[p]
 	var bonus: float = float(mods["seat_bonus"])
-	if bonus > 0.0:
-		var top := 0
-		for p in res.size():
-			if res[p] > res[top]:
-				top = p
-		var extra: int = int(round(float(SEATS) * bonus))
-		var others: int = SEATS - res[top]
-		extra = mini(extra, others)
-		if others > 0 and extra > 0:
-			var taken := 0
-			for p in res.size():
-				if p != top:
-					var cut: int = int(floor(float(res[p]) * float(extra) / float(others)))
-					res[p] -= cut
-					taken += cut
-			while taken < extra:
-				var big := -1
-				for p in res.size():
-					if p != top and res[p] > 0 and (big < 0 or res[p] > res[big]):
-						big = p
-				if big < 0:
-					break
-				res[big] -= 1
-				taken += 1
-			res[top] += taken
+	var br: Array = ELEC.get("bonus_rule", [])
+	if bonus > 0.0 and br.size() == 4:
+		# 0.58: бонус победителю по формуле закона (Греция: от 25% голосов 20 мест, +1 за каждые 0,5 п.п., не больше 50);
+		# вариант закона с большим бонусом (a.seat_bonus) растягивает формулу
+		var lead := 0.0
+		for x in shares_in_all:
+			lead = maxf(lead, float(x))
+		if lead >= float(br[0]):
+			var kb: float = bonus / 0.11
+			var ex: int = int(round(float(int(br[1]) + int(floor((lead - float(br[0])) / float(br[2])))) * kb))
+			apply_seat_bonus(res, mini(ex, int(round(float(br[3]) * minf(1.2, kb)))))
+	elif bonus > 0.0:
+		apply_seat_bonus(res, int(round(float(SEATS) * bonus)))
 	return res
 
 
@@ -494,7 +681,11 @@ func hold_head_direct(reason: String) -> void:
 		s1 = au_fraud_shares(national_shares(true, cands))
 	var order: Array = cands.duplicate()
 	order.sort_custom(func(a, b): return s1[a] > s1[b])
-	var runoff: bool = float(s1[order[0]]) <= 0.5
+	# 0.58: в Северной Македонии победа в 1-м туре требует большинства зарегистрированных избирателей, а не голосов
+	var need1 := 0.5
+	if bool(ELEC.get("round1_reg", false)):
+		need1 = 0.5 / clampf(float(ELEC.get("turn", 0.55)), 0.3, 1.0)
+	var runoff: bool = float(s1[order[0]]) <= need1
 	var winner: int = order[0]
 	var rounds: Array = []
 	var rows1: Array = []
@@ -504,14 +695,22 @@ func hold_head_direct(reason: String) -> void:
 			rows1.append(head_row(p, s1[p], false, i >= 2, "во 2-й тур" if i < 2 else "выбыл"))
 		else:
 			rows1.append(head_row(p, s1[p], i == 0, false, ""))
-	rounds.append({"title": "1-й тур · кандидатов: %d" % cands.size(), "need": 0.5, "need_text": "для победы нужно больше 50%", "rows": rows1})
+	rounds.append({"title": "1-й тур · кандидатов: %d" % cands.size(), "need": need1, "need_text": "для победы нужно больше 50%" if need1 <= 0.5 else "для победы нужно больше половины зарегистрированных избирателей", "rows": rows1})
 	var logt := "Первый тур: " + "; ".join(PackedStringArray([
 		"%s %.1f%%" % [PARTY_NAMES[order[0]], s1[order[0]] * 100.0], "%s %.1f%%" % [PARTY_NAMES[order[1]], s1[order[1]] * 100.0]]))
 	if runoff:
 		var a: int = order[0]
 		var b: int = order[1]
 		var s2 := national_shares(true, [a, b])
-		var ma: float = 0.5 + (s2[a] - 0.5) * 0.6
+		# 0.58: голоса выбывших переходят по близости позиций, а не сжимаются на 40 %; «кордон» (партии, с которыми не идут в коалиции)
+		# теряет во 2-м туре около 8 п.п.: остальные избиратели объединяются против него (Франция 2002 и 2017, Румыния 2024, Польша)
+		var ma: float = 0.5 + (s2[a] - 0.5) * 0.85
+		if not sham:
+			if is_cordon(a) and not is_cordon(b):
+				ma -= 0.08
+			elif is_cordon(b) and not is_cordon(a):
+				ma += 0.08
+		ma = clampf(ma, 0.02, 0.98)
 		s2[a] = ma
 		s2[b] = 1.0 - ma
 		winner = a if s2[a] > s2[b] else b
@@ -747,7 +946,9 @@ func hold_parliament(reason: String) -> void:
 
 func hold_parliament_core(reason: String) -> void:
 	var old_seats: Array = seats.duplicate()
-	last_parl = turn
+	# 0.58: Швеция — внеочередные выборы не сдвигают четырёхлетний цикл: очередные остаются в сентябре по календарю
+	if not (bool(MACRO.get("fixed_cycle", false)) and reason != "плановые выборы" and turn - last_parl < parl_term() - 1):
+		last_parl = turn
 	if String(ELEC.get("head", "")) == "council":
 		pres_due = turn + 2
 	crisis_months = 0
@@ -862,6 +1063,7 @@ func hold_parliament_core(reason: String) -> void:
 			state = "crisis"
 			capital = maxf(capital, 30.0)   # v35: капитал на переговоры о коалиции
 			log_line("[color=%s][b]Правительственный кризис![/b] В вашей коалиции %d мест из %d. У вас %d месяцев, чтобы найти партнёров, иначе будут назначены новые выборы.[/color]" % [COL_BAD, gov_seats(), SEATS, crisis_limit()])
+	gov_born = turn   # 0.58: начинается «медовый месяц» нового правительства
 	prev_raw = raw.duplicate()   # 0.56: от этих выборов считается предел сдвига до следующих
 	var rep := {"reason": reason, "shares": shares, "raw": raw, "prev": prev, "old_seats": old_seats, "thr": thr, "sham": sham, "state": state,
 		"end": end_msg, "opp": opp_msg, "won": won, "best": best_r, "worst": worst_r}
@@ -1042,7 +1244,7 @@ const ER_CAP_MAX := 0.60
 const ER_SWING0 := 0.10
 const ER_SWING_MAX := 0.30
 # страны с низкой верностью избирателей (молодые партийные системы, частые новые партии)
-const ER_VOLATILE := ["PL", "CZ", "SK", "SI", "HU", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "EE", "LV", "LT", "MD", "UA", "GR", "IT"]
+const ER_VOLATILE := ["GB", "FR", "NL", "ES", "PL", "CZ", "SK", "SI", "HU", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "EE", "LV", "LT", "MD", "UA", "GR", "IT"]
 
 
 func er_on() -> bool:
