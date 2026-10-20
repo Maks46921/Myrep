@@ -1025,6 +1025,28 @@ func coal_feasible() -> bool:
 	return s >= MAJORITY
 
 
+# 0.59: ИИ предлагает состав коалиции, решает игрок. Партии по готовности к союзу, пока не хватит мест; только те, кто готов хотя бы за уступки.
+func cn_ai_suggest() -> Array:
+	var out: Array = []
+	var s: int = seats[0]
+	for c in coal_cands():
+		if s >= MAJORITY:
+			break
+		var p: int = int(c[1])
+		if not cn_can_talk(p) or float(c[0]) + 6.0 + 8.0 < COALITION_JOIN_PAID:
+			continue
+		out.append(p)
+		s += int(seats[p])
+	return out
+
+
+func cn_apply_ai() -> void:
+	cn_new_draft()
+	for p in cn_ai_suggest():
+		cn_toggle_party(int(p))
+	cn_auto_mins()
+
+
 func coal_talks_start() -> void:
 	coal_talks = true
 	coal_tried.clear()

@@ -507,6 +507,7 @@ func cn_open(on: bool) -> void:
 		var why := cn_why()
 		if why != "":
 			log_line("[color=%s]Переговоры о коалиции сейчас недоступны: %s.[/color]" % [COL_WARN, why])
+			nt_toast("Переговоры о коалиции сейчас недоступны: %s." % why, "coal", -1)
 			return
 		cn_ensure()
 		if tech_is_open():
@@ -771,6 +772,27 @@ func cn_build_mid() -> void:
 	if s < MAJORITY and tol > 0:
 		t += " · против правительства без поддержки: %d" % cn_against()
 	cn_mk_rt(top).text = t
+	# 0.59: ИИ предлагает состав, решает игрок
+	var sug: Array = cn_ai_suggest()
+	var aic := cn_card(cn_mid, C_TEAL)
+	if sug.is_empty():
+		cn_mk_rt(aic, 12).text = "[b]Совет ИИ:[/b] [color=%s]собрать большинство из готовых партий не получается. Можно искать поддержку извне и править меньшинством.[/color]" % COL_DIM
+	else:
+		var names: PackedStringArray = []
+		var ss: int = seats[0]
+		for q in sug:
+			names.append(PARTY_NAMES[int(q)])
+			ss += int(seats[int(q)])
+		cn_mk_rt(aic, 12).text = "[b]Совет ИИ:[/b] позвать %s: вместе %d мест из %d. Это только предложение: состав, министерства и программу решаете вы." % [", ".join(names), ss, SEATS]
+		var ab2 := Button.new()
+		ab2.theme_type_variation = "SmallButton"
+		ab2.focus_mode = Control.FOCUS_NONE
+		ab2.text = "Подставить предложение ИИ в проект"
+		ab2.tooltip_text = "Заполнит проект составом и министерствами по совету ИИ. Дальше можно менять всё вручную и только потом предлагать соглашение."
+		ab2.pressed.connect(func() -> void:
+			cn_apply_ai()
+			refresh())
+		aic.add_child(ab2)
 	var bar := StatBar.new()
 	bar.custom_minimum_size = Vector2(0.0, 12.0)
 	bar.marker = float(MAJORITY) / float(SEATS) * 100.0

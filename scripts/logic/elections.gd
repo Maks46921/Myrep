@@ -41,10 +41,6 @@ func church_vote_mult(ri: int, p: int) -> float:
 	return 0.0
 
 
-func coal_feasible() -> bool:
-	return false
-
-
 func coal_manual() -> bool:
 	return false
 
@@ -1072,7 +1068,7 @@ func hold_parliament_core(reason: String) -> void:
 		else:
 			opp_msg = "Правительство: %s. Вы остаётесь в оппозиции: %d мест из %d." % [opp_gov_text(), seats[0], SEATS]
 			log_line("[color=%s]%s[/color]" % [COL_WARN, opp_msg])
-	elif coal_manual() and not gov_ok() and coal_feasible():
+	elif coal_manual() and not gov_ok():
 		# v53: коалицию собирает игрок — переговоры вместо автоматического «приглашения» партнёров
 		state = "talks"
 		coal_talks_start()
