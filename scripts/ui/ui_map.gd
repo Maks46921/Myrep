@@ -80,6 +80,11 @@ var map_ln_cty := PackedVector2Array() # границы стран (по суш�
 var map_sea_cache: Array = []
 var map_ln_coast := PackedVector2Array() # v45_1: побережье (для береговой подсветки и линии берега)
 var map_hash := {}
+# 0.59: линии карты разложены по плиткам, при приближении рисуются только плитки в окне; контекстные земли кэшируют UV и контур
+const MAP_TILES := 24
+var map_tl := {}                       # имя линий -> {"pts", "off", "tb"}
+var map_ctx_uv: Array = []             # [земля][часть] -> UV
+var map_ctx_cl: Array = []             # [земля][часть] -> замкнутый контур
 var map_seg_cache := {}
 var map_hover_ate := -1
 var map_fit_cc := ""
@@ -178,6 +183,8 @@ func map_prepare() -> void:
 	map_unit_rect.clear()
 	map_unit_local.clear()
 	map_ctx_parts.clear()
+	map_ctx_uv.clear()
+	map_ctx_cl.clear()
 	map_cc_outline.clear()
 	map_ctx_cent.clear()
 	map_seg_cache.clear()
@@ -271,6 +278,11 @@ func map_prepare() -> void:
 				map_ln_cty.append(p0)
 				map_ln_cty.append(p1)
 	map_ln_ate = l_ate
+	map_tl.clear()
+	map_tl["reg"] = map_tile_index(map_ln_reg)
+	map_tl["cty"] = map_tile_index(map_ln_cty)
+	map_tl["coast"] = map_tile_index(map_ln_coast)
+	map_tl["ate"] = map_tile_index(map_ln_ate)
 	for cx in WORLD_CTX:
 		var lst2: Array = []
 		var best := PackedVector2Array()
@@ -285,6 +297,15 @@ func map_prepare() -> void:
 				ba = ar
 				best = pts2
 		map_ctx_parts.append(lst2)
+		var uvl: Array = []
+		var cll: Array = []
+		for pp0 in lst2:
+			uvl.append(Gfx.uvs(pp0 as PackedVector2Array, Gfx.LAND_UV))
+			var cl0: PackedVector2Array = (pp0 as PackedVector2Array).duplicate()
+			cl0.append(cl0[0])
+			cll.append(cl0)
+		map_ctx_uv.append(uvl)
+		map_ctx_cl.append(cll)
 		var cen := Vector2.ZERO
 		for p in best:
 			cen += p
@@ -389,6 +410,73 @@ func map_prepare_labels() -> void:
 			for k2 in range(eo[e], eo[e + 1] - 1):
 				map_front.append(Vector2(ep[2 * k2], ep[2 * k2 + 1]))
 				map_front.append(Vector2(ep[2 * k2 + 2], ep[2 * k2 + 3]))
+
+
+# 0.59: линии (пары точек) раскладываются по плиткам сетки; у каждой плитки свои габариты
+func map_tile_index(arr: PackedVector2Array) -> Dictionary:
+	var n := MAP_TILES
+	var r: Rect2 = map_bounds
+	var segs: int = arr.size() / 2
+	var cw: float = maxf(r.size.x, 0.001) / float(n)
+	var ch: float = maxf(r.size.y, 0.001) / float(n)
+	var ids := PackedInt32Array()
+	ids.resize(segs)
+	var off := PackedInt32Array()
+	off.resize(n * n + 1)
+	for i in segs:
+		var a: Vector2 = arr[2 * i]
+		var b: Vector2 = arr[2 * i + 1]
+		var gx: int = clampi(int((((a.x + b.x) * 0.5) - r.position.x) / cw), 0, n - 1)
+		var gy: int = clampi(int((((a.y + b.y) * 0.5) - r.position.y) / ch), 0, n - 1)
+		var t: int = gy * n + gx
+		ids[i] = t
+		off[t + 1] += 1
+	for t in n * n:
+		off[t + 1] += off[t]
+	var pos := off.duplicate()
+	var pts := PackedVector2Array()
+	pts.resize(arr.size())
+	var tb: Array = []
+	tb.resize(n * n)
+	for i in segs:
+		var t2: int = ids[i]
+		var k: int = pos[t2]
+		pos[t2] = k + 1
+		var a2: Vector2 = arr[2 * i]
+		var b2: Vector2 = arr[2 * i + 1]
+		pts[2 * k] = a2
+		pts[2 * k + 1] = b2
+		var bb = tb[t2]
+		if bb == null:
+			tb[t2] = Rect2(a2, Vector2.ZERO).expand(b2)
+		else:
+			tb[t2] = (bb as Rect2).expand(a2).expand(b2)
+	return {"pts": pts, "off": off, "tb": tb}
+
+
+# линии, попадающие в окно view (в координатах карты); если видно всё, отдаёт весь массив без копирования
+func map_tile_view(name: String, whole: PackedVector2Array, view: Rect2) -> PackedVector2Array:
+	if not map_tl.has(name):
+		return whole
+	var idx: Dictionary = map_tl[name]
+	var off: PackedInt32Array = idx["off"]
+	var tb: Array = idx["tb"]
+	var pts: PackedVector2Array = idx["pts"]
+	var out := PackedVector2Array()
+	var all_seen := true
+	var chosen: Array = []
+	for t in MAP_TILES * MAP_TILES:
+		if off[t + 1] == off[t]:
+			continue
+		if (tb[t] as Rect2).intersects(view):
+			chosen.append(t)
+		else:
+			all_seen = false
+	if all_seen:
+		return pts
+	for t2 in chosen:
+		out.append_array(pts.slice(2 * off[t2], 2 * off[t2 + 1]))
+	return out
 
 
 func map_tri_mesh(pts: PackedVector2Array) -> ArrayMesh:
@@ -1267,16 +1355,17 @@ func draw_map() -> void:
 	map_draw_sea(c, s, off)
 	# контекст: неигровые земли — приглушённый рельеф
 	var ctx_tex: Texture2D = Gfx.ctx_tex()
+	var xf0 := Transform2D(0.0, Vector2(s, s), 0.0, off)
 	for ci0 in map_ctx_parts.size():
-		for part in (map_ctx_parts[ci0] as Array):
-			var px := PackedVector2Array()
-			for p in (part as PackedVector2Array):
-				px.append(p * s + off)
-			var cc0 := Color(0.165, 0.18, 0.205) if ci0 != map_hover_ctx else Color(0.22, 0.24, 0.27)
-			c.draw_colored_polygon(px, cc0, Gfx.uvs(part as PackedVector2Array, Gfx.LAND_UV), ctx_tex)
-			var cl := px.duplicate()
-			cl.append(px[0])
-			c.draw_polyline(cl, Color(0.55, 0.62, 0.70, 0.22), 1.0, true)
+		var cc0 := Color(0.165, 0.18, 0.205) if ci0 != map_hover_ctx else Color(0.22, 0.24, 0.27)
+		c.draw_set_transform_matrix(xf0)
+		var uvl0: Array = map_ctx_uv[ci0]
+		var cll0: Array = map_ctx_cl[ci0]
+		var parts0: Array = map_ctx_parts[ci0]
+		for pi in parts0.size():
+			c.draw_colored_polygon(parts0[pi] as PackedVector2Array, cc0, uvl0[pi] as PackedVector2Array, ctx_tex)
+			c.draw_polyline(cll0[pi] as PackedVector2Array, Color(0.55, 0.62, 0.70, 0.22), 1.0 / s, true)
+		c.draw_set_transform_matrix(Transform2D.IDENTITY)
 		if s < 1.6:
 			var cp: Vector2 = (map_ctx_cent[ci0] as Vector2) * s + off
 			Gfx.label(c, font, cp + Vector2(-40.0, 0.0), String(WORLD_CTX[ci0]["name"]).to_upper(), 10, Color(0.62, 0.66, 0.72, 0.85), 80.0, HORIZONTAL_ALIGNMENT_CENTER, 3)
@@ -1295,11 +1384,15 @@ func draw_map() -> void:
 		c.draw_mesh(map_all_mesh, null, Transform2D(0.0, Vector2(s, s), 0.0, off + Vector2(3.0, 5.0)), Color(0, 0, 0, 0.32))
 	# береговая подсветка: мелководье вокруг суши (рисуется до заливки суши)
 	c.draw_set_transform_matrix(xf)
-	if not map_ln_coast.is_empty():
+	var vw := Rect2(-off / s, c.size / s).grow(30.0 / s)
+	var ln_coast: PackedVector2Array = map_tile_view("coast", map_ln_coast, vw)
+	var ln_reg: PackedVector2Array = map_tile_view("reg", map_ln_reg, vw)
+	var ln_cty: PackedVector2Array = map_tile_view("cty", map_ln_cty, vw)
+	if not ln_coast.is_empty():
 		for k in 3:
 			var wpx: float = [22.0, 12.0, 5.0][k] * clampf(s / 2.2, 0.45, 1.0)
 			var al0: float = [0.05, 0.07, 0.11][k]
-			c.draw_multiline(map_ln_coast, Color(0.45, 0.75, 0.95, al0), wpx / s)
+			c.draw_multiline(ln_coast, Color(0.45, 0.75, 0.95, al0), wpx / s)
 	c.draw_set_transform_matrix(Transform2D.IDENTITY)
 	var land_tex: Texture2D = Gfx.land_tex()
 	for ui in vis:
@@ -1332,16 +1425,16 @@ func draw_map() -> void:
 	if ate_mode:
 		al = maxf(al, 0.30)
 	if al > 0.01 and not map_ln_ate.is_empty():
-		c.draw_multiline(map_ln_ate, Color(0.02, 0.03, 0.06, al), -1.0)
-	if not map_ln_reg.is_empty():
-		c.draw_multiline(map_ln_reg, Color(0.03, 0.04, 0.07, 0.55), 1.6 / s)
-		c.draw_multiline(map_ln_reg, Color(1.0, 1.0, 1.0, 0.16), 0.7 / s)
-	if not map_ln_coast.is_empty():
-		c.draw_multiline(map_ln_coast, Color(0.01, 0.02, 0.05, 0.85), 2.0 / s)
-		c.draw_multiline(map_ln_coast, Color(0.62, 0.82, 0.95, 0.35), 0.8 / s)
-	if not map_ln_cty.is_empty():
-		c.draw_multiline(map_ln_cty, Color(0.01, 0.01, 0.03, 0.75), 3.4 / s)
-		c.draw_multiline(map_ln_cty, Color(0.93, 0.90, 0.80, 0.55), 1.0 / s)
+		c.draw_multiline(map_tile_view("ate", map_ln_ate, vw), Color(0.02, 0.03, 0.06, al), -1.0)
+	if not ln_reg.is_empty():
+		c.draw_multiline(ln_reg, Color(0.03, 0.04, 0.07, 0.55), 1.6 / s)
+		c.draw_multiline(ln_reg, Color(1.0, 1.0, 1.0, 0.16), 0.7 / s)
+	if not ln_coast.is_empty():
+		c.draw_multiline(ln_coast, Color(0.01, 0.02, 0.05, 0.85), 2.0 / s)
+		c.draw_multiline(ln_coast, Color(0.62, 0.82, 0.95, 0.35), 0.8 / s)
+	if not ln_cty.is_empty():
+		c.draw_multiline(ln_cty, Color(0.01, 0.01, 0.03, 0.75), 3.4 / s)
+		c.draw_multiline(ln_cty, Color(0.93, 0.90, 0.80, 0.55), 1.0 / s)
 	# v49: линия соприкосновения (Украина — ДНР, ЛНР, Крым)
 	if not map_front.is_empty() and not is_world_layer():
 		c.draw_multiline(map_front, Color(1.0, 0.25, 0.15, 0.18), 8.0 / s)
