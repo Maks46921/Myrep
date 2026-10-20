@@ -9,6 +9,10 @@ func bm_sig() -> String:
 	return ""
 
 
+func flag_editor_open(on: bool) -> void:
+	pass
+
+
 func inbox_todo() -> Array:
 	return []
 
@@ -661,6 +665,12 @@ func esc_close() -> bool:
 	if st_ov != null and st_ov.visible:
 		settings_open(false)
 		return true
+	if fe_ov != null and fe_ov.visible:
+		flag_editor_open(false)
+		return true
+	if fl_ov != null and fl_ov.visible:
+		flag_win_open(false)
+		return true
 	if tech_is_open():
 		set_tech_open(false)
 		return true
@@ -679,4 +689,8 @@ func esc_close() -> bool:
 		if w != null and w.visible and w.closable and w.desk != -2 and w.desk != -1:
 			on_win_close(w)
 			return true
-	return false
+	# 0.59: ничего не закрылось, значит Esc открывает меню (настройки, «Новая игра»)
+	if has_node("CountryMenu") or start_ov != null or election_open:
+		return false
+	settings_open(true)
+	return true

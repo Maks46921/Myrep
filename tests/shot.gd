@@ -43,6 +43,12 @@ func _init():
 				"rules": g.rules_open(true)
 				"help": g.help_open("tax")
 				"search": g.srch_open(true)
+				"flag": g.flag_win_open(true)
+				"flagpick":
+					g.flag_win_open(true)
+					g.fl_view = 1
+					g.flag_win_fill()
+				"fedit": g.flag_editor_open(true)
 		if String(a).begins_with("pol="):
 			for kv in String(a).substr(4).split(","):
 				var pr := kv.split(":")

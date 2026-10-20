@@ -81,4 +81,5 @@ scripts/ui/ui_inbox.gd
 scripts/ui/ui_notify.gd
 scripts/ui/ui_nav.gd
 scripts/ui/ui_rules.gd
+scripts/ui/ui_flag.gd
 main.gd

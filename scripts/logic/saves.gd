@@ -3,6 +3,20 @@
 # записанные через var_to_bytes. Агенты населения и интерфейс после загрузки собираются заново.
 extends "res://scripts/logic/log.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func flag_sync() -> void:
+	pass
+
+
+func flag_top_refresh() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 const SV_DIR := "user://saves"
 # v55_3: неизменные данные (все страны, сетка АТЕ, треугольники и хэш карты) в снимок не пишутся: сохранение было 35 МБ и 3,5 с
 const SV_SKIP := ["CDATA", "ATE", "map_ate_tris", "map_hash", "map_seg_cache", "wrap_pass", "law_index_pre", "CU", "PROJECTS", "cs_rng", "ind_rng", "ch_rng", "cu_rng", "sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix", "map_pin_cache", "map_pin_key", "map_lab_pts"]
@@ -92,6 +106,8 @@ func sv_apply(bytes: PackedByteArray) -> bool:
 	ag_ver += 1
 	if ag_on:
 		ag_build()
+	flag_sync()
+	flag_top_refresh()
 	recompute_mods()
 	if hash([regions.size(), WORLD_UNITS.size(), ate_unit]) != geo0:
 		map_rebuild()

@@ -132,6 +132,10 @@ func fed_month() -> void:
 	pass
 
 
+func flag_month() -> void:
+	pass
+
+
 func fleet_day() -> void:
 	pass
 
@@ -590,6 +594,7 @@ func next_turn_core() -> void:
 	log_policy_changes()
 	autopilot_run()
 	rules_month()
+	flag_month()
 	turn += 1
 	month += 1
 	day = 1

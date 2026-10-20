@@ -148,6 +148,10 @@ func es_ui_sync() -> void:
 	pass
 
 
+func flag_win_open(on: bool) -> void:
+	pass
+
+
 func io_bar_h() -> float:
 	return 0.0
 
@@ -213,10 +217,6 @@ func set_meas_open(on: bool) -> void:
 
 
 func set_tech_open(on: bool) -> void:
-	pass
-
-
-func show_country_menu(in_game: bool) -> void:
 	pass
 
 
@@ -586,7 +586,8 @@ func build_ui() -> void:
 	cbtn.theme_type_variation = "SmallButton"
 	cbtn.text = ""
 	cbtn.custom_minimum_size = Vector2(46.0, 38.0)
-	cbtn.tooltip_text = "%s — сменить страну (начнётся новая игра)" % (String(WORLD[ccode]["name"]) if WORLD.has(ccode) else ccode)
+	cbtn.tooltip_text = "%s: государство и флаг" % (String(WORLD[ccode]["name"]) if WORLD.has(ccode) else ccode)
+	flag_sync()
 	top_flag = Flags.make(ccode, 18.0)
 	top_flag.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	top_flag.offset_left = 5.0
@@ -595,7 +596,7 @@ func build_ui() -> void:
 	top_flag.offset_bottom = -6.0
 	cbtn.add_child(top_flag)
 	cbtn.focus_mode = Control.FOCUS_NONE
-	cbtn.pressed.connect(show_country_menu.bind(true))
+	cbtn.pressed.connect(flag_win_open.bind(true))
 	hb.add_child(cbtn)
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 4)
@@ -2470,8 +2471,7 @@ func set_chip_num(key: String, val: float, fmt: Callable, col: Color, delta_text
 func update_chips() -> void:
 	if chips.is_empty():
 		return
-	if top_flag != null and Flags.has(ccode):
-		top_flag.texture = Flags.tex(ccode)
+	flag_top_refresh()
 	var parl_in := parl_term() - (turn - last_parl)
 	var pv: Dictionary = top_prev
 	var ap := approval()

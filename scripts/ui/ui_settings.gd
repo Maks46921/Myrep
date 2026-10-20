@@ -10,6 +10,10 @@ func settings_extra_pages() -> void:
 	pass
 
 
+func show_country_menu(in_game: bool) -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -140,6 +144,15 @@ func build_settings_window() -> void:
 	tl.add_theme_font_size_override("font_size", 22)
 	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hd.add_child(tl)
+	# 0.59: «Новая игра» переехала сюда с флага слева вверху
+	var ng := Button.new()
+	ng.text = "★ Новая игра"
+	ng.tooltip_text = "Выбрать страну и начать новую игру. Текущая партия закроется (сохраните её на вкладке «Сохранения»)."
+	ng.focus_mode = Control.FOCUS_NONE
+	ng.pressed.connect(func() -> void:
+		settings_open(false)
+		show_country_menu(true))
+	hd.add_child(ng)
 	var cl := Button.new()
 	cl.text = "✕ Закрыть"
 	cl.focus_mode = Control.FOCUS_NONE
@@ -213,7 +226,7 @@ func build_settings_window() -> void:
 		reset_layout())
 	p.add_child(rl)
 	var cb := Button.new()
-	cb.text = "Сменить страну (новая игра)"
+	cb.text = "Новая игра (выбрать страну)"
 	cb.focus_mode = Control.FOCUS_NONE
 	cb.pressed.connect(func() -> void:
 		settings_open(false)

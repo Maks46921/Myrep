@@ -26,6 +26,10 @@ func _init():
 	if g.election_open: g.election_continue()
 	if not g.current_event.is_empty(): g.choose(0)
 	g.capital = 100.0
+	if g.opp_mode:
+		print("OK voteplan пропуск: после выборов партия игрока в оппозиции (в оппозиции окно выбора не нужно)")
+		quit(0)
+		return
 	# 1) последствия закона: у действующего варианта разницы с действующим порядком нет
 	for t in g.LAW_TOPICS:
 		var tid: String = t["id"]
