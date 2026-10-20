@@ -80,6 +80,14 @@ func build_meas_overlay() -> void:
 	pass
 
 
+func build_more_menu(tabs: Control) -> void:
+	pass
+
+
+func build_notify_ui() -> void:
+	pass
+
+
 func build_opp_windows() -> void:
 	pass
 
@@ -113,6 +121,10 @@ func build_society_windows() -> void:
 
 
 func build_tech_windows() -> void:
+	pass
+
+
+func build_today_windows() -> void:
 	pass
 
 
@@ -164,7 +176,23 @@ func music_dirs() -> Array:
 	return []
 
 
+func nav_init() -> void:
+	pass
+
+
+func nav_note(_i: int) -> void:
+	pass
+
+
 func on_bud_accept() -> void:
+	pass
+
+
+func on_win_help(w: FloatWindow) -> void:
+	pass
+
+
+func on_win_star(w: FloatWindow) -> void:
 	pass
 
 
@@ -192,6 +220,10 @@ func show_country_menu(in_game: bool) -> void:
 	pass
 
 
+func subbar_hide_absent() -> void:
+	pass
+
+
 func tech_is_open() -> bool:
 	return false
 
@@ -205,6 +237,10 @@ func update_bud_head() -> void:
 
 
 func update_build_window() -> void:
+	pass
+
+
+func update_chips_extra() -> void:
 	pass
 
 
@@ -296,8 +332,24 @@ func update_tech_windows() -> void:
 	pass
 
 
+func update_today() -> void:
+	pass
+
+
+func update_ui_extras() -> void:
+	pass
+
+
 func update_war_windows() -> void:
 	pass
+
+
+func win_menu_extra(pm: PopupMenu) -> void:
+	pass
+
+
+func win_menu_pick(mid: int) -> bool:
+	return false
 
 
 func win_mode_ok(id: String) -> bool:
@@ -315,6 +367,9 @@ func new_window(id: String, title: String, desk: int, fr: Rect2, scrolling: bool
 	w.default_frac = fr
 	w.set_closable(desk != -2)
 	w.close_requested.connect(on_win_close)
+	w.help_requested.connect(on_win_help)
+	w.star_requested.connect(on_win_star)
+	w.set_helpable(desk >= 0)
 	workspace.add_child(w)
 	wins[id] = w
 	return w
@@ -370,11 +425,14 @@ func win_menu_fill() -> void:
 		pm.add_separator()
 		pm.add_item("Открыть все окна раздела", 1000)
 		pm.add_item("Закрыть все окна раздела", 1001)
+	win_menu_extra(pm)
 
 
 func on_win_menu(idx: int) -> void:
 	var pm: PopupMenu = win_menu.get_popup()
 	var mid: int = pm.get_item_id(idx)
+	if win_menu_pick(mid):
+		return
 	if mid >= 1000:
 		for id in wins:
 			var w: FloatWindow = wins[id]
@@ -427,16 +485,17 @@ func reset_layout() -> void:
 		w.apply_frac()
 
 
-# рамка (верхняя кнопка) для вкладки: 0 Бюджет, 1 Экономика, 2 Политика, 3 Карта, 4 Организации, 5 Общество
+# рамка (верхняя кнопка) для вкладки: 0 Бюджет, 1 Экономика, 2 Политика, 3 Мир (карта, регионы, армия и организации), 5 Общество, 6 Сегодня
+# (кнопка 4 «Организации» спрятана: они стали вкладкой рамки «Мир»)
 func desk_tab(i: int) -> int:
 	if i == 0:
 		return 0
 	if i in [5, 7, 10, 16, 17]:
 		return 1
-	if i in [2, 8, 9, 13, 14, 15]:
+	if i in [2, 8, 9, 13, 14, 15, 18]:
 		return 3
-	if i == 18:
-		return 4
+	if i == 21:
+		return 6
 	if i in [11, 19, 20]:
 		return 5
 	return 2
@@ -445,6 +504,7 @@ func desk_tab(i: int) -> int:
 func show_desk(i: int) -> void:
 	if current_desk != i:
 		sfx("click")
+		nav_note(i)
 	current_desk = i
 	if i == 1 or i == 3 or i == 4 or i == 6 or i == 12:
 		politics_page = i
@@ -452,7 +512,7 @@ func show_desk(i: int) -> void:
 		society_page = i
 	if i == 5 or i == 7 or i == 10 or i == 16 or i == 17:
 		econ_page = i
-	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15:
+	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15 or i == 18:
 		map_page = i
 	var k_fade := 0
 	for id in wins:
@@ -499,9 +559,20 @@ func build_ui() -> void:
 	add_child(top)
 	ui_top = top
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE, Control.PRESET_MODE_MINSIZE, 0)
+	# 0.57: верхняя панель в две строки: вверху рамки и кнопки, под ними показатели (на 1920 они раньше обрезались справа)
+	ui_top_h = 64.0 if int(game_opts.get("top_rows", 2)) == 1 else 112.0
+	top.custom_minimum_size = Vector2(0.0, ui_top_h - 6.0)
+	var top_v := VBoxContainer.new()
+	top_v.add_theme_constant_override("separation", 4)
+	top.add_child(top_v)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 6)
-	top.add_child(hb)
+	top_v.add_child(hb)
+	var hb2: HBoxContainer = hb
+	if ui_top_h > 70.0:
+		hb2 = HBoxContainer.new()
+		hb2.add_theme_constant_override("separation", 6)
+		top_v.add_child(hb2)
 	# v50: флаг страны — в левом углу верхней панели (щелчок — смена страны)
 	var cbtn := Button.new()
 	cbtn.theme_type_variation = "SmallButton"
@@ -522,8 +593,8 @@ func build_ui() -> void:
 	tabs.add_theme_constant_override("separation", 4)
 	hb.add_child(tabs)
 	var grp := ButtonGroup.new()
-	var desk_names := ["Бюджет", "Экономика", "Политика", "Карта", "Организации", "Общество"]
-	for i in 6:
+	var desk_names := ["Бюджет", "Экономика", "Политика", "Мир", "Организации", "Общество", "Сегодня"]
+	for i in 7:
 		var b := Button.new()
 		b.theme_type_variation = "TabButton"
 		b.text = desk_names[i]
@@ -532,20 +603,28 @@ func build_ui() -> void:
 		b.custom_minimum_size = Vector2(0.0, 40.0)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(show_tab.bind(i))
-		btn_icon(b, ["coin", "chart", "hall", "pin", "globe", "people"][i])
+		btn_icon(b, ["coin", "chart", "hall", "globe", "globe", "people", "star"][i])
 		tabs.add_child(b)
 		desk_buttons.append(b)
+	# 0.57: «Организации» стали вкладкой рамки «Мир», а «Сегодня» стоит первой
+	(desk_buttons[4] as Button).visible = false
+	tabs.move_child(desk_buttons[6], 0)
 	(desk_buttons[0] as Button).set_pressed_no_signal(true)
 	make_tech_button(tabs)
 	make_crisis_button(tabs)
 	make_meas_button(tabs)
+	build_more_menu(tabs)
 	# v50: показатели в прокрутке без полосы — на узком экране обрезаются справа, а кнопки времени и настроек всегда видны
 	var chip_sc := ScrollContainer.new()
 	chip_sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chip_sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	chip_sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	chip_sc.custom_minimum_size = Vector2(120.0, 0.0)
-	hb.add_child(chip_sc)
+	hb2.add_child(chip_sc)
+	if hb2 != hb:
+		var sp_top := Control.new()
+		sp_top.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hb.add_child(sp_top)
 	var chip_row := HBoxContainer.new()
 	chip_row.add_theme_constant_override("separation", 4)
 	chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -557,6 +636,8 @@ func build_ui() -> void:
 	make_chip(chip_row, "infl", "ИНФЛЯЦИЯ", "Годовая инфляция. Выше 6% — экономика страдает, выше 30% — гиперинфляция.")
 	make_chip(chip_row, "unemp", "БЕЗРАБОТ.", "Доля безработных.")
 	make_chip(chip_row, "debt", "ДОЛГ", "Госдолг в процентах ВВП. Выше 150% — дефолт.")
+	make_chip(chip_row, "res", "РЕЗЕРВЫ", "Валютные и золотые резервы, % ВВП. Ниже 3% валюта уязвима.")
+	make_chip(chip_row, "fxs", "КУРС, 12 М", "Изменение курса вашей валюты за 12 месяцев.")
 	make_chip(chip_row, "cap", "КАПИТАЛ", "Политический капитал: расходуется на законы, действия и переговоры.")
 	make_chip(chip_row, "coal", "КОАЛИЦ.", "Мест у вашей коалиции из %d. Для большинства нужно %d." % [SEATS, MAJORITY])
 	make_chip(chip_row, "elec", "ВЫБОРЫ", "Время до следующих парламентских выборов.")
@@ -605,7 +686,7 @@ func build_ui() -> void:
 	map_base.clip_contents = true
 	add_child(map_base)
 	map_base.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	map_base.offset_top = 64.0
+	map_base.offset_top = ui_top_h
 	map_base.offset_left = 6.0
 	map_base.offset_right = -6.0
 	map_base.offset_bottom = -6.0
@@ -614,7 +695,7 @@ func build_ui() -> void:
 	workspace.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(workspace)
 	workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	workspace.offset_top = 64.0
+	workspace.offset_top = ui_top_h
 	workspace.offset_left = 6.0
 	workspace.offset_right = -6.0
 	workspace.offset_bottom = -6.0
@@ -647,6 +728,9 @@ func build_ui() -> void:
 	build_army_windows()
 	build_auto_window()
 	build_realm_windows()
+	build_today_windows()
+	build_notify_ui()
+	nav_init()
 	build_log_and_event()
 	# 0.56: событие и итоги выборов всплывают поверх «Технологий» и «Кризисов» и не закрывают их
 	modal_layer = Control.new()
@@ -958,6 +1042,11 @@ func set_bar(key: String, v: float) -> void:
 	vl.add_theme_color_override("font_color", scale_color(good))
 
 
+const BUD_GROUPS := [["Расходы: социальная сфера", ["pensions", "benefits", "health", "edu"]],
+	["Расходы: безопасность и государство", ["army", "police", "admin"]],
+	["Расходы: экономика и развитие", ["infra", "eco", "subs", "agri"]]]
+
+
 func build_budget_windows() -> void:
 	# v50: налоги и расходы — одно окно; правки — это план, в силу он вступает кнопкой «Принять бюджет»
 	var w: FloatWindow = new_window("tax", "Налоги и расходы", 0, Rect2(0.0, 0.0, 0.235, 1.0))
@@ -968,6 +1057,17 @@ func build_budget_windows() -> void:
 	hv.add_theme_constant_override("separation", 4)
 	bud_head.add_child(hv)
 	bud_head_rt = make_rt(hv)
+	bud_prev_rt = make_rt(hv)
+	bud_prev_rt.visible = false
+	bud_tbl_btn = CheckButton.new()
+	bud_tbl_btn.text = "Таблица «было → станет»"
+	bud_tbl_btn.tooltip_text = "Показать план таблицей: что стоило, сколько будет и на сколько миллиардов изменится."
+	bud_tbl_btn.focus_mode = Control.FOCUS_NONE
+	bud_tbl_btn.visible = false
+	bud_tbl_btn.toggled.connect(func(_on: bool) -> void: update_bud_head())
+	hv.add_child(bud_tbl_btn)
+	bud_tbl_rt = make_rt(hv)
+	bud_tbl_rt.visible = false
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 6)
 	hv.add_child(hb)
@@ -996,10 +1096,12 @@ func build_budget_windows() -> void:
 			add_slider(w.body, d)
 	emit_note = add_note(w.body, "", true)
 	sync_emit()
-	add_title(w.body, "Расходы")
-	for d in POLICY:
-		if d["kind"] == "spend":
-			add_slider(w.body, d)
+	# 0.57: расходы сгруппированы по сферам
+	for grp in BUD_GROUPS:
+		add_title(w.body, String(grp[0]))
+		for d in POLICY:
+			if d["kind"] == "spend" and (grp[1] as Array).has(d["key"]):
+				add_slider(w.body, d)
 	build_bud_transfer(w.body)
 	bud_eq_box = VBoxContainer.new()
 	w.body.add_child(bud_eq_box)
@@ -1125,6 +1227,9 @@ func update_slider_label(key: String) -> void:
 var viz_rev0_t := 0.0
 var bud_head: PanelContainer = null
 var bud_head_rt: RichTextLabel = null
+var bud_prev_rt: RichTextLabel = null   # 0.57: что будет, если принять план
+var bud_tbl_rt: RichTextLabel = null    # 0.57: таблица «было → станет»
+var bud_tbl_btn: CheckButton = null
 var bud_accept_btn: Button = null
 var bud_cancel_btn: Button = null
 var floor_btns := {}
@@ -1340,6 +1445,8 @@ func refresh() -> void:
 		update_goods_detail()
 	elif current_desk == 18:
 		update_io_windows()
+	elif current_desk == 21:
+		update_today()
 	elif current_desk == 16:
 		update_es_windows()
 		update_goods_detail()
@@ -1373,6 +1480,7 @@ func refresh() -> void:
 	overlays_lock()
 	update_realm_windows()
 	update_win_locks()
+	update_ui_extras()
 	fmt_pass()
 
 
@@ -2013,9 +2121,22 @@ func log_ui_card(g: Dictionary, e: Dictionary) -> void:
 	if k != "month" and k != "year":
 		top += ("  " if top != "" else "") + "[font_size=11][color=%s]%s[/color][/font_size]" % [COL_DIM, String(e.get("d", ""))]
 	rt.text = (top + "\n" if top != "" else "") + txt
+	if int(e.get("n", 1)) > 1:
+		rt.text += "  [color=%s]× %d[/color]" % [COL_DIM, int(e["n"])]
+	rt.set_meta("uid", int(e.get("uid", -1)))
+	rt.set_meta("base", (top + "\n" if top != "" else "") + txt)
 	pc.add_child(rt)
 	body.add_child(pc)
 	g["last"] = rt
+
+
+# запись повторилась: у последней карточки появляется «× N»
+func log_ui_bump(e: Dictionary) -> void:
+	if log_ui_gs.is_empty():
+		return
+	var rt: Variant = (log_ui_gs.back() as Dictionary)["last"]
+	if rt != null and is_instance_valid(rt) and int((rt as RichTextLabel).get_meta("uid", -2)) == int(e.get("uid", -1)):
+		(rt as RichTextLabel).text = String((rt as RichTextLabel).get_meta("base")) + "  [color=%s]× %d[/color]" % [COL_DIM, int(e["n"])]
 
 
 func log_ui_scroll_end(force: bool) -> void:
@@ -2178,6 +2299,7 @@ func update_chips() -> void:
 	var el_d: int = days_until_months(parl_in)
 	set_chip("elec", ("%d дн." % el_d) if el_d < 90 else months_short(parl_in), C_TEXT)
 	(chips["elec"]["value"] as Label).tooltip_text = loc("Выборы в Бундестаг через %s (%d дн.)" % [months_text(parl_in), el_d])
+	update_chips_extra()
 
 
 func draw_budget_viz() -> void:
@@ -2261,7 +2383,7 @@ func show_tab(t: int) -> void:
 		cn_close()
 	if politics_page == 11:
 		politics_page = 1
-	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else (society_page if t == 5 else map_page)))))
+	show_desk(0 if t == 0 else (econ_page if t == 1 else (politics_page if t == 2 else (18 if t == 4 else (21 if t == 6 else (society_page if t == 5 else map_page))))))
 
 
 func update_subbar(i: int) -> void:
@@ -2281,21 +2403,22 @@ func update_subbar(i: int) -> void:
 		var pg2 := [5, 7, 10, 16, 17]
 		for k2 in sub2_buttons.size():
 			(sub2_buttons[k2] as Button).set_pressed_no_signal(i == pg2[k2])
-	var on3: bool = i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15
+	var on3: bool = i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15 or i == 18
 	if subbar3 != null:
 		subbar3.visible = on3
-		var pg3 := [2, 8, 9, 13, 14, 15]
-		for k3 in 6:
+		var pg3 := [2, 8, 9, 13, 14, 15, 18]
+		for k3 in 7:
 			(sub3_buttons[k3] as Button).set_pressed_no_signal(i == pg3[k3])
 	var on4: bool = i == 18
 	if io_bar != null:
 		io_bar.visible = on4
-	workspace.offset_top = 64.0 + (40.0 if (on or on2 or on3 or on5) else 0.0) + (io_bar_h() if on4 else 0.0)
+	workspace.offset_top = ui_top_h + (40.0 if (on or on2 or on3 or on5) else 0.0) + (io_bar_h() if on4 else 0.0)
 	if modal_layer != null:
 		modal_layer.offset_top = workspace.offset_top
 	var pages := [1, 3, 4, 6, 12]
 	for k in 5:
 		(sub_buttons[k] as Button).set_pressed_no_signal(i == pages[k])
+	subbar_hide_absent()
 
 
 func btn_icon(b: Button, kind: String, col: Color = Color(0.78, 0.86, 1.0)) -> void:
@@ -2314,7 +2437,7 @@ func build_subbar() -> void:
 	subbar = HBoxContainer.new()
 	subbar.add_theme_constant_override("separation", 6)
 	add_child(subbar)
-	subbar.position = Vector2(8.0, 64.0)
+	subbar.position = Vector2(8.0, ui_top_h)
 	var names := ["Парламент", "Законы", "Правительство", "Население", "Оппозиция и сделки"]
 	var pages := [1, 3, 4, 6, 12]
 	sub_buttons.clear()
@@ -2333,7 +2456,7 @@ func build_subbar() -> void:
 	subbar2 = HBoxContainer.new()
 	subbar2.add_theme_constant_override("separation", 6)
 	add_child(subbar2)
-	subbar2.position = Vector2(8.0, 64.0)
+	subbar2.position = Vector2(8.0, ui_top_h)
 	sub2_buttons.clear()
 	var n2 := ["Рынки и финансы", "Товары и цены", "Влияние и зависимость", "Управление экономикой", "Корпорации"]
 	var p2 := [5, 7, 10, 16, 17]
@@ -2352,19 +2475,19 @@ func build_subbar() -> void:
 	subbar3 = HBoxContainer.new()
 	subbar3.add_theme_constant_override("separation", 6)
 	add_child(subbar3)
-	subbar3.position = Vector2(8.0, 64.0)
+	subbar3.position = Vector2(8.0, ui_top_h)
 	sub3_buttons.clear()
-	var n3 := ["Карта", "Регионы и автономия", "Территории", "Армия и война", "Флот", "Вооружённые силы"]
-	var p3 := [2, 8, 9, 13, 14, 15]
-	for k in 6:
+	var n3 := ["Карта", "Регионы и автономия", "Территории", "Армия и война", "Флот", "Вооружённые силы", "Организации"]
+	var p3 := [2, 8, 9, 13, 14, 15, 18]
+	for k in 7:
 		var b3 := Button.new()
 		b3.theme_type_variation = "TabButton"
 		b3.text = n3[k]
 		b3.toggle_mode = true
 		b3.focus_mode = Control.FOCUS_NONE
-		b3.custom_minimum_size = Vector2(170.0 if k < 3 else (150.0 if k < 5 else 196.0), 32.0)
+		b3.custom_minimum_size = Vector2(170.0 if k < 3 else (150.0 if k < 5 else (196.0 if k < 6 else 170.0)), 32.0)
 		b3.pressed.connect(show_desk.bind(p3[k]))
-		btn_icon(b3, ["map", "grid", "flag", "shield", "ship", "star"][k])
+		btn_icon(b3, ["map", "grid", "flag", "shield", "ship", "star", "globe"][k])
 		subbar3.add_child(b3)
 		sub3_buttons.append(b3)
 	subbar3.visible = false
@@ -2372,7 +2495,7 @@ func build_subbar() -> void:
 	subbar4 = HBoxContainer.new()
 	subbar4.add_theme_constant_override("separation", 6)
 	add_child(subbar4)
-	subbar4.position = Vector2(8.0, 64.0)
+	subbar4.position = Vector2(8.0, ui_top_h)
 	sub4_buttons.clear()
 	var n4 := ["Религия и миграция", "Церковь и государство", "Культура"]
 	var p4 := [11, 20, 19]
@@ -2467,6 +2590,7 @@ var selfcoup_btn: Button = null
 var ui_bg: ColorRect = null
 var ui_top: PanelContainer = null
 var io_bar: Control = null
+var ui_top_h := 64.0          # 0.57: высота верхней панели (в две строки — больше)
 var selfcoup_note: Label = null
 
 

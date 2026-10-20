@@ -240,6 +240,24 @@ func set_policy(key: String, v: float) -> void:
 		update_slider_label(key)
 
 
+# 0.57.2: доля «религиозных» групп (село, пенсионеры) в регионе и множитель реакции на религиозные законы
+func reg_relig(i: int) -> float:
+	if i < 0 or i >= reg_mix.size():
+		return 0.0
+	var m: Dictionary = reg_mix[i]
+	return float(m.get("Село", 0.0)) + float(m.get("Пенсионеры", 0.0))
+
+
+func reg_rel_k(i: int) -> float:
+	var tot := 0.0
+	for j in reg_mix.size():
+		tot += reg_relig(j)
+	var avg := tot / maxf(1.0, float(reg_mix.size()))
+	if avg <= 0.0001:
+		return 1.0
+	return clampf(1.0 + 1.2 * (avg - reg_relig(i)) / avg, 0.3, 2.0)
+
+
 func apply_reg_delta(i: int, d: Dictionary, invest: bool = false) -> void:
 	if i < 0 or i >= regions.size():
 		return      # регион уже упразднён или продан (событие пришло раньше)
@@ -407,6 +425,8 @@ func describe_fx(fx: Dictionary, rid: int = -1) -> String:
 		parts.append("трансферты региона «%s» %s п.п." % [REGIONS[rid]["name"], sg(fx["reg_transfer"])])
 	if fx.has("regall"):
 		parts.append("все регионы: %s" % describe_reg(fx["regall"]))
+	if fx.has("rgrel"):
+		parts.append("регионы: %s (в светских сильнее, в религиозных слабее)" % describe_reg(fx["rgrel"]))
 	if fx.has("sector"):
 		for sk in fx["sector"]:
 			parts.append("регионы с отраслью «%s»: %s" % [SECTOR_NAMES[sk], describe_reg(fx["sector"][sk])])
@@ -498,6 +518,14 @@ func apply_fx(fx: Dictionary, rid: int = -1) -> String:
 	if fx.has("regall"):
 		for i in regions.size():
 			apply_reg_delta(i, fx["regall"])
+	if fx.has("rgrel"):
+		# 0.57.2: реакция зависит от региона: где больше деревни и пенсионеров, религиозный закон встречают спокойнее
+		for i in regions.size():
+			var kr := reg_rel_k(i)
+			var dr := {}
+			for kk in fx["rgrel"]:
+				dr[kk] = float(fx["rgrel"][kk]) * kr
+			apply_reg_delta(i, dr)
 	if fx.has("sector"):
 		for sk in fx["sector"]:
 			for i in regions.size():
@@ -894,6 +922,7 @@ func effective_reg(i: int, reg: Dictionary) -> Dictionary:
 	return out
 
 
+const DEM_GROWTH_CAP := 0.10   # 0.57.2: максимальный удар по росту от потери демократичности, п.п. в год
 const AGRI_FX := {"Село": 3.5, "Экологи": -0.6, "Бизнес": -0.2}
 
 
@@ -987,6 +1016,7 @@ func init_laws() -> void:
 	law_cd.clear()
 	law_pow.clear()
 	law_pow_sel.clear()
+	rg_drip.clear()
 	for t in LAW_TOPICS:
 		law_index[t["id"]] = t
 		law_state[t["id"]] = law_start_idx(t["id"])
@@ -1048,6 +1078,11 @@ func compute_mods(state: Dictionary, include_cabinet: bool = true, cand_tid: Str
 		var a0: Dictionary = v0.get("a", {})
 		for k in a0:
 			m[k] = float(m.get(k, 0.0)) - float(a0[k])
+	# 0.57.2: прямого влияния формы правления на рост нет: удар по росту считается одной формулой от потери демократичности
+	# (с мёртвой зоной 15 п.п., чтобы барьер или лаицизм не давали «замедления»), не больше -0,10 п.п. в год
+	var dsh: float = float(m.get("dem_shift", 0.0))
+	if dsh < -0.15:
+		m["growth_bonus"] = float(m.get("growth_bonus", 0.0)) + DEM_GROWTH_CAP * clampf((dsh + 0.15) / 0.45, -1.0, 0.0)
 	if include_cabinet and ministers.size() == MINISTRIES.size():
 		for mi in MINISTRIES.size():
 			var mn: Dictionary = ministers[mi]

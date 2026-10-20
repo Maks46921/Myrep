@@ -480,6 +480,8 @@ var law_state := {}
 
 var law_cd := {}
 
+var rg_drip: Array = []   # 0.57.2: региональные сдвиги закона, растянутые на 12 месяцев: {d, n}
+
 var law_index := {}
 
 var sel_topic := "elect_threshold"
@@ -705,6 +707,9 @@ var law_headers: Array = []
 var log_entries: Array = []
 
 var log_filter := 0
+var log_query := ""          # 0.57: поиск по тексту журнала
+var log_big := false          # 0.57: только важное
+var log_uid := 0              # 0.57: номер записи (для склейки повторов)
 
 var log_filter_btns: Array = []
 

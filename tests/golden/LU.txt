@@ -4,4 +4,4 @@ m36 gdp 90.935 debt 32.439 infl 3.2656 unemp 6.0267 appr 52.901 cap 100.00 seats
 m48 gdp 93.354 debt 38.780 infl 3.5630 unemp 5.6973 appr 54.899 cap 100.00 seats [18, 12, 12, 3, 5, 4, 0, 0, 0, 6]
 m60 gdp 95.819 debt 42.816 infl 3.3284 unemp 5.5083 appr 55.437 cap 100.00 seats [18, 12, 12, 3, 5, 4, 0, 0, 0, 6]
 m72 gdp 99.257 debt 46.534 infl 3.0785 unemp 5.0200 appr 55.513 cap 100.00 seats [19, 14, 11, 3, 5, 4, 0, 0, 0, 4]
-shares 0.308 0.233 0.189 0.045 0.075 0.059 0.017 0.006 0.005 0.063  over false turn 72
+shares 0.307 0.233 0.189 0.045 0.075 0.059 0.017 0.006 0.005 0.063  over false turn 72

@@ -476,6 +476,7 @@ func variant_stance(p: int, tid: String, idx: int) -> float:
 
 
 var last_vote := {}    # v51: итог последнего голосования (для окна с анимацией)
+var vote_notes := {}   # 0.57.1: пометки к фракциям в таблице итогов (сделки, давление, обмен голосами)
 
 
 func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
@@ -683,6 +684,12 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	var v := variant_votes(tid, idx, forced)
 	if int(v["yes"]) < law_need(tid):
 		log_line("[color=%s]Закон «%s» не вынесен на голосование: нужно %d голосов, есть %d.[/color]" % [COL_BAD, topic["name"], law_need(tid), v["yes"]])
+		# 0.57.1: окно показывает и этот исход — зал с прогнозом и «ОТКЛОНЁН»
+		last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(v["yes"]), "no": int(v.get("no", 0)), "abst": int(v.get("abst", 0)),
+			"per": v["per"], "passed": false, "sponsor": vote_sponsor, "turn": turn, "bypass": bool(v.get("bypass", false)), "noconv": true,
+			"notes": vote_notes.duplicate(), "next": "Закон не вынесен на голосование: не хватало голосов уже по прогнозу."}
+		vote_notes.clear()
+		vote_show()
 		refresh()
 		return
 	# v51: само голосование — с отступниками и случайными голосами; итог может разойтись с прогнозом
@@ -690,7 +697,9 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	var live := variant_votes(tid, idx, forced)
 	vote_live = false
 	last_vote = {"tid": tid, "idx": idx, "need": law_need(tid), "yes": int(live["yes"]), "no": int(live.get("no", 0)), "abst": int(live.get("abst", 0)),
-		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false))}
+		"per": live["per"], "passed": int(live["yes"]) >= law_need(tid), "sponsor": vote_sponsor, "turn": turn, "bypass": bool(live.get("bypass", false)),
+		"notes": vote_notes.duplicate(), "next": vote_next_text(tid, idx, int(live["yes"]) >= law_need(tid), cost)}
+	vote_notes.clear()
 	if not bool(live.get("bypass", false)) and int(live["yes"]) < law_need(tid):
 		capital -= cost * 0.5
 		log_line("[color=%s]Закон «%s» провален при голосовании: за %d, против %d, воздержались %d — нужно %d. Часть депутатов нарушила дисциплину (политкапитал -%.0f).[/color]" % [COL_BAD, topic["name"], int(live["yes"]), int(live["no"]), int(live["abst"]), law_need(tid), cost * 0.5])
@@ -725,8 +734,7 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		lvl[k] = clampf(float(lvl[k]) + float(std[k]), 0.0, 100.0)
 	var rgd := dict_diff(variant_part(tid, cur, "rg"), variant_part(tid, idx, "rg", true))
 	if not rgd.is_empty():
-		for i in regions.size():
-			apply_reg_delta(i, rgd)
+		rg_drip.append({"d": rgd, "n": 12})
 	var dd: float = float(new_v.get("debt", 0.0)) * (pw_of(tid, true) if idx > 0 else 1.0) - float(old_v.get("debt", 0.0)) * (pw_of(tid) if cur > 0 else 1.0)
 	if absf(dd) > 0.0001:
 		debt += gdp * dd / 100.0
@@ -775,30 +783,183 @@ func mod_item(key: String, old_v: Variant, new_v: Variant) -> Array:
 	return ["%s: %s%s → %s%s" % [info["t"], String.num(float(old_v) * sc, 0), info["u"], String.num(float(new_v) * sc, 0), info["u"]], 0]
 
 
+# Канал, по которому закон влияет на показатель: чтобы игрок видел, откуда берётся эффект.
+func mod_channel(key: String) -> String:
+	if key in ["income_mult", "corp_mult", "vat_mult", "eff_bonus"]:
+		return "через налоги"
+	if key in ["pension_mult", "admin_mult", "extra_spend", "edu_eff", "health_eff", "env_eff", "infra_eff", "zone_eff", "army_q"]:
+		return "через бюджет"
+	if key == "growth_bonus" or key == "unemp_base":
+		return "напрямую"
+	if key in ["sec_bonus", "corr_shift", "equal_shift", "dem_shift", "reg_dev_bonus", "fed_share", "rdebt_shift", "reg_unrest_shift", "auto_shift"]:
+		return "через институты"
+	if key == "mood_shift" or key.begins_with("gb_"):
+		return "через настроение групп"
+	return "правило игры"
+
+
+# Не показываем сдвиги, которые после округления выглядели бы как «0» или «-0».
+func mod_visible(key: String, old_v: Variant, new_v: Variant) -> bool:
+	var info: Dictionary = MOD_INFO[key]
+	var kind: String = info["k"]
+	if kind == "mul":
+		return absf(float(new_v) / float(old_v) - 1.0) * 100.0 >= 0.5
+	if kind == "add":
+		var d: float = absf(float(new_v) - float(old_v)) * float(info.get("sc", 1.0))
+		return d * pow(10.0, float(int(info["dg"]))) >= 0.5
+	return true
+
+
+# что будет дальше — для кнопки «Что будет дальше» в окне итогов (считается до применения закона)
+func vote_next_text(tid: String, idx: int, passed: bool, cost: float) -> String:
+	if not passed:
+		return "Закон не принят. Часть политкапитала (%.0f) потеряна. Внести его заново можно сразу, но состав голосов зависит от дисциплины и сделок." % (cost * 0.5)
+	var t := "[b]Закон вступает в силу сразу.[/b] Изменения по сравнению с прежним порядком:\n"
+	t += items_pros_cons(variant_effect_items(tid, idx))
+	t += "\n[color=%s]Менять его снова можно через %d мес.[/color]" % [COL_DIM, 24 if is_fund(tid) else 12]
+	return t
+
+
+# 0.57.2: разброс оценки зависит от канала: налоги предсказуемее, настроение групп зыбче всего
+const CHAN_WIDTH := {"через налоги": 0.25, "через бюджет": 0.30, "напрямую": 0.40, "через институты": 0.35, "через настроение групп": 0.40}
+const NO_RANGE := ["dem_shift", "capital_bonus", "dip_bonus", "auto_shift"]   # правила игры и индексы: считаются точно
+const CHAN_WHY := {
+	"через налоги": "сбор налогов зависит от того, как отреагируют плательщики",
+	"через бюджет": "отдача расходов зависит от качества управления",
+	"напрямую": "эффект считается по правилу закона, но экономика отвечает не сразу",
+	"через институты": "институты меняются медленно и неравномерно",
+	"через настроение групп": "настроение людей самый зыбкий канал",
+}
+# показатели, у которых есть и постоянная поправка закона (mods), и разовый сдвиг уровня (st): показываем одной строкой с суммой
+const MERGE_STAT := {"sec_bonus": "security_lvl", "corr_shift": "corruption", "equal_shift": "equality"}
+
+
+func range_factor() -> float:
+	# слабые институты (высокая коррупция) расширяют разброс
+	return clampf(0.75 + float(lvl.get("corruption", 40.0)) / 100.0, 0.75, 1.5)
+
+
+func range_part(w: float, dg: int) -> String:
+	if absf(w) * pow(10.0, float(dg)) < 0.5:
+		return ""
+	return " ± %s" % String.num(absf(w), dg)
+
+
+func range_tip(chan: String, extra: String = "") -> String:
+	var t := "Канал: %s. Разброс показывает, насколько оценка неточна: %s." % [chan, CHAN_WHY.get(chan, "эффект зависит от обстоятельств")]
+	if range_factor() > 1.05:
+		t += " Слабые институты в стране (коррупция %d) расширяют его." % int(float(lvl.get("corruption", 40.0)))
+	if extra != "":
+		t += " " + extra
+	return t.replace("[", "(").replace("]", ")")
+
+
+func thr_party_info(thr: float) -> Array:
+	var raw := national_shares(false)
+	var exempt: Array = MACRO.get("thr_exempt", [])
+	var n := 0
+	var wasted := 0.0
+	for p in raw.size():
+		if raw[p] >= thr or (p in exempt and raw[p] > 0.0):
+			n += 1
+		else:
+			wasted += raw[p]
+	return [n, wasted]
+
+
 func variant_effect_items(tid: String, idx: int) -> Array:
 	var cur := cur_idx(tid)
 	var items: Array = []
 	var sd := support_delta(tid, idx)
 	for g in GROUPS:
-		if sd.has(g):
+		if sd.has(g) and absf(float(sd[g])) >= 0.55:
 			items.append(["%s %s" % [g, sg(float(sd[g]), 0)], 1 if float(sd[g]) > 0.0 else -1])
 	var st2: Dictionary = law_state.duplicate()
 	st2[tid] = idx
 	var m2 := compute_mods(st2, true, tid)
-	for key in MOD_INFO:
-		if absf(float(m2[key]) - float(mods[key])) > 0.00001:
-			items.append(mod_item(key, mods[key], m2[key]))
+	# 0.57.1: сравниваем с действующим порядком, а не с живыми mods (там ещё слои технологий, дипломатии и радикалов)
+	var m1 := compute_mods(law_state, true)
 	var std := dict_diff(variant_part(tid, cur, "st"), variant_part(tid, idx, "st", true))
+	var rf := range_factor()
+	var merged_st := {}
+	for key in MOD_INFO:
+		if absf(float(m2[key]) - float(m1[key])) <= 0.00001 or not mod_visible(key, m1[key], m2[key]):
+			continue
+		var info: Dictionary = MOD_INFO[key]
+		var kind: String = info["k"]
+		var chan := mod_channel(key)
+		if (kind != "add" and kind != "mul") or key in NO_RANGE:
+			var mi0 := mod_item(key, m1[key], m2[key])
+			mi0[0] = "%s (%s)" % [mi0[0], chan]
+			mi0.append("Это правило или индекс игры: меняется точно, без разброса.")
+			items.append(mi0)
+			continue
+		var g: int = int(info["g"])
+		var wf: float = float(CHAN_WIDTH.get(chan, 0.5)) * rf
+		if kind == "mul":
+			var pct: float = (float(m2[key]) / float(m1[key]) - 1.0) * 100.0
+			var good: int = 0
+			if g != 0:
+				good = 1 if ((pct > 0.0) == (g > 0)) else -1
+			items.append(["%s %s%%%s (%s)" % [info["t"], sg(pct, 0), range_part(absf(pct) * wf, 0), chan], good, range_tip(chan)])
+			continue
+		var d: float = (float(m2[key]) - float(m1[key])) * float(info.get("sc", 1.0))
+		var dg: int = int(info["dg"])
+		var extra := ""
+		var stk: String = String(MERGE_STAT.get(key, ""))
+		if stk != "" and std.has(stk):
+			merged_st[stk] = true
+			var ds: float = float(std[stk])
+			extra = "Из них: %s постоянная поправка закона, %s разовый сдвиг уровня при принятии." % [sg(d, dg), sg(ds, 0)]
+			d += ds
+		if absf(d) * pow(10.0, float(dg)) < 0.51:
+			continue
+		var good2: int = 0
+		if g != 0:
+			good2 = 1 if ((d > 0.0) == (g > 0)) else -1
+		if key == "growth_bonus" and absf(float(m2["dem_shift"]) - float(m1["dem_shift"])) > 0.01:
+			extra = "Рост считается одной формулой от потери демократичности (не больше -%.2f п.п. в год), а не отдельным числом у каждой формы правления." % DEM_GROWTH_CAP
+		var u: String = String(info["u"])
+		items.append(["%s %s%s%s (%s)" % [info["t"], sg(d, dg), range_part(absf(d) * wf, dg), u, chan], good2, range_tip(chan, extra)])
+	if m2["threshold"] != m1["threshold"]:
+		var a0 := thr_party_info(float(m1["threshold"]))
+		var a1 := thr_party_info(float(m2["threshold"]))
+		items.append(["партий в парламенте по нынешним опросам: %d → %d, потерянных голосов: %d%% → %d%%" % [int(a0[0]), int(a1[0]), int(roundf(float(a0[1]) * 100.0)), int(roundf(float(a1[1]) * 100.0))], 0,
+			"Считается по нынешним опросам, на выборах цифры будут другими. Чем выше барьер, тем больше голосов за малые партии не даёт мест."])
 	for k in std:
-		var good: bool = (float(std[k]) < 0.0) == (k == "corruption")
-		items.append(["%s %s" % [STATE_NAMES[k], sg(float(std[k]), 0)], 1 if good else -1])
+		if merged_st.has(k):
+			continue
+		var good3: bool = (float(std[k]) < 0.0) == (k == "corruption")
+		items.append(["%s %s (через институты)" % [STATE_NAMES[k], sg(float(std[k]), 0)], 1 if good3 else -1, "Разовый сдвиг уровня при принятии закона.".replace("[", "(")])
 	var rgd := dict_diff(variant_part(tid, cur, "rg"), variant_part(tid, idx, "rg", true))
 	for k in rgd:
-		items.append(reg_item(k, float(rgd[k]), "во всех регионах (разово)"))
+		items.append(reg_item(k, float(rgd[k]), "во всех регионах (постепенно, 12 мес.)"))
+	var fxn: Dictionary = variant_of(tid, idx).get("fxnow", {})
+	if idx != cur and fxn.has("rgrel"):
+		for k in fxn["rgrel"]:
+			items.append(["%s в регионах при принятии: %s, сильнее в светских, слабее в религиозных" % [REG_TITLES[k], sg(float(fxn["rgrel"][k]), 0)], -1 if k == "unrest" else 0, "Где больше деревни и пенсионеров, закон встречают спокойнее."])
 	var dd: float = float(variant_of(tid, idx).get("debt", 0.0)) * (pw_of(tid, true) if idx > 0 else 1.0) - float(variant_of(tid, cur).get("debt", 0.0)) * (pw_of(tid) if cur > 0 else 1.0)
 	if absf(dd) > 0.0001:
 		items.append(["долг %s%% ВВП (разово)" % sg(dd), 1 if dd < 0.0 else -1])
 	return items
+
+
+# 0.57.2: региональные сдвиги закона идут по 1/12 в месяц, а не одним скачком
+func rg_drip_step() -> void:
+	if rg_drip.is_empty():
+		return
+	var keep: Array = []
+	for e in rg_drip:
+		var n: int = int(e["n"])
+		var part := {}
+		for k in e["d"]:
+			part[k] = float(e["d"][k]) / 12.0
+		for i in regions.size():
+			apply_reg_delta(i, part)
+		e["n"] = n - 1
+		if n - 1 > 0:
+			keep.append(e)
+	rg_drip = keep
 
 
 func items_pros_cons(items: Array) -> String:
@@ -807,12 +968,15 @@ func items_pros_cons(items: Array) -> String:
 	var neut: PackedStringArray = []
 	for it in items:
 		var k: int = it[1]
+		var tx: String = String(it[0])
+		if it.size() > 2 and String(it[2]) != "":
+			tx = "[hint=%s]%s[/hint]" % [String(it[2]), tx]
 		if k > 0:
-			pros.append(it[0])
+			pros.append(tx)
 		elif k < 0:
-			cons.append(it[0])
+			cons.append(tx)
 		else:
-			neut.append(it[0])
+			neut.append(tx)
 	var t := ""
 	if pros.size() > 0:
 		t += "[color=%s]▲ %s[/color]" % [COL_GOOD, "   ▲ ".join(pros)]

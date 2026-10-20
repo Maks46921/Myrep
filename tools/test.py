@@ -32,6 +32,9 @@ TESTS = {
     'opts':   ('t_opts.gd', [], 150),
     'week':   ('t_week.gd', [], 200),
     'time':   ('t_time.gd', [], 60),
+    'inbox':  ('t_inbox.gd', [], 200),
+    'rules':  ('t_rules.gd', [], 120),
+    'voteplan': ('t_voteplan.gd', [], 150),
     'hybrid': ('t_hybrid.gd', [], 90),
     'opp':    ('t_opp.gd', [], 300),
     'ai':     ('t_ai.gd', [], 600),
@@ -76,7 +79,7 @@ TESTS = {
 }
 BIG6 = ['DE', 'FR', 'GB', 'PL', 'UA', 'RU']
 PROFILES = {
-    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('coal', ['DE', 'PL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('cult', ['DE', 'UA']), ('build2', ['DE', 'FI']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fpai', ['DE', 'PL']), ('world', ['RU', 'BY', 'DE']), ('agents2', ['LU', 'DE']), ('army', ['DE', 'LU', 'FI']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('au2', ['RU', 'BY']), ('startneutral', ['DE', 'FR', 'PL']), ('golden', ['LU', 'FR'])],
+    'quick': [('stubs', ['-']), ('load', ['LU']), ('smoke', ['LU', 'DE']), ('fx2', ALL), ('cov', ['DE', 'LU', 'CH']), ('agents', ['LU']), ('emit', ['DE', 'PL', 'CH']), ('goods', ['DE', 'LU', 'NO']), ('opts', ['DE', 'LU']), ('time', ['DE']), ('inbox', ['DE']), ('rules', ['DE']), ('voteplan', ['DE']), ('hybrid', ['DE', 'GB']), ('opp', ['DE', 'LU']), ('budget', ['DE', 'GB']), ('council', ['DE', 'PL', 'NL']), ('coal', ['DE', 'PL']), ('far', ['DE', 'GB']), ('week', ['DE']), ('fed', ['DE', 'LU']), ('adm', ['DE', 'LU', 'FI']), ('quit', ['DE', 'CH', 'NL']), ('war', ['DE', 'LU', 'FI']), ('warpol', ['DE', 'HU']), ('fleet', ['DE', 'SK']), ('soc', ['DE', 'LU']), ('cult', ['DE', 'UA']), ('build2', ['DE', 'FI']), ('tech', ['DE', 'LU']), ('techbal', ['DE', 'PL']), ('revolt', ['DE', 'ES']), ('realism', ['DE', 'RS']), ('diplo2', ['DE', 'PL']), ('events', ['DE', 'GB']), ('fpai', ['DE', 'PL']), ('world', ['RU', 'BY', 'DE']), ('agents2', ['LU', 'DE']), ('army', ['DE', 'LU', 'FI']), ('fedclick', ['DE']), ('socclick', ['DE']), ('warclick', ['DE', 'IT']), ('map', ['DE', 'LU']), ('width', ['FR', 'CH']), ('menu', ['DE', 'LU']), ('au2', ['RU', 'BY']), ('startneutral', ['DE', 'FR', 'PL']), ('golden', ['LU', 'FR'])],
     # v55_3: перед выпуском версии — большой тест на 6 странах (и ещё раз с --en)
     'big':   [('big_ui', BIG6), ('big_mech', BIG6), ('big_bal', BIG6), ('war', BIG6), ('revolt', BIG6), ('fed', BIG6), ('quit', BIG6), ('cult', BIG6), ('build2', BIG6), ('events', BIG6), ('golden', BIG6)],
     'full':  [('stubs', ['-'])] + [(t, ALL) for t in TESTS if t not in ('load', 'stubs', 'au2', 'sim30') and not t.startswith('big_')] + [('au2', ['RU', 'BY'])],

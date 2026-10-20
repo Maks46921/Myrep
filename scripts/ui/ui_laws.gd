@@ -127,7 +127,7 @@ func build_law_windows() -> void:
 		vb.add_child(btn)
 		law_cards.append({"panel": panel, "bar": bar, "title": title, "badge": badge, "desc": desc, "fx": fx, "vote": vote, "btn": btn})
 
-	w = new_window("law_votes", "Голосование", 3, Rect2(0.48, 0.0, 0.222, 0.28))
+	w = new_window("law_votes", "Голосование", 3, Rect2(0.48, 0.0, 0.222, 0.22))
 	lv_head = make_rt(w.body)
 	lv_bar = StatBar.new()
 	lv_bar.custom_minimum_size = Vector2(40.0, 16.0)

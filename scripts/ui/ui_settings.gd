@@ -3,6 +3,16 @@
 # Здесь же — стартовое окно перед игрой (кто вы, что происходит в стране, первые шаги).
 extends "res://scripts/ui/ui_army.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func settings_extra_pages() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 const UI_THEMES := [
 	{"name": "Ночная синь", "bg": Color(0.051, 0.063, 0.090), "panel": Color(0.090, 0.106, 0.149), "panel2": Color(0.122, 0.141, 0.200), "border": Color(0.169, 0.196, 0.282), "acc": Color(0.357, 0.553, 0.937)},
 	{"name": "Графит", "bg": Color(0.062, 0.064, 0.068), "panel": Color(0.108, 0.112, 0.120), "panel2": Color(0.146, 0.151, 0.162), "border": Color(0.215, 0.225, 0.245), "acc": Color(0.300, 0.720, 0.680)},
@@ -14,7 +24,7 @@ const MUSIC_SETS := ["Эмбиент", "Минимализм", "Всё подр�
 const CLICK_SETS := ["Стандартный щелчок", "Мягкий (дерево)", "Клавиша"]
 const UI_SCALES := [0.9, 1.0, 1.1, 1.25]
 const SETTINGS_PATH := "user://settings.cfg"
-const SETTINGS_KEYS := ["music", "sfx", "theme", "sea", "music_set", "click", "anim", "scale", "tip_size", "tip_delay"]
+const SETTINGS_KEYS := ["music", "sfx", "theme", "sea", "music_set", "click", "anim", "scale", "tip_size", "tip_delay", "nt_law", "nt_crisis", "nt_war", "nt_inbox", "nt_coal", "nt_bill", "nt_partner", "nt_opp", "nt_build", "nt_tech", "nt_treaty", "nt_world", "stop_on", "autoslow", "inbox", "chips_all", "toast_sec", "show_all", "bm", "lay_own", "lay_auto"]
 
 var st_ov: Control = null
 var st_tabs: TabContainer = null
@@ -177,6 +187,7 @@ func build_settings_window() -> void:
 	st_save_box = VBoxContainer.new()
 	st_save_box.add_theme_constant_override("separation", 6)
 	s.add_child(st_save_box)
+	settings_extra_pages()
 	# --- игра ---
 	var p := st_page("Игра")
 	var tb := Button.new()

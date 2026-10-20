@@ -384,7 +384,7 @@ func radical_inject() -> void:
 			{"left": 8, "soc": 3, "green": 3, "popl": 3, "cons": -6, "popr": -3, "region": 1, "euro": 1}, {"rid": "republic"}))
 	gov_new.append(RV("Абсолютная монархия", "Монарх правит указами, парламент распущен или совещателен, суды подчиняются двору. Решения мгновенны, политкапитал не нужен, но страна выпадает из семьи демократий, а власть зависит от верности армии. Переворот: голосование не требуется, нужна поддержка силовиков.", 55.0,
 		{"Силовики": 4.0, "Село": 3.0, "Пенсионеры": 2.0, "Молодёжь": -8.0, "Бюджетники": -3.0, "Рабочие": -3.0, "Экологи": -3.0},
-		{"dem_shift": -0.60, "capital_bonus": 0.55, "mood_shift": -0.5, "corr_shift": 6.0, "dip_bonus": -1.2, "growth_bonus": -0.10, "sec_bonus": 2.0},
+		{"dem_shift": -0.60, "capital_bonus": 0.55, "mood_shift": -0.5, "corr_shift": 6.0, "dip_bonus": -1.2, "sec_bonus": 2.0},
 		{"cons": 2, "popr": 2, "own": 5, "lib": -8, "soc": -10, "left": -10, "green": -9, "popl": -6, "euro": -9, "region": -4, "oth": -3},
 		{"rid": "monarchy_abs", "coup": true, "req": {"force": 55}, "set": {"parl_term": 120}, "st": {"corruption": 4.0, "security_lvl": 2.0},
 		 "fxnow": {"all": -5.0, "regall": {"unrest": 5.0}}, "enact": "regime_shock"}))
@@ -394,25 +394,25 @@ func radical_inject() -> void:
 		{"rid": "superpres", "freeze": ["impeach_rule", "censure_rule"], "set": {"pres_term": 84}}))
 	gov_new.append(RV("Диктатура (режим личной власти)", "Вы становитесь единоличным правителем: выборы превращаются в ритуал, оппозиция запрещена, СМИ и суды под контролем. Закон принимается указом, политкапитал растёт, силовики довольны, но международная изоляция, коррупция и риск восстания реальны. Переворот: голосование не требуется, нужна поддержка силовиков.", 50.0,
 		{"Силовики": 6.0, "Молодёжь": -9.0, "Бюджетники": -2.0, "Рабочие": -2.0, "Экологи": -5.0},
-		{"dem_shift": -0.80, "capital_bonus": 0.60, "mood_shift": -0.6, "corr_shift": 8.0, "sec_bonus": 3.0, "dip_bonus": -1.5, "growth_bonus": -0.05},
+		{"dem_shift": -0.80, "capital_bonus": 0.60, "mood_shift": -0.6, "corr_shift": 8.0, "sec_bonus": 3.0, "dip_bonus": -1.5},
 		{"own": 6, "cons": -3, "popr": -2, "lib": -10, "soc": -10, "left": -10, "green": -10, "popl": -7, "euro": -10, "region": -6, "oth": -4},
 		{"rid": "dictatorship", "coup": true, "req": {"force": 60}, "set": {"parl_term": 120}, "st": {"security_lvl": 5.0, "corruption": 6.0, "equality": -2.0},
 		 "fxnow": {"all": -6.0, "regall": {"unrest": 7.0, "loyalty": -3.0}}, "enact": "regime_shock"}))
 	gov_new.append(RV("Военное правление (хунта)", "Власть переходит к военному совету: конституция приостановлена, комендантский час, армия получает бюджеты и контроль над ведомствами. Порядок и безопасность растут, свободы исчезают. Нужен кризис и сильная опора на силовиков; голосование не требуется.", 50.0,
 		{"Силовики": 8.0, "Молодёжь": -8.0, "Экологи": -4.0, "Бюджетники": -2.0, "Рабочие": -2.0},
-		{"dem_shift": -0.75, "capital_bonus": 0.50, "sec_bonus": 4.0, "growth_bonus": -0.15, "mood_shift": -0.5, "corr_shift": 4.0, "dip_bonus": -1.5, "extra_spend": 0.3},
+		{"dem_shift": -0.75, "capital_bonus": 0.50, "sec_bonus": 4.0, "mood_shift": -0.5, "corr_shift": 4.0, "dip_bonus": -1.5, "extra_spend": 0.3},
 		{"own": 5, "cons": -2, "popr": -1, "lib": -10, "soc": -10, "left": -10, "green": -10, "popl": -7, "euro": -10, "region": -6, "oth": -4},
 		{"rid": "junta", "coup": true, "req": {"force": 65, "unrest": 28}, "set": {"parl_term": 120}, "st": {"security_lvl": 6.0},
 		 "fxnow": {"all": -5.0, "regall": {"unrest": 5.0, "loyalty": -2.0}}, "enact": "regime_shock"}))
 	gov_new.append(RV("Однопартийное государство", "Остаётся одна легальная партия — ваша: остальные запрещены, парламент собирается для одобрения решений. Бюджетники и рабочие получают стабильность и равенство, но политических свобод нет. Нужна опора на силовиков; голосование не требуется.", 50.0,
 		{"Бюджетники": 3.0, "Рабочие": 1.0, "Силовики": 4.0, "Молодёжь": -7.0, "Бизнес": -3.0, "Экологи": -4.0},
-		{"dem_shift": -0.70, "capital_bonus": 0.50, "corr_shift": 5.0, "mood_shift": -0.3, "equal_shift": 1.5, "sec_bonus": 2.5, "dip_bonus": -1.3, "growth_bonus": -0.08},
+		{"dem_shift": -0.70, "capital_bonus": 0.50, "corr_shift": 5.0, "mood_shift": -0.3, "equal_shift": 1.5, "sec_bonus": 2.5, "dip_bonus": -1.3},
 		{"own": 6, "cons": -4, "popr": -3, "lib": -10, "soc": -10, "left": -9, "green": -10, "popl": -6, "euro": -10, "region": -6, "oth": -4},
 		{"rid": "oneparty", "coup": true, "req": {"force": 50}, "set": {"parl_term": 120}, "st": {"security_lvl": 3.0, "corruption": 4.0},
 		 "fxnow": {"all": -5.0, "regall": {"unrest": 5.0}}, "enact": "regime_shock"}))
 	gov_new.append(RV("Прямая демократия", "Важные решения принимают референдумы, граждане могут отменить любой закон. Власть ближе к людям и общество доверяет государству, но правительству трудно вести долгие программы и непопулярные реформы.", 45.0,
 		{"Молодёжь": 4.0, "Рабочие": 2.0, "Село": 2.0, "Бизнес": -3.0, "Силовики": -4.0, "Бюджетники": -1.0},
-		{"dem_shift": 0.15, "capital_bonus": -0.40, "mood_shift": 0.3, "growth_bonus": -0.05, "corr_shift": -3.0, "reg_unrest_shift": -1.0},
+		{"dem_shift": 0.15, "capital_bonus": -0.40, "mood_shift": 0.3, "corr_shift": -3.0, "reg_unrest_shift": -1.0},
 		{"popl": 6, "popr": 6, "prot": 5, "region": 4, "own": -6, "lib": -3, "cons": -4, "soc": -2, "euro": -5, "left": 3, "green": 2},
 		{"rid": "direct_dem"}))
 	if law_index_pre.has("gov_form"):
@@ -471,7 +471,7 @@ func radical_inject() -> void:
 	radical_add_variants("state_structure", [
 		RV("Конфедерация (почти независимые регионы)", "Центр сохраняет армию и внешнюю политику, всё остальное решают регионы. Автономистов успокоить легко, но единства и сборов налогов меньше.", 50.0,
 			{"Силовики": -7.0, "Бюджетники": -3.0, "Село": 2.0},
-			{"auto_shift": 20.0, "growth_bonus": -0.08, "dem_shift": 0.03, "corr_shift": 2.0},
+			{"auto_shift": 20.0, "dem_shift": 0.03, "corr_shift": 2.0},
 			{"region": 10, "own": -5, "cons": -2, "popr": -3, "left": 1},
 			{"rid": "confed", "rg": {"autonomy": 25.0, "unrest": -8.0, "loyalty": -4.0}})])
 	# --- новые темы ---
@@ -505,8 +505,8 @@ func radical_inject() -> void:
 			{"cons": 5, "popr": 5, "own": 1, "lib": -4, "left": -8, "green": -6, "soc": -4, "popl": -2}, {"rid": "church"}),
 		RV("Теократия: религиозное право", "Религиозные нормы становятся законом, духовенство получает право вето на решения власти. Ценности объединяют часть общества, остальные теряют права, а мир отворачивается.", 55.0,
 			{"Пенсионеры": 5.0, "Село": 5.0, "Силовики": 2.0, "Молодёжь": -9.0, "Экологи": -4.0, "Бизнес": -2.0, "Рабочие": -1.0},
-			{"dem_shift": -0.50, "mood_shift": -0.4, "capital_bonus": 0.30, "sec_bonus": 2.0, "dip_bonus": -1.2, "growth_bonus": -0.10, "equal_shift": -1.0},
-			{"popr": 5, "cons": 2, "own": 2, "lib": -10, "left": -10, "green": -10, "soc": -9, "popl": -4, "euro": -9}, {"rid": "theocracy", "fxnow": {"regall": {"unrest": 4.0}}, "enact": "regime_shock"}),
+			{"dem_shift": -0.50, "mood_shift": -0.4, "capital_bonus": 0.30, "sec_bonus": 2.0, "dip_bonus": -1.2, "equal_shift": -1.0},
+			{"popr": 5, "cons": 2, "own": 2, "lib": -10, "left": -10, "green": -10, "soc": -9, "popl": -4, "euro": -9}, {"rid": "theocracy", "fxnow": {"rgrel": {"unrest": 4.0}}, "enact": "regime_shock"}),
 		RV("Строгий лаицизм", "Религиозные символы убираются из общественной жизни. Секулярные группы довольны, верующие чувствуют давление.", 30.0,
 			{"Молодёжь": 2.0, "Экологи": 1.0, "Силовики": 1.0, "Пенсионеры": -2.0, "Село": -2.0}, {"mood_shift": -0.1, "reg_unrest_shift": 0.4, "sec_bonus": 0.5},
 			{"left": 4, "lib": 3, "green": 2, "cons": -3, "popr": 1, "soc": 3}, {"rid": "laicite"})]})

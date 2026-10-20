@@ -52,6 +52,10 @@ func flt_has_sea() -> bool:
 	return false
 
 
+func inbox_route() -> bool:
+	return false
+
+
 func io_member(o: String) -> bool:
 	return false
 
@@ -335,6 +339,22 @@ func ev_title(e: Dictionary, text: String) -> String:
 	return t
 
 
+# Цена в капитале показана только на кнопке, в строке последствий её не повторяем.
+# Некоторые варианты имели цену прямо в тексте «(капитал -4)»: убираем, цена стоит в скобках кнопки.
+func strip_capital_note(t: String) -> String:
+	var re := RegEx.new()
+	re.compile("\\s*\\(капитал [-−+]?\\d+\\)")
+	return re.sub(t, "", true)
+
+
+func fx_no_capital(fx: Dictionary) -> Dictionary:
+	if not fx.has("capital"):
+		return fx
+	var d: Dictionary = fx.duplicate()
+	d.erase("capital")
+	return d
+
+
 # "" — вариант доступен, иначе причина
 func ev_opt_block(opt: Dictionary) -> String:
 	var fx: Dictionary = opt.get("fx", {})
@@ -508,6 +528,8 @@ func present_event() -> void:
 		log_tag("НАБЛЮДАТЕЛЬ", COL_TEAL, "%s — ИИ выбрал: «%s»." % [coal_text(String(current_event["t"])).replace("{r}", String(REGIONS[event_region]["name"]) if event_region >= 0 else ""), coal_text(String(current_event["o"][ai_i]["l"]))])
 		choose(ai_i)
 		return
+	if inbox_route():
+		return
 	sfx("event")
 	var text: String = ev_text(String(current_event["t"]))
 	if event_region >= 0:
@@ -590,7 +612,13 @@ func present_event() -> void:
 		if i < opts.size():
 			var b: Button = event_buttons[i]
 			var o: Dictionary = opts[i]
-			b.text = "%d   %s" % [i + 1, coal_text(ev_text(String(o["l"])))]
+			var ccost: float = -float((o["fx"] as Dictionary).get("capital", 0.0))
+			var csuf := ""
+			if ccost >= 0.5:
+				csuf = "   [цена: %.0f капитала%s]" % [ccost, ", капитал уйдёт в минус" if capital < ccost else ""]
+			elif ccost <= -0.5:
+				csuf = "   [+%.0f капитала]" % -ccost
+			b.text = "%d   %s%s" % [i + 1, coal_text(ev_text(strip_capital_note(String(o["l"])))), csuf]
 			var d := describe_fx(o["fx"], event_region)
 			b.tooltip_text = ("Последствия: " + d) if d != "" else "Без прямых последствий"
 			var blk: String = ev_opt_block(o) if spec == "" else ""
@@ -607,11 +635,11 @@ func present_event() -> void:
 				var lt: Dictionary = o["later"]
 				extra += "\n[color=%s]⏳ Через %d мес.:[/color] %s" % [COL_TEAL, int(lt.get("m", 6)), describe_fx(lt.get("fx", {}), event_region)]
 			if o.has("next"):
-				extra += "\n[color=%s]↪ У этого решения может быть продолжение.[/color]" % COL_DIM
+				extra += "\n[color=%s]↪ Продолжение: у этого решения может быть следующая глава истории.[/color]" % COL_DIM
 			if blk != "":
 				extra += "\n[color=%s]✖ Недоступно: %s[/color]" % [COL_BAD, blk]
 			var stars := ""
-			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", fx_pros_cons(o["fx"], event_region), extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
+			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", fx_pros_cons(fx_no_capital(o["fx"]), event_region), extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
 			var card: PanelContainer = event_boxes[i]
 			var bcol: Color = C_TEAL if i == best else kc.darkened(0.45)
 			var csb := sbox(C_PANEL2.darkened(0.18) if blk == "" else C_PANEL.darkened(0.2), bcol, 2 if i == best else 1, 10, 4.0, 3.0)

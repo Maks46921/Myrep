@@ -76,4 +76,9 @@ scripts/ui/ui_vote.gd
 scripts/ui/ui_regime.gd
 scripts/ui/ui_econsys.gd
 scripts/ui/ui_orgs.gd
+scripts/ui/ui_today.gd
+scripts/ui/ui_inbox.gd
+scripts/ui/ui_notify.gd
+scripts/ui/ui_nav.gd
+scripts/ui/ui_rules.gd
 main.gd

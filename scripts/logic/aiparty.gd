@@ -20,8 +20,24 @@ func gov_style_step() -> void:
 	pass
 
 
+func nt_toast(text: String, cls: String, desk: int) -> void:
+	pass
+
+
 func tip_make(title: String, secs: Array = []) -> String:
 	return ""
+
+
+func vote_plan_live() -> bool:
+	return false
+
+
+func vote_plan_open(bid: int) -> void:
+	pass
+
+
+func vt_plan_busy() -> bool:
+	return false
 
 
 # --- конец заглушек ---
@@ -1144,6 +1160,7 @@ func conc_all_groups_cost(pp: float) -> void:
 func bills_step() -> void:
 	if game_over:
 		return
+	rg_drip_step()
 	for b in bills.duplicate():
 		if turn > int(b["start"]) and randf() < 0.6 and (b["req"] as Array).size() < 4:
 			bill_request_new(b)
@@ -1153,13 +1170,189 @@ func bills_step() -> void:
 			for i in reqs.size():
 				if int(reqs[i]["state"]) == 0:
 					bill_request(int(b["id"]), i, float(reqs[i]["cost"]) <= 4.0 and capital >= float(reqs[i]["cost"]) + 15.0)
+		bill_warn_short(b)
 		if turn >= int(b["due"]):
-			if int(b["sponsor"]) == 0:
-				bill_vote(b)
-			elif bool(b.get("pa", false)):
-				pa_bill_vote(b)
-			else:
-				ai_bill_vote(b)
+			# 0.57.1: в живой игре в день голосования время останавливается и открывается окно выбора стратегии
+			if bill_plan_wanted(b):
+				if not vt_plan_busy():
+					vote_plan_open(int(b["id"]))
+				continue
+			bill_run_vote(b)
+
+
+# за месяц до голосования предупреждаем, если по вашему законопроекту голосов не хватает
+func bill_warn_short(b: Dictionary) -> void:
+	if int(b["sponsor"]) != 0 or int(b["due"]) - turn != 1 or bool(b.get("warned", false)):
+		return
+	var need: int = law_need(String(b["tid"]))
+	var yes: int = int(bill_preview(b)["yes"])
+	if yes >= need:
+		return
+	b["warned"] = true
+	var txt := "Через месяц голосование по закону «%s», а голосов не хватает: за %d из нужных %d. Договоритесь с партиями, внесите поправку или отложите голосование." % [law_index[String(b["tid"])]["name"], yes, need]
+	log_tag("ЗАКОНОПРОЕКТ", COL_WARN, txt)
+	nt_toast(txt, "bill", 3)
+
+
+# законопроекты, которые ждут вашего решения: просьба о поправке, нехватка голосов, чужой законопроект без вашего решения.
+# sev: 3 — просьба, 2 — не хватает голосов, 1 — решите, как голосует фракция
+func bills_attention() -> Array:
+	var out: Array = []
+	for b in bills:
+		var left := maxi(0, int(b["due"]) - turn)
+		var tid: String = String(b["tid"])
+		var why := ""
+		var sev := 0
+		if int(b["sponsor"]) == 0:
+			for r in b["req"]:
+				if int(r["state"]) == 0:
+					why = "просьба о поправке"
+					sev = 3
+					break
+			if why == "":
+				var yes: int = int(bill_preview(b)["yes"])
+				if yes < law_need(tid):
+					why = "не хватает голосов: %d из %d" % [yes, law_need(tid)]
+					sev = 2
+		elif seats[0] > 0 and String(b.get("pv", "line")) == "line" and left <= 2:
+			why = "решите, как голосует ваша фракция"
+			sev = 1
+		if sev > 0:
+			out.append({"id": int(b["id"]), "why": why, "sev": sev, "left": left})
+	out.sort_custom(func(x, y): return int(x["sev"]) > int(y["sev"]) or (int(x["sev"]) == int(y["sev"]) and int(x["left"]) < int(y["left"])))
+	return out
+
+
+# голосование по законопроектам, срок которых пришёл (после закрытия окна — подхватываем остальные)
+func bills_due_step() -> void:
+	if game_over or vt_plan_busy():
+		return
+	for b in bills.duplicate():
+		if turn < int(b["due"]) or bill_index(int(b["id"])) < 0:
+			continue
+		if bill_plan_wanted(b):
+			vote_plan_open(int(b["id"]))
+			return
+		bill_run_vote(b)
+
+
+func bill_run_vote(b: Dictionary) -> void:
+	if int(b["sponsor"]) == 0:
+		bill_vote(b)
+	elif bool(b.get("pa", false)):
+		pa_bill_vote(b)
+	else:
+		ai_bill_vote(b)
+
+
+# нужно ли сначала спросить игрока: только в живой игре; по чужому закону — если во фракции есть места
+func bill_plan_wanted(b: Dictionary) -> bool:
+	if bool(b.get("go", false)) or not vote_plan_live():
+		return false
+	return int(b["sponsor"]) == 0 or seats[0] > 0
+
+
+# цена голосов отдельной партии (политкапитал): чем дальше закон от её взглядов и чем она больше, тем дороже
+func bill_deal_cost(b: Dictionary, p: int) -> float:
+	var s := variant_stance(p, String(b["tid"]), int(b["idx"]))
+	return roundf((2.0 + maxf(0.0, -s) * 0.6) * (0.6 + 2.5 * pa_power(p)))
+
+
+# давить можно на партнёров по коалиции; платят они недовольством, а не вы капиталом
+func bill_press_ok(p: int) -> bool:
+	return p > 0 and not opp_mode and in_coalition[p]
+
+
+func bill_press_cost(b: Dictionary, p: int) -> float:
+	var s := variant_stance(p, String(b["tid"]), int(b["idx"]))
+	return 6.0 + maxf(0.0, -s) * 1.5
+
+
+# партии, которых ещё можно уговорить: против закона и не в списке «за»
+func bill_swing_parties(b: Dictionary) -> Array:
+	var out: Array = []
+	var forced := bill_forced(b)
+	for p in range(1, PARTY_NAMES.size()):
+		if seats[p] <= 0 or p == int(b["sponsor"]) or (p in NO_GOV_SLOTS) or p in forced:
+			continue
+		if variant_stance(p, String(b["tid"]), int(b["idx"])) < 0.0:
+			out.append(p)
+	return out
+
+
+# прогноз голосования при выбранных сделках/давлении/линии фракции (ничего не списывает)
+func bill_plan_preview(b: Dictionary, extra: Array, pv: String = "") -> Dictionary:
+	var b2: Dictionary = b.duplicate()
+	b2["forced"] = bill_forced(b) + extra
+	b2["req"] = []
+	var old_pl := vote_pl
+	vote_pl = pv
+	var v := bill_preview(b2)
+	vote_pl = old_pl
+	return v
+
+
+# применить выбранную стратегию к своему законопроекту: deals — купить голоса за капитал, press — надавить на партнёров
+func bill_plan_apply(bid: int, deals: Array, press: Array) -> bool:
+	var bi := bill_index(bid)
+	if bi < 0:
+		return false
+	var b: Dictionary = bills[bi]
+	var total := 0.0
+	for p in deals:
+		total += bill_deal_cost(b, int(p))
+	if total > 0.0 and cap_spendable() < total:
+		return false
+	capital -= total
+	vote_notes.clear()
+	for p in deals:
+		(b["forced"] as Array).append(int(p))
+		rel_add(0, int(p), 2.0)
+		vote_notes[int(p)] = "голоса куплены: политкапитал −%.0f" % bill_deal_cost(b, int(p))
+	for p in press:
+		var q := int(p)
+		if not bill_press_ok(q) or q in (b["forced"] as Array):
+			continue
+		(b["forced"] as Array).append(q)
+		satis[q] = clampf(float(satis.get(q, 50.0)) - bill_press_cost(b, q), 0.0, 100.0)
+		rel_add(0, q, -5.0)
+		vote_notes[q] = "на партию надавили: довольство −%.0f" % bill_press_cost(b, q)
+	return true
+
+
+# обмен голосами по чужому законопроекту: ваша фракция голосует «за», вам задолжали
+func pa_trade_value(b: Dictionary) -> float:
+	return clampf(roundf(1.0 + 10.0 * pa_power(int(b["sponsor"]))), 1.0, 6.0)
+
+
+func pa_trade(bid: int) -> bool:
+	var bi := bill_index(bid)
+	if bi < 0 or pl_deny("parl"):
+		return false
+	var b: Dictionary = bills[bi]
+	if bool(b.get("traded", false)) or int(b["sponsor"]) == 0:
+		return false
+	b["pv"] = "yes"
+	b["traded"] = true
+	capital += pa_trade_value(b)
+	rel_add(0, int(b["sponsor"]), 6.0)
+	vote_notes[0] = "обмен голосами: политкапитал +%.0f" % pa_trade_value(b)
+	return true
+
+
+# поправка к чужому законопроекту: смягчить или усилить, отношения со внесшей партией портятся
+func pa_amend(bid: int, kind: String) -> bool:
+	var bi := bill_index(bid)
+	if bi < 0 or pl_deny("parl"):
+		return false
+	var b: Dictionary = bills[bi]
+	if int(b["sponsor"]) == 0 or bill_pow_block(b, kind) != "" or cap_spendable() < 3.0:
+		return false
+	capital -= 3.0
+	b["pow"] = snappedf(float(b["pow"]) + (-0.2 if kind == "soft" else 0.2), 0.1)
+	b["amended"] = true
+	rel_add(0, int(b["sponsor"]), -2.0)
+	return true
 
 
 func bill_vote(b: Dictionary) -> void:
@@ -1201,6 +1394,8 @@ func ai_bill_vote(b: Dictionary) -> void:
 	var old := cap_swap(pm)
 	vote_sponsor = pm
 	vote_pl = String(b.get("pv", "line"))
+	if bool(b.get("amended", false)) and is_hybrid(tid):
+		law_pow_sel[tid] = float(b["pow"])
 	var was: int = int(law_cd.get(tid, 0))
 	law_cd[tid] = 0
 	var before := cur_idx(tid)
@@ -1453,6 +1648,8 @@ func pa_bill_vote(b: Dictionary) -> void:
 	capital = maxf(capital, 40.0)
 	vote_sponsor = p
 	vote_pl = String(b.get("pv", "line"))
+	if bool(b.get("amended", false)) and is_hybrid(tid):
+		law_pow_sel[tid] = float(b["pow"])
 	cost_mult = 0.25
 	var was: int = int(law_cd.get(tid, 0))
 	law_cd[tid] = 0
