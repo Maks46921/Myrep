@@ -17,13 +17,13 @@ func _init():
 		g.present_event()
 		for i in 8: await process_frame
 		await create_timer(0.5).timeout
-		root.get_texture().get_image().save_png(OS.get_temp_dir().path_join("s17_%s_reg.png" % g.ccode))
+		root.get_texture().get_image().save_png("user://s17_%s_reg.png" % g.ccode)
 		quit(); return
 	if stage == "hemi":
 		g.show_desk(1)
 		for i in 8: await process_frame
 		await create_timer(0.5).timeout
-		root.get_texture().get_image().save_png(OS.get_temp_dir().path_join("s18_%s_hemi.png" % g.ccode))
+		root.get_texture().get_image().save_png("user://s18_%s_hemi.png" % g.ccode)
 		quit(); return
 	if stage == "pres":
 		g.last_nocon = g.turn + 100
@@ -40,7 +40,7 @@ func _init():
 		print("окно главы: ", g.election_open)
 		await create_timer(4.2).timeout
 		for i in 6: await process_frame
-		root.get_texture().get_image().save_png(OS.get_temp_dir().path_join("s18_%s_pres.png" % g.ccode))
+		root.get_texture().get_image().save_png("user://s18_%s_pres.png" % g.ccode)
 		quit(); return
 	if stage == "camp":
 		g.last_parl = g.turn - (term - 3)
@@ -51,7 +51,7 @@ func _init():
 		for i in 8: await process_frame
 		if shot:
 			await create_timer(0.5).timeout
-			root.get_texture().get_image().save_png(OS.get_temp_dir().path_join("s17_%s_camp.png" % g.ccode))
+			root.get_texture().get_image().save_png("user://s17_%s_camp.png" % g.ccode)
 		g.choose(1)
 		print("кампания выбрана, капитал ", g.capital)
 		quit(); return
@@ -61,7 +61,7 @@ func _init():
 	await create_timer(2.8).timeout
 	for i in 6: await process_frame
 	if shot:
-		root.get_texture().get_image().save_png(OS.get_temp_dir().path_join("s18_%s_elec.png" % g.ccode))
+		root.get_texture().get_image().save_png("user://s18_%s_elec.png" % g.ccode)
 	g.election_continue()
 	print("после: open ", g.election_open, " game_over ", g.game_over, " next_btn disabled ", g.next_btn.disabled)
 	for i in range(3):
