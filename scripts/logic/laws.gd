@@ -85,7 +85,7 @@ func tolerates(p: int) -> bool:
 	return false
 
 
-func vote_show() -> void:
+func vote_show(replay: bool = false) -> void:
 	pass
 
 
@@ -703,6 +703,29 @@ func negotiate_variant(tid: String, idx: int) -> void:
 	propose_variant(tid, idx, sw["parties"])
 
 
+# 0.59: окно голосования для всех видов голосований (бюджет, вотум недоверия, референдум и т.д.)
+# per — строки [партия, позиция, по линии «за»?, за, против, воздержались] в местах
+func vote_other(kind: String, title: String, sub: String, per: Array, need: int, passed: bool, final: String, need_text: String = "", next: String = "") -> void:
+	var yes := 0
+	var no := 0
+	var ab := 0
+	for it in per:
+		yes += int(it[3])
+		no += int(it[4])
+		ab += int(it[5])
+	last_vote = {"tid": "", "other": kind, "title": title, "sub": sub, "per": per, "need": need, "yes": yes, "no": no, "abst": ab, "passed": passed,
+		"final": final, "need_text": need_text, "next": next, "sponsor": 0, "turn": turn, "bypass": false, "notes": {}, "extra": []}
+	vote_show()
+
+
+# всенародное голосование: ya — доля «за», %, need_pct — порог
+func vote_popular(kind: String, title: String, sub: String, yes_pct: float, need_pct: float, passed: bool, final: String, next: String = "") -> void:
+	last_vote = {"tid": "", "other": kind, "title": title, "sub": sub, "per": [], "need": 0, "yes": 0, "no": 0, "abst": 0, "passed": passed, "final": final,
+		"pop": [yes_pct, need_pct, 100.0 - yes_pct], "need_text": "не меньше %.0f%%" % need_pct if need_pct > 50.5 else "больше половины", "next": next,
+		"sponsor": 0, "turn": turn, "bypass": false, "notes": {}, "extra": []}
+	vote_show()
+
+
 func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	if game_over or (idx == cur_idx(tid) and not law_tweak(tid)):
 		return
@@ -751,8 +774,14 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		refresh()
 		return
 	var upc := upper_check(tid, idx, forced)
+	last_vote["extra"] = []
+	if bool(upc["on"]):
+		(last_vote["extra"] as Array).append([upper_text(upc), not bool(upc["block"])])
 	if bool(upc["block"]):
 		log_line("[color=%s]Закон «%s» не прошёл: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
+		last_vote["passed"] = false
+		last_vote["final"] = "ПРИНЯТ ПАРЛАМЕНТОМ, ЗАБЛОКИРОВАН ВЕРХНЕЙ ПАЛАТОЙ" if String(upc.get("kind", "")) != "veto" else "ПРИНЯТ ПАРЛАМЕНТОМ, НО ПРЕЗИДЕНТ НАЛОЖИЛ ВЕТО"
+		vote_show()
 		refresh()
 		return
 	var cch := court_chance(tid, idx)
@@ -761,6 +790,9 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 			capital -= cost * 0.4
 		law_cd[tid] = 6
 		log_line("[color=%s][b]Суд остановил закон «%s»:[/b] конституционный контроль признал его несовместимым с основным законом (независимость судов %.0f). Политкапитал -%.0f; вернуться к вопросу можно через полгода.[/color]" % [COL_BAD, topic["name"], rl_jud(), cost * 0.4])
+		(last_vote["extra"] as Array).append(["Конституционный суд признал закон несовместимым с основным законом", false])
+		last_vote["passed"] = false
+		last_vote["final"] = "ПРИНЯТ ПАРЛАМЕНТОМ, ОСТАНОВЛЕН СУДОМ"
 		vote_show()
 		refresh()
 		return
@@ -776,10 +808,14 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 			capital -= cost * 0.6
 			law_cd[tid] = 12
 			log_line("[color=%s][b]Референдум отклонил поправку «%s»:[/b] за %.0f%% голосов, нужно больше половины. Политкапитал -%.0f; повторить можно через год.[/color]" % [COL_BAD, topic["name"], yes_sh * 100.0, cost * 0.6])
+			(last_vote["extra"] as Array).append(["Референдум: за %.0f%% голосов, нужно больше половины" % (yes_sh * 100.0), false])
+			last_vote["passed"] = false
+			last_vote["final"] = "ПРИНЯТ ПАРЛАМЕНТОМ, ОТКЛОНЁН НА РЕФЕРЕНДУМЕ"
 			vote_show()
 			refresh()
 			return
 		log_line("[color=%s]Референдум одобрил поправку «%s»: за %.0f%% голосов.[/color]" % [COL_GOOD, topic["name"], yes_sh * 100.0])
+		(last_vote["extra"] as Array).append(["Референдум одобрил поправку: за %.0f%% голосов" % (yes_sh * 100.0), true])
 	cost += float(upc["extra"])
 	if cap_spendable() < cost:
 		log_line("[color=%s]Для закона «%s» не хватает капитала: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])

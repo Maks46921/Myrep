@@ -706,6 +706,7 @@ var law_pow_lbl: Label
 var law_headers: Array = []
 
 var log_entries: Array = []
+var vote_hist: Array = []         # 0.59: последние голосования для «Показать снова» из журнала
 
 var log_filter := 0
 var log_query := ""          # 0.57: поиск по тексту журнала

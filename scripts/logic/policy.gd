@@ -40,6 +40,10 @@ func bud_draft_on() -> bool:
 	return false
 
 
+func bud_vote_show(cv: Dictionary, parts: PackedStringArray) -> void:
+	pass
+
+
 func church_fx(d: Dictionary) -> void:
 	pass
 
@@ -1466,6 +1470,7 @@ func bud_apply(forced: bool) -> void:
 		parts.append(bud_change_text(c))
 	if forced and bud_needs_council():
 		var cv := bud_council()
+		bud_vote_show(cv, parts)
 		for q in cv["views"]:
 			if not bool(cv["views"][q]["ok"]):
 				satis[q] = clampf(float(satis.get(q, 50.0)) - 6.0, 0.0, 100.0)

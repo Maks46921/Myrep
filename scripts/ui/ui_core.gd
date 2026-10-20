@@ -344,6 +344,14 @@ func update_war_windows() -> void:
 	pass
 
 
+func vote_hist_menu(anchor: Control) -> void:
+	pass
+
+
+func vote_reopen(i: int) -> void:
+	pass
+
+
 func win_menu_extra(pm: PopupMenu) -> void:
 	pass
 
@@ -1165,6 +1173,13 @@ func build_log_and_event() -> void:
 	log_toggle.tooltip_text = "Добавлять в ежемесячный отчёт доходы и расходы по каждой статье"
 	log_toggle.toggled.connect(on_log_detail)
 	hb.add_child(log_toggle)
+	var vh := Button.new()
+	vh.theme_type_variation = "SmallButton"
+	vh.text = "Голосования ▾"
+	vh.focus_mode = Control.FOCUS_NONE
+	vh.tooltip_text = "Итоги прошлых голосований: выберите и посмотрите снова."
+	vh.pressed.connect(func() -> void: vote_hist_menu(vh))
+	hb.add_child(vh)
 	var clr := Button.new()
 	clr.theme_type_variation = "SmallButton"
 	clr.text = "Очистить"
@@ -2061,10 +2076,178 @@ func log_ui_add(e: Dictionary) -> void:
 	log_ui_scroll_end(false)
 
 
+# 0.59 (п.10): запись журнала — короткая строка «суть + цифра»; подробности (полный текст, кнопки) открываются под строкой
+const LOG_ACT := {"ЗАКОН": ["Открыть законы", 3], "ЗАКОНОПРОЕКТ": ["Открыть законопроекты", -3], "БЮДЖЕТ": ["Открыть бюджет", 0], "КОАЛИЦИЯ": ["Открыть коалицию", 4],
+	"ПЕРЕГОВОРЫ": ["Открыть коалицию", 4], "ОППОЗИЦИЯ": ["Открыть оппозицию", 12], "КРИЗИС": ["Открыть кризисы", -99], "МИНИСТР": ["Открыть кабинет", 4],
+	"ТЕХНОЛОГИИ": ["Открыть технологии", -98], "НАУКА": ["Открыть технологии", -98]}
+
+
+func log_plain(t: String) -> String:
+	var rx := RegEx.new()
+	rx.compile("\\[[^\\]]*\\]")
+	return rx.sub(t, "", true).strip_edges()
+
+
+func log_headline(t: String) -> String:
+	var p := log_plain(t)
+	var cut := p.length()
+	for sep in [". ", ": ", "; ", " — "]:
+		var k := p.find(sep, 12)
+		if k > 0:
+			cut = mini(cut, k)
+	p = p.substr(0, cut)
+	var ws := p.split(" ", false)
+	if ws.size() > 8:
+		return " ".join(ws.slice(0, 8)) + "…"
+	return p
+
+
+func log_main_num(t: String) -> String:
+	var rx := RegEx.new()
+	rx.compile("([+\\-−]?\\d[\\d  .,]*\\s?(?:%|млрд|млн|мест[а-я]*|голос[а-я]*|п\\.п\\.|мес\\.))")
+	var m := rx.search(log_plain(t))
+	return m.get_string(1).strip_edges() if m != null else ""
+
+
+func log_who(t: String) -> String:
+	for p in PARTY_NAMES.size():
+		if String(PARTY_NAMES[p]) != "" and t.contains(String(PARTY_NAMES[p])):
+			return "[color=#%s]■[/color] %s" % [(PARTY_COLORS[p] as Color).lightened(0.2).to_html(false), party_abbr(p)]
+	return ""
+
+
+func log_do_act(code: int) -> void:
+	if code == -3:
+		goto_win("bills")
+	elif code == -99:
+		set_crisis_open(true)
+	elif code == -98:
+		set_tech_open(true)
+	else:
+		show_desk(code)
+
+
+func log_ui_line_card(g: Dictionary, e: Dictionary) -> void:
+	var body := g["body"] as VBoxContainer
+	var big := log_is_big(e)
+	var cat: String = String(e.get("cat", "ev"))
+	var col := Color(String(LOG_CAT_COL.get(cat, "#8a93aa")))
+	var label: String = String(LOG_CAT_NAME.get(cat, ""))
+	var tag := ""
+	if e.has("tag"):
+		col = Color(String(e["col"]))
+		tag = String(e["tag"])
+		label = tag
+	var full: String = String(e["t"])
+	var pc := PanelContainer.new()
+	var sb := sbox(C_PANEL2.lerp(col, 0.16 if big else 0.0), col if big else col.darkened(0.15), 1 if big else 0, 6, 10.0, 5.0)
+	sb.border_width_left = 4 if big else 3
+	sb.content_margin_left = 12.0
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.mouse_filter = Control.MOUSE_FILTER_STOP
+	pc.tooltip_text = "Нажмите, чтобы раскрыть подробности"
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 3)
+	pc.add_child(vb)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	vb.add_child(top)
+	var who := log_who(full)
+	var trt := RichTextLabel.new()
+	trt.bbcode_enabled = true
+	trt.fit_content = true
+	trt.scroll_active = false
+	trt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	trt.text = "[font_size=11][b][color=#%s]%s[/color][/b]  [color=%s]%s[/color]%s[/font_size]" % [col.lightened(0.15).to_html(false), label, COL_DIM, String(e.get("d", "")), ("  " + who) if who != "" else ""]
+	top.add_child(trt)
+	var num := log_main_num(full)
+	var nl := Label.new()
+	nl.text = num
+	nl.add_theme_font_size_override("font_size", 14)
+	nl.add_theme_color_override("font_color", col.lightened(0.3))
+	nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(nl)
+	var hrt := RichTextLabel.new()
+	hrt.bbcode_enabled = true
+	hrt.fit_content = true
+	hrt.scroll_active = false
+	hrt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hrt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hrt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hrt.add_theme_font_size_override("normal_font_size", 15 if big else 14)
+	hrt.add_theme_font_size_override("bold_font_size", 15 if big else 14)
+	var base := ("[b]★ %s[/b]" if big else "%s") % log_headline(full)
+	hrt.text = base
+	hrt.set_meta("uid", int(e.get("uid", -1)))
+	hrt.set_meta("base", base)
+	vb.add_child(hrt)
+	var det := VBoxContainer.new()
+	det.add_theme_constant_override("separation", 4)
+	det.visible = false
+	vb.add_child(det)
+	var drt := RichTextLabel.new()
+	drt.bbcode_enabled = true
+	drt.fit_content = true
+	drt.scroll_active = false
+	drt.selection_enabled = true
+	drt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	drt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drt.add_theme_font_size_override("normal_font_size", 13)
+	drt.add_theme_font_size_override("bold_font_size", 13)
+	drt.text = tip_color_nums(full)
+	det.add_child(drt)
+	var btns := HFlowContainer.new()
+	btns.add_theme_constant_override("h_separation", 6)
+	det.add_child(btns)
+	if LOG_ACT.has(tag):
+		var ab := Button.new()
+		ab.theme_type_variation = "SmallButton"
+		ab.focus_mode = Control.FOCUS_NONE
+		ab.text = String(LOG_ACT[tag][0])
+		var code: int = int(LOG_ACT[tag][1])
+		ab.pressed.connect(func() -> void: log_do_act(code))
+		btns.add_child(ab)
+	var vi := log_vote_of(e)
+	if vi >= 0:
+		var vbn := Button.new()
+		vbn.theme_type_variation = "SmallButton"
+		vbn.focus_mode = Control.FOCUS_NONE
+		vbn.text = "Показать голосование"
+		vbn.pressed.connect(func() -> void: vote_reopen(vi))
+		btns.add_child(vbn)
+	btns.visible = btns.get_child_count() > 0
+	pc.gui_input.connect(func(ev: InputEvent) -> void:
+		var mb := ev as InputEventMouseButton
+		if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			det.visible = not det.visible
+			pc.tooltip_text = "Нажмите, чтобы свернуть" if det.visible else "Нажмите, чтобы раскрыть подробности")
+	body.add_child(pc)
+	g["last"] = drt
+	g["last_head"] = hrt
+
+
+# какое голосование относится к записи журнала (-1 — никакое)
+func log_vote_of(e: Dictionary) -> int:
+	var u: int = int(e.get("uid", -1))
+	var low: String = String(e.get("t", "")).to_lower()
+	var tag: String = String(e.get("tag", ""))
+	if not (tag in ["ЗАКОН", "БЮДЖЕТ", "ЗАКОНОПРОЕКТ"] or low.contains("недовер") or low.contains("референдум") or low.contains("голосовани")):
+		return -1
+	for i in range(vote_hist.size() - 1, -1, -1):
+		var d: int = u - int((vote_hist[i] as Dictionary).get("uid0", -9))
+		if d == 0 or d == 1:
+			return i
+	return -1
+
+
 func log_ui_card(g: Dictionary, e: Dictionary) -> void:
 	var k: String = String(e["k"])
 	var body := g["body"] as VBoxContainer
 	var last: Variant = g["last"]
+	if k == "line" and not bool(game_opts.get("log_old", false)):
+		log_ui_line_card(g, e)
+		return
 	if k == "note":
 		if last != null and is_instance_valid(last):
 			(last as RichTextLabel).append_text("\n[font_size=13][color=%s]%s[/color][/font_size]" % [COL_DIM, tip_color_nums(String(e["t"]))])
@@ -2134,7 +2317,10 @@ func log_ui_card(g: Dictionary, e: Dictionary) -> void:
 func log_ui_bump(e: Dictionary) -> void:
 	if log_ui_gs.is_empty():
 		return
-	var rt: Variant = (log_ui_gs.back() as Dictionary)["last"]
+	var gl: Dictionary = log_ui_gs.back()
+	var rt: Variant = gl.get("last_head", null)
+	if rt == null or not is_instance_valid(rt):
+		rt = gl["last"]
 	if rt != null and is_instance_valid(rt) and int((rt as RichTextLabel).get_meta("uid", -2)) == int(e.get("uid", -1)):
 		(rt as RichTextLabel).text = String((rt as RichTextLabel).get_meta("base")) + "  [color=%s]× %d[/color]" % [COL_DIM, int(e["n"])]
 

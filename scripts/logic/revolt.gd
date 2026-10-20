@@ -536,6 +536,8 @@ func rv_agreed_referendum(i: int) -> void:
 	var rg: Dictionary = rv_reg(i)
 	var y: float = clampf(float(rg["sep"]) * 0.0085 + float(rg["hate"]) * 0.002 + randf_range(-0.07, 0.07), 0.05, 0.95)
 	rg["refcd"] = 60
+	vote_popular("referendum", "Референдум о независимости: «%s»" % String(REGIONS[i]["short"]), "Согласованный референдум, порог 55%", y * 100.0, 55.0, y < 0.55,
+		"ПОРОГ ВЗЯТ: НАЧИНАЕТСЯ МИРНЫЙ РАЗВОД" if y >= 0.55 else "ПОРОГ НЕ ВЗЯТ", "Мирный раздел долга." if y >= 0.55 else "Вопрос закрыт, сепаратизм и обида упали.")
 	if y >= 0.55:
 		rv_log("[b]согласованный референдум в регионе «%s»: «за» %.0f%%[/b] — выше порога, начинается мирный развод." % [String(REGIONS[i]["short"]), y * 100.0], COL_BAD)
 		rv_secede(i, "peace")
@@ -564,6 +566,8 @@ func rv_referendum(i: int, by_demand: bool) -> void:
 	var y := rv_yes_share(i)
 	rg["ref"] = int(rg["ref"]) + 1
 	rg["refcd"] = 36
+	vote_popular("referendum", "Референдум о независимости: «%s»" % nm, "Регион голосует по вопросу отделения", y * 100.0, 50.0, y <= 0.5,
+		"БОЛЬШИНСТВО ЗА НЕЗАВИСИМОСТЬ" if y > 0.5 else "ЗА НЕЗАВИСИМОСТЬ НЕ ГОЛОСУЮТ", "Придётся договариваться о разводе или воевать." if y > 0.5 else "Вопрос закрыт на несколько лет.")
 	if y > 0.5:
 		rv_log("[b]референдум в регионе «%s»: за независимость %.0f%%[/b]." % [nm, y * 100.0], COL_BAD)
 		rv_event_ref_yes(i, y)

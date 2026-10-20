@@ -571,6 +571,35 @@ func show_no_confidence() -> void:
 	present_event()
 
 
+# 0.59: окно голосования для вотума недоверия: «за» — за недоверие
+func nocon_show(against: int, need: int, rebels: PackedStringArray) -> void:
+	var per: Array = []
+	for p in PARTY_NAMES.size():
+		if seats[p] <= 0:
+			continue
+		var yes := 0
+		var no := 0
+		var ab := 0
+		var line_yes := false     # линия партии: у оппозиции «за» недоверие, у коалиции «против»
+		if p == 0:
+			no = seats[p]
+		elif not in_coalition[p]:
+			line_yes = true
+			if tolerates(p):
+				ab = seats[p]
+				line_yes = false
+			else:
+				yes = seats[p]
+		elif PARTY_NAMES[p] in rebels:
+			yes = seats[p]
+		else:
+			no = seats[p]
+		per.append([p, 0.0, line_yes, yes, no, ab])
+	var ok: bool = against >= need
+	vote_other("nocon", "Вотум недоверия правительству", "Голосование: против правительства %d, нужно %d из %d" % [against, need, SEATS], per, need, ok,
+		"ВЫРАЖЕНО НЕДОВЕРИЕ" if ok else "ПРАВИТЕЛЬСТВО ВЫДЕРЖАЛО ВОТУМ", "", "Недоверие означает отставку и досрочные выборы." if ok else "Правительство остаётся.")
+
+
 func resolve_no_confidence() -> void:
 	var against := 0
 	var rebels: PackedStringArray = []
@@ -586,6 +615,7 @@ func resolve_no_confidence() -> void:
 	if rebels.size() > 0:
 		txt += " К оппозиции присоединились: %s." % ", ".join(rebels)
 	log_line("[b]%s[/b]" % txt)
+	nocon_show(against, need, rebels)
 	if against >= need and noc_constr:
 		# 0.58: конструктивный вотум: недоверие действует, только если оппозиция сразу выбрала нового главу правительства;
 		# тогда выборов нет, правительство меняется (Германия, Испания, Венгрия, Польша, Словения, Бельгия, Албания)

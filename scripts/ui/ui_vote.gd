@@ -37,7 +37,13 @@ var vt_deals: Array = []
 var vt_press: Array = []
 var vt_pv := "line"
 
-const VT_ANIM := 2.0
+const VT_ANIM := 3.0          # 0.59: анимация голосования длится 3 с (меняется в настройках)
+
+
+func vt_anim_sec() -> float:
+	if bool(game_opts.get("vote_instant", false)):
+		return 0.05
+	return clampf(float(game_opts.get("vote_sec", VT_ANIM)), 1.0, 10.0)
 
 
 # живая игра: спрашиваем игрока перед голосованием. В тестах и симуляциях — по-старому, без окна.
@@ -53,13 +59,18 @@ func vt_plan_busy() -> bool:
 	return vt_stage == 1 and vt_ov != null and vt_ov.visible
 
 
-func vote_show() -> void:
+func vote_show(replay: bool = false) -> void:
 	if last_vote.is_empty() or bool(last_vote.get("bypass", false)) or observer:
 		return
 	if DisplayServer.get_name() == "headless" or OS.get_cmdline_args().has("--script") or OS.get_cmdline_args().has("-s"):
 		if not OS.get_cmdline_user_args().has("vote=1") and not bool(game_opts.get("voteplan", false)):
 			return
 	vt_data = last_vote.duplicate(true)
+	if not replay:
+		vt_data["uid0"] = log_uid
+		vote_hist.append(vt_data.duplicate(true))
+		while vote_hist.size() > 24:
+			vote_hist.pop_front()
 	if vt_ov == null:
 		vote_build()
 	vt_stage = 2
@@ -67,23 +78,65 @@ func vote_show() -> void:
 	vt_res_box.visible = true
 	vt_next.visible = false
 	vt_next_btn.visible = false
-	vote_layout_seats()
-	var tid: String = String(vt_data["tid"])
-	var tp: Dictionary = law_index.get(tid, {})
-	vt_title.text = "Голосование: «%s»" % String(tp.get("name", "закон"))
-	var sp: int = int(vt_data.get("sponsor", 0))
-	vt_sub.text = "Вариант: %s · вносит: %s · нужно %d голосов из %d" % [String(variant_of(tid, int(vt_data["idx"]))["n"]), "ваша партия" if sp == 0 else String(PARTY_NAMES[sp]), int(vt_data["need"]), SEATS]
+	var pop: bool = vt_data.has("pop")
+	vt_hall.visible = not pop
+	vt_legend.visible = not pop
+	if not pop:
+		vote_layout_seats()
+	if String(vt_data.get("title", "")) != "":
+		vt_title.text = String(vt_data["title"])
+		vt_sub.text = String(vt_data.get("sub", ""))
+	else:
+		var tid: String = String(vt_data["tid"])
+		var tp: Dictionary = law_index.get(tid, {})
+		vt_title.text = "Голосование: «%s»" % String(tp.get("name", "закон"))
+		var sp: int = int(vt_data.get("sponsor", 0))
+		vt_sub.text = "Вариант: %s · вносит: %s · нужно %d голосов из %d" % [String(variant_of(tid, int(vt_data["idx"]))["n"]), "ваша партия" if sp == 0 else String(PARTY_NAMES[sp]), int(vt_data["need"]), SEATS]
 	vt_table.text = ""
 	vt_btn.text = "Пропустить ▶▶"
 	vt_ov.visible = true
+	vt_ov.move_to_front()
 	win_fade_in(vt_ov, 0.2)
 	vt_t = 0.0
 	if vt_tw != null:
 		vt_tw.kill()
 	vt_tw = create_tween()
-	vt_tw.tween_method(vote_step, 0.0, 1.0, VT_ANIM)
+	vt_tw.tween_method(vote_step, 0.0, 1.0, vt_anim_sec())
 	vt_tw.tween_callback(vote_done)
 	set_speed(0)
+
+
+# 0.59: «Показать снова» — итоги прошлых голосований из журнала (без анимации)
+func vote_reopen(i: int) -> void:
+	if i < 0 or i >= vote_hist.size():
+		return
+	var keep: Dictionary = last_vote
+	last_vote = (vote_hist[i] as Dictionary).duplicate(true)
+	vote_show(true)
+	if vt_tw != null:
+		vt_tw.kill()
+	vote_step(1.0)
+	vote_done()
+	last_vote = keep
+
+
+func vote_hist_menu(anchor: Control) -> void:
+	var pm := PopupMenu.new()
+	add_child(pm)
+	if vote_hist.is_empty():
+		pm.add_item("Голосований пока не было")
+		pm.set_item_disabled(0, true)
+	for k in range(vote_hist.size() - 1, -1, -1):
+		var v: Dictionary = vote_hist[k]
+		var ttl: String = String(v.get("title", ""))
+		if ttl == "":
+			ttl = "«%s»" % String(law_index.get(String(v.get("tid", "")), {}).get("name", "закон"))
+		pm.add_item("%s: %s" % [turn_date(int(v.get("turn", turn))), ttl.left(60)], k)
+	pm.id_pressed.connect(func(i: int) -> void: vote_reopen(i))
+	pm.popup_hide.connect(pm.queue_free)
+	var r := anchor.get_global_rect()
+	pm.position = Vector2i(r.position + Vector2(0.0, r.size.y)) + Vector2i(get_window().position)
+	pm.popup()
 
 
 func vote_build() -> void:
@@ -501,7 +554,7 @@ func vote_plan_go() -> void:
 # места полукругом: ряды от внутреннего к внешнему, фракции — секторами слева направо
 func vote_layout_seats() -> void:
 	vt_seats.clear()
-	if vt_hall == null or vt_data.is_empty():
+	if vt_hall == null or vt_data.is_empty() or vt_legend == null or vt_data.has("pop"):
 		return
 	var w: float = maxf(200.0, vt_hall.size.x)
 	var h: float = maxf(120.0, vt_hall.size.y)
@@ -578,6 +631,11 @@ func vote_legend_text(order: Array, per: Dictionary) -> String:
 
 func vote_step(t: float) -> void:
 	vt_t = t
+	if vt_data.has("pop"):
+		var yp: float = float((vt_data["pop"] as Array)[0]) * t
+		var np: float = float((vt_data["pop"] as Array)[2]) * t if (vt_data["pop"] as Array).size() > 2 else (100.0 * t - yp)
+		vt_board.text = "[center][font_size=26][color=%s]ЗА %.1f%%[/color]   [color=%s]ПРОТИВ %.1f%%[/color][/font_size]\n[font_size=13][color=%s]нужно %s[/color][/font_size][/center]" % [COL_GOOD, yp, COL_BAD, np, COL_DIM, String(vt_data.get("need_text", "больше половины"))]
+		return
 	var y := 0
 	var n := 0
 	var a := 0
@@ -640,7 +698,18 @@ func vote_done() -> void:
 	var ok: bool = bool(vt_data.get("passed", false))
 	sfx("good" if ok else "bad")
 	var notes: Dictionary = vt_data.get("notes", {})
-	var t := "[center][font_size=26][b][color=%s]%s[/color][/b][/font_size][/center]\n" % [COL_GOOD if ok else COL_BAD, "ЗАКОН ПРИНЯТ" if ok else "ЗАКОН ОТКЛОНЁН"]
+	var fin: String = String(vt_data.get("final", ""))
+	if fin == "":
+		fin = "ЗАКОН ПРИНЯТ" if ok else "ЗАКОН ОТКЛОНЁН"
+	var t := "[center][font_size=26][b][color=%s]%s[/color][/b][/font_size][/center]\n" % [COL_GOOD if ok else COL_BAD, fin]
+	for ex in (vt_data.get("extra", []) as Array):
+		t += "[center][color=%s]%s[/color][/center]\n" % [COL_GOOD if bool((ex as Array)[1]) else COL_BAD, String((ex as Array)[0])]
+	if vt_data.has("pop"):
+		vt_table.text = t
+		vt_btn.text = "Продолжить"
+		vt_next_btn.visible = String(vt_data.get("next", "")) != ""
+		vt_next.visible = false
+		return
 	t += "[table=7][cell][b]Фракция[/b]   [/cell][cell][b]позиция[/b]  [/cell][cell][b]за[/b]  [/cell][cell][b]против[/b]  [/cell][cell][b]возд.[/b]  [/cell][cell][b]дисциплина[/b]  [/cell][cell][b]что получила или потеряла[/b][/cell]"
 	for it in vt_data["per"]:
 		if (it as Array).size() < 6:
