@@ -92,5 +92,48 @@ func _init():
 			g.adopt_variant("elect_threshold", pick)
 			g.recompute_mods()
 			check(float(g.mods["threshold"]) > thr0 + 0.01, "п.13: барьер изменился (%.3f -> %.3f)" % [thr0, float(g.mods["threshold"])])
+	# --- п.9: флаги ---
+	check(g.Flags.db_has(g.ccode), "флаги: у страны есть исторические флаги")
+	var ents: Array = g.Flags.entries(g.ccode)
+	check(ents.size() >= 1, "флаги: список не пуст (%d)" % ents.size())
+	var ids := {}
+	var sigs := {}
+	for e in ents:
+		check(not ids.has(e["id"]), "флаги: id не повторяется: %s" % e["id"])
+		ids[e["id"]] = true
+		check(not sigs.has(String(e["svg"])), "флаги: нет одинаковых картинок внутри страны: %s и %s" % [e["id"], sigs.get(String(e["svg"]), "")])
+		sigs[String(e["svg"])] = e["id"]
+		check(g.Flags.render_image(String(e["svg"]), 60.0) != null, "флаги: SVG %s читается" % e["id"])
+	var cur0: String = g.flag_cur_id()
+	check(not g.Flags.entry(cur0).is_empty(), "флаги: текущий флаг есть в базе")
+	if ents.size() >= 2:
+		var other := ""
+		for e in ents:
+			if e["id"] != cur0:
+				other = String(e["id"])
+				break
+		g.flag_set(other, "тест")
+		check(g.flag_cur_id() == other and g.Flags.cur[g.ccode] == other, "флаги: смена флага применяется")
+		check(g.flag_title() != "", "флаги: название государства не пустое")
+	# редактор: свой флаг
+	g.fe_reset()
+	g.fe["name"] = "Тест"
+	g.fe["sym"] = 0
+	var svg_t: String = g.flag_build_svg(g.fe)
+	check(g.Flags.render_image(svg_t, 90.0) != null, "флаги: SVG из редактора читается")
+	g.flag_editor_save()
+	check(g.flag_custom.size() == 1 and String(g.flag_cur_id()).begins_with("my"), "флаги: свой флаг сохранён и выбран")
+	var pk: PackedByteArray = g.sv_pack()
+	g.flag_custom = {}
+	g.flag_id = ""
+	g.sv_apply(pk)
+	check(g.flag_custom.size() == 1 and String(g.flag_cur_id()).begins_with("my"), "флаги: сохранение игры хранит свой флаг")
+	# смена строя: вопрос о флаге
+	g.flag_id = ""
+	g.flag_sync()
+	g.flag_pending = {}
+	g.flag_tags_last = ["Монархия"]
+	g.flag_month()
+	check(g.flag_tags_last == g.flag_tags_now(), "флаги: строй запомнен после месяца")
 	print("t_v059: проблем ", bad)
 	quit(1 if bad > 0 else 0)

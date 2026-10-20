@@ -85,22 +85,16 @@ func flag_candidates(tags: Array) -> Array:
 func flag_pick_auto(tags: Array) -> String:
 	for t in tags:
 		var best := ""
+		var by := -1
 		for e in Flags.entries(ccode):
 			if String(t) in (e["ideo"] as Array) and String(e["src"]) == "реальный":
-				if best == "" or (int(e["y1"]) == 0 and int(Flags.entry(best)["y1"]) != 0) or (int(Flags.entry(best)["y1"]) != 0 and int(e["y0"]) > int(Flags.entry(best)["y0"]) and int(e["y1"]) != 0 and false):
+				if int(e["y1"]) == 0:
+					return String(e["id"])
+				if int(e["y0"]) > by:
+					by = int(e["y0"])
 					best = String(e["id"])
 		if best != "":
-			# среди подходящих берём самый новый по началу
-			var nb := ""
-			var ny := -1
-			for e2 in Flags.entries(ccode):
-				if String(t) in (e2["ideo"] as Array) and String(e2["src"]) == "реальный":
-					if int(e2["y1"]) == 0:
-						return String(e2["id"])
-					if int(e2["y0"]) > ny:
-						ny = int(e2["y0"])
-						nb = String(e2["id"])
-			return nb
+			return best
 	return ""
 
 
@@ -696,10 +690,6 @@ func flag_editor_sync() -> void:
 	(fe_ctl["symp"] as OptionButton).select(int(fe["symp"]))
 	(fe_ctl["syms"] as HSlider).value = float(fe["syms"])
 	(fe_ctl["name"] as LineEdit).text = String(fe["name"])
-	cur = cur
-
-
-var cur := 0   # (заглушка, чтобы не путать с Flags.cur)
 
 
 func flag_editor_preview() -> void:
