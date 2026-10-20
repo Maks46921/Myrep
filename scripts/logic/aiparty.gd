@@ -503,6 +503,7 @@ func ai_init() -> void:
 	idl_low = 0
 	idl_warned = false
 	bills.clear()
+	bill_queue.clear()
 	bill_seq = 0
 	vote_sponsor = 0
 	cost_mult = 1.0
@@ -792,6 +793,8 @@ func ai_pick_law(pm: int, members_in: Array = []) -> void:
 			break
 	vote_sponsor = old_sp
 	if best_i < 0:
+		return
+	if pm != 0 and not pa_bill_slot_free(best_t):
 		return
 	if pm == 0:
 		# v35: режим наблюдателя — законопроект вашей партии вносит ИИ обычным порядком
@@ -1161,6 +1164,7 @@ func bills_step() -> void:
 	if game_over:
 		return
 	rg_drip_step()
+	bill_queue_step()
 	for b in bills.duplicate():
 		if turn > int(b["start"]) and randf() < 0.6 and (b["req"] as Array).size() < 4:
 			bill_request_new(b)
@@ -1489,6 +1493,8 @@ func pa_quarter() -> void:
 				if String(o[1]) == String(pick[1]) and String(pick[1]) == "bud":
 					opts.erase(o)
 			opts.erase(pick)
+			if String(pick[1]) == "bill" and randf() > BILL_AI_ACTIVITY:
+				continue
 			pa_do(p, String(pick[1]), pick[2])
 
 
@@ -1564,6 +1570,65 @@ func pa_pick_bill(p: int) -> Dictionary:
 	return best
 
 
+# ---------- 0.59: лимит чужих законопроектов на повестке ----------
+const BILL_AI_MAX := 2
+const BILL_AI_ACTIVITY := 0.75
+
+
+func pa_bill_is_demand(p: int, tid: String, idx: int) -> bool:
+	var ld := law_demand_of(p)
+	return not ld.is_empty() and not ld.has("val") and String(ld.get("tid", "")) == tid and int(ld.get("idx", -1)) == idx
+
+
+func bill_ai_count() -> int:
+	var n := 0
+	for b in bills:
+		if int(b["sponsor"]) != 0:
+			n += 1
+	return n
+
+
+func pa_bill_slot_free(tid: String) -> bool:
+	if bill_ai_count() >= BILL_AI_MAX:
+		return false
+	var cat: int = int(law_index[tid]["cat"])
+	for b in bills:
+		if int(b["sponsor"]) != 0 and law_index.has(String(b["tid"])) and int(law_index[String(b["tid"])]["cat"]) == cat:
+			return false
+	return true
+
+
+func pa_bill_queue(p: int, tid: String, idx: int) -> void:
+	for q in bill_queue:
+		if String(q["tid"]) == tid:
+			return
+	if bill_queue.size() >= 4:
+		return
+	bill_queue.append({"p": p, "tid": tid, "idx": idx, "since": turn})
+
+
+# раз в месяц: освободилось место на повестке — берём первый подходящий законопроект из очереди
+func bill_queue_step() -> void:
+	for q in bill_queue.duplicate():
+		var tid: String = String(q["tid"])
+		if turn - int(q["since"]) > 12 or bill_of(tid) >= 0 or not law_index.has(tid) or cur_idx(tid) == int(q["idx"]) or seats[int(q["p"])] <= 0:
+			bill_queue.erase(q)
+			continue
+		if pa_bill_slot_free(tid):
+			bill_queue.erase(q)
+			pa_add_bill(int(q["p"]), tid, int(q["idx"]))
+			return
+
+
+func pa_add_bill(p: int, tid: String, idx: int) -> void:
+	bill_seq += 1
+	bills.append({"id": bill_seq, "tid": tid, "idx": idx, "sponsor": p, "start": turn, "due": turn + 3, "forced": [], "pow": 1.0, "req": [], "paid": 0.0, "did": {}, "pa": true, "pv": "line"})
+	pcap[p] = maxf(0.0, float(pcap[p]) - 3.0)
+	var who := "партнёр по коалиции" if in_coalition[p] and not opp_mode else "оппозиция"
+	log_tag("ЗАКОНОПРОЕКТ", COL_TEAL, "«%s» (%s) внесла законопроект «%s»: %s. Голосование через 3 мес. Как голосует ваша фракция, решите в окне «Законопроекты» (сейчас — %s)." % [
+		PARTY_NAMES[p], who, law_index[tid]["name"], variant_of(tid, idx)["n"], "за" if pa_line(bills[bills.size() - 1]) else "против"])
+
+
 func pa_do(p: int, kind: String, o: Dictionary) -> void:
 	match kind:
 		"bud":
@@ -1595,12 +1660,12 @@ func pa_do(p: int, kind: String, o: Dictionary) -> void:
 			var idx: int = int(o["idx"])
 			if bill_of(tid) >= 0:
 				return
-			bill_seq += 1
-			bills.append({"id": bill_seq, "tid": tid, "idx": idx, "sponsor": p, "start": turn, "due": turn + 3, "forced": [], "pow": 1.0, "req": [], "paid": 0.0, "did": {}, "pa": true, "pv": "line"})
-			pcap[p] = maxf(0.0, float(pcap[p]) - 3.0)
-			var who := "партнёр по коалиции" if in_coalition[p] and not opp_mode else "оппозиция"
-			log_tag("ЗАКОНОПРОЕКТ", COL_TEAL, "«%s» (%s) внесла законопроект «%s»: %s. Голосование через 3 мес. Как голосует ваша фракция, решите в окне «Законопроекты» (сейчас — %s)." % [
-				PARTY_NAMES[p], who, law_index[tid]["name"], variant_of(tid, idx)["n"], "за" if pa_line(bills[bills.size() - 1]) else "против"])
+			# 0.59: на повестке не больше двух чужих законопроектов и не больше одного на сферу; остальные ждут в очереди.
+			# Исключение: закон-условие самой партии.
+			if not pa_bill_is_demand(p, tid, idx) and not pa_bill_slot_free(tid):
+				pa_bill_queue(p, tid, idx)
+				return
+			pa_add_bill(p, tid, idx)
 		"say":
 			var st: float = float(satis.get(p, 55.0))
 			if st >= 62.0:

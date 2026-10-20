@@ -707,6 +707,7 @@ var law_headers: Array = []
 
 var log_entries: Array = []
 var vote_hist: Array = []
+var bill_queue: Array = []        # 0.59: законопроекты ИИ-партий, ждущие места на повестке
 var bud_glide: Dictionary = {}   # 0.59: ключ статьи -> {t: цель, last: последний шаг}; плавный переход к утверждённому бюджету         # 0.59: последние голосования для «Показать снова» из журнала
 
 var log_filter := 0
