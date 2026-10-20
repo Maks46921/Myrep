@@ -197,7 +197,13 @@ func bud_neg_fill() -> void:
 	var parts: PackedStringArray = []
 	for c in bud_changes():
 		parts.append(bud_change_text(c))
-	t += "[b]План:[/b] %s\n\n" % "; ".join(parts)
+	if bud_demand_by >= 0 and bud_demand_by < PARTY_NAMES.size():
+		t += "[b]Автор правок:[/b] партия «%s» (её бюджетные требования внесены в черновик, но ещё не приняты).\n" % PARTY_NAMES[bud_demand_by]
+	var fp := finance_party()
+	if fp >= 0 and fp < PARTY_NAMES.size():
+		t += "[b]Министр финансов:[/b] партия «%s».\n" % PARTY_NAMES[fp]
+	t += "[b]Было → станет:[/b] %s\n\n" % "; ".join(parts)
+	t += bud_preview_text() + "\n\n"
 	t += "[b]За план — %.0f%% влияния[/b] (влияние — по министерским портфелям и местам; нужно больше половины).\n" % (float(cv["yes"]) * 100.0)
 	t += "[/font_size]"
 	bn_rt.text = t

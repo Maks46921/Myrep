@@ -32,6 +32,10 @@ func bq_alloc(apply: bool) -> Dictionary:
 	return {}
 
 
+func bud_demand_set(p: int) -> void:
+	pass
+
+
 func bud_draft_on() -> bool:
 	return false
 
@@ -1471,6 +1475,7 @@ func bud_apply(forced: bool) -> void:
 	oneoff_cap0 = -1.0
 	bld_budget0 = -1.0
 	bud_persuaded.clear()
+	bud_demand_set(-1)
 	if parts.size() > 0:
 		log_tag("БЮДЖЕТ", COL_GOOD, "бюджет принят: %s." % "; ".join(parts))
 
@@ -1489,6 +1494,7 @@ func bud_cancel() -> void:
 		bld_budget = bld_budget0
 		bld_budget0 = -1.0
 	bud_persuaded.clear()
+	bud_demand_set(-1)
 
 
 # убрать пункты, против которых хоть один несогласный партнёр
