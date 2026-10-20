@@ -1475,6 +1475,7 @@ func bud_apply(forced: bool) -> void:
 			if not bool(cv["views"][q]["ok"]):
 				satis[q] = clampf(float(satis.get(q, 50.0)) - 6.0, 0.0, 100.0)
 				conc[q] = float(conc.get(q, 0.0)) - 4.0
+	bud_glide_start(ch)
 	bud_base.clear()
 	bud_tr_base.clear()
 	oneoff_cap0 = -1.0
@@ -1483,6 +1484,50 @@ func bud_apply(forced: bool) -> void:
 	bud_demand_set(-1)
 	if parts.size() > 0:
 		log_tag("БЮДЖЕТ", COL_GOOD, "бюджет принят: %s." % "; ".join(parts))
+
+
+# 0.59: большие правки статьи вступают постепенно: не больше BUD_GLIDE_STEP п.п. ВВП в месяц, с инерцией
+const BUD_GLIDE_STEP := 1.0
+const BUD_GLIDE_INERTIA := 0.3
+const BUD_BIG := 1.0
+
+
+func bud_glide_start(ch: Array) -> void:
+	for c in ch:
+		var k := String(c[0])
+		if not policy_by_key.has(k):
+			continue
+		var o: float = float(c[1])
+		var n: float = float(c[2])
+		if absf(n - o) > BUD_GLIDE_STEP + 0.001:
+			bud_glide[k] = {"t": n, "last": 0.0}
+			set_policy(k, o + signf(n - o) * BUD_GLIDE_STEP)
+		else:
+			bud_glide.erase(k)
+
+
+func bud_glide_step() -> void:
+	for k in bud_glide.keys():
+		if bud_base.has(k) or not policy_by_key.has(k):
+			continue
+		var g: Dictionary = bud_glide[k]
+		var d: float = float(g["t"]) - float(pol[k])
+		var mv: float = clampf(d, -BUD_GLIDE_STEP, BUD_GLIDE_STEP) * (1.0 - BUD_GLIDE_INERTIA) + float(g["last"]) * BUD_GLIDE_INERTIA
+		if mv * d <= 0.0 or absf(d) <= absf(mv) + 0.05:
+			set_policy(k, float(g["t"]))
+			bud_glide.erase(k)
+		else:
+			set_policy(k, float(pol[k]) + mv)
+			g["last"] = mv
+
+
+# сумма правок статей в % ВВП (налоги и расходы), для вопроса «Вы уверены?»
+func bud_big_total() -> float:
+	var t := 0.0
+	for c in bud_changes():
+		if policy_by_key.has(String(c[0])):
+			t += absf(float(c[2]) - float(c[1]))
+	return t
 
 
 func bud_cancel() -> void:

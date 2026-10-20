@@ -50,5 +50,21 @@ func _init():
 			check(absf(float(g.pol[k]) - float(cur_before[k])) < 0.001, "после отмены «%s» вернулась" % k)
 	else:
 		print("нет партнёра с невыполненными требованиями: пропуск п.4")
+	# --- п.6: большая правка статьи вступает постепенно ---
+	g.bud_cancel()
+	var kk := "vat"
+	var o0: float = float(g.pol[kk])
+	g.bud_mark(kk, o0, -1.0)
+	g.set_policy(kk, o0 + 4.0)
+	check(g.bud_big_total() > g.BUD_BIG, "п.6: большая правка распознана (%.1f)" % g.bud_big_total())
+	g.bud_apply(false)
+	check(absf(float(g.pol[kk]) - (o0 + 1.0)) < 0.02, "п.6: первый шаг не больше 1 п.п. (%.2f)" % (float(g.pol[kk]) - o0))
+	check(g.bud_glide.has(kk), "п.6: цель запомнена")
+	var prev: float = float(g.pol[kk])
+	for i in 6:
+		g.bud_glide_step()
+		check(float(g.pol[kk]) - prev <= 1.02, "п.6: шаг в месяц не больше 1 п.п.")
+		prev = float(g.pol[kk])
+	check(not g.bud_glide.has(kk) and absf(float(g.pol[kk]) - (o0 + 4.0)) < 0.02, "п.6: цель достигнута за несколько месяцев (%.2f)" % (float(g.pol[kk]) - o0))
 	print("t_v059: проблем ", bad)
 	quit(1 if bad > 0 else 0)

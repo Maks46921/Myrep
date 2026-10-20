@@ -586,6 +586,7 @@ func next_turn_core() -> void:
 	recompute_mods()
 	top_prev = {"appr": approval(), "infl": inflation, "unemp": unemployment, "debt": debt / gdp * 100.0}
 	council_budget()
+	bud_glide_step()
 	log_policy_changes()
 	autopilot_run()
 	rules_month()
