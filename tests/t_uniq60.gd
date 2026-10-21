@@ -107,7 +107,7 @@ func _init():
 		if g.game_over: break
 	check(months >= 12, "прошло %d мес." % months)
 	check(g.uq_on() or g.game_over, "строй сохраняется")
-	if g.game_over:
+	if g.game_over or g.opp_mode:
 		print("t_uniq60: ", g.ccode, " игра окончена за время теста; проблем ", bad)
 		quit(1 if bad > 0 else 0)
 		return
