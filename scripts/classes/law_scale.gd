@@ -50,6 +50,8 @@ func _draw() -> void:
 		draw_line(_pos(0), _pos(n - 1), c_line, 3.0, true)
 	var step := (size.x - 32.0) / float(maxi(1, n - 1))
 	var wlab := clampf(step - 2.0, 44.0, 120.0)
+	if step < 58.0:
+		wlab = 110.0
 	for i in n:
 		var p := _pos(i)
 		var col := c_dot
@@ -65,6 +67,9 @@ func _draw() -> void:
 		var num := str(i + 1)
 		draw_string(font, p + Vector2(-3.5 * num.length(), 4.0), num, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 11, c_hi if (i == cur or i == sel) else c_text)
 		var lab := labels[i]
+		# при тесной шкале (больше 8 вариантов) подписи только у действующего и выбранного, остальные — во всплывающей подсказке
+		if step < 58.0 and not (i == sel or (i == cur and absi(cur - sel) > 1)):
+			continue
 		draw_multiline_string(font, Vector2(clampf(p.x - wlab * 0.5, 0.0, maxf(0.0, size.x - wlab)), 34.0), lab, HORIZONTAL_ALIGNMENT_CENTER, wlab, 10, 3, c_hi if (i == cur or i == sel) else c_text)
 
 func _gui_input(ev: InputEvent) -> void:
