@@ -74,6 +74,13 @@ func reg_acc() -> Color:
 
 # ---------- окна ----------
 func build_regime_windows() -> void:
+	# 0.60: окна строятся заново (например после загрузки) — прежние строки кланов и флажки организаций уже уничтожены
+	ui_reg_cls = ""
+	rg_clan_cls = ""
+	rg_clan_rows.clear()
+	rg_und_rows.clear()
+	dec_orgs_sig = ""
+	dec_orgs.clear()
 	var w: FloatWindow = new_window("reg_vert", "Вертикаль власти", 1, Rect2(0.0, 0.0, 0.28, 0.60))
 	rg_head = Control.new()
 	rg_head.custom_minimum_size = Vector2(0.0, 64.0)
