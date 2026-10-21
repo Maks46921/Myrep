@@ -84,6 +84,10 @@ func realism_resolve(opt: Dictionary) -> void:
 	pass
 
 
+func reg60_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func resolve_crisis(opt: Dictionary) -> void:
 	pass
 
@@ -766,6 +770,8 @@ func choose(i: int) -> void:
 		revolt_resolve(opt)
 	elif special == "rl":
 		realism_resolve(opt)
+	elif special == "reg60":
+		reg60_resolve(opt)
 	refresh()
 
 

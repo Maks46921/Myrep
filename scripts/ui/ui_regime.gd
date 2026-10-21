@@ -21,15 +21,19 @@ const REG_SKIN := {
 	"oneparty": {"acc": Color(0.90, 0.30, 0.22), "bg": Color(0.080, 0.042, 0.036), "border": Color(0.36, 0.16, 0.12), "emb": "star", "gold": Color(0.98, 0.80, 0.30)},
 	"monarchy_abs": {"acc": Color(0.84, 0.68, 0.32), "bg": Color(0.066, 0.046, 0.086), "border": Color(0.30, 0.22, 0.36), "emb": "crown", "gold": Color(0.95, 0.82, 0.45)},
 	"theocracy": {"acc": Color(0.32, 0.74, 0.48), "bg": Color(0.040, 0.070, 0.055), "border": Color(0.15, 0.30, 0.22), "emb": "faith", "gold": Color(0.90, 0.85, 0.55)},
+	"technocracy": {"acc": Color(0.36, 0.72, 0.84), "bg": Color(0.040, 0.062, 0.078), "border": Color(0.15, 0.27, 0.34), "emb": "gauge", "gold": Color(0.80, 0.90, 0.95)},
+	"oligarchy": {"acc": Color(0.80, 0.70, 0.30), "bg": Color(0.062, 0.058, 0.036), "border": Color(0.30, 0.27, 0.13), "emb": "coin", "gold": Color(0.96, 0.86, 0.45)},
+	"collective": {"acc": Color(0.84, 0.40, 0.34), "bg": Color(0.068, 0.044, 0.048), "border": Color(0.30, 0.17, 0.18), "emb": "hall", "gold": Color(0.94, 0.78, 0.50)},
+	"transitional": {"acc": Color(0.62, 0.66, 0.84), "bg": Color(0.050, 0.054, 0.076), "border": Color(0.20, 0.22, 0.34), "emb": "scroll", "gold": Color(0.84, 0.86, 0.96)},
 }
 const REG_POL_DESKS := [1, 3, 4, 6, 11, 12]
 const REG_HIDE_AUTH := ["parliament", "parties", "party", "polls", "opp", "pacts", "neg"]
 const REG_HIDE_HYB := ["party", "polls"]
 const REG_WINS_HYB := ["reg_vert", "reg_tools", "reg_mood", "reg_dec"]
-const REG_TOOL_GROUPS := [["Страх и репрессии", ["arrests", "amnesty", "censor", "pol_up", "pol_dn", "pris_swap"]], ["Пропаганда и культ", ["prop_up", "prop_dn", "cult", "decult", "media_reg", "youth_org"]],
+const REG_TOOL_GROUPS := [["Страх и репрессии", ["arrests", "show_trial", "amnesty", "censor", "pol_up", "pol_dn", "pris_swap"]], ["Пропаганда и культ", ["prop_up", "prop_dn", "cult", "decult", "media_reg", "youth_org", "rally", "enemy", "rel_ban"]],
 	["Выборы", ["fraud_up", "fraud_dn", "referendum", "turn_up", "turn_dn", "stage_on", "stage_off"]],
 	["Экономика, границы и мир", ["bm_raid", "bm_legal", "brain_ret", "borders_open", "evade", "patron_east", "patron_gulf", "patron_bloc", "patron_drop"]],
-	["Будущее режима", ["succ", "succ_train", "succ_swap", "promise", "plenum_c", "plenum_r", "fatwa", "lib", "constitution", "roundtable"]]]
+	["Будущее режима", ["succ", "succ_train", "succ_swap", "promise", "plenum_c", "plenum_r", "fatwa", "lib", "constitution", "roundtable", "tr_elect", "tr_extend"]]]
 
 var ui_reg_cls := ""
 var rg_head: Control = null
@@ -442,6 +446,10 @@ func update_regime_windows() -> void:
 		(rg_und_rows[uid] as Control).queue_redraw()
 	# настроения
 	var t := ""
+	var vt: Dictionary = reg60_var()
+	if not vt.is_empty():
+		t += "[b]%s.[/b] %s\n%s" % [String(vt["n"]), String(vt["d"]), reg60_effect_text(vt)]
+		t += "[color=%s]Правящая сила: %s. Образцы: %s. Цены рычагов у этого варианта свои (см. подсказки кнопок).[/color]\n\n" % [COL_DIM, String(vt.get("party", "—")), String(vt.get("real", "—"))]
 	var real := approval()
 	var off := au_official_approval()
 	t += "Официальный рейтинг: [b]%.0f%%[/b] · на самом деле: [b]%.0f%%[/b]\n" % [off, real]
@@ -454,6 +462,9 @@ func update_regime_windows() -> void:
 	t += "Политзаключённых: [b]%d[/b] · цензура: %s\n" % [int(au["pris"]), "есть" if bool(au.get("censor", false)) else "нет"]
 	if au_lib():
 		t += "[color=%s]Идёт оттепель (ещё %s): подполье смелее, реформаторы на подъёме.[/color]\n" % [COL_WARN, months_text(24 - (turn - int(au["lib_t"])))]
+	if ui_reg_cls == "transitional":
+		var trl: int = int(au.get("tr_end", turn)) - turn
+		t += ("[color=%s]До конца срока переходного правительства: %s.[/color]\n" % [COL_WARN, months_text(trl)]) if trl > 0 else ("[color=%s]Срок истёк: нужно решение — выборы или продление.[/color]\n" % COL_BAD)
 	if ui_reg_cls == "junta" and int(au.get("promise", -1)) > 0:
 		var left: int = int(au["promise"]) - turn
 		t += ("[color=%s]Обещание передать власть гражданским: осталось %s.[/color]\n" % [COL_WARN, months_text(left)]) if left > 0 else ("[color=%s]Обещание нарушено — недовольство растёт.[/color]\n" % COL_BAD)
@@ -492,12 +503,19 @@ func reg_draw_head() -> void:
 	reg_emblem(c, ui_reg_cls, Vector2(32.0, sz.y * 0.5), 26.0, acc)
 	var f: Font = c.get_theme_default_font()
 	# v54_1: длинное название режима (особенно по-английски) уменьшает шрифт, а не обрезается
-	var cnm: String = au_class_name().to_upper()
+	var vt: Dictionary = reg60_var()
+	var cnm: String = (String(vt["n"]) if not vt.is_empty() else au_class_name()).to_upper()
 	var cfs := 18
 	while cfs > 11 and f.get_string_size(cnm, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs).x > sz.x - 72.0:
 		cfs -= 1
 	c.draw_string(f, Vector2(68.0, 26.0), cnm, HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, cfs, sk["gold"])
-	c.draw_string(f, Vector2(68.0, 46.0), String(AU_CLASS_MOTTO.get(ui_reg_cls, "")), HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, 11, Color(0.80, 0.82, 0.88))
+	var sub: String = String(AU_CLASS_MOTTO.get(ui_reg_cls, ""))
+	if not vt.is_empty():
+		var mo: String = String(vt.get("mo", sub))
+		sub = "%s · «%s»" % [au_class_name(), mo]
+		if f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x > sz.x - 72.0:
+			sub = "«%s»" % mo
+	c.draw_string(f, Vector2(68.0, 46.0), sub, HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, 11, Color(0.80, 0.82, 0.88))
 
 
 func reg_loy_col(loy: float) -> Color:

@@ -889,7 +889,7 @@ const W_KINDS := [
 const EMIT_MAX := 3.0   # предел ползунка эмиссии, % ВВП в год (если у страны своя валюта)
 const RAD_MONARCHIES := ["BE", "NL", "LU", "DK", "NO", "SE", "ES", "GB"]
 
-const RAD_AUTH := ["dictatorship", "junta", "oneparty", "monarchy_abs", "theocracy"]
+const RAD_AUTH := ["dictatorship", "junta", "oneparty", "monarchy_abs", "theocracy", "technocracy", "oligarchy", "collective"]
 
 const RAD_CUR := {
 	"FR": "Пятая республика",
