@@ -1,6 +1,6 @@
 # Технологии (v42_1): пять веток по 14 уровней на 100 лет вперёд (124 технологии; на 6 уровнях каждой ветки выбор «одна из 2–3») и специальные сооружения.
 # Блок TECHS пересоздаётся скриптом tools/gen_tech.py — правьте данные там.
-extends "res://scripts/data/data_regimes60.gd"
+extends "res://scripts/data/data_flags60.gd"
 
 # Число веток (= размер TECH_BRANCHES).
 const TECH_NB := 5

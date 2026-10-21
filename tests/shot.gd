@@ -54,6 +54,11 @@ func _init():
 					g.fl_view = 1
 					g.flag_win_fill()
 				"fedit": g.flag_editor_open(true)
+				"flagoffer":
+					g.flag_month()
+					g.reg_cause = "revolution"
+					g.au_set_class("oneparty", false)
+					g.flag_win_open(true)
 				"uq":
 					g.uq_init()
 					g.uq_proclaim(g.uq_def())

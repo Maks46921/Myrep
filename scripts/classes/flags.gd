@@ -315,6 +315,7 @@ static var _real: Dictionary = {}        # id -> текстура в насто�
 static var _box: Dictionary = {}         # id -> текстура в рамке 3:2
 static var cur: Dictionary = {}          # код страны -> id выбранного флага (ставит игра)
 static var custom: Dictionary = {}       # id своего флага -> запись (ставит игра)
+static var temp: Dictionary = {}         # id предложенного игрой флага (ещё не принят) -> запись
 
 
 static func db_load() -> void:
@@ -347,6 +348,8 @@ static func entry(id: String) -> Dictionary:
 	db_load()
 	if custom.has(id):
 		return custom[id]
+	if temp.has(id):
+		return temp[id]
 	return _by_id.get(id, {})
 
 

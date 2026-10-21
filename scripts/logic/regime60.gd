@@ -5,6 +5,16 @@
 # Данные: scripts/data/data_regimes60.gd (создаётся tools/reg60/emit.py).
 extends "res://scripts/logic/regime2.gd"
 
+# --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
+
+
+func flag_month_force() -> void:
+	pass
+
+
+# --- конец заглушек ---
+
+
 func reg60_vars(cls: String) -> Array:
 	var out: Array = []
 	for v in REG_VARS60:
@@ -95,10 +105,6 @@ func reg60_enter(cls: String, quiet: bool) -> void:
 # после смены режима игре есть что предложить по флагу
 func reg60_flag_offer() -> void:
 	flag_month_force()
-
-
-func flag_month_force() -> void:
-	pass
 
 
 # добавки варианта к показателям (steady-state: mods пересчитываются каждый месяц)
