@@ -44,6 +44,14 @@ func reg60_events() -> Array:
 	return []
 
 
+func uq_dyn() -> void:
+	pass
+
+
+func uq_step() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -245,6 +253,7 @@ func radical_dyn() -> void:
 	es_dyn()
 	hist_dyn()
 	io_dyn()
+	uq_dyn()
 
 
 func radical_step() -> void:
@@ -279,6 +288,7 @@ func radical_step() -> void:
 	else:
 		regime_risk *= 0.9
 	au_step()
+	uq_step()
 	es_step()
 	io_step()
 

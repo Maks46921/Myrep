@@ -54,6 +54,10 @@ func _init():
 					g.fl_view = 1
 					g.flag_win_fill()
 				"fedit": g.flag_editor_open(true)
+				"uq":
+					g.uq_init()
+					g.uq_proclaim(g.uq_def())
+					g.capital = 40.0
 		if String(a).begins_with("pol="):
 			for kv in String(a).substr(4).split(","):
 				var pr := kv.split(":")

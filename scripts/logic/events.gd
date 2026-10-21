@@ -100,6 +100,10 @@ func set_time_btns(dis: bool) -> void:
 	pass
 
 
+func uq_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func win_fade_in(w: Control, dur: float = 0.22) -> void:
 	pass
 
@@ -772,6 +776,8 @@ func choose(i: int) -> void:
 		realism_resolve(opt)
 	elif special == "reg60":
 		reg60_resolve(opt)
+	elif special == "uq60":
+		uq_resolve(opt)
 	refresh()
 
 

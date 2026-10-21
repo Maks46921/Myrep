@@ -49,3 +49,42 @@ def E(var, text, *opts):
 
 def ACT(id, name, cost, cd, cls, tip):
     ACTS.append([id, name, float(cost), int(cd), cls, tip])
+
+
+# ---------- особые строи ----------
+MECH = {}      # 12 механик
+UREG = []      # 19 особых строёв
+UEV = []       # события особых строёв
+
+
+def BTN(id, label, cost, cd, d=0.0, fx=None, tip=""):
+    b = {"id": id, "l": label, "cost": float(cost), "cd": int(cd), "d": float(d), "tip": tip}
+    if fx:
+        b["fx"] = fx
+    return b
+
+
+def MCH(id, name, desc, m, btns, drift=0.0, hook=""):
+    """механика: m — добавки на 100 единиц показателя (масштабируются линейно); btns — кнопки; drift — дрейф за полгода"""
+    MECH[id] = {"id": id, "n": name, "d": desc, "m": m, "b": btns, "drift": float(drift), "h": hook}
+
+
+def ST(text, label, fx=None):
+    return {"t": text, "l": label, "fx": fx or {}}
+
+
+def UNIQ(id, cc, name, motto, desc, mech, start, m, need, keep, stages, w, gov="", partner=None, hist="", real="", fl=None):
+    """особый строй: need — условия первого этапа, keep — условия следующих; stages — три этапа пути; w — реакция мира"""
+    r = {"id": id, "cc": cc, "n": name, "mo": motto, "d": desc, "mech": mech, "start": start, "m": m, "need": need, "keep": keep,
+         "st": stages, "w": w}
+    if gov: r["gov"] = gov
+    if partner: r["partner"] = partner
+    if hist: r["hist"] = hist
+    if real: r["real"] = real
+    if fl: r["fl"] = fl
+    UREG.append(r)
+    return r
+
+
+def UE(u, text, *opts):
+    UEV.append({"u": u, "t": text, "o": [{"l": l, "fx": f} for l, f in opts]})

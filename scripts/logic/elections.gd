@@ -141,6 +141,11 @@ func upper_renew(shares: Array) -> String:
 	return ""
 
 
+func uq_lot_shares(sh: Array[float]) -> Array[float]:
+	var r: Array[float] = []
+	return r
+
+
 # --- конец заглушек ---
 
 
@@ -1199,7 +1204,8 @@ func democracy_name(d: float) -> String:
 	return "либеральная демократия"
 
 
-func apply_competition(sh: Array[float], pres: bool) -> Array[float]:
+func apply_competition(sh_in: Array[float], pres: bool) -> Array[float]:
+	var sh: Array[float] = uq_lot_shares(sh_in)
 	var d := democracy_index()
 	var s0: float = sh[0]
 	var years: float = float(turn) / 12.0

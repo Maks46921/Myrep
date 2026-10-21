@@ -138,6 +138,7 @@ func build_regime_windows() -> void:
 		b2.pressed.connect(reg_do.bind(id))
 		rg_repr_btns[id] = b2
 	build_dec_window()
+	build_uq_window()
 	for id in ["reg_vert", "reg_tools", "reg_mood", "reg_facade", "reg_repr", "reg_dec"]:
 		(wins[id] as FloatWindow).visible = false
 
@@ -151,6 +152,8 @@ func reg_do(id: String) -> void:
 
 
 func win_mode_ok(id: String) -> bool:
+	if id == "uq_win":
+		return not uq_def().is_empty()
 	var cls := ui_reg_cls
 	if cls == "" or cls == "dem":
 		return not id.begins_with("reg_")
@@ -388,6 +391,7 @@ func reg_build_rows() -> void:
 
 
 func update_regime_windows() -> void:
+	uq_ui_update()
 	if ui_reg_cls == "" or ui_reg_cls == "dem" or au.is_empty():
 		return
 	reg_build_rows()
@@ -846,3 +850,131 @@ func dec_sign() -> void:
 	else:
 		sfx("bad")
 	dec_update()
+
+
+# ---------- 0.60: окно «Особый строй» (работает и в демократиях) ----------
+var uq_box: VBoxContainer = null
+var uq_sig := ""
+
+
+func build_uq_window() -> void:
+	var w: FloatWindow = new_window("uq_win", "Особый строй", 1, Rect2(0.12, 0.02, 0.52, 0.92))
+	uq_box = VBoxContainer.new()
+	uq_box.add_theme_constant_override("separation", 6)
+	uq_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	w.body.add_child(uq_box)
+	w.closed = true
+	w.visible = false
+
+
+func uq_ui_open() -> void:
+	if not wins.has("uq_win"):
+		return
+	var w: FloatWindow = wins["uq_win"]
+	w.closed = false
+	uq_sig = ""
+	show_desk(1)
+	w.move_to_front()
+	uq_ui_update()
+
+
+func uq_ui_update() -> void:
+	if uq_box == null or not wins.has("uq_win") or uq.is_empty():
+		return
+	var d := uq_def()
+	if d.is_empty():
+		return
+	var w: FloatWindow = wins["uq_win"]
+	if w.closed:
+		return
+	var sig := "%s|%s|%s|%d|%d|%d|%d" % [str(uq.get("on")), str(uq.get("stage")), str(uq.get("m")), int(capital), int(float(uq.get("fund", 0.0))), turn, int(game_over)]
+	if sig == uq_sig:
+		return
+	uq_sig = sig
+	for c in uq_box.get_children():
+		c.queue_free()
+	if not uq_on():
+		uq_fill_teaser(d)
+	else:
+		uq_fill_active(d)
+
+
+func uq_rt_add(bb: String) -> RichTextLabel:
+	var rt := make_rt(uq_box)
+	rt.text = bb
+	return rt
+
+
+func uq_fill_teaser(d: Dictionary) -> void:
+	add_title(uq_box, "У страны возможен особый путь: «%s»" % String(d["n"]))
+	uq_rt_add("[i]%s[/i]\n\n%s" % [String(d["mo"]), String(d["d"])])
+	var stg := int(uq.get("stage", 0))
+	uq_rt_add("[color=%s]Включить строй кнопкой нельзя. К нему ведёт цепочка из трёх событий; они начинаются, когда в стране складываются условия, и каждое можно отложить или отвергнуть. Пройдено этапов: %d из 3.[/color]" % [COL_DIM, stg])
+	if d.has("hist"):
+		uq_rt_add("[color=%s]Историческая опора: %s[/color]" % [COL_DIM, String(d["hist"])])
+	var mt := PackedStringArray()
+	for id in d["mech"]:
+		mt.append(String(uq_mech_def(String(id))["n"]))
+	uq_rt_add("[b]Механики строя:[/b] %s." % ", ".join(mt))
+
+
+func uq_fill_active(d: Dictionary) -> void:
+	add_title(uq_box, "%s" % String(d["n"]))
+	uq_rt_add("[i]%s[/i]\n\n%s\n%s" % [String(d["mo"]), String(d["d"]), uq_effect_text(d["m"])])
+	if d.has("hist"):
+		uq_rt_add("[color=%s]Историческая опора: %s[/color]" % [COL_DIM, String(d["hist"])])
+	var mv: Dictionary = uq["m"]
+	for id in d["mech"]:
+		var mid := String(id)
+		var md: Dictionary = uq_mech_def(mid)
+		var val := float(mv.get(mid, 0.0))
+		add_title(uq_box, "%s: %.0f из 100" % [String(md["n"]), val])
+		var bar := ProgressBar.new()
+		bar.min_value = 0.0
+		bar.max_value = 100.0
+		bar.value = val
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0.0, 10.0)
+		uq_box.add_child(bar)
+		uq_rt_add("%s\n%s[color=%s]%s[/color]" % [String(md["d"]), uq_effect_text(md["m"], val / 100.0), COL_DIM, String(md["h"])])
+		if mid == "fund":
+			uq_rt_add("[b]Фонд сейчас:[/b] %.1f млрд €." % float(uq.get("fund", 0.0)))
+		for b in md["b"]:
+			var bid := "%s:%s" % [mid, String(b["id"])]
+			var why := uq_act_check(bid)
+			var btn := make_button("%s  ·  %.0f кап." % [String(b["l"]), float(b["cost"])], uq_box)
+			btn.theme_type_variation = "SmallButton"
+			btn.tooltip_text = String(b["tip"]) + ("\nСейчас нельзя: %s." % why if why != "" else "")
+			btn.disabled = why != "" or game_over
+			btn.pressed.connect(uq_ui_do.bind(bid))
+	add_title(uq_box, "Что думают другие страны")
+	var lines := PackedStringArray()
+	for cc in (d["w"].get("dip", {}) as Dictionary):
+		if dip.has(cc) and WORLD.has(cc):
+			lines.append("%s: отношения %.0f" % [String(WORLD[cc]["name"]), float(dip[cc]["rel"])])
+	if lines.is_empty():
+		lines.append("отношения с соседями сохраняются.")
+	if turn < int((uq["sanc"] as Array)[1]):
+		lines.append("торговые ограничения действуют ещё %d мес. (рост медленнее на %.2f п.п.)" % [int((uq["sanc"] as Array)[1]) - turn, float((uq["sanc"] as Array)[0])])
+	uq_rt_add("; ".join(lines) + ".")
+	var ab := make_button("Отказаться от особого строя  ·  6 кап.", uq_box)
+	ab.theme_type_variation = "SmallButton"
+	ab.tooltip_text = "Прежний порядок будет восстановлен; вернуться к этому пути можно не раньше, чем через пять лет."
+	ab.disabled = cap_spendable() < 6.0 or game_over
+	ab.pressed.connect(uq_ui_abandon)
+
+
+func uq_ui_do(id: String) -> void:
+	if uq_act(id):
+		sfx("good")
+	else:
+		sfx("bad")
+	uq_sig = ""
+	refresh()
+
+
+func uq_ui_abandon() -> void:
+	if uq_abandon():
+		sfx("good")
+	uq_sig = ""
+	refresh()

@@ -249,7 +249,10 @@ func flag_form_name() -> String:
 	if not law_index.has("gov_form"):
 		return "республика"
 	var v: Dictionary = variant_of("gov_form", cur_idx("gov_form"))
-	return String(v.get("n", "республика"))
+	var nm := String(v.get("n", "республика"))
+	if uq_on():
+		return "%s (особый строй «%s»)" % [nm, uq_title()]
+	return nm
 
 
 func flag_wave_rect(id: String, wide: float) -> Control:
