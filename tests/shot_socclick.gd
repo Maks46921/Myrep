@@ -84,6 +84,7 @@ func _init():
 	var d0: int = int(g.ex["p"][c]["deal"])
 	g.fed_rel(c)
 	g.dip_change(c, 10.0) if g.dip.has(c) else null
+	await reveal(g.xw_btn["aid"])
 	await click(g.xw_btn["aid"])
 	check(float(g.ex["p"][c]["aid"]) > 0.0, "щелчок «Помощь» не сработал")
 	g.on_ex_meta(g.ex_partners()[1])
