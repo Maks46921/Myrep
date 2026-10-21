@@ -47,6 +47,10 @@ func apply_country(code: String) -> void:
 		if v is Array or v is Dictionary:
 			v = v.duplicate(true)
 		set(k, v)
+	# 0.60: стартовые варианты новых тем (то, что действует в стране), если страна не задала свои
+	for tid in LAW_START60.get(code, {}):
+		if not LAW_START.has(tid):
+			LAW_START[tid] = LAW_START60[code][tid]
 	split_subsidies()
 	var mc: Dictionary = MACRO
 	SEATS = int(SEATS)

@@ -28,6 +28,7 @@ def load(path):
     s = re.sub(r"Color\(([^)]*)\)", lambda m: '{"__c":[%s]}' % m.group(1), s)
     s = re.sub(r"Vector2\(([^)]*)\)", lambda m: '{"__v":[%s]}' % m.group(1), s)
     s = re.sub(r"(?m)^(\s*)(-?\d+):", lambda m: '%s"__i:%s":' % (m.group(1), m.group(2)), s)
+    s = re.sub(r"([{,]\s*)(-?\d+):", lambda m: '%s"__i:%s":' % (m.group(1), m.group(2)), s)
     return json.loads(s)
 def _enc(v, ind):
     t = "\t" * ind

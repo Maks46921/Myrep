@@ -546,6 +546,7 @@ var DE_TOPICS := [
 ]
 
 var DE_OWN := {}
+var law60_ids := {}
 
 var DE_JOIN_ADJ := [0.0, 7.0, 0.0, -14.0, 0.0, -8.0, 0.0, 0.0, 0.0, 0.0]
 

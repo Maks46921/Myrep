@@ -1232,6 +1232,8 @@ func build_law_topics() -> Array:
 			extra.append(make_param_topic(p))
 	for t in NEW_TOPICS:
 		extra.append((t as Dictionary).duplicate(true))
+	for t in NEW_TOPICS60:
+		extra.append((t as Dictionary).duplicate(true))
 	# новые законы вставляем в конец своей сферы
 	for t in extra:
 		var at := out.size()
@@ -1499,9 +1501,44 @@ func de_law_params() -> Array:
 			for k in o:
 				q[k] = o[k]
 		out.append(q)
+	# 0.60: новые ползунки; действующее значение берётся из PARAM_REF60 для выбранной страны
+	var refs: Dictionary = PARAM_REF60.get(ccode, {})
+	for p in LAW_PARAMS60:
+		var id60: String = p["id"]
+		if id60 in DE_REMOVE or id60 in REMOVE60.get(ccode, []):
+			continue
+		var q60: Dictionary = (p as Dictionary).duplicate(true)
+		if refs.has(id60):
+			q60["ref"] = float(refs[id60])
+		if DE_PARAM.has(id60):
+			var o60: Dictionary = DE_PARAM[id60]
+			for k in o60:
+				q60[k] = o60[k]
+		out.append(q60)
 	for p in DE_NEW_PARAMS:
 		out.append((p as Dictionary).duplicate(true))
 	return out
+
+
+# 0.60: область закона (0..10, см. LAW_AREA_NAMES); у id без записи — по сфере темы
+func law_area(tid: String) -> int:
+	if LAW_AREA60.has(tid):
+		return int(LAW_AREA60[tid])
+	var tp: Dictionary = law_index.get(tid, {})
+	match int(tp.get("cat", 0)):
+		1: return 0
+		2: return 1
+	return 10
+
+
+# 0.60: тема из data_laws60.gd (их доли партий заданы по архетипам и не пересчитываются)
+func is_law60(tid: String) -> bool:
+	if law60_ids.is_empty():
+		for t in NEW_TOPICS60:
+			law60_ids[t["id"]] = true
+		for p in LAW_PARAMS60:
+			law60_ids[p["id"]] = true
+	return law60_ids.has(tid)
 
 
 func de_fix_ps(topics: Array) -> void:
@@ -1510,7 +1547,7 @@ func de_fix_ps(topics: Array) -> void:
 			if not v.has("ps"):
 				continue
 			var ps: Dictionary = (v["ps"] as Dictionary).duplicate()
-			if t["id"] in ["debt_brake", "eu_policy", "citizenship_law", "rent_control", "auto_policy", "schengen"] or DE_OWN.has(t["id"]):
+			if t["id"] in ["debt_brake", "eu_policy", "citizenship_law", "rent_control", "auto_policy", "schengen"] or DE_OWN.has(t["id"]) or is_law60(t["id"]):
 				v["ps"] = ps
 				continue
 			# старые слоты: 3 «Земля и порядок» -> Левые, 5 «Нац. союз» -> BSW, 6 -> Прочие
@@ -1529,7 +1566,7 @@ func de_adapt_topics(out: Array) -> Array:
 		DE_OWN[t["id"]] = true
 	var res: Array = []
 	for t in out:
-		if t["id"] in DE_REMOVE or DE_OWN.has(t["id"]):
+		if t["id"] in DE_REMOVE or DE_OWN.has(t["id"]) or (is_law60(t["id"]) and t["id"] in REMOVE60.get(ccode, [])):
 			continue
 		res.append(t)
 	de_fix_ps(res)
