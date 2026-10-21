@@ -1562,6 +1562,9 @@ func de_fix_ps(topics: Array) -> void:
 
 
 func de_adapt_topics(out: Array) -> Array:
+	var own60: Array = COUNTRY_TOPICS60.get(ccode, [])
+	for t in own60:
+		DE_OWN[t["id"]] = true
 	for t in DE_TOPICS:
 		DE_OWN[t["id"]] = true
 	var res: Array = []
@@ -1578,6 +1581,15 @@ func de_adapt_topics(out: Array) -> Array:
 				at = i
 				break
 		res.insert(at, tt)
+	# 0.60: особые законы страны (реальные законы; доли партий — по местам партий страны)
+	for t in own60:
+		var t60: Dictionary = (t as Dictionary).duplicate(true)
+		var at60 := res.size()
+		for i in res.size():
+			if int(res[i]["cat"]) > int(t60["cat"]):
+				at60 = i
+				break
+		res.insert(at60, t60)
 	for t in res:
 		if t["id"] in DE_FUND_ADD:
 			t["fund"] = true

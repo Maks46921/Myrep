@@ -1,6 +1,8 @@
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import t_elec
+import c1, c2, c3, c4, c5
+import cdsl
 from core import *
 import areamap, starts
 
@@ -38,6 +40,13 @@ def main():
         for cc, v in d.items():
             pr.setdefault(cc, {})[pid] = v
     out.append("const PARAM_REF60 := " + gd({k: pr[k] for k in sorted(pr)}) + "\n")
+    out.append("# особые законы стран: id в данных страны не повторяются, доли партий заданы по местам партий страны")
+    out.append("const COUNTRY_TOPICS60 := {")
+    parts = []
+    for cc in sorted(cdsl.CTOPICS):
+        parts.append("\t" + json.dumps(cc) + ": [\n" + ",\n".join(topic_gd(t) for t in cdsl.CTOPICS[cc]) + "]")
+    out.append(",\n".join(parts))
+    out.append("}\n")
     out.append("const REMOVE60 := " + gd({k: starts.REMOVE[k] for k in sorted(starts.REMOVE)}) + "\n")
     p = os.path.join(ROOT, "scripts/data/data_laws60.gd")
     open(p, "w", encoding="utf-8").write("\n".join(out))

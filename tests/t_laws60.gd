@@ -32,6 +32,15 @@ func _init():
 		if tp.has("param"):
 			var pr: Dictionary = tp["param"]
 			check(pr["grid"].size() >= 3, "%s: сетка ползунка мала" % tid)
+	# особые законы страны: есть в списке, места партий в пределах числа партий
+	var own: Array = g.COUNTRY_TOPICS60.get(g.ccode, [])
+	check(own.size() >= 3, "особых законов страны мало (%d)" % own.size())
+	for t in own:
+		check(g.law_index.has(t["id"]), "особый закон %s не попал в список" % t["id"])
+		for v in t["v"]:
+			for p in v.get("ps", {}):
+				check(int(p) >= 0 and int(p) < g.PARTY_NAMES.size(), "%s: место партии %s вне списка" % [t["id"], str(p)])
+	print("%s: особых законов %d" % [g.ccode, own.size()])
 	print("%s: тем 0.60 в стране %d, всего тем %d, стартовых отличий %d" % [g.ccode, n60, g.LAW_TOPICS.size(), g.LAW_START.size()])
 	print("проблем %d" % bad)
 	quit()
