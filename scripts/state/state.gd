@@ -490,6 +490,16 @@ var sel_topic := "elect_threshold"
 var sel_variant := 1
 
 var law_cat := 0
+var law_view := 0                      # 0.60: окно законов: 0 список, 1 плитки
+var law_area_sel := -1                 # 0.60: показанная область законов (-1 все)
+var law_sections: Array = []
+var law_area_opt: OptionButton = null
+var law_view_btns: Array = []
+var law_scale: Control = null
+var law_text_idx := {}                 # id закона -> строка для поиска по тексту
+var law_collapsed := {}
+var law_icons := {}
+var law_scale_map: Array = []
 
 var politics_page := 1
 var econ_page := 5

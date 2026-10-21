@@ -31,6 +31,11 @@ func _init():
 			for k in String(a).substr(7).split(","):
 				g.gd_open[k] = true
 			g.update_goods_windows()
+		if String(a).begins_with("topic="):
+			g.sel_topic = String(a).substr(6)
+			g.sel_variant = g.first_other_variant(g.sel_topic)
+		if String(a).begins_with("lawview="):
+			g.law_view = int(String(a).substr(8))
 		if String(a).begins_with("call="):
 			g.call(String(a).substr(5))
 		# 0.56: open=meas|tech|crisis — открыть окно поверх игры

@@ -29,7 +29,7 @@ EXPLICIT = {
     "state_church": REL,
     # выборы и партии
     "gov_form": ELEC, "elect_threshold": ELEC, "parl_term_law": ELEC, "pres_term_law": ELEC, "referendum_law": ELEC, "seat_system": ELEC,
-    "pres_vote_rule": ELEC, "censure_rule": ELEC, "eu_policy": ECO,
+    "pres_vote_rule": ELEC, "censure_rule": ELEC, "eu_policy": ARMY,
 }
 
 KEYWORDS = [  # (область, регулярное выражение по id и названию в нижнем регистре)

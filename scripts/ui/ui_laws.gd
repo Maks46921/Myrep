@@ -11,39 +11,50 @@ func update_bill_window() -> void:
 # --- конец заглушек ---
 
 
+const LawScale := preload("res://scripts/classes/law_scale.gd")
+# цвета 11 областей законов
+const LAW_AREA_COLORS := ["#f0b64a", "#58c887", "#ee6b6b", "#6fa8dc", "#7fd16a", "#a58af0", "#45c4bc", "#e08fb0", "#d9a066", "#c9b6ff", "#7fb0ff"]
+
 func build_law_windows() -> void:
-	var w: FloatWindow = new_window("laws_list", "Законы по сферам", 3, Rect2(0.0, 0.0, 0.22, 0.70))
-	var cb := HFlowContainer.new()
-	cb.add_theme_constant_override("h_separation", 4)
-	cb.add_theme_constant_override("v_separation", 4)
-	w.body.add_child(cb)
-	var cgrp := ButtonGroup.new()
-	law_cat_buttons.clear()
-	for c in 3:
-		var b := Button.new()
-		b.theme_type_variation = "SmallButton"
-		b.toggle_mode = true
-		b.button_group = cgrp
-		b.focus_mode = Control.FOCUS_NONE
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(on_law_cat.bind(c))
-		cb.add_child(b)
-		law_cat_buttons.append(b)
-	(law_cat_buttons[0] as Button).set_pressed_no_signal(true)
+	var w: FloatWindow = new_window("laws_list", "Законы по областям", 3, Rect2(0.0, 0.0, 0.22, 0.70))
 	law_search = LineEdit.new()
-	law_search.placeholder_text = "Поиск закона по названию…"
+	law_search.placeholder_text = "Поиск по названию и тексту закона…"
 	law_search.clear_button_enabled = true
 	law_search.text_changed.connect(on_law_search)
 	w.body.add_child(law_search)
+	law_area_opt = OptionButton.new()
+	law_area_opt.focus_mode = Control.FOCUS_NONE
+	law_area_opt.fit_to_longest_item = false
+	law_area_opt.clip_text = true
+	law_area_opt.tooltip_text = "Показать законы одной области"
+	law_area_opt.add_item("Все области", 0)
+	for ai in LAW_AREA_NAMES.size():
+		law_area_opt.add_item(LAW_AREA_NAMES[ai], ai + 1)
+	law_area_opt.item_selected.connect(on_law_area)
+	w.body.add_child(law_area_opt)
 	var fb := HFlowContainer.new()
 	fb.add_theme_constant_override("h_separation", 4)
 	fb.add_theme_constant_override("v_separation", 4)
 	w.body.add_child(fb)
+	var vgrp := ButtonGroup.new()
+	law_view_btns.clear()
+	for vi in 2:
+		var vb := Button.new()
+		vb.theme_type_variation = "SmallButton"
+		vb.text = ["☰ Список", "▦ Плитки"][vi]
+		vb.tooltip_text = ["Законы строками: название и действующий вариант", "Законы плитками со значками"][vi]
+		vb.toggle_mode = true
+		vb.button_group = vgrp
+		vb.focus_mode = Control.FOCUS_NONE
+		vb.pressed.connect(on_law_view.bind(vi))
+		fb.add_child(vb)
+		law_view_btns.append(vb)
+	(law_view_btns[law_view] as Button).set_pressed_no_signal(true)
 	var fgrp := ButtonGroup.new()
 	law_filter_btns.clear()
-	var fnames := ["Все", "Изменённые", "Фундаментальные", "Требуют партнёры"]
-	var ftips := ["Все законы выбранной сферы", "Только законы, в которых вы уже поменяли вариант", "Законы, для изменения которых нужны две трети голосов", "Законы, которые требует коалиционный партнёр или будущий союзник"]
-	for f in 4:
+	var fnames := ["Все", "Принятые", "На повестке", "Только страновые", "Фундаментальные"]
+	var ftips := ["Все законы", "Только законы, в которых вы уже поменяли вариант", "Законы, которые требует коалиционный партнёр или будущий союзник", "Законы, которых нет в других странах: реальные законы и споры именно этой страны", "Законы, для изменения которых нужны две трети голосов"]
+	for f in fnames.size():
 		var fbtn := Button.new()
 		fbtn.theme_type_variation = "SmallButton"
 		fbtn.text = fnames[f]
@@ -58,6 +69,7 @@ func build_law_windows() -> void:
 	law_list_box = VBoxContainer.new()
 	law_list_box.add_theme_constant_override("separation", 4)
 	w.body.add_child(law_list_box)
+	law_list_box.resized.connect(on_law_list_resized)
 	var tgrp := ButtonGroup.new()
 	law_topic_buttons.clear()
 	build_law_list(tgrp)
@@ -89,6 +101,9 @@ func build_law_windows() -> void:
 	w = new_window("law_detail", "Закон и его варианты", 3, Rect2(0.22, 0.0, 0.26, 1.0))
 	law_detail_head = make_rt(w.body)
 	build_law_slider(w.body)
+	law_scale = LawScale.new()
+	law_scale.picked.connect(on_scale_pick)
+	w.body.add_child(law_scale)
 	law_cards.clear()
 	for i in 8:
 		var panel := PanelContainer.new()
@@ -115,6 +130,7 @@ func build_law_windows() -> void:
 		bar.custom_minimum_size = Vector2(40.0, 10.0)
 		vb.add_child(bar)
 		var desc := add_note(vb, "", true)
+		var meta := make_rt(vb)
 		var fx := make_rt(vb)
 		var vote := Label.new()
 		vote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -125,7 +141,7 @@ func build_law_windows() -> void:
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.pressed.connect(on_adopt.bind(i))
 		vb.add_child(btn)
-		law_cards.append({"panel": panel, "bar": bar, "title": title, "badge": badge, "desc": desc, "fx": fx, "vote": vote, "btn": btn})
+		law_cards.append({"panel": panel, "bar": bar, "title": title, "badge": badge, "desc": desc, "meta": meta, "fx": fx, "vote": vote, "btn": btn})
 
 	w = new_window("law_votes", "Голосование", 3, Rect2(0.48, 0.0, 0.222, 0.22))
 	lv_head = make_rt(w.body)
@@ -172,6 +188,72 @@ func on_law_search(t: String) -> void:
 func on_law_filter(f: int) -> void:
 	law_filter = f
 	update_law_windows()
+
+
+func on_law_view(v: int) -> void:
+	law_view = v
+	update_law_windows()
+
+
+func on_law_area(i: int) -> void:
+	law_area_sel = i - 1
+	update_law_windows()
+
+
+func on_section_toggle(a: int) -> void:
+	law_collapsed[a] = not bool(law_collapsed.get(a, false))
+	update_law_windows()
+
+
+func on_scale_pick(i: int) -> void:
+	var topic: Dictionary = law_index[sel_topic]
+	if topic.has("param"):
+		var grid: Array = topic["param"]["grid"]
+		var gi: int = int(law_scale_map[clampi(i, 0, law_scale_map.size() - 1)]) if not law_scale_map.is_empty() else i
+		sel_variant = int(grid[clampi(gi, 0, grid.size() - 1)])
+	else:
+		sel_variant = i
+	update_law_windows()
+
+
+# шанс принятия: чем больше запас голосов над нужным числом, тем увереннее (разброс — несколько голосов дисциплины)
+func law_chance(vt: Dictionary, need: int) -> int:
+	var z: float = float(int(vt["yes"]) - need) / (0.025 * float(SEATS))
+	return clampi(int(roundf(100.0 / (1.0 + exp(-z)))), 1, 99)
+
+
+func short_party(p: int) -> String:
+	return String(PARTY_NAMES[p]).split(" (")[0]
+
+
+# строки карточки варианта: цена, шанс, кто за и против, влияние на бюджет
+func law_card_meta(tid: String, vi: int, vt: Dictionary, need: int) -> String:
+	var t := "[font_size=12][color=%s]Цена:[/color] [b]%.0f[/b] политкапитала" % [COL_DIM, law_cost(tid, vi)]
+	if radical_bypass(tid, vi):
+		t += "  ·  [color=%s]принимается указом[/color]" % COL_DIM
+	else:
+		var ch := law_chance(vt, need)
+		t += "  ·  [color=%s]Шанс принятия:[/color] [b]%d%%[/b]" % [COL_DIM, ch]
+	var yes: PackedStringArray = []
+	var no: PackedStringArray = []
+	for it in vt["per"]:
+		var p: int = int(it[0])
+		if seats[p] <= 0:
+			continue
+		if bool(it[2]):
+			yes.append(short_party(p))
+		else:
+			no.append(short_party(p))
+	if yes.size() > 0:
+		t += "\n[color=%s]За:[/color] %s" % [COL_GOOD, ", ".join(yes)]
+	if no.size() > 0:
+		t += "\n[color=%s]Против:[/color] %s" % [COL_BAD, ", ".join(no)]
+	var st2: Dictionary = law_state.duplicate()
+	st2[tid] = vi
+	var d: float = float(compute_mods(st2, true, tid)["extra_spend"]) - float(compute_mods(law_state, true)["extra_spend"])
+	if absf(d) >= 0.005:
+		t += "\n[color=%s]Бюджет:[/color] %s%% ВВП в год" % [COL_DIM, sg(d, 2)]
+	return t + "[/font_size]"
 
 
 # какие законы требуют партии: {id закона: [названия партий]}
@@ -238,62 +320,107 @@ func update_law_windows() -> void:
 	if not law_index.has(sel_topic) and not LAW_TOPICS.is_empty():
 		sel_topic = String(LAW_TOPICS[0]["id"])
 		sel_variant = first_other_variant(sel_topic)
-	var topic: Dictionary = law_index[sel_topic]
-	if int(topic["cat"]) != law_cat:
-		for t in LAW_TOPICS:
-			if int(t["cat"]) == law_cat:
-				sel_topic = t["id"]
-				sel_variant = first_other_variant(sel_topic)
-				break
 	var nvar: int = (law_index[sel_topic]["v"] as Array).size()
 	if sel_variant >= nvar or (sel_variant == cur_idx(sel_topic) and not law_index[sel_topic].has("param") and not is_hybrid(sel_topic)):
 		sel_variant = first_other_variant(sel_topic)
 	var dem := law_demand_map()
-	for c in 3:
-		var total := 0
-		for t in LAW_TOPICS:
-			if int(t["cat"]) == c:
-				total += 1
-		var b: Button = law_cat_buttons[c]
-		b.text = "%s %d/%d" % [LAW_CATS[c], law_reform_count(c), total]
-		b.tooltip_text = "Принято реформ: %d из %d законов" % [law_reform_count(c), total]
-		b.set_pressed_no_signal(c == law_cat)
 	for fi in law_filter_btns.size():
 		(law_filter_btns[fi] as Button).set_pressed_no_signal(fi == law_filter)
+	for vi in law_view_btns.size():
+		(law_view_btns[vi] as Button).set_pressed_no_signal(vi == law_view)
+	if law_area_opt != null and law_area_opt.selected != law_area_sel + 1:
+		law_area_opt.select(law_area_sel + 1)
+	var tiles: bool = law_view == 1
+	var avail: float = law_list_box.size.x
+	var cols: int = maxi(2, int(avail / 112.0)) if tiles else 1
 	var shown := 0
+	var area_shown := {}
 	for t in LAW_TOPICS:
 		var id: String = t["id"]
 		var btn: Button = law_topic_buttons[id]
+		var ar: int = law_area(id)
 		var cur := cur_idx(id)
-		var vis: bool = int(t["cat"]) == law_cat or law_query != ""
-		if law_query != "" and String(t["name"]).to_lower().find(law_query) < 0:
+		var vis: bool = law_area_sel < 0 or law_area_sel == ar
+		if law_query != "" and String(law_text_idx.get(id, "")).find(law_query) < 0:
 			vis = false
 		if law_filter == 1 and cur == law_start_idx(id):
 			vis = false
-		elif law_filter == 2 and not bool(t.get("fund", false)):
+		elif law_filter == 2 and not dem.has(id):
 			vis = false
-		elif law_filter == 3 and not dem.has(id):
+		elif law_filter == 3 and not DE_OWN.has(id):
+			vis = false
+		elif law_filter == 4 and not bool(t.get("fund", false)):
+			vis = false
+		if bool(law_collapsed.get(ar, false)) and law_query == "" and law_filter == 0 and law_area_sel < 0:
 			vis = false
 		btn.visible = vis
 		if vis:
 			shown += 1
+		area_shown[ar] = int(area_shown.get(ar, 0)) + (1 if vis else 0)
 		var cd: int = int(law_cd.get(id, 0))
 		var cur_name: String = variant_of(id, cur)["n"]
-		var line2 := ("▸ " + cur_name) if cur > 0 else ("— " + cur_name)
-		if cd > 0:
-			line2 += "   (ещё %d мес.)" % cd
 		var tag := ""
 		if bool(t.get("fund", false)):
 			tag += "◆ "
 		if dem.has(id):
 			tag += "★ "
-		btn.text = "      %s%s\n      %s" % [tag, t["name"], line2]
-		btn.tooltip_text = ("◆ фундаментальный закон (две трети голосов)\n" if bool(t.get("fund", false)) else "") + (("★ требуют партии: %s" % ", ".join(PackedStringArray(dem[id]))) if dem.has(id) else "")
+		if DE_OWN.has(id):
+			tag += "● "
+		var acol := Color(LAW_AREA_COLORS[ar])
+		if tiles:
+			var short := cur_name if cur_name.length() <= 24 else cur_name.substr(0, 23) + "…"
+			btn.text = "\n\n%s%s\n%s%s" % [tag, t["name"], "▸ " if cur > 0 else "", short]
+			btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			btn.custom_minimum_size = Vector2(80.0, 92.0)
+		else:
+			var line2 := ("▸ " + cur_name) if cur > 0 else ("— " + cur_name)
+			if cd > 0:
+				line2 += "   (ещё %d мес.)" % cd
+			btn.text = "      %s%s\n      %s" % [tag, t["name"], line2]
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.custom_minimum_size = Vector2(0.0, 0.0)
+		var ic: Control = law_icons.get(id)
+		if ic != null:
+			if tiles:
+				ic.anchor_left = 0.5
+				ic.anchor_right = 0.5
+				ic.anchor_top = 0.0
+				ic.anchor_bottom = 0.0
+				ic.offset_left = -10.0
+				ic.offset_right = 10.0
+				ic.offset_top = 8.0
+				ic.offset_bottom = 28.0
+			else:
+				ic.anchor_left = 0.0
+				ic.anchor_right = 0.0
+				ic.anchor_top = 0.5
+				ic.anchor_bottom = 0.5
+				ic.offset_left = 7.0
+				ic.offset_right = 23.0
+				ic.offset_top = -8.0
+				ic.offset_bottom = 8.0
+		btn.tooltip_text = ("◆ фундаментальный закон (две трети голосов)\n" if bool(t.get("fund", false)) else "") + (("★ требуют партии: %s\n" % ", ".join(PackedStringArray(dem[id]))) if dem.has(id) else "") + ("● закон именно этой страны\n" if DE_OWN.has(id) else "") + "Сейчас: %s" % cur_name
 		btn.set_pressed_no_signal(id == sel_topic)
-		if cur > 0:
-			btn.add_theme_color_override("font_color", Color(LAW_CAT_COLORS[int(t["cat"])]).lightened(0.25))
+		if cur != law_start_idx(id):
+			btn.add_theme_color_override("font_color", acol.lightened(0.25))
 		else:
 			btn.remove_theme_color_override("font_color")
+	for sec in law_sections:
+		var ar2: int = sec["area"]
+		var grid: GridContainer = sec["grid"]
+		grid.columns = cols
+		var n_all: int = (sec["ids"] as Array).size()
+		var n_ref := 0
+		for id2 in sec["ids"]:
+			if cur_idx(id2) != law_start_idx(id2):
+				n_ref += 1
+		var hb: Button = sec["hdr"]
+		var shown_here: int = int(area_shown.get(ar2, 0))
+		var collapsed: bool = bool(law_collapsed.get(ar2, false)) and law_query == "" and law_filter == 0 and law_area_sel < 0
+		hb.text = "%s %s   %d · реформ %d" % ["▸" if collapsed else "▾", LAW_AREA_NAMES[ar2].to_upper(), n_all, n_ref]
+		hb.visible = shown_here > 0 or collapsed
+		hb.add_theme_color_override("font_color", Color(LAW_AREA_COLORS[ar2]))
+		grid.visible = shown_here > 0
 	update_law_headers()
 	update_law_effects()
 	update_law_detail()
@@ -478,43 +605,65 @@ func on_law_slider(v: float) -> void:
 
 func build_law_list(tgrp: ButtonGroup) -> void:
 	law_headers.clear()
-	for c in 3:
-		for fund in [true, false]:
-			var members: Array = []
-			for t in LAW_TOPICS:
-				if int(t["cat"]) == c and bool(t.get("fund", false)) == fund:
-					members.append(t)
-			if members.is_empty():
-				continue
-			var hl := Label.new()
-			hl.text = "ФУНДАМЕНТАЛЬНЫЕ — нужно 2/3 голосов" if fund else "ОБЫЧНЫЕ — простое большинство"
-			hl.add_theme_font_size_override("font_size", 11)
-			hl.add_theme_color_override("font_color", C_WARN if fund else C_DIM)
-			law_list_box.add_child(hl)
-			law_headers.append({"c": c, "lbl": hl})
-			for t in members:
-				var b := Button.new()
-				b.theme_type_variation = "TopicButton"
-				b.toggle_mode = true
-				b.button_group = tgrp
-				b.focus_mode = Control.FOCUS_NONE
-				b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-				b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				if "autowrap_mode" in b:
-					b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-				b.pressed.connect(on_topic_pressed.bind(t["id"]))
-				law_list_box.add_child(b)
-				law_topic_buttons[t["id"]] = b
-				# v50: значок закона
-				var ic: Control = Ico.make(law_icon(t), Color(LAW_CAT_COLORS[c]).lightened(0.15), 16.0)
-				ic.anchor_top = 0.5
-				ic.anchor_bottom = 0.5
-				ic.offset_left = 7.0
-				ic.offset_right = 23.0
-				ic.offset_top = -8.0
-				ic.offset_bottom = 8.0
-				ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				b.add_child(ic)
+	law_sections.clear()
+	law_icons.clear()
+	law_text_idx.clear()
+	for t in LAW_TOPICS:
+		var hay: String = String(t["name"]) + " " + String(t["desc"])
+		for v in (t["v"] as Array):
+			hay += " " + String(v["n"]) + " " + String(v.get("d", ""))
+		law_text_idx[t["id"]] = hay.to_lower()
+	for a in LAW_AREA_NAMES.size():
+		var members: Array = []
+		for t in LAW_TOPICS:
+			if law_area(t["id"]) == a:
+				members.append(t)
+		if members.is_empty():
+			continue
+		var hb := Button.new()
+		hb.theme_type_variation = "SmallButton"
+		hb.flat = true
+		hb.clip_text = true
+		hb.focus_mode = Control.FOCUS_NONE
+		hb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		hb.add_theme_font_size_override("font_size", 12)
+		hb.pressed.connect(on_section_toggle.bind(a))
+		hb.tooltip_text = "Нажмите, чтобы свернуть или развернуть область"
+		law_list_box.add_child(hb)
+		var grid := GridContainer.new()
+		grid.columns = 1
+		grid.add_theme_constant_override("h_separation", 4)
+		grid.add_theme_constant_override("v_separation", 4)
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		law_list_box.add_child(grid)
+		var ids: Array = []
+		for t in members:
+			ids.append(t["id"])
+			var b := Button.new()
+			b.theme_type_variation = "TopicButton"
+			b.toggle_mode = true
+			b.button_group = tgrp
+			b.focus_mode = Control.FOCUS_NONE
+			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.clip_text = true
+			if "autowrap_mode" in b:
+				b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			b.pressed.connect(on_topic_pressed.bind(t["id"]))
+			grid.add_child(b)
+			law_topic_buttons[t["id"]] = b
+			# v50: значок закона
+			var ic: Control = Ico.make(law_icon(t), Color(LAW_AREA_COLORS[a]).lightened(0.15), 16.0)
+			ic.anchor_top = 0.5
+			ic.anchor_bottom = 0.5
+			ic.offset_left = 7.0
+			ic.offset_right = 23.0
+			ic.offset_top = -8.0
+			ic.offset_bottom = 8.0
+			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			b.add_child(ic)
+			law_icons[t["id"]] = ic
+		law_sections.append({"area": a, "hdr": hb, "grid": grid, "ids": ids})
 
 
 # v50: значок закона — по ключевым словам названия и кода, иначе по сфере
@@ -544,8 +693,7 @@ func law_icon(t: Dictionary) -> String:
 
 
 func update_law_headers() -> void:
-	for h in law_headers:
-		(h["lbl"] as Label).visible = int(h["c"]) == law_cat and law_query == "" and law_filter == 0
+	pass
 
 
 func update_law_detail() -> void:
@@ -599,6 +747,45 @@ func update_law_detail() -> void:
 		law_slider_val.text = "Выбрано: %s" % fmt_param(pr, float(sv["val"]))
 		law_slider_val.add_theme_color_override("font_color", C_GOOD if sel_variant == cur else C_ACCENT)
 		law_slider_range.text = "от %s до %s (сейчас %s)" % [fmt_param(pr, float(pr["lo"])), fmt_param(pr, float(pr["hi"])), fmt_param(pr, float(cv["val"]))]
+	# 0.60: шкала вариантов (точки на линии), рядом ниже — карточки
+	var labs: PackedStringArray = []
+	var tps: PackedStringArray = []
+	var cur_pos := cur
+	var sel_pos := sel_variant
+	law_scale_map = []
+	if is_param:
+		var pr2: Dictionary = topic["param"]
+		var grid2: Array = pr2["grid"]
+		var stride: int = maxi(1, int(ceil(float(grid2.size()) / 7.0)))
+		var gcur := 0
+		var gsel := 0
+		for k in grid2.size():
+			if int(grid2[k]) == cur:
+				gcur = k
+			if int(grid2[k]) == sel_variant:
+				gsel = k
+		var picks: Array = []
+		for k in range(0, grid2.size(), stride):
+			picks.append(k)
+		if not picks.has(grid2.size() - 1):
+			picks.append(grid2.size() - 1)
+		if not picks.has(gcur):
+			picks.append(gcur)
+		picks.sort()
+		for k in picks:
+			law_scale_map.append(k)
+			var vv: Dictionary = variant_of(tid, int(grid2[k]))
+			labs.append(fmt_param(pr2, float(vv["val"])))
+			tps.append(fmt_param(pr2, float(vv["val"])))
+			if k == gcur:
+				cur_pos = labs.size() - 1
+			if k == gsel:
+				sel_pos = labs.size() - 1
+	else:
+		for k in vars.size():
+			labs.append(String(vars[k]["n"]))
+			tps.append("%d. %s — %s" % [k + 1, vars[k]["n"], vars[k].get("d", "")])
+	(law_scale as LawScale).set_stops(labs, tps, cur_pos, sel_pos)
 	for i in law_cards.size():
 		var card: Dictionary = law_cards[i]
 		var panel: PanelContainer = card["panel"]
@@ -638,6 +825,7 @@ func update_law_detail() -> void:
 			vote.text = ""
 			vote.visible = false
 			bar.visible = false
+			(card["meta"] as RichTextLabel).visible = false
 			btn.text = ("Действует · силу можно изменить ползунком выше" if (is_hybrid(tid) and vi > 0) else "Действует сейчас") if not is_param else "Это нынешнее значение — сдвиньте ползунок"
 			btn.disabled = true
 			continue
@@ -645,6 +833,9 @@ func update_law_detail() -> void:
 		bar.visible = true
 		fx.text = "[font_size=13]%s[/font_size]" % items_pros_cons(variant_effect_items(tid, vi))
 		var vt := variant_votes(tid, vi)
+		var meta: RichTextLabel = card["meta"]
+		meta.visible = expanded
+		meta.text = law_card_meta(tid, vi, vt, need)
 		var upc := upper_check(tid, vi)
 		var ok_low: bool = int(vt["yes"]) >= need
 		var ok: bool = ok_low and not bool(upc["block"])
@@ -680,3 +871,13 @@ func update_law_detail() -> void:
 				btn.text = "Изменить силу действия до %.1f× (политкапитал %.0f)" % [pw_of(tid, true), cost]
 			btn.disabled = game_over or cap_spendable() < cost + float(upc["extra"])
 	call_deferred("refit_law_cards")
+
+# число колонок плиток подгоняется под ширину окна
+func on_law_list_resized() -> void:
+	if law_list_box == null:
+		return
+	var cols: int = maxi(2, int(law_list_box.size.x / 112.0)) if law_view == 1 else 1
+	for sec in law_sections:
+		var grid: GridContainer = sec["grid"]
+		if grid.columns != cols:
+			grid.columns = cols
