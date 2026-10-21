@@ -2,7 +2,8 @@
 """0.60: импорт свободных флагов с Викисклада в data/flags.dat.
 
 Вход: <src>/index.json — список записей
-  {cc, file, name, lic, author, url, y0, y1, regime, ideo, note}
+  {cc, file, name, lic, author, url, y0, y1, regime, ideo, note, replace}
+Поле replace (необязательное) — id имеющегося флага, который нужно заменить этой картинкой (id, названия, годы и идеологии остаются).
 и файлы SVG по путям file (от каталога src).
 Допустимые лицензии: PD, CC0, CC BY, CC BY-SA.
 Запись с тем же cc и y1, что у уже имеющейся, заменяет её картинку (id сохраняется, чтобы не ломать сейвы);
@@ -86,10 +87,17 @@ def main():
         ent = {"w": w, "svg": svg, "regime": r.get("regime", ""), "ideo": list(r.get("ideo") or []),
                "y0": y0, "y1": y1, "name": r.get("name", ""), "src": "Викисклад",
                "note": r.get("note", ""), "lic": lic, "author": r.get("author", ""), "url": r.get("url", "")}
-        same = [e for e in db[cc] if int(e["y1"]) == y1 and "lic" not in e and not e.get("_hit")]
         if any(e.get("url") == ent["url"] and ent["url"] for e in db[cc]):
             stat["skip_dup"] += 1
             continue
+        if r.get("replace"):
+            same = [e for e in db[cc] if e["id"] == r["replace"]]
+            if not same:
+                print("пропуск (нет флага для замены):", cc, r["replace"])
+                stat["skip_lic"] += 1
+                continue
+        else:
+            same = [e for e in db[cc] if int(e["y1"]) == y1 and "lic" not in e and not e.get("_hit")]
         if same:
             # заменяем картинку, сохраняя id, названия, годы и идеологии, подобранные раньше
             old = same[0]
