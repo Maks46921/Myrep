@@ -9,10 +9,6 @@ func bm_sig() -> String:
 	return ""
 
 
-func flag_editor_open(on: bool) -> void:
-	pass
-
-
 func inbox_todo() -> Array:
 	return []
 
@@ -666,7 +662,7 @@ func esc_close() -> bool:
 		settings_open(false)
 		return true
 	if fe_ov != null and fe_ov.visible:
-		flag_editor_open(false)
+		fe_ov.call("on_escape")
 		return true
 	if fl_ov != null and fl_ov.visible:
 		flag_win_open(false)

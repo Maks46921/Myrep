@@ -30,8 +30,8 @@
 
 Константы (6): `REG_VARS60`, `REG_EVENTS60`, `AU_ACTS60`, `REG_UNIQ60`, `UQ_MECH60`, `REG_UEV60`
 
-### `scripts/data/data_flags60.gd`  (36 строк)
-0.60: данные флагов: 23 символа (нарисованы в квадрате 24x24 с центром в нуле, цвет — «C»), символы по идеологическим меткам и странам.
+### `scripts/data/data_flags60.gd`  (62 строк)
+0.60: данные флагов: 49 символов (нарисованы в квадрате 24x24 с центром в нуле, цвет — «C»), символы по идеологическим меткам и странам.
 
 Константы (4): `FLAG_SYM60`, `FLAG_TAG_SYM`, `FLAG_CC_SYM`, `FLAG_TAG_COL`
 
@@ -70,10 +70,10 @@ v52_1: международные организации. Члены (из 38 с
 
 Переменные (76): `SEATS`, `MAJORITY`, `MAJ_BASE`, `POLICY`, `GROUP_WEIGHT`, `GROUP_BASE`, `PARTY_NAMES`, `PARTY_DESC`, `PARTY_COLORS`, `LEAN`, `HEMI_ORDER`, `PARTY_LEADERS`, `PARTY_DEMANDS`, `MINISTRIES`, `PARTY_MINISTRIES`, `MIN_SPECIAL`, `PARTY_TRAITS`, `PARTY_LAW_DEMAND`, `MINISTER_NAMES`, `GOV_NAMES`, `REGIONS`, `REG_BIAS`, `MARKETS`, `BASE_MODS`, `LAW_TOPICS`, `MEASURES`, `TERMS`, `INFO`, `UPPER`, `MACRO`, `REGIONAL_P`, `PROTEST_P`, `MARKETS_OVR`, `GOODS`, `GOODS_OVR`, `COALITION0`, `LAW_TAGS`, `PARCH`, `EVENTS_C`, `NEWS_C`, `EVENTS_SPECIAL`, `ARCHS`, `ELEC`, `AG`, `LOC_RULES`, `TOLERATE_W`, `SUPER`, `GDP0`, `G_POT`, `G_NEU`, `I_NEU`, `I_TGT`, `U_NEU`, `OTHER0`, `RATE0`, `DE_START_SEATS`, `DE_START_MIN`, `DE_PARAM`, `DE_NEW_PARAMS`, `DE_REMOVE` …
 
-### `scripts/state/state.gd`  (899 строк)
+### `scripts/state/state.gd`  (894 строк)
 Текущее состояние партии: показатели, законы, парламент, узлы интерфейса.
 
-Переменные (541): `pending_code`, `pending_party`, `game_opts`, `ccode`, `map_reg_pick`, `emit_note`, `risk_prem`, `minority_ok`, `turn`, `year`, `month`, `gdp`, `debt`, `growth`, `inflation`, `unemployment`, `shock`, `other_rev`, `pol`, `pol_def`, `prev_pol`, `policy_by_key`, `lvl`, `support`, `bias`, `mods`, `cooldown`, `capital`, `cap_ai`, `ev_hist`, `ev_queue`, `ev_later`, `ev_log`, `noc_constr`, `tech_adj`, `tech_pas_mult`, `nato_ovr`, `free_adj`, `seats`, `in_coalition`, `warned`, `crisis_months`, `prev_head`, `h12`, `observer`, `deadlock`, `minority_gov`, `coal_talks`, `coal_tried`, `pm_lead`, `techno_until`, `extra_mins`, `cn_draft`, `cn_pat`, `cn_ans`, `cn_out`, `cn_round`, `coal_deal`, `neg_offer_mins`, `crisis_offered` …
+Переменные (536): `pending_code`, `pending_party`, `game_opts`, `ccode`, `map_reg_pick`, `emit_note`, `risk_prem`, `minority_ok`, `turn`, `year`, `month`, `gdp`, `debt`, `growth`, `inflation`, `unemployment`, `shock`, `other_rev`, `pol`, `pol_def`, `prev_pol`, `policy_by_key`, `lvl`, `support`, `bias`, `mods`, `cooldown`, `capital`, `cap_ai`, `ev_hist`, `ev_queue`, `ev_later`, `ev_log`, `noc_constr`, `tech_adj`, `tech_pas_mult`, `nato_ovr`, `free_adj`, `seats`, `in_coalition`, `warned`, `crisis_months`, `prev_head`, `h12`, `observer`, `deadlock`, `minority_gov`, `coal_talks`, `coal_tried`, `pm_lead`, `techno_until`, `extra_mins`, `cn_draft`, `cn_pat`, `cn_ans`, `cn_out`, `cn_round`, `coal_deal`, `neg_offer_mins`, `crisis_offered` …
 
 ### `scripts/logic/util.gd`  (411 строк)
 Мелкие помощники: перевод, форматирование, цвета, даты.
@@ -629,10 +629,10 @@ v52_1: рамка «Организации». Вкладки — междуна�
 
 Переменные (17): `io_tabs`, `io_head_ctl`, `io_mem_ctl`, `io_ext_rt`, `io_info_rt`, `io_act_box`, `io_ses_rt`, `io_vote_btns`, `io_hist_rt`, `io_built_for`, `io_row_mem`, `io_row_oth`, `io_lbl_cand`, `io_lbl_oth`, `io_other_opt`, `io_groups_key`, `io_bar_hh`
 
-### `scripts/ui/ui_today.gd`  (697 строк)
+### `scripts/ui/ui_today.gd`  (693 строк)
 0.57: разгрузка игрока. Рамка «Сегодня», рамка «Мир» (бывшие «Карта» и «Организации»), поиск по игре (Ctrl+K),
 
-Функции (30): `bm_sig`, `flag_editor_open`, `inbox_todo`, `layout_remember`, `rules_open`, `rules_todo`, `srch_extra`, `today_bm_defs`, `build_today_windows`, `today_problems`, `today_todo`, `today_dates`, `today_nums`, `today_row`, `today_tip`, `update_today`, `goto_win`, `nav_note`, `nav_back`, `update_chips_extra`, `spark_text`, `chip_tip`, `srch_collect`, `srch_open`, `srch_build`, `srch_key`, `srch_fill`, `srch_run`, `ui_hotkey`, `esc_close`
+Функции (29): `bm_sig`, `inbox_todo`, `layout_remember`, `rules_open`, `rules_todo`, `srch_extra`, `today_bm_defs`, `build_today_windows`, `today_problems`, `today_todo`, `today_dates`, `today_nums`, `today_row`, `today_tip`, `update_today`, `goto_win`, `nav_note`, `nav_back`, `update_chips_extra`, `spark_text`, `chip_tip`, `srch_collect`, `srch_open`, `srch_build`, `srch_key`, `srch_fill`, `srch_run`, `ui_hotkey`, `esc_close`
 
 Константы (7): `DESK_TODAY`, `FRAME_ORDER`, `DESK_NAMES`, `DAY_TIPS`, `CHIP_HELP`, `SPARK`, `CHIP_HKEY`
 
@@ -674,12 +674,12 @@ v52_1: рамка «Организации». Вкладки — междуна�
 
 Переменные (12): `rules`, `rule_props`, `rule_undo`, `ru_ov`, `ru_list`, `ru_ind`, `ru_op`, `ru_val`, `ru_act`, `ru_amt`, `ru_mode`, `ru_acts`
 
-### `scripts/ui/ui_flag.gd`  (1155 строк)
+### `scripts/ui/ui_flag.gd`  (996 строк)
 0.59: государство и флаг. Окно «Государство» (флаг «на ветру», название по истории, форма правления, столица), выбор флага
 
-Функции (40): `flag_tags_now`, `flag_tags_base`, `flag_cur_id`, `flag_candidates`, `flag_pick_auto`, `flag_title`, `flag_sync`, `flag_set`, `flag_month`, `flag_month_force`, `flag_regime_label`, `flag_credits_fill`, `flag_offer_ids`, `flag_palette`, `flag_color_name`, `flag_describe`, `flag_gen_offers`, `flag_adopt`, `flag_top_refresh`, `flag_win_open`, `flag_win_build`, `flag_form_name`, `flag_wave_rect`, `flag_win_fill`, `turn_date_str`, `flag_offer_card`, `flag_card`, `fe_reset`, `flag_editor_open`, `flag_editor_build`, `fe_option`, `flag_editor_sync`, `flag_editor_preview`, `flag_editor_save`, `_fs`, `_fstar`, `flag_sym_svg`, `flag_build_svg`, `flag_small`, `flag_similar_text`
+Функции (38): `flag_tags_now`, `flag_tags_base`, `flag_cur_id`, `flag_candidates`, `flag_pick_auto`, `flag_title`, `flag_sync`, `flag_set`, `flag_month`, `flag_month_force`, `flag_regime_label`, `flag_credits_fill`, `flag_offer_ids`, `flag_palette`, `flag_color_name`, `flag_describe`, `flag_gen_offers`, `flag_adopt`, `flag_top_refresh`, `flag_win_open`, `flag_win_build`, `flag_form_name`, `flag_wave_rect`, `flag_win_fill`, `turn_date_str`, `flag_offer_card`, `flag_card`, `flag_editor_open`, `flag_editor_build`, `flag_editor_start`, `flag_editor_params`, `flag_drafts`, `flag_editor_save`, `flag_editor_delete`, `_fs`, `_fstar`, `flag_sym_svg`, `flag_build_svg`
 
-Константы (4): `FLAG_TPL`, `FLAG_SYM`, `FLAG_SYMPOS`, `FLAG_WAVE`
+Константы (6): `FLAG_TPL`, `FLAG_SYM`, `FLAG_SYMPOS`, `FLAG_WAVE`, `FlagEdit`, `FlagDoc`
 
 Переменные (1): `fl_gen_cache`
 
@@ -705,6 +705,9 @@ Symphony: корневой скрипт (вершина цепочки насл�
 - `election_view.gd` — extends Control, 187 строк
 - `event_art.gd` — extends Control, 102 строк
 - `faith_chart.gd` — extends Control, 53 строк
+- `flag_canvas.gd` — extends Control, 508 строк
+- `flag_doc.gd` — extends RefCounted, 624 строк
+- `flag_edit.gd` — extends Control, 1135 строк
 - `flags.gd` — extends RefCounted, 431 строк
 - `float_window.gd` — extends Control, 378 строк
 - `gfx.gd` — extends RefCounted, 194 строк

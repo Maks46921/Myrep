@@ -227,7 +227,7 @@ func flag_credits_fill() -> void:
 				last = String(r[0])
 				t += "[b]%s[/b]\n" % last
 			t += "• %s — автор: %s; лицензия: %s%s\n" % [String(e2["name"]), String(e2.get("author", "не указан")), String(e2.get("lic", "?")), ("; источник: %s" % String(e2["url"])) if e2.has("url") else ""]
-	t += "\n[color=%s]Флаги, нарисованные в игре (редактор, предложения при смене строя, 23 символа), принадлежат авторам игры и свободны для использования.[/color]" % COL_DIM
+	t += "\n[color=%s]Флаги, нарисованные в игре (редактор, предложения при смене строя, 49 символов), принадлежат авторам игры и свободны для использования.[/color]" % COL_DIM
 	rt.text = t
 
 
@@ -792,10 +792,9 @@ func flag_card(e: Dictionary) -> Control:
 	return pc
 
 
-# ---------- редактор флага ----------
-func fe_reset() -> void:
-	fe = {"base": "", "tpl": 1, "c1": Color(0.80, 0.10, 0.12), "c2": Color(0.97, 0.97, 0.97), "c3": Color(0.05, 0.22, 0.58),
-		"sym": -1, "symc": Color(1.0, 0.82, 0.1), "syms": 0.5, "symp": 0, "name": "Мой флаг"}
+# ---------- редактор флага (0.60: слои, окно — scripts/classes/flag_edit.gd, данные — flag_doc.gd) ----------
+const FlagEdit := preload("res://scripts/classes/flag_edit.gd")
+const FlagDoc := preload("res://scripts/classes/flag_doc.gd")
 
 
 func flag_editor_open(on: bool) -> void:
@@ -806,241 +805,124 @@ func flag_editor_open(on: bool) -> void:
 	fe_ov.visible = on
 	if on:
 		fe_ov.move_to_front()
-		fe_reset()
-		fe["base"] = flag_cur_id()
-		flag_editor_sync()
-		flag_editor_preview()
+		fe_ov.call("open_with", flag_editor_start(), flag_editor_params(""))
 
 
 func flag_editor_build() -> void:
-	fe_ov = Control.new()
-	fe_ov.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	fe_ov.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(fe_ov)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.6)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	fe_ov.add_child(dim)
-	var pan := PanelContainer.new()
-	pan.add_theme_stylebox_override("panel", sbox(C_PANEL, C_ACCENT.darkened(0.2), 2, 12, 16.0, 12.0))
-	pan.anchor_left = 0.5
-	pan.anchor_right = 0.5
-	pan.anchor_top = 0.5
-	pan.anchor_bottom = 0.5
-	pan.offset_left = -430.0
-	pan.offset_right = 430.0
-	pan.offset_top = -300.0
-	pan.offset_bottom = 300.0
-	fe_ov.add_child(pan)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 8)
-	pan.add_child(vb)
-	var hd := HBoxContainer.new()
-	vb.add_child(hd)
-	var tl := Label.new()
-	tl.text = "Редактор флага"
-	tl.add_theme_font_size_override("font_size", 22)
-	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hd.add_child(tl)
-	var cl := Button.new()
-	cl.text = "✕ Закрыть"
-	cl.focus_mode = Control.FOCUS_NONE
-	cl.pressed.connect(func() -> void: flag_editor_open(false))
-	hd.add_child(cl)
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 16)
-	hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(hb)
-	# левая часть: предпросмотр
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 8)
-	left.custom_minimum_size = Vector2(330.0, 0.0)
-	hb.add_child(left)
-	fe_prev = TextureRect.new()
-	fe_prev.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	fe_prev.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	fe_prev.custom_minimum_size = Vector2(330.0, 220.0)
-	left.add_child(fe_prev)
-	fe_warn = Label.new()
-	fe_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	fe_warn.add_theme_color_override("font_color", Color(1.0, 0.78, 0.25))
-	fe_warn.add_theme_font_size_override("font_size", 13)
-	left.add_child(fe_warn)
-	var nm := LineEdit.new()
-	nm.placeholder_text = "Название флага"
-	nm.text_changed.connect(func(tx: String) -> void: fe["name"] = tx)
-	fe_ctl["name"] = nm
-	left.add_child(nm)
-	var brow := HBoxContainer.new()
-	brow.add_theme_constant_override("separation", 6)
-	left.add_child(brow)
-	var bsave := Button.new()
-	bsave.text = "Сохранить и применить"
-	bsave.focus_mode = Control.FOCUS_NONE
-	bsave.pressed.connect(flag_editor_save)
-	brow.add_child(bsave)
-	var brst := Button.new()
-	brst.text = "Сбросить"
-	brst.focus_mode = Control.FOCUS_NONE
-	brst.pressed.connect(func() -> void:
-		fe_reset()
-		fe["base"] = ""
-		flag_editor_sync()
-		flag_editor_preview())
-	brow.add_child(brst)
-	# правая часть: настройки
-	var sc := ScrollContainer.new()
-	sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	hb.add_child(sc)
-	var rv := VBoxContainer.new()
-	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rv.add_theme_constant_override("separation", 7)
-	sc.add_child(rv)
-	var o_base := fe_option(rv, "Начать с", "base", [])
-	fe_ctl["base"] = o_base
-	var o_tpl := fe_option(rv, "Шаблон", "tpl", FLAG_TPL)
-	fe_ctl["tpl"] = o_tpl
-	for k in [["c1", "Цвет 1"], ["c2", "Цвет 2"], ["c3", "Цвет 3"]]:
-		var row := HBoxContainer.new()
-		rv.add_child(row)
-		var lb := Label.new()
-		lb.text = String(k[1])
-		lb.custom_minimum_size = Vector2(120.0, 0.0)
-		row.add_child(lb)
-		var cp := ColorPickerButton.new()
-		cp.custom_minimum_size = Vector2(80.0, 28.0)
-		cp.edit_alpha = false
-		var kk: String = String(k[0])
-		cp.color_changed.connect(func(c: Color) -> void:
-			fe[kk] = c
-			flag_editor_preview())
-		fe_ctl[kk] = cp
-		row.add_child(cp)
-	var o_sym := fe_option(rv, "Символ", "sym", ["Без символа"] + FLAG_SYM)
-	fe_ctl["sym"] = o_sym
-	var row2 := HBoxContainer.new()
-	rv.add_child(row2)
-	var lb2 := Label.new()
-	lb2.text = "Цвет символа"
-	lb2.custom_minimum_size = Vector2(120.0, 0.0)
-	row2.add_child(lb2)
-	var cps := ColorPickerButton.new()
-	cps.custom_minimum_size = Vector2(80.0, 28.0)
-	cps.edit_alpha = false
-	cps.color_changed.connect(func(c: Color) -> void:
-		fe["symc"] = c
-		flag_editor_preview())
-	fe_ctl["symc"] = cps
-	row2.add_child(cps)
-	var o_pos := fe_option(rv, "Положение", "symp", FLAG_SYMPOS)
-	fe_ctl["symp"] = o_pos
-	var row3 := HBoxContainer.new()
-	rv.add_child(row3)
-	var lb3 := Label.new()
-	lb3.text = "Размер символа"
-	lb3.custom_minimum_size = Vector2(120.0, 0.0)
-	row3.add_child(lb3)
-	var hs := HSlider.new()
-	hs.min_value = 0.2
-	hs.max_value = 1.0
-	hs.step = 0.05
-	hs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hs.custom_minimum_size = Vector2(160.0, 20.0)
-	hs.value_changed.connect(func(v: float) -> void:
-		fe["syms"] = v
-		flag_editor_preview())
-	fe_ctl["syms"] = hs
-	row3.add_child(hs)
-	var hint := make_rt(rv)
-	hint.text = "[color=%s]Можно начать с нынешнего или любого настоящего флага страны и добавить к нему символ. Картинки загружать нельзя: только шаблоны, цвета и символы. Редактор предупредит, если флаг слишком похож на настоящий.[/color]" % COL_DIM
-	polish_tree(fe_ov)
+	var ed := FlagEdit.new()
+	ed.syms = FLAG_SYM60
+	ed.wave_code = FLAG_WAVE
+	ed.panel_style = sbox(C_PANEL, C_ACCENT.darkened(0.2), 2, 12, 12.0, 10.0)
+	ed.entry_fn = func(id: String) -> Dictionary: return Flags.entry(id)
+	ed.polish = func(n: Node) -> void: polish_tree(n)
+	ed.visible = false
+	add_child(ed)
+	ed.build()
+	ed.save_requested.connect(flag_editor_save)
+	ed.draft_delete.connect(flag_editor_delete)
+	ed.closed.connect(func() -> void: flag_editor_open(false))
+	fe_ov = ed
+	polish_tree(ed)
 
 
-func fe_option(parent: Control, text: String, key: String, items: Array) -> OptionButton:
-	var row := HBoxContainer.new()
-	parent.add_child(row)
-	var lb := Label.new()
-	lb.text = text
-	lb.custom_minimum_size = Vector2(120.0, 0.0)
-	row.add_child(lb)
-	var ob := OptionButton.new()
-	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ob.focus_mode = Control.FOCUS_NONE
-	for it in items:
-		ob.add_item(String(it))
-	ob.item_selected.connect(func(i: int) -> void:
-		if key == "base":
-			fe["base"] = String(ob.get_item_metadata(i)) if ob.get_item_metadata(i) != null else ""
-		elif key == "sym":
-			fe["sym"] = i - 1
-		else:
-			fe[key] = i
-		flag_editor_preview())
-	row.add_child(ob)
-	return ob
+# стартовый документ: нынешний флаг как закреплённая основа
+func flag_editor_start() -> Dictionary:
+	var d := FlagDoc.new_doc("#ffffff")
+	var e: Dictionary = Flags.entry(flag_cur_id())
+	if not e.is_empty():
+		var L := FlagDoc.base_layer(String(e["svg"]))
+		L["src"] = String(e["id"])
+		L["lock"] = true
+		(d["layers"] as Array).append(L)
+	return d
 
 
-# значения окна редактора из параметров
-func flag_editor_sync() -> void:
-	var ob: OptionButton = fe_ctl["base"]
-	ob.clear()
-	ob.add_item("Чистый шаблон")
-	ob.set_item_metadata(0, "")
-	var sel := 0
-	var cur := flag_cur_id()
-	var n := 1
+func flag_editor_params(edit_id: String) -> Dictionary:
+	var pal: Array = []
+	var seen := {}
 	for e in Flags.entries(ccode):
-		ob.add_item("%s (%s)" % [String(e["name"]), str(int(e["y0"]))])
-		ob.set_item_metadata(n, String(e["id"]))
-		if String(e["id"]) == String(fe["base"]):
-			sel = n
-		n += 1
+		for c in flag_palette(String(e["id"])):
+			var h: String = (c as Color).to_html(false)
+			if not seen.has(h):
+				seen[h] = true
+				pal.append(c)
+		if pal.size() > 24:
+			break
+	var cur := flag_palette(flag_cur_id())
+	var pal2: Array = []
+	for c in cur:
+		pal2.append(c)
+	for c in pal:
+		if not (c as Color) in pal2:
+			pal2.append(c)
+	var cl: Array = []
+	for cc in Flags._db:
+		var items: Array = []
+		for e in Flags._db[cc]:
+			var y0: int = int(e.get("y0", 0))
+			items.append([String(e["id"]), "%s%s" % [String(e["name"]), (" (%d)" % y0) if y0 > 0 else ""]])
+		var nm: String = String(WORLD[cc]["name"]) if WORLD.has(cc) else String(cc)
+		cl.append([nm, items, String(cc)])
+	cl.sort_custom(func(a: Array, b: Array) -> bool:
+		if (String(a[2]) == ccode) != (String(b[2]) == ccode):
+			return String(a[2]) == ccode
+		return String(a[0]) < String(b[0]))
+	return {"drafts": flag_drafts(), "edit_id": edit_id, "pal": pal2, "countries": cl, "cur": flag_cur_id()}
+
+
+func flag_drafts() -> Array:
+	var out: Array = []
 	for cid in flag_custom:
-		ob.add_item("Свой: %s" % String(flag_custom[cid]["name"]))
-		ob.set_item_metadata(n, String(cid))
-		if String(cid) == String(fe["base"]):
-			sel = n
-		n += 1
-	ob.select(sel)
-	(fe_ctl["tpl"] as OptionButton).select(int(fe["tpl"]))
-	for k in ["c1", "c2", "c3", "symc"]:
-		(fe_ctl[k] as ColorPickerButton).color = fe[k]
-	(fe_ctl["sym"] as OptionButton).select(int(fe["sym"]) + 1)
-	(fe_ctl["symp"] as OptionButton).select(int(fe["symp"]))
-	(fe_ctl["syms"] as HSlider).value = float(fe["syms"])
-	(fe_ctl["name"] as LineEdit).text = String(fe["name"])
+		var e: Dictionary = flag_custom[cid]
+		out.append({"id": String(cid), "name": String(e.get("name", "Мой флаг")), "doc": e.get("doc", null)})
+	return out
 
 
-func flag_editor_preview() -> void:
-	var svg := flag_build_svg(fe)
-	var img: Image = Flags.render_image(svg, 90.0)
-	if img != null and fe_prev != null:
-		fe_prev.texture = ImageTexture.create_from_image(img)
-	fe_warn.text = flag_similar_text(svg)
-
-
-func flag_editor_save() -> void:
-	var svg := flag_build_svg(fe)
-	var n := 1
-	while flag_custom.has("my%d" % n):
-		n += 1
-	var id := "my%d" % n
-	var nm: String = String(fe["name"]).strip_edges()
+func flag_editor_save(doc: Dictionary, apply: bool, edit_id: String) -> void:
+	var svg := FlagDoc.build_svg(doc, FLAG_SYM60)
+	var id := edit_id
+	if id == "" or not flag_custom.has(id):
+		var n := 1
+		while flag_custom.has("my%d" % n):
+			n += 1
+		id = "my%d" % n
+	var nm: String = String(doc.get("name", "")).strip_edges()
 	if nm == "":
 		nm = "Мой флаг"
 	var tg := flag_tags_now()
-	flag_custom[id] = {"id": id, "w": 90.0, "svg": svg, "regime": nm, "ideo": tg.duplicate(), "y0": 0, "y1": 0, "name": nm, "src": "свой", "note": "Флаг, нарисованный в редакторе."}
+	flag_custom[id] = {"id": id, "w": 90.0, "svg": svg, "regime": nm, "ideo": tg.duplicate(), "y0": 0, "y1": 0, "name": nm, "src": "свой",
+		"note": "Флаг, нарисованный в редакторе.", "doc": doc}
 	Flags.custom = flag_custom
-	flag_set(id, "редактор")
-	flag_pending = {}
-	flag_editor_open(false)
-	fl_pick = id
-	if fl_ov != null and fl_ov.visible:
-		flag_win_fill()
+	Flags.forget(id)
+	if fe_ov != null:
+		fe_ov.call("saved", id, apply)
+		fe_ov.call("set_drafts", flag_drafts())
+	if apply:
+		flag_set(id, "редактор")
+		flag_pending = {}
+		fl_pick = id
+		flag_editor_open(false)
+		if fl_ov != null and fl_ov.visible:
+			flag_win_fill()
+	elif flag_cur_id() == id:
+		flag_sync()
 
 
+func flag_editor_delete(id: String) -> void:
+	if not flag_custom.has(id):
+		return
+	var was_cur := flag_cur_id() == id
+	flag_custom.erase(id)
+	Flags.custom = flag_custom
+	Flags.forget(id)
+	if was_cur:
+		flag_id = ""
+		flag_sync()
+	if fe_ov != null:
+		fe_ov.call("set_drafts", flag_drafts())
+
+
+# предложения игры (flag_gen_offers) строятся по простым шаблонам: параметры p — шаблон, три цвета и один символ
 # ---------- сборка SVG своего флага (90 x 60) ----------
 func _fs(c: Color) -> String:
 	return "#" + c.to_html(false)
@@ -1111,44 +993,3 @@ func flag_build_svg(p: Dictionary) -> String:
 		sym = flag_sym_svg(si, pos.x, pos.y, sc * 1.3, p["symc"])
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 60">%s%s</svg>' % [body, sym]
 
-
-# крошечные копии всех настоящих флагов (для предупреждения «слишком похож»)
-func flag_small(id: String) -> PackedByteArray:
-	if fl_small_cache.has(id):
-		return fl_small_cache[id]
-	var e: Dictionary = Flags.entry(id)
-	var out := PackedByteArray()
-	if not e.is_empty():
-		var img := Image.new()
-		if img.load_svg_from_string(String(e["svg"]), 0.5) == OK:
-			img.convert(Image.FORMAT_RGB8)
-			img.resize(18, 12, Image.INTERPOLATE_BILINEAR)
-			out = img.get_data()
-	fl_small_cache[id] = out
-	return out
-
-
-func flag_similar_text(svg: String) -> String:
-	var img := Image.new()
-	if img.load_svg_from_string(svg, 0.5) != OK:
-		return ""
-	img.convert(Image.FORMAT_RGB8)
-	img.resize(18, 12, Image.INTERPOLATE_BILINEAR)
-	var mine: PackedByteArray = img.get_data()
-	var best := 1e9
-	var bn := ""
-	for cc in Flags._db:
-		for e in Flags._db[cc]:
-			var o: PackedByteArray = flag_small(String(e["id"]))
-			if o.size() != mine.size():
-				continue
-			var d := 0.0
-			for i in mine.size():
-				d += absf(float(mine[i]) - float(o[i]))
-			d /= float(mine.size()) * 255.0
-			if d < best:
-				best = d
-				bn = "%s (%s)" % [String(e["name"]), String(Flags._db.get(cc, [{"regime": ""}])[0].get("regime", cc)) if false else String(cc)]
-	if best < 0.045:
-		return "Очень похоже на настоящий флаг: %s. Если это не задумано, измените цвета или символ." % bn
-	return ""

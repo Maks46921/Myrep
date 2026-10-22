@@ -9,7 +9,10 @@
 Запись с тем же cc и y1, что у уже имеющейся, заменяет её картинку (id сохраняется, чтобы не ломать сейвы);
 остальные добавляются как <CC>-c<n>. Результат — data/flags.dat и tools/flags60/credits.gd.txt (не нужен: окно читает поля lic/author/url).
 
-Запуск: python3 tools/flags60/import_flags.py [каталог_src] [--dry]
+Режим --strict: запись без replace не заменяет чужие картинки: если у страны уже есть флаг с тем же годом окончания, она пропускается
+(список печатается), иначе добавляется. Так заменяются только флаги, названные в replace (решения Damir), остальные остаются как есть.
+
+Запуск: python3 tools/flags60/import_flags.py [каталог_src] [--dry] [--strict]
 """
 import json, re, sys, os
 
@@ -37,6 +40,7 @@ def clean_svg(txt):
     txt = re.sub(r"<(sodipodi|inkscape|rdf|cc|dc):[^>]*?>.*?</\1:[^>]*?>", "", txt, flags=re.S)
     txt = re.sub(r"\s(inkscape|sodipodi):[\w-]+=\"[^\"]*\"", "", txt)
     txt = re.sub(r"<script.*?</script>", "", txt, flags=re.S)
+    txt = txt.replace("Слой_x0020_1", "Layer_x0020_1")  # кириллица в id ломает перевод файлов (i18n)
     txt = re.sub(r">\s+<", "><", txt.strip())
     return txt
 
@@ -58,6 +62,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     src = args[0] if args else SRC
     dry = "--dry" in sys.argv
+    strict = "--strict" in sys.argv
     idx = json.load(open(os.path.join(src, "index.json"), encoding="utf8"))
     if isinstance(idx, dict):
         idx = idx.get("flags") or idx.get("items") or list(idx.values())
@@ -98,6 +103,10 @@ def main():
                 continue
         else:
             same = [e for e in db[cc] if int(e["y1"]) == y1 and "lic" not in e and not e.get("_hit")]
+            if strict and (same or any(int(e["y1"]) == y1 and e.get("y0") == y0 for e in db[cc])):
+                stat["skip_same"] = stat.get("skip_same", 0) + 1
+                print("пропуск (такой флаг уже есть, не заменяем):", cc, r.get("name"), "->", [e["id"] for e in same])
+                continue
         if same:
             # заменяем картинку, сохраняя id, названия, годы и идеологии, подобранные раньше
             old = same[0]

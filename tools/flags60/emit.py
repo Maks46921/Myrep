@@ -1,4 +1,4 @@
-# 0.60: данные флагов: символы (23), связь идеологических меток и стран с символами, цвета меток -> scripts/data/data_flags60.gd
+# 0.60: данные флагов: символы (23 + 26 дополнительных), связь идеологических меток и стран с символами, цвета меток -> scripts/data/data_flags60.gd
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "reg60"))
@@ -7,6 +7,13 @@ from rcore import gd
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ORDER = symbols.ORDER
+# 0.60: ещё 30 нарисованных символов (tools/flags60/sym_extra.json, сделаны отдельным заданием): у четырёх уже существующих (серп и молот,
+# орёл, двуглавый орёл, лев) берём улучшенный рисунок на том же месте списка, остальные дописываем в конец, номера прежних не меняются
+import json
+for _n, _svg in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sym_extra.json"), encoding="utf-8")):
+    if _n not in symbols.SYM:
+        ORDER.append(_n)
+    symbols.SYM[_n] = _svg
 IDX = {n: i for i, n in enumerate(ORDER)}
 
 TAG_SYM = {
@@ -41,7 +48,7 @@ TAG_COL = {"Коммунизм": "#c8102e", "Социализм": "#c8102e", "Р
 
 
 def main():
-    out = ['# 0.60: данные флагов: 23 символа (нарисованы в квадрате 24x24 с центром в нуле, цвет — «C»), символы по идеологическим меткам и странам.',
+    out = ['# 0.60: данные флагов: 49 символов (нарисованы в квадрате 24x24 с центром в нуле, цвет — «C»), символы по идеологическим меткам и странам.',
            '# Файл создан скриптом tools/flags60/emit.py — правьте tools/flags60/symbols.py и emit.py.',
            'extends "res://scripts/data/data_regimes60.gd"', '']
     out.append("const FLAG_SYM60 := [")
