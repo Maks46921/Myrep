@@ -335,6 +335,48 @@ func wsim_step() -> void:
 # --- конец заглушек ---
 
 
+# ---------- 0.62: недельный шаг ----------
+# Подсистемы, переведённые на недельный расчёт: метод вызывается каждый недельный тик с wdt = доля месяца (≈0,23) и wmonth = false,
+# а в месячном шаге — с wdt = оставшаяся доля месяца и wmonth = true. Если месячного шага не было (тесты зовут next_turn() напрямую),
+# wdt = 1.0 и поведение прежнее. Правила перевода: docs/RULES.md, раздел «Недельный расчёт».
+const WEEK_HOOKS: Array = [
+	# --- econ: экономика, регионы, уровни ---
+
+	# --- world: мир, дипломатия, агенты ---
+
+	# --- mil: армия, флот, революции, федерация, стройка ---
+
+	# --- soc: общество, культура, церковь, технологии, промышленность ---
+
+	# --- pol: выборы, коалиции, партии, события ---
+]
+
+
+func week_hooks_run(dt: float) -> void:
+	if WEEK_HOOKS.is_empty():
+		return
+	var s_dt := wdt
+	var s_m := wmonth
+	wdt = dt
+	wmonth = false
+	for h in WEEK_HOOKS:
+		call(h)
+		if game_over:
+			break
+	wdt = s_dt
+	wmonth = s_m
+
+
+# вероятность события за шаг, если за месяц она p
+func wp(p: float) -> float:
+	return p if wdt == 1.0 else 1.0 - pow(1.0 - clampf(p, 0.0, 1.0), wdt)
+
+
+# доля сближения за шаг, если за месяц она r
+func wr(r: float) -> float:
+	return rt(r, wdt)
+
+
 # ---------- реальное время: календарь по дням ----------
 # Месячный шаг экономики и политики (next_turn) выполняется на границе месяцев, как и раньше;
 # каждый день идёт календарь и ежедневные подсистемы (day_tick).
@@ -385,7 +427,7 @@ func advance_day() -> bool:
 		next_turn()          # переход через границу месяца: месячный шаг; он ставит день = 1
 	else:
 		day += 1
-		if day == 8 or day == 15 or day == 22 or day == 29:
+		if day == 8 or day == 15 or day == 22:
 			week_tick()
 	day_tick()
 	return true
@@ -558,6 +600,7 @@ func week_tick() -> void:
 	debt_erode(dt)
 	var deficit_pct: float = -float(b["balance"]) / gdp * 100.0
 	macro_step(dt, last_ecf, deficit_pct, debt / gdp * 100.0, false)
+	week_hooks_run(dt)
 	month_done += dt
 	if debt / gdp > 1.5:
 		end_game("Государственный дефолт. Страна не смогла обслуживать долг.")
@@ -582,7 +625,11 @@ func next_turn() -> void:
 		return
 	# v50: неутверждённый черновик бюджета в месячный расчёт не входит
 	var bud_h := bud_hold_begin()
+	wdt = maxf(0.0, 1.0 - month_done)     # 0.62: доля месяца, не пройденная недельными тиками (без тиков — 1.0)
+	wmonth = true
 	next_turn_core()
+	wdt = 1.0
+	wmonth = true
 	bud_hold_end(bud_h)
 
 
