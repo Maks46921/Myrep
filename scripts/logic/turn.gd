@@ -343,6 +343,7 @@ const WEEK_HOOKS: Array = [
 	# --- econ: экономика, регионы, уровни ---
 
 	# --- world: мир, дипломатия, агенты ---
+	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",
 
 	# --- mil: армия, флот, революции, федерация, стройка ---
 

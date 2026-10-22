@@ -160,14 +160,18 @@ func dip_change(c: String, delta: float) -> void:
 func dip_step() -> void:
 	if dip.is_empty():
 		return
+	# 0.62: сближение с целью и шум идут каждую неделю (шум ∝ √wdt), паузы действий (в месяцах) и кризисный откат — по дням месяца/вероятности
+	var k_rel := wr(0.04)
+	var ns := sqrt(wdt)
 	for c in DIP_ORDER:
 		var cur: float = float(dip[c]["rel"])
 		var tg := dip_target(c)
-		dip[c]["rel"] = clampf(cur + (tg - cur) * 0.04 + randf_range(-0.25, 0.25), 0.0, 100.0)
-		var cd: Dictionary = dip[c]["cd"]
-		for k in cd:
-			cd[k] = maxi(0, int(cd[k]) - 1)
-		if float(dip[c]["rel"]) < 28.0 and randf() < 0.04:
+		dip[c]["rel"] = clampf(cur + (tg - cur) * k_rel + randf_range(-0.25, 0.25) * ns, 0.0, 100.0)
+		if wmonth:
+			var cd: Dictionary = dip[c]["cd"]
+			for k in cd:
+				cd[k] = maxi(0, int(cd[k]) - 1)
+		if float(dip[c]["rel"]) < 28.0 and randf() < wp(0.04):
 			var lv: Dictionary = dip[c]["lv"]
 			var keys: Array = []
 			for k in lv:
@@ -324,7 +328,64 @@ func w_link(a: String, b: String) -> float:
 	return 1.0
 
 
+# 0.62: кэш долей торговли на время одной подсистемы (wsim_step, ex_month): между w_sc_begin() и w_sc_end() ВВП стран и их связи не меняются
+# (кроме явных w_sc_touch). Результат тот же, что у прямого расчёта: суммы считаются в том же порядке. Каждый begin строит кэш заново,
+# поэтому недозакрытый блок (ошибка внутри) не оставляет устаревших данных для следующего.
+var w_sc_on := false
+var w_sc_pw := {}      # страна -> ВВП^0,7
+var w_sc_tot := {}     # страна a -> знаменатель доли (сумма ВВП^0,7 * связь по остальным странам)
+var w_sc_lk := {}      # страна a -> {страна b -> w_link(a, b)}
+var w_sc_om := {}      # страна -> open_mult
+
+
+func w_sc_begin() -> void:
+	w_sc_on = true
+	w_sc_pw.clear()
+	for c in wsim:
+		w_sc_pw[c] = pow(float(wsim[c]["gdp"]), 0.7)
+	w_sc_tot.clear()
+	w_sc_lk.clear()
+	w_sc_om.clear()
+
+
+func w_sc_end() -> void:
+	w_sc_on = false
+	w_sc_pw.clear()
+	w_sc_tot.clear()
+	w_sc_lk.clear()
+	w_sc_om.clear()
+
+
+# ВВП страны c изменился внутри кэшируемого блока
+func w_sc_touch(c: String) -> void:
+	if w_sc_on:
+		w_sc_pw[c] = pow(float(wsim[c]["gdp"]), 0.7)
+		w_sc_tot.clear()
+
+
+func w_sc_share(a: String, b: String) -> float:
+	var lk: Dictionary = w_sc_lk.get(a, {})
+	if lk.is_empty():
+		for c in wsim:
+			lk[c] = w_link(a, c)
+		w_sc_lk[a] = lk
+		w_sc_om[a] = open_mult(a)
+	var tot: float = float(w_sc_tot.get(a, -1.0))
+	if tot < 0.0:
+		tot = 0.0
+		for c in wsim:
+			if c == a:
+				continue
+			tot += float(w_sc_pw[c]) * float(lk[c])
+		w_sc_tot[a] = tot
+	if tot <= 0.0:
+		return 0.0
+	return float(W_OPEN.get(a, 0.4)) * float(w_sc_om[a]) * float(w_sc_pw[b]) * float(lk[b]) / tot
+
+
 func w_share(a: String, b: String) -> float:
+	if w_sc_on:
+		return w_sc_share(a, b)
 	var tot := 0.0
 	for c in wsim:
 		if c == a:
@@ -348,11 +409,13 @@ func w_pot(c: String) -> float:
 func world_spill_g() -> float:
 	if wsim.is_empty():
 		return 0.0
+	w_sc_begin()
 	var s := 0.0
 	for c in wsim:
 		if c == ccode:
 			continue
 		s += w_share(ccode, c) * (float(wsim[c]["growth"]) - float(wsim[c]["pot"])) * 0.30
+	w_sc_end()
 	s += w_shock_g(ccode)
 	if bool(WORLD[ccode].get("euro", false)) or bool(WORLD[ccode].get("eu", false)):
 		s -= w_stress * 0.12
@@ -366,11 +429,13 @@ func w_shock_g(c: String) -> float:
 
 
 func world_spill_infl() -> float:
+	w_sc_begin()
 	var s := 0.0
 	for c in wsim:
 		if c == ccode:
 			continue
 		s += w_share(ccode, c) * (float(wsim[c]["infl"]) - float(wsim[ccode]["infl"] if wsim.has(ccode) else 2.0)) * 0.2
+	w_sc_end()
 	if not w_shock.is_empty():
 		s += float(w_shock["infl"]) * 0.8 * clampf(float(W_OPEN.get(ccode, 0.4)), 0.2, 1.0)
 	return s
@@ -490,14 +555,15 @@ func w_player_stance() -> float:
 
 
 func w_shock_step() -> void:
-	w_stress *= 0.94
+	w_stress *= 0.94 if wdt == 1.0 else pow(0.94, wdt)
 	if not w_shock.is_empty():
-		w_shock["left"] = int(w_shock["left"]) - 1
-		if int(w_shock["left"]) <= 0:
-			log_tag("МИР", COL_GOOD, "%s — мировая обстановка успокаивается: завершено (%s)." % [date_text(), String(w_shock["n"])])
-			w_shock = {}
+		if wmonth:          # срок шока — в целых месяцах
+			w_shock["left"] = int(w_shock["left"]) - 1
+			if int(w_shock["left"]) <= 0:
+				log_tag("МИР", COL_GOOD, "%s — мировая обстановка успокаивается: завершено (%s)." % [date_text(), String(w_shock["n"])])
+				w_shock = {}
 		return
-	if randf() >= 0.009:
+	if randf() >= wp(0.009):
 		return
 	var opts := [
 		{"id": "energy", "n": "мировой энергетический шок", "g": -0.45, "infl": 1.2, "dur": 9, "t": "Цены на нефть и газ взлетели из-за перебоев с поставками: дорожают топливо и электричество во всех странах."},
@@ -598,9 +664,10 @@ func w_fund_step(c: String) -> void:
 	var f: Dictionary = w.get("fund", {})
 	if f.is_empty():
 		return
-	f["left"] = int(f["left"]) - 1
+	if wmonth:
+		f["left"] = int(f["left"]) - 1
 	# разоблачение: 3% в месяц, в странах со свободной прессой выше
-	if randf() < 0.03:
+	if randf() < wp(0.03):
 		w["fund"] = {}
 		fa_hit(c, -14.0, "финансирование партии «%s»" % w_party_name(c, int(f["p"])))
 		add_all_support(-0.6)
@@ -613,26 +680,37 @@ func w_fund_step(c: String) -> void:
 func wsim_step() -> void:
 	if wsim.is_empty():
 		return
+	# 0.62: недельный расчёт мира: сближение с целью — wr(), шум ∝ √wdt, потоки долга — на wdt, вероятности — wp();
+	# целые месяцы (сроки кризисов и выборов), история и сводка — только при wmonth. При wdt = 1 результат прежний.
+	w_sc_begin()
+	var k_g := wr(0.28)
+	var k_i := wr(0.14)
+	var k_u := wr(0.06)
+	var k_d := wr(0.12)
+	var k_s := wr(0.08)
+	var k_a := wr(0.06)
+	var ns := sqrt(wdt)
 	w_shock_step()
 	for c in wsim:
 		var w: Dictionary = wsim[c]
 		if c == ccode:
 			# состояние страны игрока берём из настоящей симуляции
 			w["gdp"] = gdp
+			w_sc_touch(c)
 			w["growth"] = growth
 			w["infl"] = inflation
 			w["unemp"] = unemployment
 			w["debt"] = debt / gdp * 100.0
-			w["def"] = -float(compute_budget()["balance"]) / gdp * 100.0 if turn % 3 == 0 else float(w["def"])
+			w["def"] = -float(compute_budget()["balance"]) / gdp * 100.0 if (wmonth and turn % 3 == 0) else float(w["def"])
 			w["stab"] = clampf(100.0 - reg_avg("unrest") * 1.2, 0.0, 100.0)
 			w["appr"] = approval()
-			if turn % 3 == 0:
+			if wmonth and turn % 3 == 0:
 				var gh: Array = w["g_hist"]
 				gh.append(growth)
 				(w["i_hist"] as Array).append(inflation)
 				(w["gdp_hist"] as Array).append(gdp)
 			if w_stress > 0.35 and bool(WORLD[c].get("euro", false)) and debt / gdp * 100.0 > 85.0:
-				risk_prem = minf(2.0, risk_prem + 0.025 * w_stress)
+				risk_prem = minf(2.0, risk_prem + 0.025 * w_stress * wdt)
 			continue
 		var cr: Dictionary = w["crisis"]
 		var ck := {}
@@ -658,42 +736,44 @@ func wsim_step() -> void:
 		var consol: bool = float(w["debt"]) > 100.0 and float(w["def"]) > 3.5 and ck.is_empty()
 		if consol:
 			gt -= 0.25
-		w["growth"] = float(w["growth"]) + (gt - float(w["growth"])) * 0.28 + randf_range(-0.25, 0.25)
-		w["gdp"] = float(w["gdp"]) * (1.0 + float(w["growth"]) / 1200.0)
+		w["growth"] = float(w["growth"]) + (gt - float(w["growth"])) * k_g + randf_range(-0.25, 0.25) * ns
+		w["gdp"] = float(w["gdp"]) * (1.0 + float(w["growth"]) / 1200.0 * wdt)
+		w_sc_touch(c)
 		# --- инфляция и безработица ---
 		var it: float = ea_infl + (float(WORLD[c]["infl"]) - 2.1) * 0.25 + (float(w["growth"]) - pot) * 0.20 + world_infl_bias(c)
 		if not ck.is_empty():
 			it += float(ck["infl"])
 		if not w_shock.is_empty():
 			it += float(w_shock["infl"]) * 0.8 * clampf(float(W_OPEN.get(c, 0.4)), 0.2, 1.0)
-		w["infl"] = clampf(float(w["infl"]) + (it - float(w["infl"])) * 0.14 + randf_range(-0.08, 0.08), 0.0, 25.0)
+		w["infl"] = clampf(float(w["infl"]) + (it - float(w["infl"])) * k_i + randf_range(-0.08, 0.08) * ns, 0.0, 25.0)
 		var ut: float = float(WORLD[c]["unemp"]) - (float(w["growth"]) - pot) * 0.6
-		w["unemp"] = clampf(float(w["unemp"]) + (ut - float(w["unemp"])) * 0.06, 2.0, 30.0)
+		w["unemp"] = clampf(float(w["unemp"]) + (ut - float(w["unemp"])) * k_u, 2.0, 30.0)
 		# --- бюджет и долг ---
 		var dt: float = float(WORLD[c]["def"]) + (pot - float(w["growth"])) * 0.45
 		if not ck.is_empty():
 			dt += float(ck["def"])
 		if consol:
 			dt -= 0.9
-		w["def"] = float(w["def"]) + (dt - float(w["def"])) * 0.12
+		w["def"] = float(w["def"]) + (dt - float(w["def"])) * k_d
 		var db: float = float(w["debt"])
-		w["debt"] = db + (float(w["def"]) - float(w["growth"]) * db / 100.0 - 0.0) / 12.0
+		w["debt"] = db + (float(w["def"]) - float(w["growth"]) * db / 100.0 - 0.0) / 12.0 * wdt
 		# --- стабильность и рейтинг ---
 		var st_t: float = float(WORLD[c]["stab"]) - maxf(0.0, float(w["unemp"]) - float(WORLD[c]["unemp"])) * 3.0 - maxf(0.0, float(w["infl"]) - 4.0) * 3.0
 		if not ck.is_empty():
 			st_t += float(ck["stab"]) * 4.0
-		w["stab"] = clampf(float(w["stab"]) + (st_t - float(w["stab"])) * 0.08 + randf_range(-0.6, 0.6), 0.0, 100.0)
+		w["stab"] = clampf(float(w["stab"]) + (st_t - float(w["stab"])) * k_s + randf_range(-0.6, 0.6) * ns, 0.0, 100.0)
 		var ap_t: float = float(WORLD[c]["appr"]) + (float(w["growth"]) - pot) * 4.0 - (float(w["infl"]) - float(WORLD[c]["infl"])) * 3.0 - (float(w["unemp"]) - float(WORLD[c]["unemp"])) * 2.0
-		w["appr"] = clampf(float(w["appr"]) + (ap_t - float(w["appr"])) * 0.06 + randf_range(-0.8, 0.8), 10.0, 85.0)
+		w["appr"] = clampf(float(w["appr"]) + (ap_t - float(w["appr"])) * k_a + randf_range(-0.8, 0.8) * ns, 10.0, 85.0)
 		# --- кризис идёт / заканчивается ---
 		if not cr.is_empty():
-			cr["left"] = int(cr["left"]) - 1
-			if int(cr["left"]) <= 0:
-				log_tag("МИР", COL_GOOD, "%s — %s: завершено (%s)." % [date_text(), WORLD[c]["name"], String(cr["n"])])
-				w["crisis"] = {}
+			if wmonth:          # срок кризиса — в целых месяцах
+				cr["left"] = int(cr["left"]) - 1
+				if int(cr["left"]) <= 0:
+					log_tag("МИР", COL_GOOD, "%s — %s: завершено (%s)." % [date_text(), WORLD[c]["name"], String(cr["n"])])
+					w["crisis"] = {}
 		else:
 			var risk: float = (0.005 if consol else 0.0) + 0.011 + maxf(0.0, 50.0 - float(w["stab"])) * 0.0004 + maxf(0.0, float(w["debt"]) - 100.0) * 0.00012 + maxf(0.0, float(w["infl"]) - 4.0) * 0.0015
-			if randf() < risk:
+			if randf() < wp(risk):
 				var tot := 0.0
 				for k in W_KINDS:
 					var pw: float = float(k["p"])
@@ -714,10 +794,14 @@ func wsim_step() -> void:
 						w_start_crisis(c, k)
 						break
 		w_fund_step(c)
-		# --- выборы ---
-		w["next_elec"] = int(w["next_elec"]) - 1
-		if int(w["next_elec"]) <= 0:
-			w_election(c)
+		# --- выборы (срок — в целых месяцах) ---
+		if wmonth:
+			w["next_elec"] = int(w["next_elec"]) - 1
+			if int(w["next_elec"]) <= 0:
+				w_election(c)
+	w_sc_end()
+	if not wmonth:
+		return
 	# воздействие кризисов у соседей на страну игрока (отношения со страной в кризисе чуть падают от нестабильности)
 	if turn % 6 == 0:
 		world_news()

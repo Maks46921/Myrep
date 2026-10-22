@@ -15,6 +15,10 @@ func update_pop_windows() -> void:
 # --- конец заглушек ---
 
 
+const AG_STRIDE_W := AG_STRIDE * 4     # шаг по агентам в недельном расчёте (4 вызова в месяц)
+const AG_BIG := 100000                 # больше стольких агентов — реже (см. ag_step)
+
+
 func ag_k() -> int:
 	if ag_k_pref > 0:
 		return ag_k_pref
@@ -177,7 +181,14 @@ func ag_step() -> void:
 	var ctx := {"z": ag_zs(), "zg": ag_zg(), "sup": ag_support_arr(), "ur": unemployment / 100.0, "gpos": ag_pos_raw[0],
 		"infl": inflation, "growth": growth, "sec": float(lvl["security_lvl"]), "env": float(lvl["env_lvl"]), "mig": mig,
 		"cor": float(lvl["corruption"]), "rloy": rloy}
-	AG.step(ctx, ag_phase % AG_STRIDE, AG_STRIDE)
+	if wdt == 1.0:
+		AG.step(ctx, ag_phase % AG_STRIDE, AG_STRIDE)
+	else:
+		# 0.62: недельный расчёт — шагов в месяце 4, поэтому берём в 4 раза больший шаг по агентам: каждый агент, как и раньше, обновляется
+		# раз в AG_STRIDE месяцев (с теми же коэффициентами), а на один вызов приходится вчетверо меньше агентов (нагрузка за месяц прежняя).
+		# В очень людных странах (больше AG_BIG агентов) шаг ещё в 1,5 раза больше (раз в 6 месяцев, коэффициенты пересчитываются): вызов ≤ ~100 мс
+		var sw: int = AG_STRIDE_W if AG.n <= AG_BIG else AG_STRIDE_W * 3 / 2
+		AG.step(ctx, ag_phase % sw, sw, float(sw) / 4.0)
 	ag_phase += 1
 	ag_ver += 1
 
