@@ -498,7 +498,7 @@ func approval_of(i: int, sup: Array, ob: PackedFloat32Array) -> float:
 # один шаг: обновляется каждый stride-й агент (со сдвигом phase)
 # v47_1: у агента есть личная история — работа с памятью (месяцы без работы), «кошелёк», доверие, явка;
 # взгляды меняются от опыта (безработица, цены, безопасность, природа, миграция, коррупция) и от окружения.
-func step(ctx: Dictionary, phase: int, stride: int) -> void:
+func step(ctx: Dictionary, phase: int, stride: int, mscale: float = -1.0) -> void:
 	var z: PackedFloat32Array = ctx["z"]
 	var sup: Array = ctx["sup"]
 	var ur: float = float(ctx["ur"])
@@ -511,7 +511,7 @@ func step(ctx: Dictionary, phase: int, stride: int) -> void:
 	var migr: float = float(ctx.get("mig", 0.0))
 	var corl: float = float(ctx.get("cor", 50.0))
 	var rloy: PackedFloat32Array = ctx.get("rloy", PackedFloat32Array())
-	var months: float = float(stride)
+	var months: float = float(stride) if mscale < 0.0 else mscale     # 0.62: mscale — месяцев между визитами к агенту (недельный расчёт)
 	for a0 in AX:
 		gpos[a0] = float(gp[a0])
 	var ob := group_offbar()
