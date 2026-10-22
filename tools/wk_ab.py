@@ -25,6 +25,7 @@ def main():
                 for mode in 'mw':
                     jobs[(cc, sd, mode)] = ex.submit(run, cc, sd, a.y, mode, a.ev, a.agents, tmp)
     names = ['gdp', 'growth', 'infl', 'unemp', 'debt%', 'appr', 'unrest', 'capital']
+    names += ['rate', 'cpi', 'util', 'bconf', 'cconf', 'loy', 'dev', 'rdebt', 'corr', 'rprem']   # группа «экономика»
     for cc in ccs:
         print(f'== {cc}: недельный против месячного, среднее по seed {seeds}, {a.y} лет')
         acc = {}

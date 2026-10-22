@@ -1609,39 +1609,57 @@ func brake_active() -> bool:
 	return float(mods["brake_room"]) < 50.0
 
 
+# 0.62: недельный шаг: спецфонд, надбавка за риск и штрафы текут по доле месяца wdt; счётчик месяцев нарушения и журнал — только при wmonth
 func brake_step(deficit_pct: float) -> void:
 	if fund_left > 0.0:
-		fund_left = maxf(0.0, fund_left - 0.010 * gdp / 12.0)
+		fund_left = maxf(0.0, fund_left - 0.010 * gdp / 12.0 * wdt)
 	if not brake_active():
 		brake_over = 0
 		return
 	var over: float = deficit_pct - brake_allowed() - 0.5
-	if over > 0.0:
-		brake_over += 1
-	else:
-		brake_over = maxi(0, brake_over - 2)
+	if wmonth:
+		if over > 0.0:
+			brake_over += 1
+		else:
+			brake_over = maxi(0, brake_over - 2)
 	if ccode != "DE":
 		var fname := String(MACRO.get("fiscal_name", "Правила ЕС"))
 		var strict: bool = float(MACRO.get("fiscal_base", 3.0)) < 1.5
 		if over > 0.0:
-			risk_prem = minf(2.0 if not strict else 0.5, risk_prem + 0.03 * minf(over, 3.0))
+			risk_prem = minf(2.0 if not strict else 0.5, risk_prem + 0.03 * minf(over, 3.0) * wdt)
 		else:
-			risk_prem = maxf(0.0, risk_prem - 0.05)
-		if brake_over == 3:
+			risk_prem = maxf(0.0, risk_prem - 0.05 * wdt)
+		if not wmonth:
+			if brake_over >= 6:
+				capital -= (0.8 if strict else 0.15) * wdt
+				add_support("Бизнес", (-0.3 if not strict else -0.4) * wdt)
+		elif brake_over == 3:
 			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else ("Еврокомиссия предупреждает" if bool(MACRO.get("eu", false)) else "Рейтинговые агентства предупреждают") + " правительство, инвесторы требуют премию за риск."])
 		elif brake_over >= 6:
-			capital -= (0.8 if strict else 0.15)
+			capital -= (0.8 if strict else 0.15) * wdt
 			if brake_over % 6 == 0:
 				log_line("[color=%s][b]Нарушение бюджетного правила (%s).[/b] Рынки и партнёры давят на правительство (политкапитал -%s в месяц, ставка по долгу выше).[/color]" % [COL_BAD, fname, "0.8" if strict else "0.15"])
-			apply_fx({"support": {"Бизнес": -0.3 if not strict else -0.4}})
+			apply_fx({"support": {"Бизнес": (-0.3 if not strict else -0.4) * wdt}})
+		return
+	if not wmonth:
+		if brake_over >= 6:
+			capital -= 0.8 * wdt
+			add_support("Бизнес", -0.4 * wdt)
+			add_support("Пенсионеры", -0.2 * wdt)
 		return
 	if brake_over == 3:
 		log_line("[color=%s][b]Долговой тормоз:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. Федеральное министерство финансов и Конституционный суд предупреждают правительство.[/color]" % [COL_WARN, deficit_pct, brake_allowed()])
 	elif brake_over >= 6:
-		capital -= 0.8
+		capital -= 0.8 * wdt
 		if brake_over % 6 == 0:
 			log_line("[color=%s][b]Нарушение долгового тормоза.[/b] Суд требует сократить дефицит (политкапитал -0.8 в месяц, доверие рынков падает).[/color]" % COL_BAD)
-		apply_fx({"support": {"Бизнес": -0.4, "Пенсионеры": -0.2}})
+		apply_fx({"support": {"Бизнес": -0.4 * wdt, "Пенсионеры": -0.2 * wdt}})
+
+
+# 0.62: недельный тик долгового тормоза: дефицит по текущему бюджету
+func brake_week() -> void:
+	var b := compute_budget()
+	brake_step(-float(b["balance"]) / gdp * 100.0)
 
 
 func brake_text() -> String:
