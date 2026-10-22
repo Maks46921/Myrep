@@ -211,6 +211,23 @@ func date_full() -> String:
 	return "%d %s %d" % [day, MONTHS_GEN[month - 1], year]
 
 
+# день недели настоящего календаря: 0 — понедельник … 6 — воскресенье (алгоритм Сакамото)
+func weekday_of(y: int, m: int, d: int) -> int:
+	var t := [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
+	var yy := y - (1 if m < 3 else 0)
+	var w: int = (yy + yy / 4 - yy / 100 + yy / 400 + int(t[m - 1]) + d) % 7     # 0 — воскресенье
+	return (w + 6) % 7
+
+
+func weekday() -> int:
+	return weekday_of(year, month, day)
+
+
+# номер «недели» шага расчёта в месяце: 1–3 по 7 дней, 4-я — остаток месяца (7–10 дней)
+func week_of_month() -> int:
+	return mini(4, (day - 1) / 7 + 1)
+
+
 func date_chip() -> String:
 	return "%d %s %d" % [day, String(MONTHS[month - 1]).substr(0, 3).to_lower(), year]
 

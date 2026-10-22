@@ -639,7 +639,22 @@ func build_ui() -> void:
 	chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chip_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	chip_sc.add_child(chip_row)
-	make_chip(chip_row, "date", "ДАТА", "Текущая дата игры. Календарь идёт по дням; экономика и политика считаются на границе месяцев.")
+	make_chip(chip_row, "date", "ДАТА", "Текущая дата игры. Календарь идёт по дням, а экономика, политика и мир считаются каждую неделю.")
+	# 0.62: семь квадратиков дней недели стоят в строке подписи, рядом со словом «ДАТА» (высота плашки не меняется)
+	var wk := WeekStrip.new()
+	var date_vb := (chips["date"]["pc"] as Control).get_child(0) as VBoxContainer
+	var date_cap := date_vb.get_child(0) as Label
+	var cap_row := HBoxContainer.new()
+	cap_row.add_theme_constant_override("separation", 6)
+	date_vb.add_child(cap_row)
+	date_vb.move_child(cap_row, 0)
+	date_cap.reparent(cap_row)
+	var cap_sp := Control.new()
+	cap_sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cap_row.add_child(cap_sp)
+	wk.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	cap_row.add_child(wk)
+	chips["date"]["week"] = wk
 	make_chip(chip_row, "appr", "РЕЙТИНГ", "Общий рейтинг власти. Стрелка — изменение за прошлый месяц. Выше 50% — вы выигрываете выборы.")
 	make_chip(chip_row, "gdp", "ВВП, МЛРД", "ВВП за год. Справа — общий темп роста за год.")
 	make_chip(chip_row, "infl", "ИНФЛЯЦИЯ", "Годовая инфляция. Выше 6% — экономика страдает, выше 30% — гиперинфляция.")
@@ -677,12 +692,12 @@ func build_ui() -> void:
 	hb.add_child(play_btn)
 	speed_opt = OptionButton.new()
 	speed_opt.focus_mode = Control.FOCUS_NONE
-	speed_opt.custom_minimum_size = Vector2(66.0, 40.0)
+	speed_opt.custom_minimum_size = Vector2(84.0, 40.0)
 	speed_opt.fit_to_longest_item = false
-	speed_opt.tooltip_text = "Скорость: сколько дней календаря проходит за секунду реального времени"
+	speed_opt.tooltip_text = "Скорость: сколько недель календаря проходит за секунду реального времени"
 	for k in range(1, PLAY_SPEEDS.size()):
-		speed_opt.add_item("%d×" % int(PLAY_SPEEDS[k]), k)
-		speed_opt.set_item_tooltip(k - 1, "%d дн. в секунду" % int(PLAY_SPEEDS[k]))
+		speed_opt.add_item(String(PLAY_NAMES[k]), k)
+		speed_opt.set_item_tooltip(k - 1, "%d нед. в секунду" % int(PLAY_SPEEDS[k] / 7.0))
 	speed_opt.item_selected.connect(on_speed_selected)
 	hb.add_child(speed_opt)
 	build_settings_button(hb)
@@ -2482,6 +2497,9 @@ func update_chips() -> void:
 	var ddebt: float = dr - float(pv.get("debt", dr))
 	var gs := gov_seats()
 	set_chip("date", date_chip(), C_TEXT)
+	var wkc: Control = chips["date"]["week"]
+	wkc.call("set_day", weekday())
+	(chips["date"]["pc"] as Control).tooltip_text = "%s, %d %s %d. Неделя %d из 4 в этом месяце. Календарь идёт по дням, а экономика, политика и мир считаются каждую неделю." % [WEEKDAYS[weekday()], day, MONTHS_GEN[month - 1], year, week_of_month()]
 	set_chip_num("appr", ap, func(x: float) -> String: return "%.0f%%" % x, scale_color(ap / 100.0), arrow_text(dap, 1), delta_col(dap, true))
 	set_chip_num("gdp", gdp, func(x: float) -> String: return fmt_n(x), C_TEXT, "%s%.1f%%" % ["+" if growth >= 0.0 else "", growth], C_GOOD if growth >= 2.0 else (C_WARN if growth >= 0.0 else C_BAD))
 	set_chip_num("infl", inflation, func(x: float) -> String: return "%.1f%%" % x, scale_color(1.0 - inflation / 12.0), arrow_text(dinfl, 2), delta_col(dinfl, false))
