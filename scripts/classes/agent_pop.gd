@@ -521,6 +521,15 @@ func step(ctx: Dictionary, phase: int, stride: int, mscale: float = -1.0) -> voi
 		up[g] = ugp(ur, g)
 	sw_cnt = 0
 	var lam: float = clampf(0.45 * months / 4.0, 0.05, 0.9)
+	# 0.62: при визите реже обычного (больше 4 месяцев) личные «скорости» растут пропорционально; при months = 4 — прежние числа
+	var mk: float = months / 4.0
+	var k_pb := 0.25
+	var k_off := 0.5
+	var k_tr := 0.04
+	if mk != 1.0:
+		k_pb = 1.0 - pow(0.75, mk)
+		k_off = 1.0 - pow(0.5, mk)
+		k_tr = 1.0 - pow(0.96, mk)
 	var i := phase
 	while i < n:
 		var g: int = grp[i]
@@ -546,10 +555,10 @@ func step(ctx: Dictionary, phase: int, stride: int, mscale: float = -1.0) -> voi
 		var shock_i: float = grw + 2.0 - infl * (1.25 if g == 2 or edu[i] == 0 else 0.95) + rng.randfn(0.0, 1.5)
 		if emp[i] == 0 and g != 2:
 			shock_i -= 12.0
-		pb[i] = pb[i] * 0.75 + shock_i * 0.25
+		pb[i] = pb[i] * (1.0 - k_pb) + shock_i * k_pb
 		# --- доверие: коррупция, безработица, личный опыт; возвращается к личной норме, поэтому без кризисов не скатывается ---
-		var tr: float = trust[i] + 0.004 * (50.0 - corl) / 10.0 + 0.002 * clampf(pb[i], -5.0, 3.0) - (0.01 if unm[i] >= 12 else 0.0)
-		trust[i] = clampf(tr + (trust0[i] - trust[i]) * 0.04, 0.02, 0.98)
+		var tr: float = trust[i] + 0.004 * (50.0 - corl) / 10.0 * mk + 0.002 * clampf(pb[i], -5.0, 3.0) * mk - (0.01 if unm[i] >= 12 else 0.0) * mk
+		trust[i] = clampf(tr + (trust0[i] - trust[i]) * k_tr, 0.02, 0.98)
 		# --- оценка власти ---
 		var d0: float = ide[j] - gpos[0]
 		var d1: float = ide[j + 1] - gpos[1]
@@ -569,7 +578,7 @@ func step(ctx: Dictionary, phase: int, stride: int, mscale: float = -1.0) -> voi
 			var wg := g * NG
 			for jg in NG:
 				t -= (gw[bg + jg] - gwbar[wg + jg]) * zg[jg]
-		var nv: float = off[i] + (t - off[i]) * 0.5
+		var nv: float = off[i] + (t - off[i]) * k_off
 		sum_off[g] += nv - off[i]
 		off[i] = nv
 		var a: float = clampf(float(sup[g]) + nv - ob[g], 0.0, 100.0)
