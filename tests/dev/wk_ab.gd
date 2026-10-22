@@ -25,7 +25,7 @@ func _init():
 	root.add_child(m)
 	for i in 3: await process_frame
 	var lines: PackedStringArray = []
-	lines.append("month\tgdp\tgrowth\tinfl\tunemp\tdebt_pct\tappr\tunrest\tcapital\t" + "\t".join(PackedStringArray(m.GROUPS.map(func(g): return "sup_" + str(g)))))
+	lines.append("month\tgdp\tgrowth\tinfl\tunemp\tdebt_pct\tappr\tunrest\tcapital\t" + "\t".join(PackedStringArray(m.GROUPS.map(func(g): return "sup_" + str(g)))) + "\tpop\tnonrel\tsoc_t\tcu_t\tch_pow\ttech_n\ttech_pts\tind_g")
 	for mo in years * 12:
 		if m.game_over: break
 		var target: int = m.turn + 1
@@ -44,6 +44,7 @@ func _init():
 			var row := "%d\t%.1f\t%.3f\t%.3f\t%.3f\t%.2f\t%.2f\t%.2f\t%.2f" % [mo + 1, m.gdp, m.growth, m.inflation, m.unemployment, m.debt / m.gdp * 100.0, m.approval(), m.reg_avg("unrest"), m.capital]
 			for g in m.GROUPS:
 				row += "\t%.2f" % float(m.support[g])
+			row += _soc_cols(m)
 			lines.append(row)
 	var txt := "\n".join(lines) + "\n"
 	if out != "":
@@ -52,3 +53,15 @@ func _init():
 	else:
 		print(txt)
 	quit()
+
+
+# показатели подсистемы soc (население, религия, культура, церковь, технологии, промышленность)
+func _soc_cols(m) -> String:
+	var nonrel: float = float(m.soc_national()[6]) * 100.0 if m.soc.has("lvl") else 0.0
+	var soc_t: float = float(m.soc.get("tension", 0.0)) if m.soc.has("lvl") else 0.0
+	var cu_t: float = float(m.cu.get("tension", 0.0)) if m.cu_on() else 0.0
+	var ch_p: float = float(m.ch.get("pow", 0.0)) if m.ch_on() else 0.0
+	var tn: int = m.tech_count() if not m.tech.is_empty() else 0
+	var tp: float = float(m.tech.get("pts", 0.0)) if not m.tech.is_empty() else 0.0
+	var ig: float = m.ind_g() if m.ind_on() else 0.0
+	return "\t%.3f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.0f\t%.3f" % [m.total_pop(), nonrel, soc_t, cu_t, ch_p, tn, tp, ig]
