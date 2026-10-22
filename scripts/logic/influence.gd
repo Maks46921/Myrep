@@ -113,7 +113,7 @@ func ex_g() -> float:
 	# вклад торговой политики и давления партнёров в ваш рост, п.п. в год
 	if not ex.has("p"):
 		return 0.0
-	var sc := w_sc_begin()
+	w_sc_begin()
 	var g := 0.0
 	for c in ex["p"]:
 		if not wsim.has(c):
@@ -123,23 +123,21 @@ func ex_g() -> float:
 			continue
 		var t: float = w_share(ccode, c)
 		g += 0.4 * float(EX_GAIN[int(p["deal"])]) * t - 0.5 * float(EX_LOSS[int(p["tar"])]) * t - 0.8 * float(EX_LOSS[int(p["ret"])]) * t
-	if sc:
-		w_sc_end()
+	w_sc_end()
 	return g
 
 
 func ex_infl() -> float:
 	if not ex.has("p"):
 		return 0.0
-	var sc := w_sc_begin()
+	w_sc_begin()
 	var s := 0.0
 	for c in ex["p"]:
 		if not wsim.has(c):
 			continue
 		var p: Dictionary = ex["p"][c]
 		s += (0.8 * float(EX_LOSS[int(p["tar"])]) + 0.4 * float(EX_LOSS[int(p["ret"])])) * w_share(ccode, c)
-	if sc:
-		w_sc_end()
+	w_sc_end()
 	return s
 
 
@@ -159,7 +157,7 @@ func ex_month() -> void:
 		return
 	# 0.62: недельный расчёт: затухание помощи, вложения в долг, рейтинг влияния и ответные пошлины идут каждую неделю (wdt, wr, wp);
 	# паузы действий (в месяцах) и история влияния — только при wmonth. Доли торговли считаются один раз (кэш w_sc_*).
-	var sc := w_sc_begin()
+	w_sc_begin()
 	var evs: int = int(game_opts.get("exev", 1))
 	var k_aid: float = 0.97 if wdt == 1.0 else pow(0.97, wdt)
 	var k_inf := wr(0.2)
@@ -193,8 +191,7 @@ func ex_month() -> void:
 		p["infl"] = float(p["infl"]) + (lv - float(p["infl"])) * k_inf
 		lv_sum += lv
 		lv_n += 1
-	if sc:
-		w_sc_end()
+	w_sc_end()
 	if lv_n > 0 and wmonth:
 		(ex["hist"] as Array).append(lv_sum / float(lv_n))
 		if (ex["hist"] as Array).size() > 144:

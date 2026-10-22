@@ -329,7 +329,8 @@ func w_link(a: String, b: String) -> float:
 
 
 # 0.62: кэш долей торговли на время одной подсистемы (wsim_step, ex_month): между w_sc_begin() и w_sc_end() ВВП стран и их связи не меняются
-# (кроме явных w_sc_touch). Результат тот же, что у прямого расчёта: суммы считаются в том же порядке.
+# (кроме явных w_sc_touch). Результат тот же, что у прямого расчёта: суммы считаются в том же порядке. Каждый begin строит кэш заново,
+# поэтому недозакрытый блок (ошибка внутри) не оставляет устаревших данных для следующего.
 var w_sc_on := false
 var w_sc_pw := {}      # страна -> ВВП^0,7
 var w_sc_tot := {}     # страна a -> знаменатель доли (сумма ВВП^0,7 * связь по остальным странам)
@@ -337,9 +338,7 @@ var w_sc_lk := {}      # страна a -> {страна b -> w_link(a, b)}
 var w_sc_om := {}      # страна -> open_mult
 
 
-func w_sc_begin() -> bool:
-	if w_sc_on:
-		return false
+func w_sc_begin() -> void:
 	w_sc_on = true
 	w_sc_pw.clear()
 	for c in wsim:
@@ -347,7 +346,6 @@ func w_sc_begin() -> bool:
 	w_sc_tot.clear()
 	w_sc_lk.clear()
 	w_sc_om.clear()
-	return true
 
 
 func w_sc_end() -> void:
@@ -411,14 +409,13 @@ func w_pot(c: String) -> float:
 func world_spill_g() -> float:
 	if wsim.is_empty():
 		return 0.0
-	var sc := w_sc_begin()
+	w_sc_begin()
 	var s := 0.0
 	for c in wsim:
 		if c == ccode:
 			continue
 		s += w_share(ccode, c) * (float(wsim[c]["growth"]) - float(wsim[c]["pot"])) * 0.30
-	if sc:
-		w_sc_end()
+	w_sc_end()
 	s += w_shock_g(ccode)
 	if bool(WORLD[ccode].get("euro", false)) or bool(WORLD[ccode].get("eu", false)):
 		s -= w_stress * 0.12
@@ -432,14 +429,13 @@ func w_shock_g(c: String) -> float:
 
 
 func world_spill_infl() -> float:
-	var sc := w_sc_begin()
+	w_sc_begin()
 	var s := 0.0
 	for c in wsim:
 		if c == ccode:
 			continue
 		s += w_share(ccode, c) * (float(wsim[c]["infl"]) - float(wsim[ccode]["infl"] if wsim.has(ccode) else 2.0)) * 0.2
-	if sc:
-		w_sc_end()
+	w_sc_end()
 	if not w_shock.is_empty():
 		s += float(w_shock["infl"]) * 0.8 * clampf(float(W_OPEN.get(ccode, 0.4)), 0.2, 1.0)
 	return s
@@ -686,7 +682,7 @@ func wsim_step() -> void:
 		return
 	# 0.62: недельный расчёт мира: сближение с целью — wr(), шум ∝ √wdt, потоки долга — на wdt, вероятности — wp();
 	# целые месяцы (сроки кризисов и выборов), история и сводка — только при wmonth. При wdt = 1 результат прежний.
-	var sc := w_sc_begin()
+	w_sc_begin()
 	var k_g := wr(0.28)
 	var k_i := wr(0.14)
 	var k_u := wr(0.06)
@@ -803,8 +799,7 @@ func wsim_step() -> void:
 			w["next_elec"] = int(w["next_elec"]) - 1
 			if int(w["next_elec"]) <= 0:
 				w_election(c)
-	if sc:
-		w_sc_end()
+	w_sc_end()
 	if not wmonth:
 		return
 	# воздействие кризисов у соседей на страну игрока (отношения со страной в кризисе чуть падают от нестабильности)
