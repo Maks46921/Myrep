@@ -228,12 +228,14 @@ func church_vote_mult(ri: int, p: int) -> float:
 func church_month() -> void:
 	if not ch_on():
 		return
-	var cd: Dictionary = ch["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
-	ch_prom_step()
+	# 0.62: кулдауны, сроки обещаний, праздники и история — в целых месяцах (только при закрытии месяца); остальное — на долю месяца wdt
+	if wmonth:
+		var cd: Dictionary = ch["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
+		ch_prom_step()
 	var dyn := soc_dyn()
 	var f: int = int(ch["faith"])
 	if dyn:
@@ -247,38 +249,40 @@ func church_month() -> void:
 			sp -= 0.3 * float(int(ch["state"]) == f) + 0.15 * float(int(ch["fin"]) == 2) + 0.6 * war_k
 			sp -= 0.03 * maxf(0.0, unemployment - float(soc.get("u0", unemployment)))
 			sp -= 0.004 * (float(ch["pow"]) - 50.0) + 0.15 * con_rb(i, "pie")
-			r["pie"] = clampf(float(r["pie"]) - sp / 12.0 * (float(r["pie"]) / 50.0 + 0.2), 1.0, 95.0)
+			r["pie"] = clampf(float(r["pie"]) - sp / 12.0 * (float(r["pie"]) / 50.0 + 0.2) * wdt, 1.0, 95.0)
 			# обращение нерелигиозных в государственную веру
 			var st: int = int(ch["state"])
 			if st >= 0 and st < 6 and r.has("rel"):
-				var fl: float = float(r["rel"][6]) * 0.0015 / 12.0 * (float(r["pie"]) / 50.0)
+				var fl: float = float(r["rel"][6]) * 0.0015 / 12.0 * (float(r["pie"]) / 50.0) * wdt
 				r["rel"][6] = float(r["rel"][6]) - fl
 				r["rel"][st] = float(r["rel"][st]) + fl
 				ch["conv"] = float(ch["conv"]) + fl * float(r["popm"]) * 1000000.0
 		# соперничающая церковь
 		var rv_d: Dictionary = ch["riv"]
 		if not rv_d.is_empty():
-			rv_d["hate"] = float(rv_d["hate"]) * 0.97
-			rv_d["ten"] = clampf(float(rv_d["ten"]) + (ch_riv_target(float(rv_d["share"]), float(rv_d["hate"])) - float(rv_d["ten"])) * 0.1, 0.0, 100.0)
+			rv_d["hate"] = float(rv_d["hate"]) * (0.97 if wdt == 1.0 else pow(0.97, wdt))
+			rv_d["ten"] = clampf(float(rv_d["ten"]) + (ch_riv_target(float(rv_d["share"]), float(rv_d["hate"])) - float(rv_d["ten"])) * wr(0.1), 0.0, 100.0)
 		# отношения и влияние
-		ch["off"] = float(ch["off"]) * 0.98
-		ch["rel"] = clampf(float(ch["rel"]) + (ch_rel_target() - float(ch["rel"])) * 0.12, 0.0, 100.0)
+		ch["off"] = float(ch["off"]) * (0.98 if wdt == 1.0 else pow(0.98, wdt))
+		ch["rel"] = clampf(float(ch["rel"]) + (ch_rel_target() - float(ch["rel"])) * wr(0.12), 0.0, 100.0)
 		var pt: float = float(ch["pow0"]) + 0.6 * (ch_nat_piety() - float(ch["pie0"])) + 8.0 * (float(int(ch["state"]) == f) - float(int(ch["state0"]) == f)) \
 			+ 4.0 * (float(int(ch["fin"]) == 2) - float(int(ch["fin0"]) == 2)) - 4.0 * (float(soc.get("sec", 1)) - 1.0)
-		ch["pow"] = clampf(float(ch["pow"]) + (clampf(pt, 2.0, 98.0) - float(ch["pow"])) * 0.03, 0.0, 100.0)
-	var hh: Dictionary = ch["h"]
-	(hh["p"] as Array).append(float(ch["pow"]))
-	(hh["r"] as Array).append(float(ch["rel"]))
-	(hh["pi"] as Array).append(ch_nat_piety())
-	for hk in ["p", "r", "pi"]:
-		if (hh[hk] as Array).size() > 144:
-			(hh[hk] as Array).pop_front()
+		ch["pow"] = clampf(float(ch["pow"]) + (clampf(pt, 2.0, 98.0) - float(ch["pow"])) * wr(0.03), 0.0, 100.0)
+	if wmonth:
+		var hh: Dictionary = ch["h"]
+		(hh["p"] as Array).append(float(ch["pow"]))
+		(hh["r"] as Array).append(float(ch["rel"]))
+		(hh["pi"] as Array).append(ch_nat_piety())
+		for hk in ["p", "r", "pi"]:
+			if (hh[hk] as Array).size() > 144:
+				(hh[hk] as Array).pop_front()
 	# финансирование из бюджета (сверх стартового)
 	var cost: float = float(CH_FIN_COST[int(ch["fin"])]) - float(CH_FIN_COST[int(ch["fin0"])])
 	if cost != 0.0:
-		debt += gdp * cost / 12.0
+		debt += gdp * cost / 12.0 * wdt
 	if dyn:
-		ch_holidays()
+		if wmonth:
+			ch_holidays()
 		ch_events()
 
 
@@ -359,11 +363,11 @@ func ch_events() -> void:
 		return
 	var pw: float = float(ch["pow"])
 	# кризис: влиятельная церковь в конфликте с властью выводит людей на улицы
-	if float(ch["rel"]) < 25.0 and pw >= 40.0 and ch_cd_get("protest") <= 0 and ch_rng.randf() < 0.05:
+	if float(ch["rel"]) < 25.0 and pw >= 40.0 and ch_cd_get("protest") <= 0 and ch_rng.randf() < wp(0.05):
 		(ch["cd"] as Dictionary)["protest"] = 18
 		ch_fire("protest")
 		return
-	if ch_rng.randf() > 0.03 + 0.0004 * pw:
+	if ch_rng.randf() > wp(0.03 + 0.0004 * pw):
 		return
 	var kinds: Array = ["scandal", "property", "school", "pilgrim", "charity"]
 	var worst: Array = []
