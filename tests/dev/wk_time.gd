@@ -24,10 +24,32 @@ func _init():
 				m.choose(0); g2 += 1
 			m.advance_day()
 	# замер: каждый хук 20 раз с wdt = 0.23, wmonth = false (состояние не откатывается: важен порядок величины)
+	print("война: ", m.mil_at_war(), " возраст армии ", m.mil_on())
+	if only.has("detail") and not m.mil_at_war():
+		for f in ["mil_ai_declare", "ar_month", "mil_fix_positions", "war_timers_month"]:
+			var t5 := Time.get_ticks_usec()
+			for k in 5: m.call(f)
+			print("  %-20s %8d мкс" % [f, (Time.get_ticks_usec() - t5) / 5])
+	if only.has("detail") and m.mil_at_war():
+		m.wdt = 0.2333
+		m.wmonth = false
+		for f in ["mil_war_month", "war_intl_month", "ar_month", "ar_world_month", "mil_fix_positions", "war_timers_month"]:
+			var t2 := Time.get_ticks_usec()
+			for k in 5: m.call(f)
+			print("  %-20s %8d мкс" % [f, (Time.get_ticks_usec() - t2) / 5])
+		var w = m.mil["war"]
+		var t3 := Time.get_ticks_usec()
+		for k in 5: m.war_sanctions_update(w)
+		print("  war_sanctions_update %8d мкс" % [(Time.get_ticks_usec() - t3) / 5])
+		var t4 := Time.get_ticks_usec()
+		for k in 5: m.war_join_check(w, m.war_intl(w))
+		print("  war_join_check       %8d мкс" % [(Time.get_ticks_usec() - t4) / 5])
+		m.wdt = 1.0
+		m.wmonth = true
 	var hooks: Array = m.WEEK_HOOKS
 	var tot := 0
 	for h in hooks:
-		if not only.is_empty() and not (String(h) in only): continue
+		if not only.is_empty() and not only.has("detail") and not (String(h) in only): continue
 		var t1 := Time.get_ticks_usec()
 		var n := 20
 		m.wdt = 0.2333

@@ -1780,7 +1780,8 @@ func mil_month() -> void:
 		mil_war_month()
 	else:
 		mil_fix_positions()
-		mil_ai_declare()
+		if wmonth:
+			mil_ai_declare()      # 0.62: дорогая оценка соседей и решение «объявить войну» — раз в месяц (вероятность месячная)
 	ar_month()
 
 
@@ -2282,7 +2283,7 @@ func mil_ai_declare() -> void:
 		var p: float = 0.01 * (15.0 - rel) / 15.0 * minf(2.0, ratio - 1.3)
 		# v49: демократии почти не начинают захватнических войн (Польша 6%, Сербия 43%, Россия — 100% прежней вероятности)
 		p *= clampf(1.6 * pow(1.0 - clampf(float(MIL_DEMO.get(cc, 0.5)), 0.0, 1.0), 2.0), 0.03, 1.0)
-		if mil_rng.randf() >= wp(p):
+		if mil_rng.randf() >= p:
 			continue
 		var friends := mil_allies_for(ccode, cc)
 		mil_start_war(cc, [], friends, false)
