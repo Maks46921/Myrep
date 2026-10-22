@@ -21,6 +21,8 @@ DAT = os.path.join(os.path.dirname(__file__), "..", "..", "data", "flags.dat")
 OK_LIC = {"PD": "PD", "PUBLIC DOMAIN": "PD", "CC0": "CC0", "CC BY": "CC BY", "CC-BY": "CC BY",
           "CC BY-SA": "CC BY-SA", "CC-BY-SA": "CC BY-SA"}
 MAXB = 150 * 1024
+# решение Damir (2026-10-22): флаг нацистской Германии в игре не нужен, повторно не импортировать
+SKIP_NAMES = {"Флаг нацистской Германии"}
 H = 60
 
 
@@ -70,6 +72,9 @@ def main():
     stat = {"replaced": 0, "added": 0, "skip_lic": 0, "skip_svg": 0, "skip_dup": 0}
     for r in idx:
         cc = r.get("cc")
+        if r.get("name") in SKIP_NAMES:
+            print("пропуск (исключён решением):", cc, r.get("name"))
+            continue
         lic = lic_norm(r.get("lic", ""))
         if cc not in db or lic is None:
             stat["skip_lic"] += 1
