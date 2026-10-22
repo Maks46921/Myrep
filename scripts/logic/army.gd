@@ -428,7 +428,7 @@ func ar_world_month() -> void:
 		t += threat
 		wmt[c] = t
 		var cur: float = float(wm.get(c, 1.0))
-		wm[c] = cur + (t - cur) * 0.03
+		wm[c] = cur + (t - cur) * wr(0.03)
 		# заметный ответ на ваше усиление — в журнал и в память страны
 		var lv: float = float((ar["wlog"] as Dictionary).get(c, 0.0))
 		if threat > lv + 0.1:
@@ -439,7 +439,7 @@ func ar_world_month() -> void:
 		elif threat < lv - 0.15:
 			(ar["wlog"] as Dictionary)[c] = threat
 	# союзники по НАТО раз в год оценивают ваши расходы на оборону (цели: 2% ВВП и 3,5% к 2035 г.)
-	if fa_on() and mil_is_nato(ccode) and turn > 0 and turn % 12 == 0:
+	if wmonth and fa_on() and mil_is_nato(ccode) and turn > 0 and turn % 12 == 0:
 		var pct: float = ar_nato_pct()
 		var n_up := 0
 		for c3 in fa_bots():
@@ -456,11 +456,12 @@ func ar_world_month() -> void:
 			ar_log("союзники по НАТО отмечают: вы тратите на оборону %.1f%% ВВП — больше новой цели 3,5%%." % pct, COL_GOOD)
 		elif n_up < 0:
 			ar_log("союзники по НАТО недовольны: расходы на оборону %.1f%% ВВП — ниже обязательных 2%%." % pct, COL_WARN)
-	var dt: Dictionary = ar["deter"]
-	for c2 in dt.keys():
-		dt[c2] = int(dt[c2]) - 1
-		if int(dt[c2]) <= 0:
-			dt.erase(c2)
+	if wmonth:
+		var dt: Dictionary = ar["deter"]
+		for c2 in dt.keys():
+			dt[c2] = int(dt[c2]) - 1
+			if int(dt[c2]) <= 0:
+				dt.erase(c2)
 
 
 # ============================================================
@@ -480,19 +481,21 @@ func ar_month() -> void:
 	if not ar_on():
 		return
 	var sr: float = mil_spend_ratio()
-	var cd: Dictionary = ar["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
-	if int(ar["svc_cd"]) > 0:
-		ar["svc_cd"] = int(ar["svc_cd"]) - 1
+	# 0.62: кулдауны и сроки в месяцах — только при wmonth
+	if wmonth:
+		var cd: Dictionary = ar["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
+		if int(ar["svc_cd"]) > 0:
+			ar["svc_cd"] = int(ar["svc_cd"]) - 1
 	# готовность и оснащение подтягиваются к тому, что оплачивает бюджет
 	var rd_t: float = clampf(25.0 + 35.0 * sr * ar_bs("trn") / 0.15, 15.0, 95.0)
-	ar["rd"] = float(ar["rd"]) + (rd_t - float(ar["rd"])) * 0.08
-	ar["rdx"] = float(ar["rdx"]) * 0.8
+	ar["rd"] = float(ar["rd"]) + (rd_t - float(ar["rd"])) * wr(0.08)
+	ar["rdx"] = float(ar["rdx"]) * (0.8 if wdt == 1.0 else pow(0.8, wdt))
 	var eq_t: float = clampf(0.55 + 0.45 * sr * ar_bs("eq") / 0.25, 0.5, 1.6) + float(ar["eq_add"])
-	ar["eq"] = float(ar["eq"]) + (eq_t - float(ar["eq"])) * 0.02
+	ar["eq"] = float(ar["eq"]) + (eq_t - float(ar["eq"])) * wr(0.02)
 	# обученный резерв: каждый год приходят и уходят призывные когорты
 	var b: Array = MIL_BASE[ccode]
 	var popk: float = total_pop() * 1000.0
@@ -500,10 +503,10 @@ func ar_month() -> void:
 	var rsv_t: float = base_r * float(AR_SVC[String(ar["svc"])]["r"]) / float(AR_SVC[String(ar["svc0"])]["r"])
 	if String(ar["svc"]) == String(ar["svc0"]):
 		rsv_t = float(ar["rsv0"])
-	ar["rsv"] = float(ar["rsv"]) + (rsv_t - float(ar["rsv"])) / 48.0
+	ar["rsv"] = float(ar["rsv"]) + (rsv_t - float(ar["rsv"])) / 48.0 * wdt
 	# боеприпасы: в мире склады держатся на уровне, который оплачивает бюджет; на войне — выпуск промышленности
 	var ind: float = ar_ind()
-	var prod: float = (0.1 + ind * 0.6) / 12.0 * (3.0 if bool(ar["wecon"]) else 1.0)
+	var prod: float = (0.1 + ind * 0.6) / 12.0 * (3.0 if bool(ar["wecon"]) else 1.0) * wdt
 	if mil_at_war():
 		ar["ammo"] = float(ar["ammo"]) + prod
 		ar_war_month()
@@ -516,25 +519,27 @@ func ar_month() -> void:
 		if am < am_t:
 			ar["ammo"] = minf(am_t, am + prod * 0.6)
 		elif am > am_t:
-			ar["ammo"] = maxf(am_t, am - am * 0.01)
-	# заказанные боеприпасы
-	var pq: Array = ar["pq"]
-	for i in range(pq.size() - 1, -1, -1):
-		pq[i]["m"] = int(pq[i]["m"]) - 1
-		if int(pq[i]["m"]) <= 0:
-			ar["ammo"] = float(ar["ammo"]) + float(pq[i]["amt"])
-			ar_log("прибыла партия боеприпасов: +%.1f мес. боёв." % float(pq[i]["amt"]), COL_GOOD)
-			pq.remove_at(i)
-	ar_prog_month()
+			ar["ammo"] = maxf(am_t, am - am * 0.01 * wdt)
+	if wmonth:
+		# заказанные боеприпасы (сроки в месяцах)
+		var pq: Array = ar["pq"]
+		for i in range(pq.size() - 1, -1, -1):
+			pq[i]["m"] = int(pq[i]["m"]) - 1
+			if int(pq[i]["m"]) <= 0:
+				ar["ammo"] = float(ar["ammo"]) + float(pq[i]["amt"])
+				ar_log("прибыла партия боеприпасов: +%.1f мес. боёв." % float(pq[i]["amt"]), COL_GOOD)
+				pq.remove_at(i)
+		ar_prog_month()
 	ar_mis_month()
 	ar_exp_month()
 	ar_world_month()
-	var h: Dictionary = ar["hist"]
-	for k2 in ["pw", "ammo", "rd", "eq"]:
-		var v: float = mil_country_power(ccode) if k2 == "pw" else (float(ar["ammo"]) if k2 == "ammo" else (ar_rd() if k2 == "rd" else float(ar["eq"])))
-		(h[k2] as Array).append(v)
-		if (h[k2] as Array).size() > 72:
-			(h[k2] as Array).pop_front()
+	if wmonth:
+		var h: Dictionary = ar["hist"]
+		for k2 in ["pw", "ammo", "rd", "eq"]:
+			var v: float = mil_country_power(ccode) if k2 == "pw" else (float(ar["ammo"]) if k2 == "ammo" else (ar_rd() if k2 == "rd" else float(ar["eq"])))
+			(h[k2] as Array).append(v)
+			if (h[k2] as Array).size() > 72:
+				(h[k2] as Array).pop_front()
 
 
 func ar_ind() -> float:
@@ -585,8 +590,8 @@ func ar_war_month() -> void:
 	var dm: float = clampf(sc / 12.0, -3.0, 3.0) - float(occ[0]) * 20.0 - (0.8 if bool(w["aggr"]) else 0.2) * minf(3.0, float(w["weary"]) / 3.0)
 	if cf:
 		dm += 1.0
-	w["mor"] = clampf(m0 + dm, 10.0, 95.0)
-	w["mor_e"] = clampf(float(w.get("mor_e", 55.0)) - clampf(sc / 12.0, -3.0, 3.0) - float(occ[1]) * 20.0 - 0.3 + (1.0 if cf else 0.0), 10.0, 95.0)
+	w["mor"] = clampf(m0 + dm * wdt, 10.0, 95.0)
+	w["mor_e"] = clampf(float(w.get("mor_e", 55.0)) - clampf(sc / 12.0, -3.0, 3.0) * wdt - float(occ[1]) * 20.0 * wdt - 0.3 * wdt + (1.0 if cf else 0.0) * wdt, 10.0, 95.0)
 	if float(w["mor"]) < 30.0 and int(w.get("mor_log", 0)) == 0:
 		w["mor_log"] = 1
 		ar_log("боевой дух армии падает: растёт число отказов и дезертиров, части медленнее восстанавливаются.", COL_BAD)
@@ -595,16 +600,16 @@ func ar_war_month() -> void:
 	# боеприпасы противника: выпуск его промышленности и помощь союзников
 	var lead := String(w["lead"])
 	var help: float = 0.12 if (mil_is_nato(lead) or bool(WORLD.get(lead, {}).get("eu", false))) and float(w["ammo_e"]) < 0.5 else 0.0
-	w["ammo_e"] = float(w["ammo_e"]) + (0.1 + float(w["ind_e"]) * 0.6) / 12.0 * 2.0 + help
+	w["ammo_e"] = float(w["ammo_e"]) + (0.1 + float(w["ind_e"]) * 0.6) / 12.0 * 2.0 * wdt + help * wdt
 	# потери авиации и ПВО
 	if not cf:
 		var s1 := ar_side_air(1)
 		var s0 := ar_side_air(0)
-		ar["air"] = maxf(0.0, float(ar["air"]) * (1.0 - 0.015 * s1.y / (s1.y + 25.0)))
-		ar["ad"] = maxf(0.0, float(ar["ad"]) * (1.0 - 0.01 * s1.x / (s1.x + 60.0)))
+		ar["air"] = maxf(0.0, float(ar["air"]) * (1.0 - 0.015 * s1.y / (s1.y + 25.0) * wdt))
+		ar["ad"] = maxf(0.0, float(ar["ad"]) * (1.0 - 0.01 * s1.x / (s1.x + 60.0) * wdt))
 		if s0.x > 0.0 and lead != "":
 			var lf: Dictionary = mil["loss"]
-			lf[lead] = maxf(0.3, float(lf.get(lead, 1.0)) - 0.004 * s0.x / (s0.x + s1.y * 2.0 + 20.0))
+			lf[lead] = maxf(0.3, float(lf.get(lead, 1.0)) - 0.004 * s0.x / (s0.x + s1.y * 2.0 + 20.0) * wdt)
 	# предупреждение о снарядном голоде
 	if float(ar["ammo"]) < 0.3 and ar_cd("ammo_warn") == 0:
 		(ar["cd"] as Dictionary)["ammo_warn"] = 3
@@ -1061,16 +1066,17 @@ func ar_mis_month() -> void:
 		ar_log("из-за войны контингент отозван из миссии.", COL_WARN)
 		return
 	var m := ar_mis_info(id)
-	ar["mis_t"] = int(ar["mis_t"]) + 1
-	debt += float(m["k"]) * 0.008
-	ar["xp"] = minf(0.04, float(ar["xp"]) + 0.001)
-	if int(ar["mis_t"]) % 6 == 0:
+	if wmonth:
+		ar["mis_t"] = int(ar["mis_t"]) + 1
+	debt += float(m["k"]) * 0.008 * wdt
+	ar["xp"] = minf(0.04, float(ar["xp"]) + 0.001 * wdt)
+	if wmonth and int(ar["mis_t"]) % 6 == 0:
 		for c in fa_bots():
 			var ok: bool = id == "un" or (id == "eu" and bool(WORLD.get(c, {}).get("eu", false))) or (id == "nato" and mil_is_nato(String(c)))
 			if ok:
 				ex_rel_change(String(c), 0.6 if id == "un" else 1.0)
 		capital += 0.5
-	if mil_rng.randf() < 0.012:
+	if mil_rng.randf() < wp(0.012):
 		add_support("Пенсионеры", -1.0)
 		add_support("Молодёжь", -1.0)
 		ar_log("в миссии «%s» погибли наши военные. Общество скорбит; оппозиция требует вернуть контингент." % String(m["n"]), COL_BAD)
@@ -1122,10 +1128,10 @@ func ar_exp_month() -> void:
 	var e: int = int(ar["exp"])
 	if e == 1:
 		return
-	debt -= ar_exp_rev() / 12.0
+	debt -= ar_exp_rev() / 12.0 * wdt
 	# активный экспорт загружает заводы и растит выпуск, запрет — сокращает
 	var ind_t: float = float(ar["ind0"]) + (0.15 if e == 2 else -0.1) + float((ar["done"] as Dictionary).get("ammo_plant", 0)) * 0.3
-	ar["ind"] = maxf(0.0, float(ar["ind"]) + (ind_t - float(ar["ind"])) * 0.03)
+	ar["ind"] = maxf(0.0, float(ar["ind"]) + (ind_t - float(ar["ind"])) * wr(0.03))
 
 
 # ============================================================

@@ -187,10 +187,10 @@ func war_anger_month() -> void:
 	for p in range(1, PARTY_NAMES.size()):
 		var v: float = float(an.get(p, 0.0))
 		if aggr:
-			v += 0.5 * dm * dt * clampf(0.25 - war_hawk(p), 0.0, 1.2)
-			v *= 0.98
+			v += 0.5 * dm * dt * clampf(0.25 - war_hawk(p), 0.0, 1.2) * wdt
+			v *= 0.98 if wdt == 1.0 else pow(0.98, wdt)
 		else:
-			v *= 0.88
+			v *= 0.88 if wdt == 1.0 else pow(0.88, wdt)
 		if v < 0.2:
 			an.erase(p)
 		else:
@@ -692,7 +692,7 @@ func war_intl_month() -> void:
 	var months: int = int(w["days"]) / 30
 	var occ_v: float = float(w["occ"][1]) if ag == ccode else float(w["occ"][0])
 	var dc: float = 1.5 + 25.0 * occ_v - (3.0 if int(w.get("cf", 0)) > 0 else 0.0) - (2.0 if String(w.get("med", "")) != "" else 0.0) + float(it["ref"]) / 400.0
-	it["cond"] = clampf(float(it["cond"]) + dc, 0.0, 100.0)
+	it["cond"] = clampf(float(it["cond"]) + dc * wdt, 0.0, 100.0)
 	if ag == ccode and not bool(it["eu"]) and bool(WORLD.get(vi, {}).get("eu", false)) and float(it["cond"]) >= 40.0:
 		it["eu"] = true
 		w["sanct"] = true
@@ -701,7 +701,7 @@ func war_intl_month() -> void:
 	var vn := String(WORLD[vi]["name"])
 	var an := String(WORLD[ag]["name"])
 	# ООН
-	if months >= 1 and int(it["un"]) == 0 or (months >= 3 and months % 3 == 0 and float(it["cond"]) >= 50.0):
+	if months >= 1 and int(it["un"]) == 0 or (wmonth and months >= 3 and months % 3 == 0 and float(it["cond"]) >= 50.0):
 		it["un"] = int(it["un"]) + 1
 		var za: int = clampi(int(60.0 + float(it["cond"]) * 0.9), 60, 145)
 		mil_log("Генеральная Ассамблея ООН %sосудила нападение страны «%s» на «%s» (за — %d государств)." % ["снова " if int(it["un"]) > 1 else "", an, vn, za], COL_BAD if ag == ccode else COL_WARN)
@@ -713,26 +713,26 @@ func war_intl_month() -> void:
 	var add_r: float = occ_pop * 1000.0 * 0.12
 	var cap_r: float = occ_pop * 1000.0 * 0.35
 	if float(it["ref"]) < cap_r:
-		it["ref"] = minf(cap_r, float(it["ref"]) + add_r)
+		it["ref"] = minf(cap_r, float(it["ref"]) + add_r * wdt)
 	if vi == ccode and add_r > 1.0:
-		add_support("Пенсионеры", -0.3)
-		add_support("Рабочие", -0.3)
+		add_support("Пенсионеры", -0.3 * wdt)
+		add_support("Рабочие", -0.3 * wdt)
 	# помощь жертве: оружие, деньги, добровольцы
 	var k_aid: float = float(it["cond"]) / 100.0 * (0.05 if mil_is_nato(vi) or bool(WORLD.get(vi, {}).get("eu", false)) else 0.03)
 	if months >= 1 and k_aid > 0.01:
 		var add_k := 0.0
 		for f in mil_units_of(vi):
-			var d: float = float(f["max"]) * k_aid
+			var d: float = float(f["max"]) * k_aid * wdt
 			f["str"] = minf(float(f["max"]) * 1.2, float(f["str"]) + d)
-			f["q"] = minf(1.25, float(f["q"]) + 0.01 * float(it["cond"]) / 100.0)
+			f["q"] = minf(1.25, float(f["q"]) + 0.01 * float(it["cond"]) / 100.0 * wdt)
 			add_k += d
 		it["aid"] = float(it["aid"]) + add_k
 		if vi == ccode:
-			var money: float = gdp * 0.002 * float(it["cond"]) / 100.0
+			var money: float = gdp * 0.002 * float(it["cond"]) / 100.0 * wdt
 			debt = maxf(0.0, debt - money)
-		if months % 2 == 1 and add_k > 0.2:
-			mil_log("Партнёры передали стране «%s» оружие и снаряжение (≈ %.1f тыс. бойцов пополнения)." % [vn, add_k], COL_GOOD if vi == ccode else COL_WARN)
-	if months >= 2 and float(it["cond"]) >= 55.0 and int(it["vol"]) < 3 and months % 3 == 2:
+		if wmonth and months % 2 == 1 and add_k > 0.2 * wdt:
+			mil_log("Партнёры передали стране «%s» оружие и снаряжение (≈ %.1f тыс. бойцов пополнения)." % [vn, add_k / wdt], COL_GOOD if vi == ccode else COL_WARN)
+	if wmonth and months >= 2 and float(it["cond"]) >= 55.0 and int(it["vol"]) < 3 and months % 3 == 2:
 		it["vol"] = int(it["vol"]) + 1
 		var home := mil_home_spots(vi, 1)
 		if not home.is_empty():
@@ -784,7 +784,7 @@ func war_join_check(w: Dictionary, it: Dictionary) -> void:
 		elif touch_vi and ra > 80.0 and rv < 30.0:
 			p = 0.015
 			sd = ag_side
-		if sd >= 0 and mil_rng.randf() < p:
+		if sd >= 0 and mil_rng.randf() < wp(p):
 			war_join(cs, sd)
 			(it["joined"] as Array).append(cs)
 			return
@@ -861,20 +861,22 @@ func war_dip_extra(c: String) -> float:
 
 
 func war_timers_month() -> void:
-	for key in ["lim", "dmz", "trd", "nonrec", "res"]:
-		var d: Dictionary = mil.get(key, {})
-		for c in d.keys():
-			if key == "lim":
-				d[c]["m"] = int(d[c]["m"]) - 1
-				if int(d[c]["m"]) <= 0:
-					d.erase(c)
-			else:
-				d[c] = int(d[c]) - 1
-				if int(d[c]) <= 0:
-					d.erase(c)
-					if key == "nonrec":
-						mil_log("международное непризнание аннексии ослабло: отношения постепенно восстанавливаются.", COL_GOOD)
-		mil[key] = d
+	# 0.62: сроки в целых месяцах идут только при wmonth; злость партий (war_anger_month) — непрерывная, считается и в недельный тик
+	if wmonth:
+		for key in ["lim", "dmz", "trd", "nonrec", "res"]:
+			var d: Dictionary = mil.get(key, {})
+			for c in d.keys():
+				if key == "lim":
+					d[c]["m"] = int(d[c]["m"]) - 1
+					if int(d[c]["m"]) <= 0:
+						d.erase(c)
+				else:
+					d[c] = int(d[c]) - 1
+					if int(d[c]) <= 0:
+						d.erase(c)
+						if key == "nonrec":
+							mil_log("международное непризнание аннексии ослабло: отношения постепенно восстанавливаются.", COL_GOOD)
+			mil[key] = d
 	war_anger_month()
 
 

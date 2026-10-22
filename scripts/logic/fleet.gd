@@ -408,31 +408,32 @@ func fleet_resolve(i: int) -> void:
 func fleet_month() -> void:
 	if not flt_has_sea() or game_over:
 		return
-	# без дневных шагов (месячный режим тестов и прогонов) — проживаем месяц по дням здесь
-	if int(flt.get("dm", 0)) == 0:
-		for k in 30:
-			fleet_day()
-	flt["dm"] = 0
+	# 0.62: без дневных шагов (месячный режим тестов и прогонов) — проживаем месяц по дням здесь; недельный тик дни не трогает
+	if wmonth:
+		if int(flt.get("dm", 0)) == 0:
+			for k in 30:
+				fleet_day()
+		flt["dm"] = 0
 	# содержание сверх базового состава и политика торгового флота
 	var extra := 0.0
 	for cl in FLEET["classes"]:
 		var id := String(cl["id"])
 		extra += maxf(0.0, float(int(flt["navy"][id]) - int(flt["navy0"][id]))) * float(cl["up"])
 	flt["up"] = extra
-	debt += (extra + float(flt["merch"]) * 0.0002 * gdp) / 12.0
+	debt += (extra + float(flt["merch"]) * 0.0002 * gdp) / 12.0 * wdt
 	# миссии
 	var m := String(flt["mission"])
 	if m == "patrol":
-		add_support("Силовики", 0.25)
+		add_support("Силовики", 0.25 * wdt)
 	elif m == "exercise":
-		add_support("Силовики", 0.2)
-		dip_all(0.25, false)
+		add_support("Силовики", 0.2 * wdt)
+		fleet_dip_all(0.25 * wdt)
 	elif m == "visits":
-		dip_all(0.4, false)
+		fleet_dip_all(0.4 * wdt)
 	var pw0: float = maxf(1.0, float(flt["power0"]))
-	add_support("Силовики", clampf((fleet_power() - float(flt["power0"])) / pw0 * 0.3, -0.6, 0.6))
-	# автопилот: расширяет перегруженные порты
-	if bool(ap.get("repair", false)) and fleet_util() > 1.0 and not bool(flt["land"]):
+	add_support("Силовики", clampf((fleet_power() - float(flt["power0"])) / pw0 * 0.3, -0.6, 0.6) * wdt)
+	# автопилот: расширяет перегруженные порты (решение раз в месяц)
+	if wmonth and bool(ap.get("repair", false)) and fleet_util() > 1.0 and not bool(flt["land"]):
 		var worst := ""
 		var wu := 0.0
 		for pid in flt["ports"]:
@@ -442,6 +443,15 @@ func fleet_month() -> void:
 				worst = String(pid)
 		if worst != "":
 			fleet_port_invest(worst, true)
+
+
+# сдвиг отношений со всеми странами; недельный тик не пересчитывает надбавки модификаторов (их делает месячный шаг)
+func fleet_dip_all(d: float) -> void:
+	if wmonth:
+		dip_all(d, false)
+		return
+	for c in dip.keys():
+		dip_change(String(c), d)
 
 
 func fleet_port_cost(pid: String) -> float:

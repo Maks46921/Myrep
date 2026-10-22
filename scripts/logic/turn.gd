@@ -345,6 +345,7 @@ const WEEK_HOOKS: Array = [
 	# --- world: мир, дипломатия, агенты ---
 
 	# --- mil: армия, флот, революции, федерация, стройка ---
+	"bq_month", "fed_month", "revolt_month", "fleet_month", "mil_month", "con_month",
 
 	# --- soc: общество, культура, церковь, технологии, промышленность ---
 
