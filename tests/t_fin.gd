@@ -9,6 +9,16 @@ func check(ok: bool, msg: String) -> void:
 		print("FAIL: ", msg)
 
 
+func revive(g) -> void:
+	# проверка механики, а не выживания: после резких действий правительство могло уйти
+	g.game_over = false
+	g.low_months = 0
+	g.current_event = {}
+	g.capital = 90.0
+	for k in g.GROUPS:
+		g.support[k] = 60.0
+
+
 func run_months(g, n: int) -> void:
 	var target: int = g.turn + n
 	var guard := 0
@@ -38,7 +48,7 @@ func sane(g, tag: String) -> void:
 
 func _init():
 	var g = load("res://main.gd").new()
-	g.game_opts.merge({"ev": 0.0, "news": 0.0, "finlev": 1, "fincr": 1}, true)
+	g.game_opts.merge({"ev": 0.0, "news": 0.0, "finlev": 1, "fincr": 1, "inbox": 0}, true)
 	root.add_child(g)
 	for i in 3: await process_frame
 	g.current_event = {}
@@ -62,6 +72,7 @@ func _init():
 				run_months(g, 1)
 	check(n_ok >= 6, "выполнено действий: %d" % n_ok)
 	sane(g, "после действий")
+	revive(g)
 	# --- банковский кризис и его решения ---
 	for opt in ["bk_bailout", "bk_bailin", "bk_nat", "bk_guar", "bk_wait"]:
 		g.current_event = {}
@@ -73,7 +84,9 @@ func _init():
 		check(bool(g.fin["bk"]["cris"].get("decided", false)), "кризис: решение «%s» принято" % opt)
 		g.current_event = {}
 		run_months(g, 2)
+		revive(g)
 	sane(g, "после кризисов")
+	revive(g)
 	# --- дефолт ---
 	g.current_event = {}
 	for kind in ["restr", "part", "full"]:
@@ -82,15 +95,22 @@ func _init():
 		check(g.debt < d0 and int(g.fin["db"]["closed_t"]) > g.turn, "дефолт «%s»: долг списан, рынки закрыты" % kind)
 		g.current_event = {}
 		run_months(g, 3)
+		revive(g)
 	sane(g, "после дефолтов")
 	check(not g.game_over or g.end_reason.find("Государственный дефолт") < 0, "дефолт не заканчивает игру")
+	revive(g)
 	# --- МВФ ---
 	g.current_event = {}
+	if g.election_open: g.election_continue()
+	g.fin["imf"]["pend"] = false
 	g.fin["imf"]["st"] = 0
 	g.fin["cd"]["imf_ev"] = 0
 	g.fin_imf_offer("crisis")
-	check(g.current_event.has("o"), "МВФ: окно предложения")
-	g.choose(0)
+	check(g.current_event.has("o") or g.opp_mode or g.observer, "МВФ: окно предложения (ev %s open %s over %s cd %s pend %s)" % [str(g.current_event).left(40), g.election_open, g.game_over, str(g.fin["cd"].get("imf_ev")), g.fin["imf"]["pend"]])
+	if g.current_event.has("o"):
+		g.choose(0)
+	else:
+		g.fin_imf_choice("imf_yes")
 	check(int(g.fin["imf"]["st"]) == 2, "МВФ: программа принята")
 	run_months(g, 8)
 	check(int(g.fin["imf"]["tr"]) < int(g.fin["imf"]["tr_n"]) or int(g.fin["imf"]["st"]) != 2, "МВФ: идут проверки")
