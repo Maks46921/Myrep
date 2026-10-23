@@ -626,12 +626,14 @@ func week_tick() -> void:
 		return
 	if month_snap.is_empty():
 		take_month_snap()
+	var bud_h := bud_hold_begin()     # неутверждённый черновик бюджета в расчёт не входит (как в next_turn)
 	var b := compute_budget()
 	debt -= float(b["balance"]) / 12.0 * dt
 	debt_erode(dt)
 	var deficit_pct: float = -float(b["balance"]) / gdp * 100.0
 	macro_step(dt, last_ecf, deficit_pct, debt / gdp * 100.0, false)
 	week_hooks_run(dt)
+	bud_hold_end(bud_h)
 	month_done += dt
 	if debt / gdp > 1.5:
 		end_game("Государственный дефолт. Страна не смогла обслуживать долг.")

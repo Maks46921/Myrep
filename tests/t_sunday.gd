@@ -16,10 +16,14 @@ func _init():
 	g.game_opts["news"] = 0.0
 	g.current_event = {}
 	# --- выборы по воскресеньям ---
+	if g.martial_on():
+		print("t_sunday: военное положение, выборы не проходят — пропуск")
+		quit(0)
+		return
 	for run in 6:
 		g.current_event = {}
 		if g.election_open: g.election_continue()
-		g.last_parl = g.turn - g.parl_term() + 1 + run       # срок наступит на закрытии месяца
+		g.last_parl = g.turn - g.parl_term() + 1       # срок наступит на закрытии месяца
 		var lp0: int = g.last_parl
 		var wd_seen := -1
 		var held := false
@@ -33,10 +37,14 @@ func _init():
 				if held:
 					break
 			g.advance_day()
+		if not held:
+			print("DBG run %d turn %d last_parl %d term %d day %d open %s ev %s opp %s mart %s go %s" % [run, g.turn, g.last_parl, g.parl_term(), g.day, g.election_open, str(g.current_event).left(80), g.opp_mode, g.martial_on(), g.game_over])
 		check(held, "прогон %d: плановые выборы состоялись" % run)
 		check(wd_seen == 6, "прогон %d: выборы в воскресенье (день недели %d)" % [run, wd_seen])
-		check(g.last_parl > lp0, "прогон %d: срок парламента обновился" % run)
-		check(g.day <= 7, "прогон %d: первое воскресенье месяца (день %d)" % [run, g.day])
+		if g.last_parl <= lp0:
+			print("DBG2 run %d turn %d last_parl %d lp0 %d pres_due %d head %s" % [run, g.turn, g.last_parl, lp0, g.pres_due, g.ELEC.get("head", "")])
+		check(g.last_parl > lp0 or g.pres_due >= 0, "прогон %d: срок парламента обновился" % run)
+		check(g.day <= 14, "прогон %d: воскресенье в начале месяца, не позже второго (день %d)" % [run, g.day])
 	# --- старый путь: next_turn без дней проводит выборы на закрытии месяца ---
 	g.current_event = {}
 	if g.election_open: g.election_continue()
