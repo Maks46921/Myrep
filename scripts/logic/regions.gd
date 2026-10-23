@@ -178,6 +178,14 @@ func update_regions() -> void:
 	var attr_avg := 0.0
 	var lvl_dev: float = lvl_sum("reg_dev")
 	var lvl_unrest: float = lvl_sum("reg_unrest")
+	# 0.62: доли сближения за шаг (месячные при wdt = 1.0), шум — по корню из доли месяца
+	var k_loy: float = rt(mrate(0.35), wdt)
+	var k_unr: float = rt(mrate(0.5), wdt)
+	var k_dev: float = rt(mrate(0.12), wdt)
+	var k_lv: float = rt(mrate(0.10), wdt)
+	var k_auto: float = rt(mrate(0.05), wdt)
+	var k_bn: float = rt(mrate(0.02), wdt)
+	var sq: float = 1.0 if wdt == 1.0 else sqrt(wdt)
 	for i in n:
 		var r: Dictionary = regions[i]
 		var d: Dictionary = REGIONS[i]
@@ -197,7 +205,7 @@ func update_regions() -> void:
 		elif gk == 3:
 			gl = -2.0
 		var lt: float = region_support(i) + gl - (ud[i] - 20.0) * 0.15 + tr * 3.0 + (float(r["infra"]) - float(d["infra"])) * 0.03 + float(loy_off[i]) + fed_loy_term(i) + soc_loy_term(i) + cult_loy_term(i) + church_loy_term(i)
-		r["loy"] = clampf(float(r["loy"]) + (lt - float(r["loy"])) * mrate(0.35), 0.0, 100.0)
+		r["loy"] = clampf(float(r["loy"]) + (lt - float(r["loy"])) * k_loy, 0.0, 100.0)
 		var ur: float = clampf(unemployment * (1.7 - 0.9 * float(r["dev"]) / 100.0) + (50.0 - float(r["infra"])) * 0.02 - (sec_idx(i) - 1.0) * 20.0, 1.0, 40.0)
 		r["unemp"] = ur
 		var ut: float = (20.0 + (50.0 - float(r["loy"])) * 0.45 + (ur - 6.5) * 1.8 + (inflation - 4.0) * 0.8
@@ -210,7 +218,7 @@ func update_regions() -> void:
 			ut -= 4.0
 		if float(r["env"]) < 30.0:
 			ut += 3.0
-		r["unrest"] = clampf(float(r["unrest"]) + (clampf(ut, 0.0, 100.0) - float(r["unrest"])) * mrate(0.5) + randf_range(-0.5, 0.5), 0.0, 100.0)
+		r["unrest"] = clampf(float(r["unrest"]) + (clampf(ut, 0.0, 100.0) - float(r["unrest"])) * k_unr + randf_range(-0.5, 0.5) * sq, 0.0, 100.0)
 		var dt: float = (float(d["dev"]) + lvl_dev + float(bn["dev"])
 			+ (float(r["infra"]) - float(d["infra"])) * 0.15 + (float(r["edu"]) - float(d["edu"])) * 0.10
 			+ (float(r["health"]) - float(d["health"])) * 0.05
@@ -218,33 +226,36 @@ func update_regions() -> void:
 		dt += fed_dev_term(i) + adm_dev_term(i)
 		if gk == 2:
 			dt += 4.0 * gs
-		r["dev"] = clampf(float(r["dev"]) + (dt - float(r["dev"])) * mrate(0.12), 0.0, 100.0)
-		r["infra"] = clampf(float(r["infra"]) + (float(d["infra"]) + (float(lvl["infra_lvl"]) - 50.0) * 0.8 + tr + float(bn["infra"]) - float(r["infra"])) * mrate(0.10), 0.0, 100.0)
-		r["edu"] = clampf(float(r["edu"]) + (float(d["edu"]) + (float(lvl["edu_lvl"]) - 50.0) * 0.8 + tr * 0.5 + float(bn["edu"]) - float(r["edu"])) * mrate(0.10), 0.0, 100.0)
-		r["health"] = clampf(float(r["health"]) + (float(d["health"]) + (float(lvl["health_lvl"]) - 50.0) * 0.8 + tr * 0.5 + float(bn["health"]) - float(r["health"])) * mrate(0.10), 0.0, 100.0)
-		r["env"] = clampf(float(r["env"]) + (float(d["env"]) + (float(lvl["env_lvl"]) - 50.0) * 0.8 + float(bn["env"]) - float(r["env"])) * mrate(0.10), 0.0, 100.0)
+		r["dev"] = clampf(float(r["dev"]) + (dt - float(r["dev"])) * k_dev, 0.0, 100.0)
+		r["infra"] = clampf(float(r["infra"]) + (float(d["infra"]) + (float(lvl["infra_lvl"]) - 50.0) * 0.8 + tr + float(bn["infra"]) - float(r["infra"])) * k_lv, 0.0, 100.0)
+		r["edu"] = clampf(float(r["edu"]) + (float(d["edu"]) + (float(lvl["edu_lvl"]) - 50.0) * 0.8 + tr * 0.5 + float(bn["edu"]) - float(r["edu"])) * k_lv, 0.0, 100.0)
+		r["health"] = clampf(float(r["health"]) + (float(d["health"]) + (float(lvl["health_lvl"]) - 50.0) * 0.8 + tr * 0.5 + float(bn["health"]) - float(r["health"])) * k_lv, 0.0, 100.0)
+		r["env"] = clampf(float(r["env"]) + (float(d["env"]) + (float(lvl["env_lvl"]) - 50.0) * 0.8 + float(bn["env"]) - float(r["env"])) * k_lv, 0.0, 100.0)
 		var at: float = float(d["auto"]) + float(mods["auto_shift"]) + (5.0 if gk == 3 else 0.0) + fed_auto_term(i)
-		r["auto"] = clampf(float(r["auto"]) + (at - float(r["auto"])) * mrate(0.05), 0.0, 100.0)
+		r["auto"] = clampf(float(r["auto"]) + (at - float(r["auto"])) * k_auto, 0.0, 100.0)
 		for k in bn:
-			bn[k] = float(bn[k]) * (1.0 - mrate(0.02))
+			bn[k] = float(bn[k]) * (1.0 - k_bn)
 		var a: float = float(r["dev"]) - 0.5 * float(r["unrest"]) + (float(r["infra"]) - 50.0) * 0.2 + tr
 		a += -(ur - unemployment) * 0.8 + float(r["mbonus"]) * 4.17 - (float(r["rdebt"]) - 40.0) * 0.05
 		attr.append(a)
 		attr_avg += a / float(n)
+	var k_mig: float = rt(0.2, wdt)
+	var k_mbn: float = wdec(0.97)
 	for i in n:
 		var r2: Dictionary = regions[i]
 		var mg: float = (attr[i] - attr_avg) * 0.00002
-		r2["popm"] = float(r2["popm"]) * (1.0 + 0.00015 + mg)
-		r2["migr"] = float(r2["migr"]) + (mg * 12000.0 - float(r2["migr"])) * 0.2
-		r2["mbonus"] = float(r2["mbonus"]) * 0.97
+		r2["popm"] = float(r2["popm"]) * (1.0 + 0.00015 * wdt + mg * wdt)
+		r2["migr"] = float(r2["migr"]) + (mg * 12000.0 - float(r2["migr"])) * k_mig
+		r2["mbonus"] = float(r2["mbonus"]) * k_mbn
 	reg_econ_step()
 	recalc_weights()
-	for i in n:
-		var rh: Array = regions[i]["grp_h"]
-		rh.append(gdp * gdp_w[i])
-		if rh.size() > 13:
-			rh.pop_front()
-	bq_month()   # 0.56: стройки идут очередью (construct.gd)
+	if wmonth:      # 0.62: история ВРП и очередь строек — помесячные
+		for i in n:
+			var rh: Array = regions[i]["grp_h"]
+			rh.append(gdp * gdp_w[i])
+			if rh.size() > 13:
+				rh.pop_front()
+		bq_month()   # 0.56: стройки идут очередью (construct.gd)
 
 
 # 0.56: завершить первую госстройку региона i (для проверок и событий)
@@ -624,9 +635,13 @@ func reg_zones_end(i: int) -> void:
 
 
 func reg_econ_step() -> void:
-	res_price = clampf(res_price + (1.0 - res_price) * 0.03 + randf_range(-0.035, 0.035), 0.55, 1.7)
-	agr_wx = clampf(agr_wx + (1.0 - agr_wx) * 0.15 + randf_range(-0.03, 0.03), 0.8, 1.15)
+	var sq: float = 1.0 if wdt == 1.0 else sqrt(wdt)     # 0.62: шум за шаг ~ корень из доли месяца
+	res_price = clampf(res_price + (1.0 - res_price) * rt(0.03, wdt) + randf_range(-0.035, 0.035) * sq, 0.55, 1.7)
+	agr_wx = clampf(agr_wx + (1.0 - agr_wx) * rt(0.15, wdt) + randf_range(-0.03, 0.03) * sq, 0.8, 1.15)
 	var fed: float = float(mods.get("fed_share", 0.0))
+	var k_leg: float = 1.0 - rt(mrate(0.03), wdt)
+	var k_sm: float = rt(mrate(0.35), wdt)
+	var k_rd: float = rt(mrate(0.06), wdt)
 	for i in regions.size():
 		var r: Dictionary = regions[i]
 		var d: Dictionary = REGIONS[i]
@@ -634,7 +649,8 @@ func reg_econ_step() -> void:
 		var keep: Array = []
 		var upk := 0.0
 		for z in (r["zones"] as Array):
-			z["left"] = int(z["left"]) - 1
+			if wmonth:      # срок программы — в целых месяцах
+				z["left"] = int(z["left"]) - 1
 			if int(z["left"]) <= 0:
 				for k in z["s"]:
 					r["legacy"][k] = float(r["legacy"][k]) + 0.4 * float(z["s"][k])
@@ -647,7 +663,7 @@ func reg_econ_step() -> void:
 		r["zones"] = keep
 		r["upk"] = upk
 		for k in RSEC:
-			r["legacy"][k] = float(r["legacy"][k]) * (1.0 - mrate(0.03))
+			r["legacy"][k] = float(r["legacy"][k]) * k_leg
 			strc[k] = float(strc[k]) + float(r["legacy"][k])
 		var dinf: float = float(r["infra"]) - float(d["infra"])
 		var dedu: float = float(r["edu"]) - float(d["edu"])
@@ -659,32 +675,32 @@ func reg_econ_step() -> void:
 			"res": 1.0 + float(strc["res"]) + (res_price - 1.0) - unr * 0.004}
 		var sm: Dictionary = r["smul"]
 		for k in RSEC:
-			sm[k] = clampf(float(sm[k]) + (float(tg[k]) - float(sm[k])) * mrate(0.35), 0.5, 1.9)
+			sm[k] = clampf(float(sm[k]) + (float(tg[k]) - float(sm[k])) * k_sm, 0.5, 1.9)
 		# фискальный федерализм: богатые регионы выигрывают, бедные проигрывают
 		if absf(fed) > 0.001:
-			r["dev"] = clampf(float(r["dev"]) + fed * (float(r["dev"]) - 60.0) / 40.0 * 0.08, 0.0, 100.0)
+			r["dev"] = clampf(float(r["dev"]) + fed * (float(r["dev"]) - 60.0) / 40.0 * 0.08 * wdt, 0.0, 100.0)
 		# долг региона
 		var rt := rdebt_target(i)
-		r["rdebt"] = clampf(float(r["rdebt"]) + (rt - float(r["rdebt"])) * mrate(0.06), 0.0, 160.0)
+		r["rdebt"] = clampf(float(r["rdebt"]) + (rt - float(r["rdebt"])) * k_rd, 0.0, 160.0)
 		var rdv: float = float(r["rdebt"])
 		if rdv > 60.0:
-			r["dev"] = clampf(float(r["dev"]) - (rdv - 60.0) * 0.004, 0.0, 100.0)
+			r["dev"] = clampf(float(r["dev"]) - (rdv - 60.0) * 0.004 * wdt, 0.0, 100.0)
 		if rdv > 75.0:
 			if not bool(r["rcrisis"]):
 				r["rcrisis"] = true
 				log_tag("РЕГИОН", COL_BAD, "%s — долговой кризис в регионе «%s»: долг %.0f%% ВРП, расходы режут, растёт недовольство." % [date_text(), d["name"], rdv])
-			r["infra"] = clampf(float(r["infra"]) - 0.15, 0.0, 100.0)
-			r["edu"] = clampf(float(r["edu"]) - 0.10, 0.0, 100.0)
-			r["unrest"] = clampf(float(r["unrest"]) + 0.3, 0.0, 100.0)
+			r["infra"] = clampf(float(r["infra"]) - 0.15 * wdt, 0.0, 100.0)
+			r["edu"] = clampf(float(r["edu"]) - 0.10 * wdt, 0.0, 100.0)
+			r["unrest"] = clampf(float(r["unrest"]) + 0.3 * wdt, 0.0, 100.0)
 		elif rdv < 65.0:
 			r["rcrisis"] = false
 		# последствия миграции
 		var mg2: float = float(r["migr"])
 		if mg2 < -6.0:
-			r["edu"] = clampf(float(r["edu"]) - 0.08, 0.0, 100.0)
+			r["edu"] = clampf(float(r["edu"]) - 0.08 * wdt, 0.0, 100.0)
 		elif mg2 > 8.0:
-			r["infra"] = clampf(float(r["infra"]) - 0.08, 0.0, 100.0)
-	if turn % 12 == 11:
+			r["infra"] = clampf(float(r["infra"]) - 0.08 * wdt, 0.0, 100.0)
+	if wmonth and turn % 12 == 11:
 		reg_year_report()
 
 

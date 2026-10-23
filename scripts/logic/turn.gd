@@ -345,6 +345,7 @@ func wsim_step() -> void:
 # wdt = 1.0 и поведение прежнее. Правила перевода: docs/RULES.md, раздел «Недельный расчёт».
 const WEEK_HOOKS: Array = [
 	# --- econ: экономика, регионы, уровни ---
+	"econ_week",
 
 	# --- world: мир, дипломатия, агенты ---
 	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",

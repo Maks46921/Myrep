@@ -25,6 +25,7 @@ def main():
                 for mode in 'mw':
                     jobs[(cc, sd, mode)] = ex.submit(run, cc, sd, a.y, mode, a.ev, a.agents, tmp, a.rl)
     names = ['gdp', 'growth', 'infl', 'unemp', 'debt%', 'appr', 'unrest', 'capital']
+    names += ['rate', 'cpi', 'util', 'bconf', 'cconf', 'loy', 'dev', 'rdebt', 'corr', 'rprem']   # группа «экономика»
     # world: показатели мира, дипломатии и агентов (колонки ищем по имени в заголовке)
     wnames = ['w_gdp', 'w_gr', 'w_inf', 'w_rel', 'w_exlv', 'w_prot', 'w_mem']
     for cc in ccs:

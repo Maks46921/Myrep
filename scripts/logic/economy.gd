@@ -144,7 +144,7 @@ func struct_step(wear_now: bool = true) -> void:
 			if n <= 0:
 				continue
 			if wear_now:
-				e["cond"] = clampf(float(e["cond"]) - wear, 0.0, 100.0)
+				e["cond"] = clampf(float(e["cond"]) - wear * wdt, 0.0, 100.0)
 			var f: float = struct_cond_factor(float(e["cond"])) * float(n) * struct_lvl_k(e)
 			var kd: Dictionary = pd.get("k", {})
 			for mid in kd:
@@ -219,15 +219,16 @@ func struct_total_count() -> int:
 
 
 func world_step() -> void:
+	var sq: float = 1.0 if wdt == 1.0 else sqrt(wdt)      # 0.62: шум за шаг ~ корень из доли месяца
 	var wd: float = float(ec["wd"])
-	wd += (1.0 - wd) * 0.035 + randf_range(-0.012, 0.012)
+	wd += (1.0 - wd) * rt(0.035, wdt) + randf_range(-0.012, 0.012) * sq
 	ec["wd"] = clampf(wd, 0.65, 1.35)
-	ec["comm_shock"] = float(ec["comm_shock"]) * 0.96
-	var ct: float = 1.0 + 1.3 * (float(ec["wd"]) - 1.0) + float(ec["comm_shock"]) + randf_range(-0.012, 0.012)
-	ec["comm"] = clampf(float(ec["comm"]) + (ct - float(ec["comm"])) * 0.15, 0.55, 1.9)
-	ec["fx_shock"] = float(ec["fx_shock"]) * 0.9
-	ec["bc_shock"] = float(ec["bc_shock"]) * 0.93
-	ec["cc_shock"] = float(ec["cc_shock"]) * 0.93
+	ec["comm_shock"] = float(ec["comm_shock"]) * wdec(0.96)
+	var ct: float = 1.0 + 1.3 * (float(ec["wd"]) - 1.0) + float(ec["comm_shock"]) + randf_range(-0.012, 0.012) * sq
+	ec["comm"] = clampf(float(ec["comm"]) + (ct - float(ec["comm"])) * rt(0.15, wdt), 0.55, 1.9)
+	ec["fx_shock"] = float(ec["fx_shock"]) * wdec(0.9)
+	ec["bc_shock"] = float(ec["bc_shock"]) * wdec(0.93)
+	ec["cc_shock"] = float(ec["cc_shock"]) * wdec(0.93)
 
 
 func cb_target() -> float:
@@ -248,7 +249,7 @@ func cb_name() -> String:
 func cb_step() -> void:
 	ec["rate_goal"] = cb_target()
 	world_ea_update()
-	ec["rate"] = clampf(float(ec["rate"]) + (float(ec["rate_goal"]) - float(ec["rate"])) * 0.30, 0.0, 15.0)
+	ec["rate"] = clampf(float(ec["rate"]) + (float(ec["rate_goal"]) - float(ec["rate"])) * rt(0.30, wdt), 0.0, 15.0)
 	ec["real_gap"] = float(ec["rate"]) - inflation - RATE_NEUTRAL_REAL
 
 
@@ -275,7 +276,7 @@ func income_parts() -> Dictionary:
 func households_step() -> void:
 	var rw: float = float(ec["rw"])
 	var rwt: float = (1.0 - 0.03 * (inflation - I_NEU)) * (1.0 + 0.012 * (U_NEU - unemployment))
-	rw += (clampf(rwt, 0.6, 1.3) - rw) * 0.08
+	rw += (clampf(rwt, 0.6, 1.3) - rw) * rt(0.08, wdt)
 	ec["rw"] = rw
 	var inc := income_parts()
 	ec["inc"] = inc
@@ -284,7 +285,7 @@ func households_step() -> void:
 	var gap: float = float(ec["real_gap"])
 	ec["sav"] = clampf(0.10 + 0.012 * gap - 0.0007 * (float(ec["cconf"]) - 50.0), 0.03, 0.22)
 	var ct: float = 50.0 + 40.0 * (float(ec["ppi"]) - 1.0) - 1.2 * (unemployment - U_NEU) - 1.6 * (inflation - I_NEU) + 0.15 * (approval() - 50.0) + float(ec["cc_shock"])
-	ec["cconf"] = clampf(float(ec["cconf"]) + (clampf(ct, 5.0, 95.0) - float(ec["cconf"])) * 0.2, 5.0, 95.0)
+	ec["cconf"] = clampf(float(ec["cconf"]) + (clampf(ct, 5.0, 95.0) - float(ec["cconf"])) * rt(0.2, wdt), 5.0, 95.0)
 	ec["Cidx"] = float(ec["ppi"]) * (1.0 - float(ec["sav"])) / 0.90 * (1.0 + 0.002 * (float(ec["cconf"]) - 50.0))
 
 
@@ -324,10 +325,10 @@ func business_step() -> void:
 	var t := 50.0
 	for e in rs:
 		t += float(e[1])
-	ec["bconf"] = clampf(float(ec["bconf"]) + (clampf(t, 5.0, 95.0) - float(ec["bconf"])) * 0.2, 5.0, 95.0)
+	ec["bconf"] = clampf(float(ec["bconf"]) + (clampf(t, 5.0, 95.0) - float(ec["bconf"])) * rt(0.2, wdt), 5.0, 95.0)
 	var gap: float = float(ec["real_gap"])
 	var it: float = (0.12 + 0.20 * float(ec["bconf"]) / 100.0) * (1.0 - 0.03 * gap)
-	ec["inv"] = clampf(float(ec["inv"]) + (clampf(it, 0.10, 0.34) - float(ec["inv"])) * 0.12, 0.10, 0.34)
+	ec["inv"] = clampf(float(ec["inv"]) + (clampf(it, 0.10, 0.34) - float(ec["inv"])) * rt(0.12, wdt), 0.10, 0.34)
 	ec["Iidx"] = float(ec["inv"]) / 0.22
 
 
@@ -348,6 +349,8 @@ func markets_step() -> void:
 	ec["Xidx"] = xi
 	var cmk := goods_demand()
 	var ene_p: float = float((mk["ene"] as Dictionary)["p"])
+	var k_p: float = rt(0.15, wdt)       # 0.62: доли сближения за шаг
+	var k_mg: float = rt(0.3, wdt)
 	for m in MARKETS:
 		var id: String = m["id"]
 		var s: Dictionary = mk[id]
@@ -378,13 +381,13 @@ func markets_step() -> void:
 		if id != "res":
 			pt -= float(ec["cpi_s"]) * 0.6
 		s["pt"] = pt
-		s["p"] = clampf(float(s["p"]) + (pt - float(s["p"])) * 0.15, 0.6, 2.2)
+		s["p"] = clampf(float(s["p"]) + (pt - float(s["p"])) * k_p, 0.6, 2.2)
 		var mg: float = 0.12 + 0.5 * (u - float(m["u0"])) + 0.4 * (float(s["p"]) - 1.0) - 0.007 * (float(pol["corp"]) * float(mods["corp_mult"]) - float(pol_def["corp"])) - 0.15 * (float(ec["rw"]) - 1.0)
 		if id == "res":
 			mg = 0.12 + 0.35 * (float(ec["comm"]) - 1.0) - 0.004 * (float(ec["roy_pct"]) - 10.0) + 0.3 * (u - float(m["u0"]))
 		mg = clampf(mg, -0.1, 0.45)
-		s["margin"] = float(s["margin"]) + (mg - float(s["margin"])) * 0.3
-	ec["agr_shock"] = float(ec["agr_shock"]) * 0.9
+		s["margin"] = float(s["margin"]) + (mg - float(s["margin"])) * k_mg
+	ec["agr_shock"] = float(ec["agr_shock"]) * wdec(0.9)
 	goods_prices()
 	# распределение инвестиций и рост мощностей
 	var wsum := 0.0
@@ -411,7 +414,7 @@ func markets_step() -> void:
 		# v35: в долгом спаде лишние мощности списываются (иначе загрузка годами не возвращалась к норме,
 		# деловой климат и инвестиции тянули друг друга вниз, и спад не кончался)
 		var scrap: float = 0.15 * maxf(0.0, float(m["u0"]) - float(s3["u"]))
-		s3["K"] = maxf(0.5, float(s3["K"]) * (1.0 + (gk - 0.025 - scrap) / 12.0))
+		s3["K"] = maxf(0.5, float(s3["K"]) * (1.0 + (gk - 0.025 - scrap) / 12.0 * wdt))
 		util += float(m["w"]) * float(s3["u"])
 		shorts += float(m["w"]) * float(s3["short"])
 		supply_g += float(m["w"]) * (gk - 0.025)
@@ -450,10 +453,10 @@ func trade_step() -> void:
 	ec["imp_v"] = mv * gdp
 	var nx: float = (xv - mv) * 100.0
 	ec["nx"] = nx
-	ec["res"] = clampf(float(ec["res"]) + nx / 12.0 * 0.6, -5.0, 60.0)
+	ec["res"] = clampf(float(ec["res"]) + nx / 12.0 * 0.6 * wdt, -5.0, 60.0)
 	var gap: float = float(ec["real_gap"])
 	var ft: float = 1.0 + 0.02 * nx + 0.012 * gap - 0.015 * (inflation - I_NEU) + (float(ec["res"]) - 12.0) * 0.003 + float(ec["fx_shock"])
-	ec["fxs"] = clampf(fxs + (ft - fxs) * 0.10, 0.6, 1.5)
+	ec["fxs"] = clampf(fxs + (ft - fxs) * rt(0.10, wdt), 0.6, 1.5)
 
 
 func economy_step() -> Dictionary:
@@ -466,7 +469,8 @@ func economy_step() -> Dictionary:
 	business_step()
 	markets_step()
 	trade_step()
-	hist_push()
+	if wmonth:
+		hist_push()      # 0.62: история для графиков — по месяцам
 	for m in MARKETS:
 		var sm: Dictionary = ec["mk"][m["id"]]
 		var wk: String = "short_" + String(m["id"])
@@ -476,6 +480,13 @@ func economy_step() -> Dictionary:
 		elif float(sm["short"]) < 0.005 and warned.has(wk):
 			warned.erase(wk)
 	return {"g": float(ec["ec_g"]), "infl": float(ec["d_infl"]), "unemp": float(ec["d_unemp"])}
+
+
+# 0.62: недельный тик экономики: те же шаги с долей месяца wdt; свежий результат нужен макрошагу следующего тика
+func economy_week() -> void:
+	if ec.is_empty():
+		return
+	last_ecf = economy_step()
 
 
 # ---------- история для графиков ----------
