@@ -52,6 +52,10 @@ func build_fed_windows() -> void:
 	pass
 
 
+func build_fin_windows() -> void:
+	pass
+
+
 func build_fleet_windows() -> void:
 	pass
 
@@ -269,6 +273,10 @@ func update_es_windows() -> void:
 
 
 func update_fed_windows() -> void:
+	pass
+
+
+func update_fin_windows() -> void:
 	pass
 
 
@@ -498,7 +506,7 @@ func reset_layout() -> void:
 func desk_tab(i: int) -> int:
 	if i == 0:
 		return 0
-	if i in [5, 7, 10, 16, 17]:
+	if i in [5, 7, 10, 16, 17, 22]:
 		return 1
 	if i in [2, 8, 9, 13, 14, 15, 18]:
 		return 3
@@ -518,7 +526,7 @@ func show_desk(i: int) -> void:
 		politics_page = i
 	if i == 11 or i == 19 or i == 20:
 		society_page = i
-	if i == 5 or i == 7 or i == 10 or i == 16 or i == 17:
+	if i == 5 or i == 7 or i == 10 or i == 16 or i == 17 or i == 22:
 		econ_page = i
 	if i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15 or i == 18:
 		map_page = i
@@ -663,6 +671,9 @@ func build_ui() -> void:
 	make_chip(chip_row, "debt", "ДОЛГ", "Госдолг в процентах ВВП. Выше 150% — дефолт.")
 	make_chip(chip_row, "res", "РЕЗЕРВЫ", "Валютные и золотые резервы, % ВВП. Ниже 3% валюта уязвима.")
 	make_chip(chip_row, "fxs", "КУРС, 12 М", "Изменение курса вашей валюты за 12 месяцев.")
+	# 0.63: ставка и доверие рынков (видны, только когда включён финансовый модуль)
+	make_chip(chip_row, "frate", "СТАВКА", "Ключевая ставка центробанка.")
+	make_chip(chip_row, "fmood", "РЫНКИ", "Доверие финансовых рынков к стране, от 0 до 100.")
 	make_chip(chip_row, "cap", "КАПИТАЛ", "Политический капитал: расходуется на законы, действия и переговоры.")
 	make_chip(chip_row, "coal", "КОАЛИЦ.", "Мест у вашей коалиции из %d. Для большинства нужно %d." % [SEATS, MAJORITY])
 	make_chip(chip_row, "elec", "ВЫБОРЫ", "Время до следующих парламентских выборов.")
@@ -737,6 +748,7 @@ func build_ui() -> void:
 	build_build_window()
 	build_econ_windows()
 	build_econsys_windows()
+	build_fin_windows()
 	build_io_windows()
 	build_dip_windows()
 	build_goods_windows()
@@ -1493,6 +1505,8 @@ func refresh() -> void:
 		update_goods_detail()
 	elif current_desk == 17:
 		update_corp_windows()
+	elif current_desk == 22:
+		update_fin_windows()
 	elif current_desk == 6:
 		update_pop_windows()
 	elif current_desk == 8 or current_desk == 9:
@@ -2105,7 +2119,7 @@ func log_ui_add(e: Dictionary) -> void:
 # 0.59 (п.10): запись журнала — короткая строка «суть + цифра»; подробности (полный текст, кнопки) открываются под строкой
 const LOG_ACT := {"ЗАКОН": ["Открыть законы", 3], "ЗАКОНОПРОЕКТ": ["Открыть законопроекты", -3], "БЮДЖЕТ": ["Открыть бюджет", 0], "КОАЛИЦИЯ": ["Открыть коалицию", 4],
 	"ПЕРЕГОВОРЫ": ["Открыть коалицию", 4], "ОППОЗИЦИЯ": ["Открыть оппозицию", 12], "КРИЗИС": ["Открыть кризисы", -99], "МИНИСТР": ["Открыть кабинет", 4],
-	"ТЕХНОЛОГИИ": ["Открыть технологии", -98], "НАУКА": ["Открыть технологии", -98]}
+	"ТЕХНОЛОГИИ": ["Открыть технологии", -98], "НАУКА": ["Открыть технологии", -98], "ФИНАНСЫ": ["Открыть финансы", 22]}
 
 
 func log_plain(t: String) -> String:
@@ -2381,6 +2395,7 @@ func accent_for_desk(desk: int) -> Color:
 		3: return C_PURPLE
 		4: return C_PURPLE
 		5: return C_GOOD
+		22: return C_GOOD
 		7: return C_TEAL
 		8: return C_PURPLE
 		10: return C_TEAL
@@ -2440,7 +2455,7 @@ func make_chip(parent: Control, key: String, caption: String, tip: String) -> vo
 	row.add_child(d)
 	chips[key] = {"value": v, "delta": d, "pc": pc}
 	# v49: значок в правом верхнем углу плашки (только если есть место рядом с подписью — ширина панели не меняется)
-	var ik: String = String({"date": "calendar", "appr": "person", "gdp": "chart", "infl": "percent", "unemp": "work", "debt": "bank", "cap": "star", "coal": "hall", "elec": "ballot"}.get(key, ""))
+	var ik: String = String({"date": "calendar", "appr": "person", "gdp": "chart", "infl": "percent", "unemp": "work", "debt": "bank", "cap": "star", "coal": "hall", "elec": "ballot", "frate": "percent", "fmood": "trend"}.get(key, ""))
 	if ik != "":
 		pc.draw.connect(func() -> void:
 			var cw: float = cap.get_theme_default_font().get_string_size(cap.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
@@ -2610,11 +2625,11 @@ func update_subbar(i: int) -> void:
 		var pg4 := [11, 20, 19]
 		for k4 in sub4_buttons.size():
 			(sub4_buttons[k4] as Button).set_pressed_no_signal(i == pg4[k4])
-	var on2: bool = i == 5 or i == 7 or i == 10 or i == 16 or i == 17
+	var on2: bool = i == 5 or i == 7 or i == 10 or i == 16 or i == 17 or i == 22
 	subbar.visible = on
 	if subbar2 != null:
 		subbar2.visible = on2
-		var pg2 := [5, 7, 10, 16, 17]
+		var pg2 := [5, 7, 10, 16, 17, 22]
 		for k2 in sub2_buttons.size():
 			(sub2_buttons[k2] as Button).set_pressed_no_signal(i == pg2[k2])
 	var on3: bool = i == 2 or i == 8 or i == 9 or i == 13 or i == 14 or i == 15 or i == 18
@@ -2672,17 +2687,17 @@ func build_subbar() -> void:
 	add_child(subbar2)
 	subbar2.position = Vector2(8.0, ui_top_h)
 	sub2_buttons.clear()
-	var n2 := ["Рынки и финансы", "Товары и цены", "Влияние и зависимость", "Управление экономикой", "Корпорации"]
-	var p2 := [5, 7, 10, 16, 17]
-	for k in 5:
+	var n2 := ["Рынки и финансы", "Товары и цены", "Влияние и зависимость", "Управление экономикой", "Корпорации", "Финансы"]
+	var p2 := [5, 7, 10, 16, 17, 22]
+	for k in 6:
 		var b2 := Button.new()
 		b2.theme_type_variation = "TabButton"
 		b2.text = n2[k]
 		b2.toggle_mode = true
 		b2.focus_mode = Control.FOCUS_NONE
-		b2.custom_minimum_size = Vector2([180.0, 170.0, 216.0, 220.0, 150.0][k], 32.0)
+		b2.custom_minimum_size = Vector2([180.0, 170.0, 216.0, 220.0, 150.0, 130.0][k], 32.0)
 		b2.pressed.connect(show_desk.bind(p2[k]))
-		btn_icon(b2, ["trend", "box", "handshake", "gauge", "work"][k])
+		btn_icon(b2, ["trend", "box", "handshake", "gauge", "work", "bank"][k])
 		subbar2.add_child(b2)
 		sub2_buttons.append(b2)
 	subbar2.visible = false

@@ -11,7 +11,7 @@ func _init():
 	if g.election_open: g.election_continue()
 	if not g.current_event.is_empty(): g.choose(0)
 	var bad := 0
-	for d in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 13]:      # v38: «Армия и война» ещё раз — во время войны (переговоры)
+	for d in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 22, 14, 13]:      # 0.63: 22 «Финансы» (с finlev=1 — все окна); v38: «Армия и война» ещё раз — во время войны (переговоры)
 		if d == 14 and not g.mil_targets().is_empty():
 			g.mil_declare(String(g.mil_targets()[0]), true)       # v37: экраны армии и флота во время войны
 			for k in 10: g.advance_day()

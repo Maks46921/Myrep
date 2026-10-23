@@ -6,7 +6,7 @@ extends "res://scripts/ui/ui_regime.gd"
 const ES_SKIN := {
 	"mixed": Color(0.30, 0.72, 0.70), "market": Color(0.36, 0.80, 0.50), "libertarian": Color(0.95, 0.76, 0.28),
 	"social": Color(0.42, 0.62, 0.96), "statecap": Color(0.88, 0.56, 0.26), "planned": Color(0.90, 0.24, 0.20), "coop": Color(0.96, 0.52, 0.28)}
-const ECON_DESKS := [5, 7, 10, 16, 17]
+const ECON_DESKS := [5, 7, 10, 16, 17, 22]
 const SECT_COL := {"agr": Color(0.55, 0.78, 0.35), "res": Color(0.62, 0.52, 0.42), "ind": Color(0.55, 0.62, 0.80), "ene": Color(0.95, 0.75, 0.25),
 	"con": Color(0.85, 0.55, 0.35), "srv": Color(0.55, 0.75, 0.90)}
 
