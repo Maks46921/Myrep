@@ -12,6 +12,7 @@ func _init():
 	var fin_on := 1
 	var cr := 1
 	var out := ""
+	var every := 6
 	for a in OS.get_cmdline_user_args():
 		var s := String(a)
 		if s.begins_with("seed="): seed_ = int(s.substr(5))
@@ -21,6 +22,7 @@ func _init():
 		elif s.begins_with("fin="): fin_on = int(s.substr(4))
 		elif s.begins_with("cr="): cr = int(s.substr(3))
 		elif s.begins_with("out="): out = s.substr(4)
+		elif s.begins_with("every="): every = int(s.substr(6))
 	var m = load("res://main.gd").new()
 	m.game_opts.merge({"ev": ev, "news": ev, "fedev": int(ev), "socev": int(ev), "exev": int(ev), "milev": int(ev), "revev": int(ev), "rlev": 1, "bldev": int(ev), "agents": false, "finlev": fin_on, "fincr": cr}, true)
 	m.game_opts["seed"] = seed_
@@ -44,7 +46,7 @@ func _init():
 				m.advance_day()
 		if m.fin_on() and int(m.fin["db"]["rest"]) > n_dflt:
 			n_dflt = int(m.fin["db"]["rest"])
-		if (mo + 1) % 6 == 0 or m.game_over:
+		if (mo + 1) % every == 0 or m.game_over:
 			lines.append(row(m, mo + 1))
 	if m.game_over:
 		lines.append("GAME OVER: " + m.end_reason)

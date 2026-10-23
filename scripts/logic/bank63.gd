@@ -49,7 +49,7 @@ func fin_bank_step() -> void:
 	b["car"] = clampf(float(b["car"]) + (car_t - float(b["car"])) * rt(0.08, wdt), 2.0, 40.0)
 	# доверие вкладчиков
 	var ins: int = int(b["ins"])
-	var tr_t: float = 74.0 + 6.0 * ins - 2.0 * maxf(0.0, float(b["npl"]) - float(b["npl0"]) - 2.0) - 3.0 * maxf(0.0, 12.0 - float(b["car"])) - 10.0 * sev
+	var tr_t: float = 74.0 + 6.0 * ins - 2.0 * maxf(0.0, float(b["npl"]) - float(b["npl0"]) - 2.0) - 3.0 * maxf(0.0, 12.0 - float(b["car"])) - 6.0 * sev
 	if ins >= 2:
 		tr_t = maxf(tr_t, 60.0)
 	b["trust"] = clampf(float(b["trust"]) + (tr_t - float(b["trust"])) * rt(0.2, wdt), 3.0, 100.0)
@@ -126,6 +126,7 @@ func fin_bank_crisis(kind: String, sev: float) -> void:
 	cris["wait_on"] = false
 	cris["decided"] = false
 	cris["start"] = turn
+	cris["ext"] = 0
 	b["count"] = int(b["count"]) + 1
 	b["shock"] = float(b["shock"]) + 1.2 * sev
 	b["inj"] = float(b.get("inj", 0.0)) - 1.5 * sev
@@ -164,7 +165,8 @@ func fin_cris_step(cris: Dictionary) -> void:
 		cris["sev"] = minf(3.5, float(cris["sev"]) + 0.08 * wdt)
 		cris["left"] = float(cris["left"]) + 0.3 * wdt
 	if float(cris["left"]) <= 0.0:
-		if float(b["trust"]) > 55.0 and float(b["car"]) >= float(b["car0"]) * 0.65:
+		cris["ext"] = int(cris.get("ext", 0)) + 1
+		if (float(b["trust"]) > 48.0 and float(b["car"]) >= float(b["car0"]) * 0.65) or int(cris["ext"]) >= 6:
 			cris["on"] = false
 			cris["decided"] = false
 			cris["sev"] = 0.0

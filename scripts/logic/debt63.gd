@@ -73,15 +73,17 @@ func fin_debt_step() -> void:
 	var closed: bool = int(db["closed_t"]) > turn
 	var cover: float = 2.4 * pow(clampf(mood / 60.0, 0.05, 2.0), 1.3) * (1.0 - 0.5 * clampf((ratio - 100.0) / 100.0, 0.0, 1.0)) * (0.5 if closed else 1.0) + fin_rn() * 0.25
 	cover = clampf(cover, 0.3, 5.0)
+	if fin_euro_member() and ratio < 150.0:
+		cover = maxf(cover, 1.0)
 	db["cover"] = cover
 	db["auc_rate"] = mkt + maxf(0.0, 2.0 - cover) * 0.006
 	db["auc_t"] = turn
-	if cover < 1.0 and not closed:
+	if cover < 1.0 and not closed and fin_cd("auc_note") == 0:
+		fin_cd_set("auc_note", 2)
 		db["auc_fail"] = float(db["auc_fail"]) + 1.0
 		db["auc_pen"] = minf(4.0, float(db["auc_pen"]) + 0.5)
-		fin_mood_hit(-4.0)
-		if fin_cd("auc_note") == 0:
-			fin_cd_set("auc_note", 2)
+		fin_mood_hit(-2.0)
+		if true:
 			fin_note("долг", "Аукцион облигаций провалился: спроса не хватило (покрытие %.1f). Ставки растут." % cover, COL_BAD)
 	if closed:
 		fin_closed_financing()
@@ -108,7 +110,7 @@ func fin_closed_financing() -> void:
 	left -= use_r
 	debt = maxf(0.0, debt - gdp * need / 100.0)
 	if left > 0.0:
-		inflation = clampf(inflation + left * 0.5, 0.0, 40.0)
+		inflation = clampf(inflation + left * (0.1 if fin_euro_member() else 0.5), 0.0, 40.0)
 		db["printed"] = float(db.get("printed", 0.0)) + left
 		if fin_cd("print_note") == 0:
 			fin_cd_set("print_note", 6)
@@ -145,7 +147,7 @@ func fin_default_check(ratio: float) -> void:
 	var why := ""
 	if ratio > lim_r:
 		why = "долг вырос до %.0f%% ВВП" % ratio
-	elif float(db["auc_fail"]) >= 3.0:
+	elif float(db["auc_fail"]) >= 3.0 and ratio > (120.0 if euro else 80.0):
 		why = "несколько аукционов подряд провалились"
 	elif float(db["hot_spr"]) >= 8.0 and ratio > 100.0:
 		why = "ставки по долгу остаются запредельными"
