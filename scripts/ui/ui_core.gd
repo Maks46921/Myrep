@@ -642,6 +642,7 @@ func build_ui() -> void:
 	make_chip(chip_row, "date", "ДАТА", "Текущая дата игры. Календарь идёт по дням, а экономика, политика и мир считаются каждую неделю.")
 	# 0.62: семь квадратиков дней недели стоят в строке подписи, рядом со словом «ДАТА» (высота плашки не меняется)
 	var wk := WeekStrip.new()
+	wk.letters = PackedStringArray(WEEKDAYS.map(func(n): return String(n).left(1)))     # первая буква названия дня: в английской версии M T W T F S S
 	var date_vb := (chips["date"]["pc"] as Control).get_child(0) as VBoxContainer
 	var date_cap := date_vb.get_child(0) as Label
 	var cap_row := HBoxContainer.new()

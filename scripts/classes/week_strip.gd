@@ -2,7 +2,7 @@
 extends Control
 
 var cur := 0                                   # 0 — понедельник … 6 — воскресенье
-var letters: PackedStringArray = ["П", "В", "С", "Ч", "П", "С", "В"]
+var letters: PackedStringArray = ["·", "·", "·", "·", "·", "·", "·"]     # подписи задаёт ui_core (первые буквы названий дней)
 var col_on := Color(0.36, 0.55, 0.94)
 var col_past := Color(0.22, 0.28, 0.42)
 var col_off := Color(0.12, 0.14, 0.2)
