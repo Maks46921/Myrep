@@ -179,28 +179,36 @@ func ind_arms_price() -> float:
 func ind_month() -> void:
 	if not ind_on():
 		return
-	var cd: Dictionary = ind["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
+	# 0.62: кулдауны и история цен (14 месяцев) — только при закрытии месяца; затухание, шумы и шоки идут на долю месяца wdt
+	if wmonth:
+		var cd: Dictionary = ind["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
+	var k_tmp: float = 0.9 if wdt == 1.0 else pow(0.9, wdt)
 	for id in gi_ids():
-		ind["g"][id]["tmp"] = float(ind["g"][id]["tmp"]) * 0.9
+		ind["g"][id]["tmp"] = float(ind["g"][id]["tmp"]) * k_tmp
 	ind_prem_step()
 	var comm: float = float(ec.get("comm", 1.0))
 	for id in gi_ids():
 		var g: Dictionary = ind["g"][id]
-		var wp: float = 1.0 + float(gi_def(id)["dc"]) * (comm - 1.0)
-		g["p"] = wp * (1.0 + float(g["prem"])) / (1.0 + float(g["prem0"]))
-		ind_hist(id, float(g["p"]))
+		var pw: float = 1.0 + float(gi_def(id)["dc"]) * (comm - 1.0)
+		g["p"] = pw * (1.0 + float(g["prem"])) / (1.0 + float(g["prem0"]))
+		if wmonth:
+			ind_hist(id, float(g["p"]))
 	# подробные товары: отклонение от цены своей категории, в среднем по категории — ноль
 	var inputs: Dictionary = CU.get("inputs", {})
 	var vol: float = float(game_opts.get("volat", 1.0))
 	var raw := {}
+	# шум и шоки цен товаров: затухание за неделю слабее месячного, амплитуда шума подобрана так, чтобы разброс остался прежним
+	var k_n: float = 0.85 if wdt == 1.0 else pow(0.85, wdt)
+	var k_sh: float = 0.88 if wdt == 1.0 else pow(0.88, wdt)
+	var a_n: float = 1.0 if wdt == 1.0 else sqrt((1.0 - k_n * k_n) / (1.0 - 0.85 * 0.85))
 	for x in gx_ids():
 		var e: Dictionary = ind["x"][x]
-		e["n"] = float(e["n"]) * 0.85 + ind_rng.randf_range(-0.006, 0.006) * vol
-		e["sh"] = float(e["sh"]) * 0.88
+		e["n"] = float(e["n"]) * k_n + ind_rng.randf_range(-0.006, 0.006) * vol * a_n
+		e["sh"] = float(e["sh"]) * k_sh
 		var s := 0.0
 		var inp: Dictionary = inputs.get(x, {})
 		for h in inp:
@@ -218,7 +226,8 @@ func ind_month() -> void:
 			var d: float = clampf(float(raw[x]) - avg, -0.6, 1.5)
 			ind["x"][x]["d"] = d
 			ind["x"][x]["p"] = float(gp.get(cat, 1.0)) * (1.0 + d)
-			ind_hist(x, float(ind["x"][x]["p"]))
+			if wmonth:
+				ind_hist(x, float(ind["x"][x]["p"]))
 	if ind_dyn():
 		ind_events()
 
@@ -331,7 +340,7 @@ func ind_imports() -> Array:
 func ind_events(force: String = "") -> void:
 	if not current_event.is_empty() or election_open:
 		return
-	if force == "" and ind_rng.randf() > 0.03:
+	if force == "" and ind_rng.randf() > wp(0.03):
 		return
 	var kinds: Array = ["harvest", "tobacco"]
 	if ind_ss("chips") < 0.6:

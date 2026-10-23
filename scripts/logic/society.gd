@@ -233,12 +233,14 @@ func soc_tax() -> float:
 func soc_month() -> void:
 	if not soc.has("lvl"):
 		return
-	for k in (soc["cd"] as Dictionary).keys():
-		(soc["cd"] as Dictionary)[k] = int((soc["cd"] as Dictionary)[k]) - 1
-		if int((soc["cd"] as Dictionary)[k]) <= 0:
-			(soc["cd"] as Dictionary).erase(k)
+	# 0.62: сроки (кулдауны, волна беженцев) считаются в целых месяцах и тикают только при закрытии месяца; остальное — на долю месяца wdt
+	if wmonth:
+		for k in (soc["cd"] as Dictionary).keys():
+			(soc["cd"] as Dictionary)[k] = int((soc["cd"] as Dictionary)[k]) - 1
+			if int((soc["cd"] as Dictionary)[k]) <= 0:
+				(soc["cd"] as Dictionary).erase(k)
 	var dyn := soc_dyn()
-	if int(soc["wave"]) > 0:
+	if wmonth and int(soc["wave"]) > 0:
 		soc["wave"] = int(soc["wave"]) - 1
 		if int(soc["wave"]) == 0:
 			soc["press"] = 1.0
@@ -265,8 +267,8 @@ func soc_month() -> void:
 		if not r.has("rel"):
 			continue
 		var p: float = float(r["popm"])
-		var imm: float = ptot * din / 1000.0 / 12.0 * gdp_w[i]
-		var emi: float = ptot * dout / 1000.0 / 12.0 * pop_w[i]
+		var imm: float = ptot * din / 1000.0 / 12.0 * gdp_w[i] * wdt
+		var emi: float = ptot * dout / 1000.0 / 12.0 * pop_w[i] * wdt
 		var nn: float = p + imm - emi
 		if nn > 0.05 and (absf(imm) > 0.0 or absf(emi) > 0.0):
 			for f in 7:
@@ -282,11 +284,11 @@ func soc_month() -> void:
 			var bavg := 0.0
 			for f in 7:
 				bavg += float(r["rel"][f]) * float(SOC_FX[f][2])
-			var sec_flow: float = (0.0002 + (float(soc["sec"]) - 1.0) * 0.0005) * (1.0 - 0.4 * float(soc["fund"]))
+			var sec_flow: float = (0.0002 + (float(soc["sec"]) - 1.0) * 0.0005) * (1.0 - 0.4 * float(soc["fund"])) * wdt
 			var rs := 0.0
 			for f in 7:
 				var s2: float = float(r["rel"][f])
-				var d: float = s2 * (float(SOC_FX[f][2]) - bavg) * 0.003
+				var d: float = s2 * (float(SOC_FX[f][2]) - bavg) * 0.003 * wdt
 				if f < 6:
 					var fl: float = s2 * sec_flow
 					d -= fl
@@ -300,31 +302,32 @@ func soc_month() -> void:
 			for f in 7:
 				r["rel"][f] = float(r["rel"][f]) / tot
 		# напряжённость
-		var surge: float = maxf(0.0, imm / maxf(0.05, p) * 1200.0)
+		var surge: float = maxf(0.0, imm / maxf(0.05, p) * 1200.0 / maxf(wdt, 0.05))     # приток — в пересчёте на месяц
 		var tt: float = 60.0 * (soc_div(r["rel"]) - soc_div(r["rel0"])) * (1.0 - 0.6 * integ / 100.0) + 28.0 * surge * (1.0 - integ / 100.0)
 		tt = clampf(tt, 0.0, 100.0)
-		r["relt"] = float(r["relt"]) + (tt - float(r["relt"])) * mrate(0.5)
+		r["relt"] = float(r["relt"]) + (tt - float(r["relt"])) * wr(mrate(0.5))
 		tens_sum += float(r["relt"]) * pop_w[i]
 	soc["net"] = float(soc["net"]) + net_m
-	# вера агентов следует за моделью (раз в 3 месяца, чтобы не тормозить ход)
-	soc["syn"] = int(soc.get("syn", 0)) + 1
-	if AG != null and ag_on and int(soc["syn"]) % 3 == 0:
-		AG.sync_faith(regions.map(func(rg): return rg["rel"]), regions.map(func(rg): return rg["rel0"]))
 	soc["tension"] = tens_sum
-	var hh: Dictionary = soc["h"]
-	(hh["t"] as Array).append(tens_sum)
-	(hh["i"] as Array).append(float(soc["integ"]))
-	(hh["n"] as Array).append(float(soc["net"]))
-	for hk in ["t", "i", "n"]:
-		if (hh[hk] as Array).size() > 144:
-			(hh[hk] as Array).pop_front()
+	if wmonth:
+		# вера агентов следует за моделью (раз в 3 месяца, чтобы не тормозить ход)
+		soc["syn"] = int(soc.get("syn", 0)) + 1
+		if AG != null and ag_on and int(soc["syn"]) % 3 == 0:
+			AG.sync_faith(regions.map(func(rg): return rg["rel"]), regions.map(func(rg): return rg["rel0"]))
+		var hh: Dictionary = soc["h"]
+		(hh["t"] as Array).append(tens_sum)
+		(hh["i"] as Array).append(float(soc["integ"]))
+		(hh["n"] as Array).append(float(soc["net"]))
+		for hk in ["t", "i", "n"]:
+			if (hh[hk] as Array).size() > 144:
+				(hh[hk] as Array).pop_front()
 	# интеграция
 	var it: float = 40.0 + 10.0 * float(soc["prog"]) - 0.7 * minf(maxf(0.0, din), 12.0) - 0.2 * tens_sum
 	if dyn or din != 0.0:
-		soc["integ"] = clampf(integ + (it - integ) * mrate(0.35), 0.0, 100.0)
+		soc["integ"] = clampf(integ + (it - integ) * wr(mrate(0.35)), 0.0, 100.0)
 	# расходы
 	var cost: float = (float(soc["prog"]) - 1.0) * 0.0004 + float(soc["fund"]) * 0.0003
-	debt += gdp * cost / 12.0
+	debt += gdp * cost / 12.0 * wdt
 	if not dyn:
 		return
 	soc_events()
@@ -344,7 +347,7 @@ func soc_push_event(ev: Dictionary, rid: int = -1) -> void:
 func soc_events() -> void:
 	if not current_event.is_empty() or election_open:
 		return
-	if soc_rng.randf() > 0.045:
+	if soc_rng.randf() > wp(0.045):
 		return
 	var crises := 0
 	for c in wsim:

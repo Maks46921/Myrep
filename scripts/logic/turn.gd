@@ -354,6 +354,7 @@ const WEEK_HOOKS: Array = [
 	"bq_month", "fed_month", "revolt_month", "fleet_month", "mil_month", "con_month",
 
 	# --- soc: общество, культура, церковь, технологии, промышленность ---
+	"soc_month", "cult_month", "church_month", "ind_month", "tech_month",
 
 	# --- pol: выборы, коалиции, партии, события ---
 ]

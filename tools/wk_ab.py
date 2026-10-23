@@ -51,6 +51,15 @@ def main():
                     am = sum(r[j] for r in ms) / len(ms); aw = sum(r[j] for r in ws) / len(ws)
                     cols.append(f'{nm[2:]} {am:.2f}->{aw:.2f}')
             print(f'  мес. {mo:>3}: ' + ' | '.join(cols))
+            # показатели подсистемы soc: население, доля нерелигиозных, напряжённость (религ./культ.), влияние церкви, технологии, промышленность
+            ex = [nm for nm in ('pop', 'nonrel', 'soc_t', 'cu_t', 'ch_pow', 'tech_n', 'tech_pts', 'ind_g') if nm in hdr]
+            if ex:
+                xc = []
+                for nm in ex:
+                    j = hdr.index(nm)
+                    am = sum(r[j] for r in ms) / len(ms); aw = sum(r[j] for r in ws) / len(ws)
+                    xc.append(f'{nm} {aw/am*100-100:+.1f}%' if nm in ('pop', 'tech_pts') and am else f'{nm} {aw-am:+.2f}')
+                print('           ' + ' | '.join(xc))
             if hdr is not None and 'w_gdp' in hdr:
                 wc = []
                 for nm in wnames:

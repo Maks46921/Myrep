@@ -39,7 +39,8 @@ func _init():
 	for i in 3: await process_frame
 	var lines: PackedStringArray = []
 	var xn := ["x_army", "x_ready", "x_ammo", "x_fleet", "x_wave", "x_rev", "x_coup", "x_sep", "x_built", "x_dip"]      # показатели подсистем mil (армия, флот, революции, стройка)
-	lines.append("month	gdp	growth	infl	unemp	debt_pct	appr	unrest	capital	" + "	".join(PackedStringArray(ECON_COLS)) + "	" + "	".join(PackedStringArray(m.GROUPS.map(func(g): return "sup_" + str(g)))) + "	" + "	".join(PackedStringArray(xn)) + "	w_gdp	w_gr	w_inf	w_rel	w_exlv	w_prot	w_mem")
+	var SOC_N := ["pop", "nonrel", "soc_t", "cu_t", "ch_pow", "tech_n", "tech_pts", "ind_g"]
+	lines.append("month	gdp	growth	infl	unemp	debt_pct	appr	unrest	capital	" + "	".join(PackedStringArray(ECON_COLS)) + "	" + "	".join(PackedStringArray(m.GROUPS.map(func(g): return "sup_" + str(g)))) + "	" + "	".join(PackedStringArray(xn)) + "	" + "	".join(PackedStringArray(SOC_N)) + "	w_gdp	w_gr	w_inf	w_rel	w_exlv	w_prot	w_mem")
 	for mo in years * 12:
 		if m.game_over: break
 		var target: int = m.turn + 1
@@ -60,6 +61,7 @@ func _init():
 			for g in m.GROUPS:
 				row += "\t%.2f" % float(m.support[g])
 			row += "\t" + "\t".join(PackedStringArray(wk_x(m).map(func(v): return "%.3f" % v)))
+			row += _soc_cols(m)
 			row += world_cols(m)
 			lines.append(row)
 	var txt := "\n".join(lines) + "\n"
@@ -99,6 +101,18 @@ func wk_x(m) -> Array:
 		for id in r["built"]:
 			built += float(r["built"][id]["n"])
 	return [army, rdy, ammo, fl, wave, rev, coup, sep, built, m.dip_avg_rel() if not m.dip.is_empty() else 0.0]
+
+
+# показатели подсистемы soc (население, религия, культура, церковь, технологии, промышленность)
+func _soc_cols(m) -> String:
+	var nonrel: float = float(m.soc_national()[6]) * 100.0 if m.soc.has("lvl") else 0.0
+	var soc_t: float = float(m.soc.get("tension", 0.0)) if m.soc.has("lvl") else 0.0
+	var cu_t: float = float(m.cu.get("tension", 0.0)) if m.cu_on() else 0.0
+	var ch_p: float = float(m.ch.get("pow", 0.0)) if m.ch_on() else 0.0
+	var tn: int = m.tech_count() if not m.tech.is_empty() else 0
+	var tp: float = float(m.tech.get("pts", 0.0)) if not m.tech.is_empty() else 0.0
+	var ig: float = m.ind_g() if m.ind_on() else 0.0
+	return "\t%.3f\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.0f\t%.3f" % [m.total_pop(), nonrel, soc_t, cu_t, ch_p, tn, tp, ig]
 
 
 # показатели мира (подсистемы «world»): ВВП и рост остальных стран, средняя инфляция, отношения, влияние, доля протестующих агентов, память стран о вас
