@@ -1175,7 +1175,7 @@ func bills_step() -> void:
 				if int(reqs[i]["state"]) == 0:
 					bill_request(int(b["id"]), i, float(reqs[i]["cost"]) <= 4.0 and capital >= float(reqs[i]["cost"]) + 15.0)
 		bill_warn_short(b)
-		if turn >= int(b["due"]):
+		if turn >= int(b["due"]) and not live_days:      # 0.62: в живой игре голосуют по средам (bills_due_step)
 			# 0.57.1: в живой игре в день голосования время останавливается и открывается окно выбора стратегии
 			if bill_plan_wanted(b):
 				if not vt_plan_busy():

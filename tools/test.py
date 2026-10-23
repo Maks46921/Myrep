@@ -32,6 +32,7 @@ TESTS = {
     'opts':   ('t_opts.gd', [], 150),
     'week':   ('t_week.gd', [], 200),
     'time':   ('t_time.gd', [], 60),
+    'sunday': ('t_sunday.gd', [], 200),   # 0.62: выборы по воскресеньям, голосования по средам
     'inbox':  ('t_inbox.gd', [], 200),
     'rules':  ('t_rules.gd', [], 120),
     'voteplan': ('t_voteplan.gd', [], 150),

@@ -36,6 +36,10 @@ func autopilot_run() -> void:
 	pass
 
 
+func bills_due_step() -> void:
+	pass
+
+
 func bills_step() -> void:
 	pass
 
@@ -421,9 +425,27 @@ func day_tick() -> void:
 	mil_day()
 
 
+# 0.62: события по дням недели. Плановые выборы проходят в первое воскресенье после срока, голосования по законам — по средам
+# (в месячном расчёте тестов и сейвов, без advance_day, всё остаётся на закрытии месяца)
+func week_day_hooks() -> void:
+	if game_over or blocked():
+		return
+	var wd := weekday()
+	if wd == 6:
+		if turn - last_parl >= parl_term() and not martial_on():
+			hold_parliament("плановые выборы")
+		if game_over or blocked():
+			return
+		if pres_due >= 0 and turn >= pres_due and not martial_on():
+			hold_head("плановые выборы")
+	elif wd == 2:
+		bills_due_step()
+
+
 func advance_day() -> bool:
 	if blocked():
 		return false
+	live_days = true
 	if day >= days_in_month(year, month):
 		next_turn()          # переход через границу месяца: месячный шаг; он ставит день = 1
 	else:
@@ -431,6 +453,8 @@ func advance_day() -> bool:
 		if day == 8 or day == 15 or day == 22:
 			week_tick()
 	day_tick()
+	week_day_hooks()
+	live_days = false
 	return true
 
 
@@ -758,7 +782,8 @@ func next_turn_core() -> void:
 		return
 	martial_step()
 	if turn - last_parl >= parl_term() and not martial_on():
-		hold_parliament("плановые выборы")
+		if not live_days:      # 0.62: в живой игре выборы ждут воскресенья (week_day_hooks)
+			hold_parliament("плановые выборы")
 	elif opp_mode:
 		opp_step()
 	elif not decree_power():
@@ -773,7 +798,7 @@ func next_turn_core() -> void:
 	if game_over:
 		return
 
-	if pres_due >= 0 and turn >= pres_due and not martial_on() and not election_open and current_event.is_empty():
+	if pres_due >= 0 and turn >= pres_due and not martial_on() and not election_open and current_event.is_empty() and not live_days:
 		hold_head("плановые выборы")
 	if game_over:
 		return
