@@ -367,10 +367,19 @@ func week_hooks_run(dt: float) -> void:
 	var s_m := wmonth
 	wdt = dt
 	wmonth = false
+	# в месячном расчёте открытое окно события гасило остальные случайные события месяца; недельные тики это сохраняют:
+	# если в этом месяце окно уже было, на время хуков ставится заглушка (так частота окон остаётся прежней)
+	var hold: bool = ev_month_n >= 1 and current_event.is_empty()
+	if hold:
+		current_event = {"_hold": true}
 	for h in WEEK_HOOKS:
 		call(h)
 		if game_over:
 			break
+	if hold and current_event.has("_hold"):
+		current_event = {}
+	elif not hold and not current_event.is_empty():
+		ev_month_n += 1
 	wdt = s_dt
 	wmonth = s_m
 
@@ -646,8 +655,10 @@ func week_tick() -> void:
 	if not blocked() and not game_over:
 		if randf() < 0.22 * float(game_opts["news"]) * dt:
 			show_news()
-		if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * dt:
+		if not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * dt and ev_month_n == 0:      # исторические события (fire_scripted) выходят только на закрытии месяца
 			show_event()
+			if not current_event.is_empty():
+				ev_month_n += 1
 
 
 func take_month_snap() -> void:
@@ -680,6 +691,8 @@ func next_turn_core() -> void:
 	turn += 1
 	month += 1
 	day = 1
+	var ev_n0: int = ev_month_n     # окна, уже открытые недельными тиками этого месяца
+	ev_month_n = 0
 	if month > 12:
 		month = 1
 		year += 1
@@ -811,10 +824,11 @@ func next_turn_core() -> void:
 	# --- события ---
 	campaign_check()
 	head_campaign_check()
-	dip_events()
+	if ev_n0 == 0:      # 0.62: если недельные тики уже открывали окно в этом месяце, дипломатические события ждут следующего
+		dip_events()
 	if randf() < 0.22 * float(game_opts["news"]) * rest:
 		show_news()
-	if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * rest:
+	if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * rest and ev_n0 == 0:
 		show_event()
 	refresh()
 
