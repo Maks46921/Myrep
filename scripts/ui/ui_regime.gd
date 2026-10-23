@@ -159,6 +159,9 @@ func reg_do(id: String) -> void:
 
 
 func win_mode_ok(id: String) -> bool:
+	# 0.63: при выключенном финансовом модуле на вкладке «Финансы» остаётся только сводка (с одной строкой)
+	if id.begins_with("fn_") and id != "fn_sum" and not fin_on():
+		return false
 	if id == "uq_win":
 		return not uq_def().is_empty()
 	var cls := ui_reg_cls

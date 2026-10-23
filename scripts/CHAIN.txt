@@ -65,6 +65,7 @@ scripts/ui/ui_politics.gd
 scripts/ui/ui_laws.gd
 scripts/ui/ui_gov.gd
 scripts/ui/ui_econ.gd
+scripts/ui/ui_fin.gd
 scripts/ui/ui_world.gd
 scripts/ui/ui_pop.gd
 scripts/ui/ui_events.gd

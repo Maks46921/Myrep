@@ -1,5 +1,5 @@
 # Интерфейс: дипломатия.
-extends "res://scripts/ui/ui_econ.gd"
+extends "res://scripts/ui/ui_fin.gd"
 
 # --- заглушки: эти функции реализованы в модулях ниже по цепочке и там переопределяются (tools/stubs.py) ---
 
