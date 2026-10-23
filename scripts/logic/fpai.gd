@@ -245,39 +245,51 @@ func fa_rel_term(c: String) -> float:
 	return clampf(float((fa["mem"] as Dictionary).get(c, 0.0)) + fa_standing(c), -60.0, 35.0)
 
 
+# 0.62: недельный расчёт: забывание обид (pow) и вероятность инициатив (wp) идут каждую неделю; резкий отказ от демократии и смена
+# правительства у соседа замечаются сразу (сравнение с прошлым месяцем); паузы, мировые санкции и санкции стран — по месяцам (wmonth)
 func fa_month() -> void:
 	if not rl_on():
 		return
 	if fa.is_empty():
 		fa_init()
-	var cd: Dictionary = fa["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
+	if wmonth:
+		var cd: Dictionary = fa["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
 	var mem: Dictionary = fa["mem"]
+	var k_mem: float = FA_MEM_DECAY if wdt == 1.0 else pow(FA_MEM_DECAY, wdt)
 	for c in mem.keys():
-		mem[c] = float(mem[c]) * FA_MEM_DECAY
+		mem[c] = float(mem[c]) * k_mem
 	# отказ от демократии замечают сразу (переворот, указы, хунта)
 	var dem: float = democracy_index()
+	var dem_jump := false
 	if float(fa["dem"]) - dem >= 0.08:
+		dem_jump = true
 		fa_notify("authoritarian", "", clampf((float(fa["dem"]) - dem) / 0.3, 0.3, 1.5))
 		fa_log("демократии осуждают отказ от демократических институтов: отношения резко ухудшились.", COL_BAD)
 	elif dem - float(fa["dem"]) >= 0.08:
+		dem_jump = true
 		for b in fa_bots():
 			fa_hit(b, 6.0 * fa_pers(b)["values"], "возвращение к демократии")
-	fa["dem"] = dem
-	fa_ws_month()
+	if wmonth or dem_jump:
+		fa["dem"] = dem
+	if wmonth:
+		fa_ws_month()
 	# смена правительств у соседей: тёплее или холоднее к вам
 	var stc: Dictionary = fa["stance"]
 	for c2 in fa_bots():
 		var now: float = float(wsim[c2].get("stance", 0.0))
 		var was: float = float(stc.get(c2, now))
-		if absf(now - was) > 0.25 and (dip.has(c2) or c2 in tech_nb()):
+		var jump: bool = absf(now - was) > 0.25
+		if jump and (dip.has(c2) or c2 in tech_nb()):
 			var closer: bool = absf(now - w_player_stance()) < absf(was - w_player_stance())
 			fa_log("новое правительство «%s» %s к вашему курсу." % [dx_name(c2), "ближе" if closer else "дальше"], COL_GOOD if closer else COL_WARN)
-		stc[c2] = now
-	fa_sanctions_step()
+		if wmonth or jump:
+			stc[c2] = now
+	if wmonth:
+		fa_sanctions_step()
 	fa_initiatives()
 
 
@@ -340,7 +352,7 @@ func fa_initiatives() -> void:
 		return
 	# темп: обычно 5% в месяц, но чем дольше страны молчали, тем вероятнее инициатива (не бывает долгих «пустых» лет)
 	var quiet: int = turn - int(fa.get("last_ini", 0))
-	if randf() > clampf(0.05 + 0.006 * float(quiet - 12), 0.05, 0.25):
+	if randf() > wp(clampf(0.05 + 0.006 * float(quiet - 12), 0.05, 0.25)):
 		return
 	var bots: Array = fa_bots()
 	bots.shuffle()

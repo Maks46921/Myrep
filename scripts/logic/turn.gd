@@ -344,6 +344,7 @@ const WEEK_HOOKS: Array = [
 	"econ_week",
 
 	# --- world: мир, дипломатия, агенты ---
+	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",
 
 	# --- mil: армия, флот, революции, федерация, стройка ---
 
@@ -461,11 +462,16 @@ func _process(delta: float) -> void:
 		return
 	day_acc += delta * float(PLAY_SPEEDS[play_idx])
 	var guard := 0
+	var t0 := Time.get_ticks_msec()
 	while day_acc >= 1.0 and guard < 120:
 		day_acc -= 1.0
 		guard += 1
 		if not advance_day():
 			day_acc = 0.0
+			break
+		# 0.62: недельные шаги дороже старых; если расчёт не успевает за выбранной скоростью, интерфейс не замораживаем, время идёт медленнее
+		if Time.get_ticks_msec() - t0 > 50:
+			day_acc = minf(day_acc, 1.0)
 			break
 	if guard > 0:
 		refresh()
