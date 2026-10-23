@@ -400,21 +400,21 @@ v52_1: международные организации (данные — data_
 
 Переменные (1): `fin`
 
-### `scripts/logic/cbank63.gd`  (503 строк)
+### `scripts/logic/cbank63.gd`  (508 строк)
 Финансы (0.63): центробанк, обменный курс, резервы, переход на евро и выход из него.
 
 Функции (24): `fin_bank_crisis`, `fin_debt_revalue`, `fin_imf_offer`, `fin_cred_anchor`, `fin_cb_pull`, `fin_ecb_rate`, `fin_cb_bias`, `fin_cb_step`, `fin_month_cb`, `fin_cb_prob_press`, `fin_acts_cb`, `fin_fx_step`, `fin_peg_break`, `fin_mix_shift`, `fin_erm_ready`, `fin_erm_text`, `fin_set_peg`, `fin_acts_fx`, `fin_swap_partner`, `fin_euro_join`, `fin_euro_exit`, `fin_act_cb`, `fin_act_fx`, `bk_invest_hit`
 
 Константы (1): `FIN_HEAD`
 
-### `scripts/logic/bank63.gd`  (414 строк)
+### `scripts/logic/bank63.gd`  (417 строк)
 Финансы (0.63): банки (капитал, плохие кредиты, кредит экономике, пузыри, банковский кризис и его решения) и фондовая биржа.
 
 Функции (14): `fin_bank_step`, `fin_cris_roll`, `fin_bubble_burst`, `fin_bank_crisis`, `fin_bank_crisis_event`, `fin_cris_step`, `fin_month_bank`, `fin_stress_shortfall`, `fin_acts_bank`, `fin_act_bank`, `fin_ex_step`, `fin_ex_month`, `fin_acts_ex`, `fin_act_ex`
 
 Константы (1): `FIN_CRIS`
 
-### `scripts/logic/debt63.gd`  (545 строк)
+### `scripts/logic/debt63.gd`  (547 строк)
 Финансы (0.63): госдолг (срок, средняя ставка, иностранные держатели, валютный долг, аукционы), дефолт и реструктуризация, МВФ, фонды.
 
 Функции (24): `fin_prem`, `fin_debt_rate`, `fin_debt_step`, `fin_closed_financing`, `fin_debt_revalue`, `fin_month_debt`, `fin_default_check`, `fin_default_event`, `fin_do_default`, `fin_act_debt`, `fin_acts_debt`, `fin_imf_trigger`, `fin_imf_offer`, `fin_imf_choice`, `fin_imf_disburse`, `fin_imf_check`, `fin_imf_review`, `fin_imf_step`, `fin_imf_text`, `fin_fund_total`, `fin_fund_step`, `fin_acts_fund`, `fin_act_fund`, `fin_apply_act`
