@@ -708,3 +708,16 @@
 - **Вотум недоверия:** `noc_constr` пересчитывается в `recompute_mods()` из `mods["constr"]`; `resolve_no_confidence()` берёт порог из `impeach_seats()`; при конструктивном вотуме — `ai_form_gov(false)` и `opp_enter()` без выборов.
 - **Роспуск:** `dissolve_blocked(reason)` / `no_dissolution_outcome()` для стран с `SNAP_RULES[..][2] < 0` (NO, BA, CH); `snap_info()` блокирует роспуск в последние 6 месяцев мандата президента (IT, PT); новые `SNAP_RULES` для MD, UA, BY, RU.
 - **Польша:** `UPPER["veto_p"]` меняет номер вместе с `swap_idx` в `apply_player_party`.
+
+
+## Финансы (0.63)
+Модуль «Деньги и финансы» — четыре файла цепочки после `uniq60.gd`: `fin63.gd` (ядро: состояние `fin`, недельный порядок `fin_week`, доверие рынков, хуки в экономику,
+реестр действий `fin_acts(page)` / `fin_do(id)`), `cbank63.gd` (центробанк, курс, резервы, евро), `bank63.gd` (банки, кризисы, биржа), `debt63.gd` (госдолг, аукционы,
+дефолт, МВФ, фонды). Данные стран — `scripts/data/data_fin63.gd` (`FIN_DATA`, поле `est` — оценки). Опции: `game_opts["finlev"]` (0 — модуль выключен, игра как в 0.62),
+`game_opts["fincr"]` (частота кризисов: 0 редко, 1 как в истории, 2 часто).
+- Всё считается понедельно: `fin_week()` стоит в `WEEK_HOOKS` (секция econ) и зовётся из `next_turn_core` после `economy_step`. Месячное (история, перерывы) — под `wmonth`.
+- Хуки: `fin_g()`, `fin_infl()`, `fin_unemp()` (в `macro_step`), `fin_cb_bias()` (в `cb_target`; правило Тейлора без поправок — `cb_rule()`), `fin_prem()` (надбавка в `debt_mkt_rate()`),
+  `fin_debt_rate()` (в `debt_rate()` при включённом модуле), `fin_budget_lines()` (в `ec_budget_lines`).
+- Старт нейтрален: смещения `mood_off`, `pull0`, `peg0` подбираются при `fin_init()`, чтобы на старте игры доверие = 60 и поправки = 0.
+- Дефолт не конец игры: `end_game` по долгу вызывается только при выключенном модуле. Конец игры — гиперинфляция и распад.
+- Новое решение игрока: добавить запись в `fin_acts_*` (id, name, desc, cap, cd, ok/why) и ветку в `fin_act_*`. Решения в окне события — `fin_event(kind, текст, варианты)` с полем `act`.

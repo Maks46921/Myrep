@@ -71,11 +71,11 @@ func fin_cb_step() -> void:
 	cb["lobby"] = float(cb["lobby"]) * wdec(0.85)
 	var infl_dev: float = absf(inflation - I_TGT)
 	var drift := 0.0
-	drift -= 0.8 * maxf(0.0, inflation - 4.0)
+	drift -= 0.8 * maxf(0.0, inflation - maxf(4.0, float(cb["infl0"]) + 1.0))
 	drift -= 0.5 * maxf(0.0, 1.0 - inflation)
 	drift += 0.3 if infl_dev < 1.0 else 0.0
 	drift -= 0.06 * float(cb["qe"])
-	drift -= 0.5 * maxf(0.0, -(fin_cb_bias(0.0))) * (1.0 - float(cb["ind"]) / 100.0)
+	drift -= 0.5 * maxf(0.0, -(fin_cb_bias(cb_rule()))) * (1.0 - float(cb["ind"]) / 100.0)
 	cb["cred"] = clampf(float(cb["cred"]) + drift * wdt + (fin_cred_anchor() - float(cb["cred"])) * rt(0.01, wdt), 0.0, 100.0)
 	# покупки облигаций: свёртываются сами при высокой инфляции, ослабляют валюту
 	var qe: float = float(cb["qe"])
@@ -181,9 +181,14 @@ func fin_fx_step() -> void:
 	f["press"] = press
 	var board: bool = reg == "peg" and band <= 0.02
 	var k: float = 75.0 * (0.35 if board else 1.0)
-	res = float(ec["res"]) + press * k * wdt
+	var dres: float = press * k * wdt
+	if dres > 0.0:
+		dres *= clampf(1.0 - (float(ec["res"]) - 15.0) / 25.0, 0.1, 1.0)     # копить резервы бесконечно не имеет смысла
+	res = float(ec["res"]) + dres
 	ec["res"] = res
 	f["defended"] = float(f["defended"]) + minf(0.0, press) * k * wdt
+	if reg == "corr" and press > 0.0 and float(ec["res"]) > 20.0:
+		f["lvl"] = lvl + (ft - lvl) * rt(0.03, wdt)       # коридор ползёт вверх, если валюта сильна и резервы уже велики
 	var avail: float = res + float(f["swap"])
 	if press < -0.01 and avail < 0.3 and not (board and avail > -2.0):
 		fin_peg_break(ft)

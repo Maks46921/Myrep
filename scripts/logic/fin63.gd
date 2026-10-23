@@ -154,7 +154,7 @@ func fin_init() -> void:
 		"v": FIN_VER, "mood": 60.0, "mood_off": 0.0, "mood_t": 60.0, "since": turn, "cd": {}, "log": [], "est": d.get("est", []),
 		"w": {"gold": 1.0, "usd": 1.0, "shock": 0.0},
 		"cb": {"ind0": cbi, "ind": cbi, "law": 0.0, "dem0": democracy_index(), "head": "tech", "head_t": turn - 48, "cred": 60.0,
-			"press": 0.0, "lobby": 0.0, "qe": 0.0, "pull0": 0.0, "rate_old": float(ec["rate"]), "rate_up": 0.0, "emit_msg": -99},
+			"press": 0.0, "lobby": 0.0, "qe": 0.0, "infl0": inflation, "pull0": 0.0, "rate_old": float(ec["rate"]), "rate_up": 0.0, "emit_msg": -99},
 		"fx": {"reg": reg, "anc": String(d["anc"]), "lvl": fxs, "band": float(d["band"]), "capctl": bool(d["capctl"]), "capctl_t": -99,
 			"gold": float(d["gold"]), "mix_eur": float(d["mix_eur"]), "mix_usd": float(d["mix_usd"]), "mix_cny": float(d["mix_cny"]),
 			"swap": 0.0, "swap_t": 0, "swap_by": "", "peg_t": turn if (reg == "peg" and String(d["anc"]) == "EUR") else -999, "imp": 0.0,
