@@ -100,6 +100,18 @@ func fed_tax_leak() -> float:
 	return 0.0
 
 
+func fin_debt_rate() -> float:
+	return 0.0
+
+
+func fin_on() -> bool:
+	return false
+
+
+func fin_prem() -> float:
+	return 0.0
+
+
 func fulfill_coalition_demands() -> void:
 	pass
 
@@ -1175,10 +1187,18 @@ func describe_econ(e: Dictionary) -> String:
 
 
 func debt_rate() -> float:
+	if fin_on():
+		return fin_debt_rate()     # 0.63: средневзвешенная ставка по долгу (срок, выкуп ЦБ)
+	return debt_mkt_rate()
+
+
+# рыночная ставка, по которой государство заняло бы сегодня
+func debt_mkt_rate() -> float:
 	var ratio: float = debt / gdp * 100.0
 	var rate: float = float(MACRO.get("debt_base", 0.014)) + maxf(0.0, ratio - float(MACRO.get("debt_thr", 80.0))) * float(MACRO.get("debt_slope", 0.0007)) + risk_prem / 100.0 + war_prem() / 100.0
 	if not ec.is_empty():
 		rate += (float(ec["rate"]) - RATE0) / 100.0 * 0.35
+	rate += fin_prem() / 100.0
 	return maxf(rate, 0.005)
 
 

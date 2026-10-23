@@ -44,6 +44,10 @@ func ev_ext_val(k: String) -> float:
 	return 0.0
 
 
+func fin_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func fleet_resolve(i: int) -> void:
 	pass
 
@@ -473,6 +477,8 @@ func ev_kind_info() -> Array:
 		return [String(a[0]) if String(a[0]) != "ПОЛИТИКА" else "КРИЗИС", "!", C_BAD, "shield"]
 	if String(e.get("special", "")) == "rl":
 		return ["ГОСУДАРСТВО", "◆", C_TEAL, "flag"]
+	if String(e.get("special", "")) == "fin":
+		return ["ФИНАНСЫ", "▲", C_WARN, "coin"]
 	return a
 
 
@@ -774,6 +780,8 @@ func choose(i: int) -> void:
 		revolt_resolve(opt)
 	elif special == "rl":
 		realism_resolve(opt)
+	elif special == "fin":
+		fin_resolve(opt)
 	elif special == "reg60":
 		reg60_resolve(opt)
 	elif special == "uq60":

@@ -8,6 +8,14 @@ func con_struct_extra() -> void:
 	pass
 
 
+func fin_budget_lines() -> Dictionary:
+	return {}
+
+
+func fin_cb_bias(base: float) -> float:
+	return 0.0
+
+
 func world_ea_update() -> void:
 	pass
 
@@ -94,6 +102,9 @@ func ec_budget_lines() -> Dictionary:
 		out["rev"]["Доходы от сырья"] = roy
 	if float(ec["struct_up"]) > 0.0:
 		out["exp"]["Содержание сооружений"] = float(ec["struct_up"]) * gdp / 100.0
+	var fl: Dictionary = fin_budget_lines()
+	for k in fl["rev"]:
+		out["rev"][k] = fl["rev"][k]
 	return out
 
 
@@ -232,12 +243,19 @@ func world_step() -> void:
 
 
 func cb_target() -> float:
+	var t: float = cb_rule()
+	t += fin_cb_bias(t)
+	return clampf(t, 0.0, 15.0)
+
+
+# ставка по правилу Тейлора (без поправок финансового модуля, 0.63)
+func cb_rule() -> float:
 	var ew: float = clampf(float(MACRO.get("ecb_w", 0.27)) * 0.67, 0.0, 0.6)
 	var own: float = float(MACRO.get("cb_own", -1.0))
 	if own >= 0.0:
 		ew = own
 	var infl_cb: float = (1.0 - ew) * ea_infl + ew * inflation
-	return clampf(infl_cb + RATE_NEUTRAL_REAL + 0.55 * (infl_cb - I_TGT) + 0.20 * (growth - G_NEU) + float(mods.get("cb_bias", 0.0)) + float(MACRO.get("cb_off", 0.0)), 0.0, 15.0)
+	return infl_cb + RATE_NEUTRAL_REAL + 0.55 * (infl_cb - I_TGT) + 0.20 * (growth - G_NEU) + float(mods.get("cb_bias", 0.0)) + float(MACRO.get("cb_off", 0.0))
 
 
 func cb_name() -> String:
@@ -456,6 +474,7 @@ func trade_step() -> void:
 	ec["res"] = clampf(float(ec["res"]) + nx / 12.0 * 0.6 * wdt, -5.0, 60.0)
 	var gap: float = float(ec["real_gap"])
 	var ft: float = 1.0 + 0.02 * nx + 0.012 * gap - 0.015 * (inflation - I_NEU) + (float(ec["res"]) - 12.0) * 0.003 + float(ec["fx_shock"])
+	ec["ft"] = ft     # 0.63: рыночный курс, к которому тянется валюта (финансовый модуль меряет по нему давление на привязку)
 	ec["fxs"] = clampf(fxs + (ft - fxs) * rt(0.10, wdt), 0.6, 1.5)
 
 

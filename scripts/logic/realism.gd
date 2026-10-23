@@ -11,6 +11,18 @@ func diplo_resolve(opt: Dictionary) -> void:
 	pass
 
 
+func fin_erm_ready() -> bool:
+	return false
+
+
+func fin_erm_text() -> String:
+	return ""
+
+
+func fin_euro_join() -> void:
+	pass
+
+
 func sv_auto() -> void:
 	pass
 
@@ -228,7 +240,10 @@ func rl_blocs_step() -> void:
 		a["m"] = int(a["m"]) + 1
 		var goal: float = {"eu": 40.0, "euro": 24.0, "nato": 18.0}.get(k, 30.0)
 		if float(a["p"]) >= goal:
-			if fa_ws_lvl() > 0:
+			if String(k) == "euro" and fin_on() and not fin_erm_ready():
+				if int(a["m"]) % 6 == 0:
+					rl_log("Переход на евро ждёт: %s." % fin_erm_text(), COL_WARN)
+			elif fa_ws_lvl() > 0:
 				if int(a["m"]) % 6 == 0:
 					rl_log("Заявка (%s) заморожена: против страны действуют санкции Запада." % rl_bloc_name(String(k)), COL_WARN)
 			elif rl_avg_rel() < 40.0:
@@ -268,6 +283,7 @@ func rl_accept(k: String) -> void:
 	elif k == "euro":
 		b["euro"] = true
 		MACRO["euro"] = true
+		fin_euro_join()
 		add_all_support(1.0)
 		rl_log("Страна перешла на евро: собственная эмиссия закрыта, зато растёт доверие инвесторов.", COL_GOOD)
 		risk_prem = maxf(0.0, risk_prem - 0.4)
@@ -770,6 +786,7 @@ func rl_do(id: String) -> bool:
 			rl_log("Взнос в бюджет ЕС снижен.", COL_GOOD)
 		"eu_leave":
 			b["eu"] = false
+			fin_euro_exit()
 			b["euro"] = false
 			b["schg"] = false
 			dip_all(-6.0, true)

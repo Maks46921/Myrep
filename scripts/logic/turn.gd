@@ -136,6 +136,26 @@ func fed_month() -> void:
 	pass
 
 
+func fin_g() -> float:
+	return 0.0
+
+
+func fin_infl() -> float:
+	return 0.0
+
+
+func fin_init() -> void:
+	pass
+
+
+func fin_unemp() -> float:
+	return 0.0
+
+
+func fin_week() -> void:
+	pass
+
+
 func flag_month() -> void:
 	pass
 
@@ -345,7 +365,7 @@ func wsim_step() -> void:
 # wdt = 1.0 и поведение прежнее. Правила перевода: docs/RULES.md, раздел «Недельный расчёт».
 const WEEK_HOOKS: Array = [
 	# --- econ: экономика, регионы, уровни ---
-	"econ_week",
+	"econ_week", "fin_week",
 
 	# --- world: мир, дипломатия, агенты ---
 	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",
@@ -563,6 +583,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		+ mil_g()
 		+ revolt_g()
 		+ rl_g()
+		+ fin_g()
 	)
 	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
@@ -580,8 +601,8 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl()) / 12.0 * dt, 0.0, 40.0)
-	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp()
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl() + fin_infl()) / 12.0 * dt, 0.0, 40.0)
+	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp() + fin_unemp()
 	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
 	for i in regions.size():
@@ -646,7 +667,7 @@ func week_tick() -> void:
 	week_hooks_run(dt)
 	bud_hold_end(bud_h)
 	month_done += dt
-	if debt / gdp > 1.5:
+	if debt / gdp > 1.5 and not fin_on():
 		end_game("Государственный дефолт. Страна не смогла обслуживать долг.")
 		return
 	if inflation >= 30.0:
@@ -756,6 +777,7 @@ func next_turn_core() -> void:
 	var ecf := economy_step()
 	last_ecf = ecf
 	last_deficit_pct = deficit_pct
+	fin_week()
 	macro_step(rest, ecf, deficit_pct, debt_ratio)
 	ag_step()
 	month_done = 0.0
@@ -768,7 +790,7 @@ func next_turn_core() -> void:
 		oneoff_year_reset()
 
 	# --- крах государства ---
-	if debt / gdp > 1.5:
+	if debt / gdp > 1.5 and not fin_on():
 		end_game("Государственный дефолт. Страна не смогла обслуживать долг.")
 		return
 	if inflation >= 30.0:
@@ -990,6 +1012,7 @@ func init_state() -> void:
 	mil_init()
 	mil_start_ongoing()
 	ind_init()
+	fin_init()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}

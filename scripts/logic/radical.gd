@@ -28,6 +28,10 @@ func es_step() -> void:
 	pass
 
 
+func fin_euro_exit() -> void:
+	pass
+
+
 func hist_dyn() -> void:
 	pass
 
@@ -198,6 +202,7 @@ func radical_enact(tid: String, idx: int, old_rid: String) -> void:
 			risk_prem = minf(2.0, risk_prem + 0.4)
 			if bool(MACRO.get("euro", false)):
 				MACRO["euro"] = false
+				fin_euro_exit()
 				MACRO["cb_own"] = 1.0
 				MACRO["cb_off"] = float(MACRO.get("cb_off", 0.0)) + 0.4
 				log_line("[color=%s]Страна покинула еврозону: ставку теперь задаёт национальный центробанк, курс валюты колеблется.[/color]" % COL_WARN)
