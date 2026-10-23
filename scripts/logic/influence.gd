@@ -113,6 +113,7 @@ func ex_g() -> float:
 	# вклад торговой политики и давления партнёров в ваш рост, п.п. в год
 	if not ex.has("p"):
 		return 0.0
+	w_sc_begin()
 	var g := 0.0
 	for c in ex["p"]:
 		if not wsim.has(c):
@@ -122,18 +123,21 @@ func ex_g() -> float:
 			continue
 		var t: float = w_share(ccode, c)
 		g += 0.4 * float(EX_GAIN[int(p["deal"])]) * t - 0.5 * float(EX_LOSS[int(p["tar"])]) * t - 0.8 * float(EX_LOSS[int(p["ret"])]) * t
+	w_sc_end()
 	return g
 
 
 func ex_infl() -> float:
 	if not ex.has("p"):
 		return 0.0
+	w_sc_begin()
 	var s := 0.0
 	for c in ex["p"]:
 		if not wsim.has(c):
 			continue
 		var p: Dictionary = ex["p"][c]
 		s += (0.8 * float(EX_LOSS[int(p["tar"])]) + 0.4 * float(EX_LOSS[int(p["ret"])])) * w_share(ccode, c)
+	w_sc_end()
 	return s
 
 
@@ -151,7 +155,12 @@ func ex_bot_g(c: String) -> float:
 func ex_month() -> void:
 	if not ex.has("p"):
 		return
+	# 0.62: недельный расчёт: затухание помощи, вложения в долг, рейтинг влияния и ответные пошлины идут каждую неделю (wdt, wr, wp);
+	# паузы действий (в месяцах) и история влияния — только при wmonth. Доли торговли считаются один раз (кэш w_sc_*).
+	w_sc_begin()
 	var evs: int = int(game_opts.get("exev", 1))
+	var k_aid: float = 0.97 if wdt == 1.0 else pow(0.97, wdt)
+	var k_inf := wr(0.2)
 	var lv_sum := 0.0
 	var lv_n := 0
 	for c in (ex["p"] as Dictionary).keys():
@@ -159,29 +168,31 @@ func ex_month() -> void:
 			ex["p"].erase(c)
 			continue
 		var p: Dictionary = ex["p"][c]
-		for k in (p["cd"] as Dictionary).keys():
-			p["cd"][k] = int(p["cd"][k]) - 1
-			if int(p["cd"][k]) <= 0:
-				(p["cd"] as Dictionary).erase(k)
-		p["aid"] = float(p["aid"]) * 0.97
+		if wmonth:
+			for k in (p["cd"] as Dictionary).keys():
+				p["cd"][k] = int(p["cd"][k]) - 1
+				if int(p["cd"][k]) <= 0:
+					(p["cd"] as Dictionary).erase(k)
+		p["aid"] = float(p["aid"]) * k_aid
 		if float(p["aid"]) < 0.2:
 			p["aid"] = 0.0
 		if int(p["dbuy"]) > 0:
-			debt -= ex_dbuy_amt(c) * float(p["dbuy"]) * 0.03 / 12.0
+			debt -= ex_dbuy_amt(c) * float(p["dbuy"]) * 0.03 / 12.0 * wdt
 		if evs == 1:
-			if int(p["tar"]) > int(p["ret"]) and ex_rng.randf() < 0.22:
+			if int(p["tar"]) > int(p["ret"]) and ex_rng.randf() < wp(0.22):
 				p["ret"] = int(p["ret"]) + 1
 				ex_rel_change(c, -4.0)
 				log_tag("ТОРГОВЛЯ", COL_WARN, "%s — «%s» вводит ответные пошлины (уровень %d)." % [date_text(), WORLD[c]["name"], int(p["ret"])])
-			elif int(p["tar"]) < int(p["ret"]) and not fa_sanctioning(c) and ex_rng.randf() < 0.12:
+			elif int(p["tar"]) < int(p["ret"]) and not fa_sanctioning(c) and ex_rng.randf() < wp(0.12):
 				p["ret"] = int(p["ret"]) - 1
 				log_tag("ТОРГОВЛЯ", COL_GOOD, "%s — «%s» смягчает ответные пошлины (уровень %d)." % [date_text(), WORLD[c]["name"], int(p["ret"])])
 		# рейтинг влияния
 		var lv: float = ex_leverage(c)
-		p["infl"] = float(p["infl"]) + (lv - float(p["infl"])) * 0.2
+		p["infl"] = float(p["infl"]) + (lv - float(p["infl"])) * k_inf
 		lv_sum += lv
 		lv_n += 1
-	if lv_n > 0:
+	w_sc_end()
+	if lv_n > 0 and wmonth:
 		(ex["hist"] as Array).append(lv_sum / float(lv_n))
 		if (ex["hist"] as Array).size() > 144:
 			(ex["hist"] as Array).pop_front()
@@ -192,7 +203,7 @@ func ex_month() -> void:
 func ex_events() -> void:
 	if not current_event.is_empty() or election_open:
 		return
-	if ex_rng.randf() > 0.035:
+	if ex_rng.randf() > wp(0.035):
 		return
 	var parts: Array = ex_partners()
 	if parts.is_empty():

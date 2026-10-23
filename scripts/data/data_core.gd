@@ -41,12 +41,14 @@ const CountryMap := preload("res://scripts/classes/country_map.gd")
 const PartyHemi := preload("res://scripts/classes/party_hemi.gd")
 const Gfx := preload("res://scripts/classes/gfx.gd")
 const EventArt := preload("res://scripts/classes/event_art.gd")
+const WeekStrip := preload("res://scripts/classes/week_strip.gd")
 
 const START_YEAR := 2026
 
-# скорости авто-хода: дней календаря в секунду реального времени (0 — пауза)
-const PLAY_SPEEDS := [0.0, 1.0, 3.0, 7.0, 15.0, 30.0, 90.0]
-const PLAY_NAMES := ["⏸", "1×", "3×", "7×", "15×", "30×", "90×"]
+# скорости авто-хода: дней календаря в секунду реального времени (0 — пауза); с 0.62 в неделях: 1, 2, 4, 8, 16 недель в секунду
+const PLAY_SPEEDS := [0.0, 7.0, 14.0, 28.0, 56.0, 112.0]
+const PLAY_NAMES := ["⏸", "1 нед/с", "2 нед/с", "4 нед/с", "8 нед/с", "16 нед/с"]
+const WEEKDAYS := ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 const MONTHS_GEN := ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 const MONTHS := ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
 
