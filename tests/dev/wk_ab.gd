@@ -38,7 +38,8 @@ func _init():
 	root.add_child(m)
 	for i in 3: await process_frame
 	var lines: PackedStringArray = []
-	lines.append("month	gdp	growth	infl	unemp	debt_pct	appr	unrest	capital	" + "	".join(PackedStringArray(ECON_COLS)) + "	" + "	".join(PackedStringArray(m.GROUPS.map(func(g): return "sup_" + str(g)))) + "	w_gdp	w_gr	w_inf	w_rel	w_exlv	w_prot	w_mem")
+	var xn := ["x_army", "x_ready", "x_ammo", "x_fleet", "x_wave", "x_rev", "x_coup", "x_sep", "x_built", "x_dip"]      # показатели подсистем mil (армия, флот, революции, стройка)
+	lines.append("month	gdp	growth	infl	unemp	debt_pct	appr	unrest	capital	" + "	".join(PackedStringArray(ECON_COLS)) + "	" + "	".join(PackedStringArray(m.GROUPS.map(func(g): return "sup_" + str(g)))) + "	" + "	".join(PackedStringArray(xn)) + "	w_gdp	w_gr	w_inf	w_rel	w_exlv	w_prot	w_mem")
 	for mo in years * 12:
 		if m.game_over: break
 		var target: int = m.turn + 1
@@ -58,6 +59,7 @@ func _init():
 			row += "\t%.3f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.3f" % econ_vals(m)
 			for g in m.GROUPS:
 				row += "\t%.2f" % float(m.support[g])
+			row += "\t" + "\t".join(PackedStringArray(wk_x(m).map(func(v): return "%.3f" % v)))
 			row += world_cols(m)
 			lines.append(row)
 	var txt := "\n".join(lines) + "\n"
@@ -67,6 +69,36 @@ func _init():
 	else:
 		print(txt)
 	quit()
+
+
+# показатели подсистем mil: армия, боеготовность, боеприпасы, флот, революционная волна/риск, переворот, сепаратизм, число сооружений, отношения
+func wk_x(m) -> Array:
+	var army := 0.0
+	var rdy := 0.0
+	var ammo := 0.0
+	var fl := 0.0
+	if m.mil_on():
+		army = m.mil_total(m.ccode)
+	if m.ar_on():
+		rdy = m.ar_rd()
+		ammo = float(m.ar["ammo"])
+	if m.flt_has_sea():
+		fl = m.fleet_power()
+	var wave := 0.0
+	var rev := 0.0
+	var coup := 0.0
+	var sep := 0.0
+	if m.rv_on():
+		wave = float(m.rv["nat"]["wave"])
+		rev = float(m.rv["nat"]["rev"])
+		coup = float(m.rv["nat"]["coup"])
+		for k in m.rv["r"]:
+			sep += float(m.rv["r"][k]["sep"]) / float(maxi(1, (m.rv["r"] as Dictionary).size()))
+	var built := 0.0
+	for r in m.regions:
+		for id in r["built"]:
+			built += float(r["built"][id]["n"])
+	return [army, rdy, ammo, fl, wave, rev, coup, sep, built, m.dip_avg_rel() if not m.dip.is_empty() else 0.0]
 
 
 # показатели мира (подсистемы «world»): ВВП и рост остальных стран, средняя инфляция, отношения, влияние, доля протестующих агентов, память стран о вас

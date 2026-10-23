@@ -46,6 +46,10 @@ def main():
                 am = sum(r[j] for r in ms) / len(ms); aw = sum(r[j] for r in ws) / len(ws)
                 if nm == 'gdp': cols.append(f'gdp {aw/am*100-100:+.1f}%')
                 else: cols.append(f'{nm} {aw-am:+.2f}')
+            for j, nm in enumerate(hdr):
+                if nm.startswith('x_'):      # показатели подсистем (tests/dev/wk_ab.gd, wk_x): среднее по seed и отклонение
+                    am = sum(r[j] for r in ms) / len(ms); aw = sum(r[j] for r in ws) / len(ws)
+                    cols.append(f'{nm[2:]} {am:.2f}->{aw:.2f}')
             print(f'  мес. {mo:>3}: ' + ' | '.join(cols))
             if hdr is not None and 'w_gdp' in hdr:
                 wc = []

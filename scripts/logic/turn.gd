@@ -351,6 +351,7 @@ const WEEK_HOOKS: Array = [
 	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",
 
 	# --- mil: армия, флот, революции, федерация, стройка ---
+	"bq_month", "fed_month", "revolt_month", "fleet_month", "mil_month", "con_month",
 
 	# --- soc: общество, культура, церковь, технологии, промышленность ---
 
