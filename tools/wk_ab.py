@@ -4,17 +4,17 @@
 (среднее по seed): ВВП, инфляция, безработица, долг, рейтинг, недовольство. Допуск Damir: ВВП за 10 лет в пределах 7 %."""
 import argparse, os, subprocess, sys, concurrent.futures as cf, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-def run(cc, seed, years, mode, ev, ag, tmp):
+def run(cc, seed, years, mode, ev, ag, tmp, rl=False):
     out = os.path.join(tmp, f'{cc}_{seed}_{mode}.tsv')
     cmd = [os.path.join(ROOT, 'tools', 'godot.sh'), '--headless', '--path', ROOT, '--script', 'tests/dev/wk_ab.gd', '--',
-           f'country={cc}', f'seed={seed}', f'years={years}', f'mode={mode}', f'ev={1 if ev else 0}', f'agents={1 if ag else 0}', f'out={out}']
+           f'country={cc}', f'seed={seed}', f'years={years}', f'mode={mode}', f'ev={1 if ev else 0}', f'agents={1 if ag else 0}', f'rl={1 if rl else 0}', f'out={out}']
     subprocess.run(cmd, capture_output=True, text=True, timeout=3000)
     rows = [l.split('\t') for l in open(out).read().strip().split('\n')]
     return rows[0], [[float(x) for x in r] for r in rows[1:]]
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('-c', default='DE'); ap.add_argument('-s', default='7,8'); ap.add_argument('-y', type=int, default=5)
-    ap.add_argument('-j', type=int, default=4); ap.add_argument('--ev', action='store_true'); ap.add_argument('--agents', action='store_true')
+    ap.add_argument('-j', type=int, default=4); ap.add_argument('--ev', action='store_true'); ap.add_argument('--agents', action='store_true'); ap.add_argument('--rl', action='store_true')
     a = ap.parse_args()
     ccs = a.c.split(','); seeds = [int(x) for x in a.s.split(',')]
     tmp = tempfile.mkdtemp()
@@ -23,8 +23,10 @@ def main():
         for cc in ccs:
             for sd in seeds:
                 for mode in 'mw':
-                    jobs[(cc, sd, mode)] = ex.submit(run, cc, sd, a.y, mode, a.ev, a.agents, tmp)
+                    jobs[(cc, sd, mode)] = ex.submit(run, cc, sd, a.y, mode, a.ev, a.agents, tmp, a.rl)
     names = ['gdp', 'growth', 'infl', 'unemp', 'debt%', 'appr', 'unrest', 'capital']
+    # world: показатели мира, дипломатии и агентов (колонки ищем по имени в заголовке)
+    wnames = ['w_gdp', 'w_gr', 'w_inf', 'w_rel', 'w_exlv', 'w_prot', 'w_mem']
     for cc in ccs:
         print(f'== {cc}: недельный против месячного, среднее по seed {seeds}, {a.y} лет')
         acc = {}
@@ -53,4 +55,11 @@ def main():
                     am = sum(r[j] for r in ms) / len(ms); aw = sum(r[j] for r in ws) / len(ws)
                     xc.append(f'{nm} {aw/am*100-100:+.1f}%' if nm in ('pop', 'tech_pts') and am else f'{nm} {aw-am:+.2f}')
                 print('           ' + ' | '.join(xc))
+            if hdr is not None and 'w_gdp' in hdr:
+                wc = []
+                for nm in wnames:
+                    j = hdr.index(nm)
+                    am = sum(r[j] for r in ms) / len(ms); aw = sum(r[j] for r in ws) / len(ws)
+                    wc.append(f'{nm} {aw/am*100-100:+.1f}%' if nm == 'w_gdp' else f'{nm} {aw-am:+.2f} ({am:.2f})')
+                print('           мир: ' + ' | '.join(wc))
 if __name__ == '__main__': main()
