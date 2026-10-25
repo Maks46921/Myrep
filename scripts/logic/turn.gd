@@ -132,6 +132,10 @@ func fed_month() -> void:
 	pass
 
 
+func flag_month() -> void:
+	pass
+
+
 func fleet_day() -> void:
 	pass
 
@@ -586,9 +590,11 @@ func next_turn_core() -> void:
 	recompute_mods()
 	top_prev = {"appr": approval(), "infl": inflation, "unemp": unemployment, "debt": debt / gdp * 100.0}
 	council_budget()
+	bud_glide_step()
 	log_policy_changes()
 	autopilot_run()
 	rules_month()
+	flag_month()
 	turn += 1
 	month += 1
 	day = 1

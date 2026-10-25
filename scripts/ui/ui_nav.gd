@@ -435,22 +435,53 @@ func win_menu_pick(mid: int) -> bool:
 
 
 # ============================================================
-#  «Ещё»: редкие вкладки под одним меню
+#  0.59: рамки «Технологии», «Кризисы», «Меры», «Автоматика», «Справочник» стоят в верхней строке значками;
+#  «Ещё» нужно только на узком окне
 # ============================================================
 var more_btn: MenuButton = null
+var nav_rare: Array = []          # значки редких рамок в верхней строке
+var nav_narrow := false
+
+
+func nav_icon_only(b: Button, tip: String) -> void:
+	b.text = ""
+	b.custom_minimum_size = Vector2(42.0, 40.0)
+	b.tooltip_text = tip
+	for ch in b.get_children():
+		if ch is Control and (ch as Control).get_script() != null and ch.get("kind") != null:
+			var ic := ch as Control
+			ic.anchor_left = 0.5
+			ic.anchor_right = 0.5
+			ic.offset_left = -9.0
+			ic.offset_right = 9.0
+
+
+func nav_make_icon_btn(tabs: Control, kind: String, tip: String, f: Callable) -> Button:
+	var b := Button.new()
+	b.theme_type_variation = "TabButton"
+	b.focus_mode = Control.FOCUS_NONE
+	b.text = " "
+	btn_icon(b, kind)
+	nav_icon_only(b, tip)
+	b.pressed.connect(f)
+	tabs.add_child(b)
+	return b
 
 
 func build_more_menu(tabs: Control) -> void:
-	for b in [tech_btn, cr_btn, meas_btn]:
-		if b != null:
-			(b as Control).visible = false
+	nav_icon_only(tech_btn, "Технологии: схема исследований, сооружения, пассивное изучение от соседей.")
+	nav_icon_only(cr_btn, "Кризисы и протесты: протесты и сепаратизм по регионам, войны за отделение, риск революции и переворота.")
+	nav_icon_only(meas_btn, "Разовые меры: карточки с ответственными, последствиями и перерывом между мерами.")
+	var auto_b := nav_make_icon_btn(tabs, "gauge", "Автоматика и правила «если — то»", func() -> void: rules_open(true))
+	var ref_b := nav_make_icon_btn(tabs, "scroll", "Справочник (энциклопедия) и поиск по игре, Ctrl+K", func() -> void: srch_open(true))
+	nav_rare = [tech_btn, cr_btn, meas_btn, auto_b, ref_b]
 	more_btn = MenuButton.new()
 	more_btn.text = "Ещё ▾"
 	more_btn.flat = false
 	more_btn.focus_mode = Control.FOCUS_NONE
 	more_btn.custom_minimum_size = Vector2(0.0, 40.0)
 	more_btn.theme_type_variation = "TabButton"
-	more_btn.tooltip_text = "Технологии, кризисы и разовые меры"
+	more_btn.tooltip_text = "Технологии, кризисы, разовые меры, автоматика и справочник (на узком окне)"
 	tabs.add_child(more_btn)
 	var pm := more_btn.get_popup()
 	pm.add_item("Технологии", 0)
@@ -470,7 +501,7 @@ func build_more_menu(tabs: Control) -> void:
 			srch_open(true)
 		elif i == 4:
 			rules_open(true))
-	# точка на «Ещё», когда есть что-то острое (идут кризисы)
+	more_btn.visible = false
 	var dot := ColorRect.new()
 	dot.color = C_BAD
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -483,15 +514,250 @@ func build_more_menu(tabs: Control) -> void:
 	dot.visible = false
 	more_btn.add_child(dot)
 	nt_dots[7] = dot
+	get_viewport().size_changed.connect(nav_fit)
+	nav_fit.call_deferred()
+
+
+# узкое окно: значки уходят в «Ещё»
+func nav_fit() -> void:
+	if more_btn == null:
+		return
+	var narrow: bool = get_viewport().get_visible_rect().size.x < 1330.0
+	nav_narrow = narrow
+	for b in nav_rare:
+		(b as Control).visible = not narrow
+	more_btn.visible = narrow
+
+
+# ============================================================
+#  0.59: лампочки над рамками и вкладками. Цвет по срочности: красная «решить сейчас», жёлтая «можно улучшить»,
+#  серая «новое». Лампочка горит, пока проблема есть, и гаснет, когда её решили. Красная мигает.
+#  Правая кнопка на рамке или вкладке: отключить лампочку для конкретной проблемы.
+# ============================================================
+const LAMP_COLS := [Color(0, 0, 0, 0), Color(0.62, 0.66, 0.74), Color(0.98, 0.78, 0.25), Color(0.95, 0.30, 0.28)]
+const LAMP_WORD := ["", "новое", "можно улучшить", "решить сейчас"]
+var lamp_dots := {}            # Button -> ColorRect
+var lamp_tw := {}              # Button -> Tween (мигание)
+var lamp_base := {}            # Button -> исходная подсказка
+var lamp_btn_issues := {}      # Button -> Array проблем (для правой кнопки)
+var lamp_sig := ""
+
+
+func lamp_it(id: String, text: String, lv: int, page: int, btn: String = "") -> Dictionary:
+	return {"id": id, "t": text, "lv": lv, "page": page, "btn": btn}
+
+
+func lamp_off_list() -> Array:
+	var a: Variant = game_opts.get("lamp_off", [])
+	return a if a is Array else []
+
+
+func lamp_issues() -> Array:
+	var out: Array = []
+	if not current_event.is_empty():
+		out.append(lamp_it("event", "Событие ждёт вашего выбора", 3, 21))
+	if coal_talks:
+		out.append(lamp_it("coal_talks", "Идут коалиционные переговоры: нужно собрать большинство", 3, 4))
+	if not gov_ok():
+		out.append(lamp_it("no_major", "У правительства нет большинства", 3, 4))
+	elif gov_seats() - MAJORITY < 8:
+		out.append(lamp_it("shaky", "Коалиция шатается: большинство держится на %d местах" % (gov_seats() - MAJORITY + 1), 2, 4))
+	for p in PARTY_NAMES.size():
+		if not in_coalition[p] or p == 0:
+			continue
+		var sat: float = float(satis.get(p, 50.0))
+		if sat < SAT_LEAVE + 10.0:
+			out.append(lamp_it("sat%d" % p, "Партнёр «%s» недоволен (%.0f), может выйти" % [PARTY_NAMES[p], sat], 3 if sat < SAT_LEAVE + 4.0 else 2, 4))
+		var ld := law_demand_of(p)
+		if not ld.is_empty() and not law_demand_met(p):
+			out.append(lamp_it("ld%d" % p, "«%s» ждёт закон: %s" % [PARTY_NAMES[p], law_demand_text(p)], 2, 4))
+		else:
+			for d in PARTY_DEMANDS[p]:
+				if not demand_met(d):
+					out.append(lamp_it("bd%d" % p, "«%s» требует изменить бюджет" % PARTY_NAMES[p], 2, 4))
+					break
+	if offer_pending:
+		out.append(lamp_it("offer", "Вам предложили войти в правительство", 2, 12))
+	if pa_props.size() > 0:
+		out.append(lamp_it("props", "Министры предлагают изменить бюджет: %d" % pa_props.size(), 2, 4))
+	for a in bills_attention():
+		var urgent: bool = int(a["left"]) <= 1 and int(a["sev"]) >= 2
+		out.append(lamp_it("bill", "Законопроект ждёт решения (%s), голосование через %d мес." % [String(a["why"]), int(a["left"])], 3 if urgent else 2, 3))
+	if not bud_changes().is_empty():
+		out.append(lamp_it("bud_draft", "Бюджет изменён, но не принят", 2, 0))
+	if last_deficit_pct > 3.0:
+		out.append(lamp_it("deficit", "Дефицит бюджета %.1f%% ВВП" % last_deficit_pct, 3 if last_deficit_pct > 6.0 else 2, 0))
+	if regime_risk > 40.0:
+		out.append(lamp_it("risk", "Риск потрясений %.0f из 100" % regime_risk, 3 if regime_risk > 70.0 else 2, 6, "cr"))
+	elif reg_avg("unrest") > 35.0:
+		out.append(lamp_it("unrest", "Недовольство в регионах %.0f из 100" % reg_avg("unrest"), 2, 6, "cr"))
+	var idle := tech_idle_branches()
+	if idle > 0:
+		out.append(lamp_it("tech_idle", "В %d ветках технологий ничего не изучается" % idle, 2, 2, "tech"))
+	# угроза впереди: выборы близко, а рейтинг ниже 50%
+	var parl_in: int = parl_term() - (turn - last_parl)
+	if parl_in >= 0 and parl_in <= 4 and approval() < 50.0:
+		out.append(lamp_it("elect_soon", "До выборов %d мес., а рейтинг %.0f%%" % [parl_in, approval()], 2, 1))
+	var off := lamp_off_list()
+	for it in out:
+		it["off"] = off.has(it["id"])
+	return out
+
+
+# наибольший уровень среди включённых проблем списка
+func lamp_level(items: Array) -> int:
+	var lv := 0
+	for it in items:
+		if not bool(it["off"]):
+			lv = maxi(lv, int(it["lv"]))
+	return lv
+
+
+func lamp_make_dot(b: Button, sz: float) -> void:
+	if lamp_dots.has(b):
+		return
+	var dot := ColorRect.new()
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dot.anchor_left = 1.0
+	dot.anchor_right = 1.0
+	dot.offset_left = -5.0 - sz
+	dot.offset_right = -5.0
+	dot.offset_top = 4.0
+	dot.offset_bottom = 4.0 + sz
+	dot.visible = false
+	b.add_child(dot)
+	lamp_dots[b] = dot
+	lamp_base[b] = b.tooltip_text
+	b.gui_input.connect(func(ev: InputEvent) -> void:
+		var mb := ev as InputEventMouseButton
+		if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+			lamp_menu(b))
+
+
+func lamp_set(b: Button, items: Array, grey: bool) -> void:
+	lamp_make_dot(b, 10.0)
+	var dot: ColorRect = lamp_dots[b]
+	var lv := lamp_level(items)
+	if lv == 0 and grey:
+		lv = 1
+	dot.visible = lv > 0 and b.visible
+	dot.color = LAMP_COLS[lv]
+	lamp_btn_issues[b] = items
+	# мигает только срочная
+	if lv >= 3:
+		if not lamp_tw.has(b) or not (lamp_tw[b] as Tween).is_valid():
+			var tw := dot.create_tween().set_loops()
+			tw.tween_property(dot, "modulate:a", 0.25, 0.55)
+			tw.tween_property(dot, "modulate:a", 1.0, 0.55)
+			lamp_tw[b] = tw
+	else:
+		if lamp_tw.has(b):
+			(lamp_tw[b] as Tween).kill()
+			lamp_tw.erase(b)
+		dot.modulate.a = 1.0
+	# подсказка: исходный текст и список проблем
+	var tip: String = String(lamp_base.get(b, ""))
+	if not items.is_empty():
+		var n_on := 0
+		var lines: PackedStringArray = []
+		for it in items:
+			if not bool(it["off"]):
+				n_on += 1
+			lines.append("%s %s%s" % ["●", String(it["t"]), "  (лампочка выключена)" if bool(it["off"]) else "  [%s]" % LAMP_WORD[int(it["lv"])]])
+		tip += ("\n\n" if tip != "" else "") + "Проблем здесь: %d\n" % items.size() + "\n".join(lines) + "\n(Правая кнопка: отключить лампочку для проблемы.)"
+	b.tooltip_text = tip
+
+
+func lamp_menu(b: Button) -> void:
+	var items: Array = lamp_btn_issues.get(b, [])
+	var off := lamp_off_list()
+	if items.is_empty() and off.is_empty():
+		return
+	var pm := PopupMenu.new()
+	add_child(pm)
+	var ids: Array = []
+	for it in items:
+		var on: bool = not bool(it["off"])
+		pm.add_item(("Не напоминать: " if on else "Снова напоминать: ") + String(it["t"]).left(60))
+		ids.append(String(it["id"]))
+	if not off.is_empty():
+		pm.add_separator()
+		pm.add_item("Вернуть все отключённые лампочки")
+		ids.append("")
+	pm.id_pressed.connect(func(i: int) -> void:
+		var k := 0
+		var o: Array = lamp_off_list().duplicate()
+		var idx := 0
+		for j in pm.item_count:
+			if pm.is_item_separator(j):
+				continue
+			if pm.get_item_id(j) == i:
+				idx = k
+			k += 1
+		var id: String = ids[idx] if idx < ids.size() else ""
+		if id == "":
+			o.clear()
+		elif o.has(id):
+			o.erase(id)
+		else:
+			o.append(id)
+		game_opts["lamp_off"] = o
+		settings_save()
+		lamp_sig = ""
+		nav_extras())
+	pm.popup_hide.connect(pm.queue_free)
+	pm.position = Vector2i(get_global_mouse_position()) + Vector2i(get_window().position)
+	pm.popup()
 
 
 func nav_extras() -> void:
+	if desk_buttons.is_empty():
+		return
+	var iss := lamp_issues()
+	# рамки: 0 Бюджет, 1 Экономика, 2 Политика, 3 Мир, 5 Общество, 6 Сегодня
+	for i in desk_buttons.size():
+		var b: Button = desk_buttons[i]
+		var mine: Array = []
+		for it in iss:
+			if desk_tab(int(it["page"])) == i:
+				mine.append(it)
+		var grey: bool = int(nt_new.get(i, 0)) > 0 and desk_tab(current_desk) != i
+		lamp_set(b, mine, grey)
+		if nt_dots.has(i):
+			(nt_dots[i] as ColorRect).visible = false
+	# вкладки
+	var groups := [[sub_buttons, [1, 3, 4, 6, 12]], [sub2_buttons, [5, 7, 10, 16, 17]], [sub3_buttons, [2, 8, 9, 13, 14, 15, 18]], [sub4_buttons, [11, 20, 19]]]
+	for g in groups:
+		var bl: Array = g[0]
+		var pg: Array = g[1]
+		for k in bl.size():
+			if k >= pg.size():
+				break
+			var mine2: Array = []
+			for it in iss:
+				if int(it["page"]) == int(pg[k]):
+					mine2.append(it)
+			lamp_set(bl[k], mine2, false)
+	# редкие рамки
+	var rare := {"tech": tech_btn, "cr": cr_btn, "meas": meas_btn}
+	for key in rare:
+		var rb: Button = rare[key]
+		if rb == null:
+			continue
+		var mine3: Array = []
+		for it in iss:
+			if String(it["btn"]) == key:
+				mine3.append(it)
+		lamp_set(rb, mine3, false)
+	# «Ещё» на узком окне: точка, если у скрытых значков есть проблема
 	if nt_dots.has(7):
-		var sev := 0.0
-		for p in today_problems():
-			if String((p as Dictionary)["t"]).begins_with("Недовольство") or float((p as Dictionary)["sev"]) >= 70.0:
-				sev = 100.0
-		(nt_dots[7] as ColorRect).visible = sev >= 70.0
+		var lv_more := 0
+		for key in rare:
+			if rare[key] != null:
+				lv_more = maxi(lv_more, lamp_level(lamp_btn_issues.get(rare[key], [])))
+		var md: ColorRect = nt_dots[7]
+		md.visible = nav_narrow and lv_more > 0
+		md.color = LAMP_COLS[maxi(lv_more, 1)]
 
 
 func nav_init() -> void:

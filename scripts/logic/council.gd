@@ -495,3 +495,20 @@ func observer_step() -> void:
 		if p != 0 and float(satis.get(p, 60.0)) < SAT_LEAVE + 10.0 and capital >= 20.0:
 			do_concession(p)
 			break
+
+
+# 0.59: окно голосования по бюджету: совет коалиции, «за» — партнёры, согласные с планом
+func bud_vote_show(cv: Dictionary, parts: PackedStringArray) -> void:
+	var per: Array = []
+	for q in coal_members():
+		var yes := 0
+		var no := 0
+		if q == 0 or (cv["views"].has(q) and bool(cv["views"][q]["ok"])):
+			yes = seats[q]
+		else:
+			no = seats[q]
+		per.append([q, 0.0, true, yes, no, 0])
+	var sh: float = float(cv["yes"])
+	var ok: bool = bool(cv["pass"])
+	vote_other("budget", "Голосование: бюджет", "Совет коалиции: %s" % "; ".join(parts).left(160), per, gov_seats() / 2 + 1, ok,
+		"БЮДЖЕТ ПРИНЯТ" if ok else "БЮДЖЕТ ПРИНЯТ ВОПРЕКИ ПАРТНЁРАМ", "больше половины влияния (за %.0f%%)" % (sh * 100.0), "Несогласные партнёры теряют довольство.")

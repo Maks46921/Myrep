@@ -19,6 +19,9 @@ const BUD_WIN := {"pensions": ["Пенсионеры"], "benefits": ["Рабоч
 const BUD_PAY := {"income": ["Рабочие"], "social": ["Рабочие", "Бизнес"], "corp": ["Бизнес"], "vat": ["Рабочие", "Пенсионеры"]}
 
 
+var bud_big_dlg: ConfirmationDialog = null
+
+
 func bud_preview() -> Dictionary:
 	var plan := compute_budget()
 	var h := bud_hold_begin()
@@ -126,6 +129,22 @@ func on_bud_accept() -> void:
 		return
 	if bud_changes().is_empty():
 		return
+	var big := bud_big_total()
+	if big > BUD_BIG + 0.001 and not bool(game_opts.get("bud_noconfirm", false)):
+		if bud_big_dlg == null:
+			bud_big_dlg = ConfirmationDialog.new()
+			bud_big_dlg.title = "Большое изменение бюджета"
+			bud_big_dlg.confirmed.connect(bud_accept_go)
+			add_child(bud_big_dlg)
+		bud_big_dlg.dialog_text = "План меняет бюджет на %.1f%% ВВП сразу (больше %.0f%%). Статьи, где правка больше %.0f п.п., будут меняться постепенно, по %.0f п.п. в месяц. Утвердить?" % [big, BUD_BIG, BUD_GLIDE_STEP, BUD_GLIDE_STEP]
+		bud_big_dlg.popup_centered()
+		return
+	bud_accept_go()
+
+
+func bud_accept_go() -> void:
+	if bud_changes().is_empty():
+		return
 	if not bud_needs_council():
 		bud_apply(false)
 		sfx("good")
@@ -197,7 +216,13 @@ func bud_neg_fill() -> void:
 	var parts: PackedStringArray = []
 	for c in bud_changes():
 		parts.append(bud_change_text(c))
-	t += "[b]План:[/b] %s\n\n" % "; ".join(parts)
+	if bud_demand_by >= 0 and bud_demand_by < PARTY_NAMES.size():
+		t += "[b]Автор правок:[/b] партия «%s» (её бюджетные требования внесены в черновик, но ещё не приняты).\n" % PARTY_NAMES[bud_demand_by]
+	var fp := finance_party()
+	if fp >= 0 and fp < PARTY_NAMES.size():
+		t += "[b]Министр финансов:[/b] партия «%s».\n" % PARTY_NAMES[fp]
+	t += "[b]Было → станет:[/b] %s\n\n" % "; ".join(parts)
+	t += bud_preview_text() + "\n\n"
 	t += "[b]За план — %.0f%% влияния[/b] (влияние — по министерским портфелям и местам; нужно больше половины).\n" % (float(cv["yes"]) * 100.0)
 	t += "[/font_size]"
 	bn_rt.text = t

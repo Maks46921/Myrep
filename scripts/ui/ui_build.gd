@@ -364,7 +364,7 @@ func bld_cancel() -> void:
 	bld_pick = ""
 	update_build_window()
 	if map_ctl != null:
-		map_ctl.queue_redraw()
+		map_redraw()
 
 
 func on_bld_meta(meta: Variant) -> void:
@@ -509,7 +509,7 @@ func build_click(pos: Vector2) -> void:
 	sfx("good")
 	selected_region = ri
 	update_build_window()
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 # значки сооружений и строек на своих АТЕ (при приближении, на слое «Сооружения»)

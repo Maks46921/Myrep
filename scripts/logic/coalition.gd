@@ -32,6 +32,10 @@ func end_game(msg: String) -> void:
 	pass
 
 
+func goto_win(id: String) -> void:
+	pass
+
+
 func invite_offer_w(p: int, promise: bool, mins: int) -> float:
 	return 0.0
 
@@ -58,6 +62,8 @@ func war_sat_term(p: int) -> float:
 
 # --- конец заглушек ---
 
+
+var bud_demand_by := -1       # 0.59: партия, чьи бюджетные требования внесены в черновик (-1 — никто)
 
 const GOV_EXCLUDE := [6]      # «прочие» — не партия, в коалицию не входит
 const CORDON_JOIN := -30.0     # v35: «санитарный кордон» вместо прежнего «никогда» (−99)
@@ -385,7 +391,8 @@ func do_concession(p: int) -> void:
 	refresh()
 
 
-func fulfill_demands(p: int) -> String:
+# 0.59 (п.4): с draft = true требования вносятся в черновик бюджета и вступают в силу только после «Принять» в окне обсуждения
+func fulfill_demands(p: int, draft: bool = false) -> String:
 	var parts: PackedStringArray = []
 	for d in PARTY_DEMANDS[p]:
 		if demand_met(d):
@@ -393,20 +400,30 @@ func fulfill_demands(p: int) -> String:
 		var key: String = d["key"]
 		if key == "reg_transfer":
 			var diff: float = float(d["val"]) - transfer_avg()
-			for i in regions.size():
-				tr_shift(i, diff)
+			if draft:
+				bud_tr_snap()
+				for i in regions.size():
+					regions[i]["transfer"] = maxf(0.0, float(regions[i]["transfer"]) + diff)
+				bud_tr_check()
+			else:
+				for i in regions.size():
+					tr_shift(i, diff)
 			parts.append("трансферты регионам +%.1f п.п." % diff)
 		elif key == "reg_auto":
 			parts.append("рост автономии регионов (нужно действовать в регионах)")
 		else:
 			var old: float = pol[key]
+			var old_abs: float = float(pol_abs.get(key, -1.0)) if is_abs(key) else -1.0
 			var is_amt: bool = d.get("abs", false)
 			var share: float = float(d["val"]) / gdp * 100.0 if is_amt else float(d["val"])
 			if key == "subs" and is_amt:
 				share = maxf(0.0, share - float(pol["agri"]))
 			share = lock_allowed_share(key, share)
 			set_policy(key, share)
-			prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
+			if draft:
+				bud_mark(key, old, old_abs)
+			else:
+				prev_pol[key] = float(prev_pol[key]) + (float(pol[key]) - old)
 			if absf(float(pol[key]) - old) > 0.001:
 				if is_amt:
 					parts.append("«%s» %.0f → %.0f млрд/год" % [policy_title(key), old * gdp / 100.0, float(pol[key]) * gdp / 100.0])
@@ -415,15 +432,38 @@ func fulfill_demands(p: int) -> String:
 	return ", ".join(parts)
 
 
+# 0.59: кнопка «Выполнить бюджетные требования»: правки идут в черновик бюджета, затем окно обсуждения с партнёрами
 func fulfill_party_demands(p: int) -> void:
 	if pl_deny(): return
 	if game_over:
 		return
-	var txt := fulfill_demands(p)
+	var draft: bool = bud_draft_on()
+	var txt := fulfill_demands(p, draft)
 	if txt == "":
 		return
-	log_line("[b]%s: вы выполнили требования партии «%s»:[/b] %s." % [date_text(), PARTY_NAMES[p], txt])
+	if not draft:
+		log_line("[b]%s: вы выполнили требования партии «%s»:[/b] %s." % [date_text(), PARTY_NAMES[p], txt])
+		refresh()
+		return
+	bud_demand_by = p
+	log_tag("БЮДЖЕТ", COL_TEAL, "требования партии «%s» внесены в черновик бюджета (не приняты): %s." % [PARTY_NAMES[p], txt])
 	refresh()
+	if bud_needs_council():
+		bud_neg_open()
+	else:
+		goto_win("tax")
+
+
+func bud_demand_set(p: int) -> void:
+	bud_demand_by = p
+
+
+# министр финансов: партия, которая держит министерство с «финанс» в названии (-1, если такого нет)
+func finance_party() -> int:
+	for m in MINISTRIES.size():
+		if String(MINISTRIES[m]["name"]).to_lower().contains("финанс"):
+			return int(ministries[m])
+	return -1
 
 
 func fulfill_coalition_demands() -> void:
@@ -531,6 +571,35 @@ func show_no_confidence() -> void:
 	present_event()
 
 
+# 0.59: окно голосования для вотума недоверия: «за» — за недоверие
+func nocon_show(against: int, need: int, rebels: PackedStringArray) -> void:
+	var per: Array = []
+	for p in PARTY_NAMES.size():
+		if seats[p] <= 0:
+			continue
+		var yes := 0
+		var no := 0
+		var ab := 0
+		var line_yes := false     # линия партии: у оппозиции «за» недоверие, у коалиции «против»
+		if p == 0:
+			no = seats[p]
+		elif not in_coalition[p]:
+			line_yes = true
+			if tolerates(p):
+				ab = seats[p]
+				line_yes = false
+			else:
+				yes = seats[p]
+		elif PARTY_NAMES[p] in rebels:
+			yes = seats[p]
+		else:
+			no = seats[p]
+		per.append([p, 0.0, line_yes, yes, no, ab])
+	var ok: bool = against >= need
+	vote_other("nocon", "Вотум недоверия правительству", "Голосование: против правительства %d, нужно %d из %d" % [against, need, SEATS], per, need, ok,
+		"ВЫРАЖЕНО НЕДОВЕРИЕ" if ok else "ПРАВИТЕЛЬСТВО ВЫДЕРЖАЛО ВОТУМ", "", "Недоверие означает отставку и досрочные выборы." if ok else "Правительство остаётся.")
+
+
 func resolve_no_confidence() -> void:
 	var against := 0
 	var rebels: PackedStringArray = []
@@ -546,6 +615,7 @@ func resolve_no_confidence() -> void:
 	if rebels.size() > 0:
 		txt += " К оппозиции присоединились: %s." % ", ".join(rebels)
 	log_line("[b]%s[/b]" % txt)
+	nocon_show(against, need, rebels)
 	if against >= need and noc_constr:
 		# 0.58: конструктивный вотум: недоверие действует, только если оппозиция сразу выбрала нового главу правительства;
 		# тогда выборов нет, правительство меняется (Германия, Испания, Венгрия, Польша, Словения, Бельгия, Албания)
@@ -983,6 +1053,28 @@ func coal_feasible() -> bool:
 		if float(c[0]) + 6.0 + 8.0 >= COALITION_JOIN_PAID:
 			s += int(seats[int(c[1])])
 	return s >= MAJORITY
+
+
+# 0.59: ИИ предлагает состав коалиции, решает игрок. Партии по готовности к союзу, пока не хватит мест; только те, кто готов хотя бы за уступки.
+func cn_ai_suggest() -> Array:
+	var out: Array = []
+	var s: int = seats[0]
+	for c in coal_cands():
+		if s >= MAJORITY:
+			break
+		var p: int = int(c[1])
+		if not cn_can_talk(p) or float(c[0]) + 6.0 + 8.0 < COALITION_JOIN_PAID:
+			continue
+		out.append(p)
+		s += int(seats[p])
+	return out
+
+
+func cn_apply_ai() -> void:
+	cn_new_draft()
+	for p in cn_ai_suggest():
+		cn_toggle_party(int(p))
+	cn_auto_mins()
 
 
 func coal_talks_start() -> void:

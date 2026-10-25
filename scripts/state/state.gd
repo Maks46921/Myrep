@@ -395,6 +395,9 @@ var event_text := ""
 var event_buttons: Array = []
 
 var map_ctl: Control
+var map_vp: SubViewport              # 0.59: карта рисуется сюда один раз и показывается как картинка
+var map_cv: Control                  # холст внутри map_vp, на нём работает draw_map
+var map_img: TextureRect
 
 var map_legend: Label
 
@@ -706,6 +709,9 @@ var law_pow_lbl: Label
 var law_headers: Array = []
 
 var log_entries: Array = []
+var vote_hist: Array = []
+var bill_queue: Array = []        # 0.59: законопроекты ИИ-партий, ждущие места на повестке
+var bud_glide: Dictionary = {}   # 0.59: ключ статьи -> {t: цель, last: последний шаг}; плавный переход к утверждённому бюджету         # 0.59: последние голосования для «Показать снова» из журнала
 
 var log_filter := 0
 var log_query := ""          # 0.57: поиск по тексту журнала
@@ -861,3 +867,25 @@ var wu_nb0: Array = []
 var wu_c0: Array = []
 var adm_count := 0                      # число проведённых административных реформ
 var adm_new_n := 0                      # счётчик новых регионов (для кодов)
+# 0.59: флаги государства
+var flag_id := ""                      # выбранный флаг (id из data/flags.dat или "custom:...")
+var flag_custom: Dictionary = {}       # свои флаги игрока по ключу режима: {ключ: описание флага}
+var flag_by_tag: Dictionary = {}       # запомненный выбор флага по режиму
+var flag_tags_last: Array = []         # режимы на прошлом месяце (для обнаружения смены)
+var flag_hist: Array = []              # история смены флага игрока
+var flag_pending: Dictionary = {}      # вопрос о флаге после смены режима
+var flag_ai: Dictionary = {}           # флаги стран ИИ: {код: id флага}
+var flag_ask := true                   # спрашивать о флаге при смене режима
+var fl_ov: Control = null            # окно «Государство»
+var fl_body: VBoxContainer = null
+var fl_pick := ""                    # выбранный в списке флаг
+var fl_all := false                  # показывать все флаги страны, а не только подходящие строю
+var fl_view := 0                     # 0 — сведения, 1 — выбор флага
+var fe_ov: Control = null            # редактор флага
+var fe: Dictionary = {}              # параметры редактора
+var fe_prev: TextureRect = null
+var fe_warn: Label = null
+var fe_ctl: Dictionary = {}
+var fl_dot: ColorRect = null
+var fl_mat: ShaderMaterial = null
+var fl_small_cache: Dictionary = {}

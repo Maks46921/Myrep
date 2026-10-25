@@ -4,7 +4,7 @@
 # Все окна плавающие: двигайте за заголовок, меняйте размер за правый/нижний край и угол,
 # двойной щелчок по заголовку (или кнопка «–») сворачивает окно.
 # Весь интерфейс создаётся кодом. Повесьте скрипт на корневой узел Control (Godot 4.x).
-extends "res://scripts/ui/ui_rules.gd"
+extends "res://scripts/ui/ui_flag.gd"
 
 # ============================================================
 #  СТРАНЫ: применение пакета данных
@@ -542,7 +542,6 @@ func build_settings_panel(sc: ScrollContainer) -> void:
 	opt_choice(box, "Кризисы: протесты, сепаратизм, перевороты", "Недовольство регионов растёт в стадии: протесты, беспорядки, мятеж; возможны референдумы о независимости, войны за отделение, революция, гражданская война и перевороты. «Нет» — ничего этого нет. «Часто» — кризисы случаются заметно чаще.", ["Нет", "Обычно", "Часто"], clampi(int(game_opts.get("revev", 1)), 0, 2), func(i: int) -> void: game_opts["revev"] = i)
 	opt_choice(box, "Государство и мир: блоки, демография, энергия, коррупция, СМИ", "«Да» — работают членство в ЕС/НАТО/евро/Шенгене, старение и пенсии, цены на энергию и климат, коррупция и суды, свобода СМИ, выравнивание регионов, дипломатия и разведка. «Нет» — этого нет.", ["Нет", "Да"], clampi(int(game_opts.get("rlev", 1)), 0, 1), func(i: int) -> void: game_opts["rlev"] = i)
 	opt_choice(box, "Стройка корпораций и других стран", "«Да» — корпорации сами строят заводы и сооружения в ваших регионах, другие страны строят своё и свои мегапроекты, изношенные сооружения могут попасть в аварию. «Нет» — строите только вы.", ["Нет", "Да"], clampi(int(game_opts.get("bldev", 1)), 0, 1), func(i: int) -> void: game_opts["bldev"] = i)
-	opt_choice(box, "Коалиция после выборов", "«Вручную» — если у вашей партии нет большинства, вы сами ведёте переговоры: кого пригласить, что пообещать, какие министерства отдать. «Автоматически» — партнёров подбирает ИИ, как раньше.", ["Автоматически", "Вручную"], clampi(int(game_opts.get("coal", 1)), 0, 1), func(i: int) -> void: game_opts["coal"] = i)
 	opt_choice(box, "Подсказки для новичка", "Короткий тур по окнам игры в начале партии. Его можно пропустить или запустить снова в окне «Государство → Игра».", ["Нет", "Да"], clampi(int(game_opts.get("tut", 1)), 0, 1), func(i: int) -> void: game_opts["tut"] = i)
 	opt_slider(box, "Громкость музыки", "Спокойная фоновая музыка. 0 — выключена. Свои треки (*.ogg) можно положить в папку audio/music проекта.", 0.0, 1.0, 0.05, float(game_opts.get("music", 0.45)), func(x: float) -> String: return "%.0f%%" % (x * 100.0), func(x: float) -> void:
 		game_opts["music"] = x
@@ -786,6 +785,7 @@ func show_country_menu(in_game: bool) -> void:
 	menu_party_grid.add_theme_constant_override("v_separation", 6)
 	menu_party_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pv.add_child(menu_party_grid)
+	menu_party_rt = menu_rt(pv, "")
 	var ssc := ScrollContainer.new()
 	ssc.name = "Настройки игры"
 	ssc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -878,6 +878,7 @@ var menu_flt := {}
 var menu_leg: Control = null
 var menu_hemi: Control = null
 var menu_party_grid: GridContainer = null
+var menu_party_rt: RichTextLabel = null   # 0.59: подробности о выбранной партии
 var menu_party_lbl: RichTextLabel = null
 var menu_party_sel := 0
 
@@ -1046,6 +1047,8 @@ func menu_fill_parties(code: String, sel: int) -> void:
 		menu_party_card(r, code)
 	menu_party_card({"p": OBSERVER_ID, "name": "Никем — наблюдать", "leader": "", "col": Color(0.45, 0.5, 0.6), "seats": 0, "rate": 0.0, "lr": -1.0, "role": "obs", "diff": 0, "small": false, "cordon": false, "prot": false, "reg": false}, code)
 	update_menu_party(menu_party_sel)
+	if menu_party_rt != null and is_instance_valid(menu_party_rt):
+		menu_party_rt.text = "" if menu_party_sel == OBSERVER_ID else "[b]Выбрана: %s[/b]\n%s" % [String(pnames[menu_party_sel]).replace(" (вы)", ""), menu_party_info(code, menu_party_sel)]
 	var cur: Dictionary = {}
 	for r in rows:
 		if int(r["p"]) == menu_party_sel:
@@ -1065,6 +1068,10 @@ func menu_party_card(r: Dictionary, code: String) -> void:
 	pc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pc.mouse_filter = Control.MOUSE_FILTER_STOP
 	pc.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	if p != OBSERVER_ID:
+		var rx := RegEx.new()
+		rx.compile("\\[/?[a-z]+[^\\]]*\\]")
+		pc.tooltip_text = rx.sub(menu_party_info(code, p), "", true).strip_edges()
 	var sb := sbox(C_PANEL2 if not on else C_PANEL2.lerp(col, 0.18), col if on else C_BORDER, 2 if on else 1, 8, 8.0, 6.0)
 	sb.border_width_left = 4
 	sb.border_color = col if on else col.darkened(0.35)
@@ -1203,6 +1210,118 @@ func update_menu_party(p: int) -> void:
 	if p < traits.size() and float((traits[p] as Dictionary).get("join", 0.0)) <= -50.0:
 		t += "\n[color=%s]Вокруг вас «санитарный кордон»: другие партии не хотят с вами коалиций. Он ослабевает при хороших отношениях, щедрых обещаниях или затяжном кризисе.[/color]" % COL_WARN
 	menu_sit_rt.text = t
+
+
+# 0.59: подробности о партии в окне выбора: кто голосует, союзники, сильные и слабые стороны, программа, прогноз первого года
+func menu_party_info(code: String, p: int) -> String:
+	var pnames: Array = cdat(code, "PARTY_NAMES")
+	var pseats: Array = cdat(code, "DE_START_SEATS")
+	var pdesc: Array = cdat(code, "PARTY_DESC")
+	var traits: Array = cdat(code, "PARTY_TRAITS")
+	var hemi: Array = cdat(code, "HEMI_ORDER")
+	var lean: Dictionary = cdat(code, "LEAN")
+	var gw: Dictionary = cdat(code, "GROUP_WEIGHT")
+	var coal: Array = cdat(code, "COALITION0")
+	var seats_n: int = 630 if code == "DE" else int(cdat(code, "SEATS"))
+	var row: Dictionary = {}
+	for r in menu_party_rows(code):
+		if int(r["p"]) == p:
+			row = r
+	if row.is_empty():
+		return ""
+	var t := ""
+	# кто за неё голосует: вклад групп в рейтинг партии
+	var parts: Array = []
+	var tot := 0.0
+	for g in gw:
+		if not lean.has(g):
+			continue
+		var la: Array = lean[g]
+		var v: float = float(la[p]) if p < la.size() else 0.0
+		parts.append([String(g), v * float(gw[g])])
+		tot += v * float(gw[g])
+	parts.sort_custom(func(a, b) -> bool: return float(a[1]) > float(b[1]))
+	if tot > 0.0 and p > 0:
+		var top: PackedStringArray = []
+		for i in mini(3, parts.size()):
+			top.append("%s %.0f%%" % [parts[i][0], 100.0 * float(parts[i][1]) / tot])
+		t += "\n[b]Кто за неё голосует[/b]\n[color=#98a1b8]%s[/color]\n" % ", ".join(top)
+	# союзники и противники: соседи по залу и дальний край
+	var hi: int = hemi.find(p)
+	if hi >= 0 and p > 0:
+		var near: PackedStringArray = []
+		var far: PackedStringArray = []
+		for q in hemi:
+			var qi: int = int(q)
+			if qi == p or qi >= pnames.size() or (int(pseats[qi]) if qi < pseats.size() else 0) <= 0:
+				continue
+			var d: int = absi(hemi.find(q) - hi)
+			var nm: String = String(pnames[qi]).replace(" (вы)", "")
+			if d <= 2:
+				near.append(nm)
+			elif d >= hemi.size() - 3:
+				far.append(nm)
+		var cord: bool = bool(row["cordon"])
+		t += "\n[b]Союзники и противники[/b]\n"
+		t += "[color=#8fd18f]Ближе всех:[/color] %s\n" % (", ".join(near) if not near.is_empty() else "никого рядом")
+		t += "[color=#e07a7a]Дальше всех:[/color] %s\n" % (", ".join(far) if not far.is_empty() else "явных противников нет")
+		if cord:
+			t += "[color=%s]«Санитарный кордон»: другие партии не хотят с вами коалиции.[/color]\n" % COL_WARN
+	# сильные и слабые стороны
+	if p > 0 and not parts.is_empty():
+		var strong: PackedStringArray = []
+		var weak: PackedStringArray = []
+		for i in mini(2, parts.size()):
+			strong.append(String(parts[i][0]))
+		for i in range(maxi(0, parts.size() - 2), parts.size()):
+			weak.append(String(parts[i][0]))
+		var sw := "[color=#8fd18f]+[/color] сильна среди: %s\n[color=#e07a7a]−[/color] слабо у: %s" % [", ".join(strong), ", ".join(weak)]
+		if bool(row["small"]):
+			sw += "\n[color=#e07a7a]−[/color] мало мест: любой провал бьёт сильнее"
+		if String(row["role"]) == "gov" or String(row["role"]) == "head":
+			sw += "\n[color=#8fd18f]+[/color] есть власть: министерства, бюджет и повестка"
+		elif String(row["role"]) == "opp":
+			sw += "\n[color=#e07a7a]−[/color] нет власти: законы только через договорённости"
+		if p < traits.size() and String((traits[p] as Dictionary).get("trait", "")) != "":
+			sw += "\n[color=#98a1b8]Характер: %s[/color]" % String((traits[p] as Dictionary)["trait"])
+		t += "\n[b]Сильные и слабые стороны[/b]\n" + sw + "\n"
+	# программа: условие по закону и короткое описание
+	var prog: PackedStringArray = []
+	var demand: Array = cdat(code, "PARTY_LAW_DEMAND")
+	if p > 0 and p < demand.size() and not (demand[p] as Dictionary).is_empty():
+		var dm: Dictionary = demand[p]
+		if law_index.has(dm.get("tid", "")):
+			prog.append("Закон-условие: «%s»" % String(law_index[dm["tid"]]["name"]))
+	if p < pdesc.size():
+		var ds: String = String(pdesc[p]).replace("Ваша партия — ", "")
+		for s in ds.split(". ", false):
+			if prog.size() >= 4:
+				break
+			var s2: String = s.strip_edges().rstrip(".")
+			if s2.length() > 8:
+				prog.append(s2)
+	if not prog.is_empty():
+		t += "\n[b]Программа[/b]\n[color=#98a1b8]· %s[/color]\n" % "\n· ".join(prog)
+	# прогноз первого года
+	var mac: Dictionary = CDATA[code].get("MACRO", {}) as Dictionary
+	var left: int = int(mac.get("parl_term", 48)) - int(mac.get("elapsed", 0))
+	var gs := 0
+	for q in coal:
+		gs += int(pseats[q]) if q < pseats.size() else 0
+	var fc := ""
+	match String(row["role"]):
+		"head":
+			fc = "вы возглавляете правительство (%d мест из %d), до выборов около %d мес.; задача: удержать партнёров и принять бюджет" % [gs, seats_n, left]
+		"gov":
+			fc = "вы партнёр по коалиции; решения идут через совет коалиции, до выборов около %d мес." % left
+		"opp":
+			fc = "вы в оппозиции; первый год уйдёт на законопроекты и союзы, до выборов около %d мес." % left
+		_:
+			fc = "вне парламента; нужен рейтинг выше барьера к выборам (около %d мес.)" % left
+	t += "\n[b]Первый год[/b]\n[color=#98a1b8]%s[/color]" % fc
+	var d: int = int(row["diff"])
+	t += "\n[color=#%s]%s[/color]" % [diff_color(d).to_html(false), "Лёгкий старт" if d <= 2 else ("Средний старт" if d == 3 else "Трудный старт")]
+	return t
 
 
 func choose_country(code: String, party: int = 0) -> void:

@@ -9,12 +9,18 @@ static var _cache: Dictionary = {}
 
 
 static func has(code: String) -> bool:
+	if db_has(code):
+		return true
 	return code in ["DE", "FR", "NL", "BE", "LU", "AT", "CH", "CZ", "DK", "ES", "IT", "NO", "PL", "PT", "SE", "GB", "IE", "SI", "SK",
 		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR",
 		"US", "CN", "JP", "KR", "TR", "IN", "CA", "AE", "SA", "IL", "TW"]
 
 
 static func tex(code: String) -> Texture2D:
+	# 0.59: если для страны есть исторический флаг (data/flags.dat) — рисуем его (плоский, в рамке 3:2)
+	var fid: String = id_of(code)
+	if fid != "":
+		return box_id(fid)
 	if _cache.has(code):
 		return _cache[code]
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
@@ -296,3 +302,127 @@ static func make(code: String, h: float = 22.0) -> TextureRect:
 	t.custom_minimum_size = Vector2(h * 1.5, h)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return t
+
+
+# ============================================================
+#  0.59: исторические флаги из data/flags.dat (векторные, SVG), выбор флага страны, свои флаги из редактора
+# ============================================================
+const BOX_H := 96            # высота картинки флага в пикселях
+static var _db: Dictionary = {}          # код страны -> массив записей флагов
+static var _by_id: Dictionary = {}       # id -> запись
+static var _loaded := false
+static var _real: Dictionary = {}        # id -> текстура в настоящих пропорциях
+static var _box: Dictionary = {}         # id -> текстура в рамке 3:2
+static var cur: Dictionary = {}          # код страны -> id выбранного флага (ставит игра)
+static var custom: Dictionary = {}       # id своего флага -> запись (ставит игра)
+
+
+static func db_load() -> void:
+	if _loaded:
+		return
+	_loaded = true
+	var txt := FileAccess.get_file_as_string("res://data/flags.dat")
+	if txt == "":
+		return
+	var d: Variant = str_to_var(txt)
+	if typeof(d) != TYPE_DICTIONARY:
+		return
+	_db = d
+	for cc in _db:
+		for e in _db[cc]:
+			_by_id[String(e["id"])] = e
+
+
+static func db_has(code: String) -> bool:
+	db_load()
+	return _db.has(code)
+
+
+static func entries(code: String) -> Array:
+	db_load()
+	return _db.get(code, []) as Array
+
+
+static func entry(id: String) -> Dictionary:
+	db_load()
+	if custom.has(id):
+		return custom[id]
+	return _by_id.get(id, {})
+
+
+# флаг страны по умолчанию: действующий (без даты окончания), предпочтительно с пометкой «Демократия»
+static func default_id(code: String) -> String:
+	var best := ""
+	for e in entries(code):
+		if int(e["y1"]) != 0:
+			continue
+		if best == "":
+			best = String(e["id"])
+		if "Демократия" in (e["ideo"] as Array):
+			return String(e["id"])
+	return best
+
+
+static func id_of(code: String) -> String:
+	if cur.has(code) and not entry(String(cur[code])).is_empty():
+		return String(cur[code])
+	return default_id(code)
+
+
+static func render_image(svg: String, w: float) -> Image:
+	var img := Image.new()
+	var k: float = float(BOX_H) / 60.0
+	if img.load_svg_from_string(svg, k) != OK or img.get_width() < 2:
+		return null
+	return img
+
+
+# настоящие пропорции (для окна «Государство»)
+static func real_id(id: String) -> Texture2D:
+	if _real.has(id):
+		return _real[id]
+	var e: Dictionary = entry(id)
+	if e.is_empty():
+		return null
+	var img: Image = render_image(String(e["svg"]), float(e["w"]))
+	if img == null:
+		return null
+	img.generate_mipmaps()
+	var t := ImageTexture.create_from_image(img)
+	_real[id] = t
+	return t
+
+
+# рамка 3:2 с флагом по центру (для списков и значков); узкие и квадратные флаги не растягиваются
+static func box_id(id: String) -> Texture2D:
+	if _box.has(id):
+		return _box[id]
+	var e: Dictionary = entry(id)
+	if e.is_empty():
+		return null
+	var img: Image = render_image(String(e["svg"]), float(e["w"]))
+	if img == null:
+		return null
+	var bw: int = BOX_H * 3 / 2
+	var out := img
+	if img.get_width() != bw:
+		out = Image.create(bw, BOX_H, false, Image.FORMAT_RGBA8)
+		if img.get_width() > bw:
+			img.resize(bw, BOX_H)
+			out.blit_rect(img, Rect2i(0, 0, bw, BOX_H), Vector2i.ZERO)
+		else:
+			out.blit_rect(img, Rect2i(0, 0, img.get_width(), BOX_H), Vector2i((bw - img.get_width()) / 2, 0))
+	out.generate_mipmaps()
+	var t := ImageTexture.create_from_image(out)
+	_box[id] = t
+	return t
+
+
+static func forget(id: String) -> void:
+	_real.erase(id)
+	_box.erase(id)
+
+
+# ссылка на фигуры редактора: цвета нормализуются в шестнадцатеричный вид
+static func hex(c: Color) -> String:
+	return "#" + c.to_html(false)

@@ -539,11 +539,16 @@ func adm_move_check(sel: Array, dst: int) -> String:
 	return adm_common_check(adm_cost(adm_sel_pop(lst), lst.size()))
 
 
+# предел числа регионов: 60, а у стран, которые начинают с большим числом (Россия — 89), ещё 12 сверху от стартового
+func adm_max_reg() -> int:
+	return maxi(ADM_MAX_REG, REGIONS.size() + 12)
+
+
 func adm_create_check(sel: Array) -> String:
 	if not adm_sel_own(sel):
 		return "Выделите АТЕ своей страны."
-	if regions.size() >= ADM_MAX_REG:
-		return "Регионов уже %d — больше не получится." % ADM_MAX_REG
+	if regions.size() >= adm_max_reg():
+		return "Регионов уже %d — больше не получится." % adm_max_reg()
 	if ate_groups(sel).size() > 1:
 		return "Новый регион должен быть цельным: выделенные АТЕ должны граничить друг с другом."
 	var l := adm_left_check(sel)
@@ -795,9 +800,9 @@ func ate_buy_quote(sel: Array, mult: float, dst: int) -> Dictionary:
 		if dst >= regions.size() or not ate_touches(sel, func(b: int) -> bool: return ate_unit[b] == dui):
 			q["ok"] = false
 			(q["why"] as Array).append("Выделенные АТЕ не граничат с регионом, к которому их нужно присоединить.")
-	elif regions.size() >= ADM_MAX_REG:
+	elif regions.size() >= adm_max_reg():
 		q["ok"] = false
-		(q["why"] as Array).append("Регионов уже %d — присоедините к существующему." % ADM_MAX_REG)
+		(q["why"] as Array).append("Регионов уже %d — присоедините к существующему." % adm_max_reg())
 	if int((fst["terr_cd"] as Dictionary).get(cc, 0)) > 0:
 		q["ok"] = false
 		(q["why"] as Array).append("Недавние переговоры с «%s» провалились (ещё %d мес.)." % [WORLD[cc]["name"], int((fst["terr_cd"] as Dictionary)[cc])])

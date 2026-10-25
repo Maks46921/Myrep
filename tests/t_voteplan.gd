@@ -26,6 +26,10 @@ func _init():
 	if g.election_open: g.election_continue()
 	if not g.current_event.is_empty(): g.choose(0)
 	g.capital = 100.0
+	if g.opp_mode:
+		print("OK voteplan пропуск: после выборов партия игрока в оппозиции (в оппозиции окно выбора не нужно)")
+		quit(0)
+		return
 	# 1) последствия закона: у действующего варианта разницы с действующим порядком нет
 	for t in g.LAW_TOPICS:
 		var tid: String = t["id"]
@@ -44,7 +48,11 @@ func _init():
 	for b in g.bills: b["due"] = g.turn
 	g.bills_step()
 	check(g.vt_stage == 0, "окно выбора открылось вне живого режима")
-	check(g.bills.is_empty(), "не все законопроекты проголосованы вне живого режима: %d" % g.bills.size())
+	# ИИ-партии могли внести новый законопроект уже в этом шаге: он ещё не дошёл до голосования
+	var due_left := 0
+	for b in g.bills:
+		if int(b["due"]) <= g.turn: due_left += 1
+	check(due_left == 0, "не все законопроекты проголосованы вне живого режима: %d" % due_left)
 	# 3) живой режим
 	g.game_opts["voteplan"] = true
 	check(g.vote_plan_live(), "живой режим не включился")
@@ -98,7 +106,10 @@ func _init():
 		if g.vt_stage == 2:
 			g.vote_btn_pressed()      # пропустить анимацию
 			g.vote_btn_pressed()      # закрыть, подхватить следующий законопроект
-	check(g.vt_stage == 0 and g.bills.is_empty(), "после всех голосований остались законопроекты (%d) или окно (%d)" % [g.bills.size(), g.vt_stage])
+	var due_left2 := 0
+	for b in g.bills:
+		if int(b["due"]) <= g.turn: due_left2 += 1
+	check(g.vt_stage == 0 and due_left2 == 0, "после всех голосований остались законопроекты (%d) или окно (%d)" % [due_left2, g.vt_stage])
 	# 4) предупреждение за месяц до голосования и вето повестки не ломают
 	g.game_opts["voteplan"] = false
 	print("OK voteplan bad=", bad)
