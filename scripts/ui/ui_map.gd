@@ -1384,6 +1384,8 @@ func draw_map() -> void:
 	if map_unit_rect.size() != WORLD_UNITS.size() or ate_lists.size() != WORLD_UNITS.size():
 		map_prepare()
 	var c := map_cv
+	if c.size.x < 50.0 or c.size.y < 50.0:
+		return
 	if not map_inited and c.size.x > 50.0:
 		map_inited = true
 		map_fit_rect(map_country_rect(ccode), true)
