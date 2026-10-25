@@ -15,13 +15,14 @@ func nav_extras() -> void:
 # вид уведомления по метке записи журнала
 const NOTIFY_TAG := {"ЗАКОН": "law", "ЗАКОНОПРОЕКТ": "bill", "КРИЗИС": "crisis", "ВЛАСТЬ": "crisis", "ГОСУДАРСТВО": "crisis", "СКАНДАЛ": "crisis",
 	"ВОЙНА": "war", "ВОЕННОЕ ПОЛОЖЕНИЕ": "war", "АРМИЯ": "war", "ПАРТНЁР": "partner", "ДИПЛОМАТИЯ": "partner", "ВХОДЯЩИЕ": "inbox",
-	"КОАЛИЦИЯ": "coal", "ПЕРЕГОВОРЫ": "coal", "ОППОЗИЦИЯ": "opp", "СТРОЙКА": "build", "МЕГАПРОЕКТ": "build", "НАУКА": "tech", "ТОРГОВЛЯ": "treaty", "МИР": "world"}
+	"КОАЛИЦИЯ": "coal", "ПЕРЕГОВОРЫ": "coal", "ОППОЗИЦИЯ": "opp", "СТРОЙКА": "build", "МЕГАПРОЕКТ": "build", "НАУКА": "tech", "ТОРГОВЛЯ": "treaty", "МИР": "world", "ФИНАНСЫ": "fin"}
 # [ключ, название в настройках, режим по умолчанию, куда ведёт плашка]
 const NOTIFY_CLASSES := [
 	["law", "Закон принят или отклонён", 3, 3], ["crisis", "Кризис, бунт, скандал", 3, 21], ["war", "Война и мир", 3, 15],
 	["inbox", "Новое письмо во «Входящих»", 2, 21], ["coal", "Коалиция и переговоры", 1, 4], ["bill", "Законопроекты", 1, 1],
 	["partner", "Ответы партнёров и дипломатия", 1, 18], ["opp", "Оппозиция", 0, 12], ["build", "Стройки", 0, 5],
-	["tech", "Технологии", 0, 6], ["treaty", "Договоры и торговля", 0, 18], ["world", "Мир вокруг", 0, 2]]
+	["tech", "Технологии", 0, 6], ["treaty", "Договоры и торговля", 0, 18], ["world", "Мир вокруг", 0, 2],
+	["fin", "Финансы: кризисы, курс, долг (плашкой только тревожное)", 2, 22]]
 const NOTIFY_MODES := ["Только журнал", "Значок на вкладке", "Плашка", "Плашка и звук"]
 const NT_MAX_TOASTS := 4
 
@@ -75,13 +76,15 @@ func notify_log(e: Dictionary) -> void:
 	var mode := nt_mode(cls)
 	if cls == "law" and "(правительство «" in txt:
 		mode = mini(mode, 1)    # законы, принятые другим правительством, — только значок
+	if cls == "fin" and String(e.get("col", "")) != COL_BAD:
+		mode = mini(mode, 1)    # 0.63: спокойные новости финансов — только значок, плашка — для кризисов и обвалов
 	if mode >= 1:
 		var tb: int = desk_tab(desk)
 		nt_new[tb] = int(nt_new.get(tb, 0)) + 1
 	if mode >= 2:
 		nt_toast(txt, cls, desk)
 	if mode >= 3:
-		sfx("bad" if cls in ["crisis", "war"] else ("good" if cls == "law" else "event"))
+		sfx("bad" if cls in ["crisis", "war", "fin"] else ("good" if cls == "law" else "event"))
 	nt_stop_check(cls, String(e["tag"]), low)
 
 
@@ -139,7 +142,7 @@ func nt_toast(text: String, cls: String, desk: int) -> void:
 		return
 	nt_last_text = text
 	var info := nt_class(cls)
-	var col: Color = C_BAD if cls in ["crisis", "war"] else (C_GOOD if cls == "law" else C_ACCENT)
+	var col: Color = C_BAD if cls in ["crisis", "war", "fin"] else (C_GOOD if cls == "law" else C_ACCENT)
 	nt_hist.append(text)
 	if nt_hist.size() > 30:
 		nt_hist.pop_front()

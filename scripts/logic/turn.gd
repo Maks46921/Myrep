@@ -36,6 +36,10 @@ func autopilot_run() -> void:
 	pass
 
 
+func bills_due_step() -> void:
+	pass
+
+
 func bills_step() -> void:
 	pass
 
@@ -129,6 +133,26 @@ func fed_init() -> void:
 
 
 func fed_month() -> void:
+	pass
+
+
+func fin_g() -> float:
+	return 0.0
+
+
+func fin_infl() -> float:
+	return 0.0
+
+
+func fin_init() -> void:
+	pass
+
+
+func fin_unemp() -> float:
+	return 0.0
+
+
+func fin_week() -> void:
 	pass
 
 
@@ -335,6 +359,61 @@ func wsim_step() -> void:
 # --- конец заглушек ---
 
 
+# ---------- 0.62: недельный шаг ----------
+# Подсистемы, переведённые на недельный расчёт: метод вызывается каждый недельный тик с wdt = доля месяца (≈0,23) и wmonth = false,
+# а в месячном шаге — с wdt = оставшаяся доля месяца и wmonth = true. Если месячного шага не было (тесты зовут next_turn() напрямую),
+# wdt = 1.0 и поведение прежнее. Правила перевода: docs/RULES.md, раздел «Недельный расчёт».
+const WEEK_HOOKS: Array = [
+	# --- econ: экономика, регионы, уровни ---
+	"econ_week", "fin_week",
+
+	# --- world: мир, дипломатия, агенты ---
+	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",
+
+	# --- mil: армия, флот, революции, федерация, стройка ---
+	"bq_month", "fed_month", "revolt_month", "fleet_month", "mil_month", "con_month",
+
+	# --- soc: общество, культура, церковь, технологии, промышленность ---
+	"soc_month", "cult_month", "church_month", "ind_month", "tech_month",
+
+	# --- pol: выборы, коалиции, партии, события ---
+]
+
+
+func week_hooks_run(dt: float) -> void:
+	if WEEK_HOOKS.is_empty():
+		return
+	var s_dt := wdt
+	var s_m := wmonth
+	wdt = dt
+	wmonth = false
+	# в месячном расчёте открытое окно события гасило остальные случайные события месяца; недельные тики это сохраняют:
+	# если в этом месяце окно уже было, на время хуков ставится заглушка (так частота окон остаётся прежней)
+	var hold: bool = ev_month_n >= 1 and current_event.is_empty()
+	if hold:
+		current_event = {"_hold": true}
+	for h in WEEK_HOOKS:
+		call(h)
+		if game_over:
+			break
+	if hold and current_event.has("_hold"):
+		current_event = {}
+	elif not hold and not current_event.is_empty():
+		ev_month_n += 1
+	wdt = s_dt
+	wmonth = s_m
+
+
+# вероятность события за шаг, если за месяц она p
+func wp(p: float) -> float:
+	return p if wdt == 1.0 else 1.0 - pow(1.0 - clampf(p, 0.0, 1.0), wdt)
+
+
+# доля сближения за шаг, если за месяц она r
+func wr(r: float) -> float:
+	return rt(r, wdt)
+
+
 # ---------- реальное время: календарь по дням ----------
 # Месячный шаг экономики и политики (next_turn) выполняется на границе месяцев, как и раньше;
 # каждый день идёт календарь и ежедневные подсистемы (day_tick).
@@ -378,16 +457,36 @@ func day_tick() -> void:
 	mil_day()
 
 
+# 0.62: события по дням недели. Плановые выборы проходят в первое воскресенье после срока, голосования по законам — по средам
+# (в месячном расчёте тестов и сейвов, без advance_day, всё остаётся на закрытии месяца)
+func week_day_hooks() -> void:
+	if game_over or blocked():
+		return
+	var wd := weekday()
+	if wd == 6:
+		if turn - last_parl >= parl_term() and not martial_on():
+			hold_parliament("плановые выборы")
+		if game_over or blocked():
+			return
+		if pres_due >= 0 and turn >= pres_due and not martial_on():
+			hold_head("плановые выборы")
+	elif wd == 2:
+		bills_due_step()
+
+
 func advance_day() -> bool:
 	if blocked():
 		return false
+	live_days = true
 	if day >= days_in_month(year, month):
 		next_turn()          # переход через границу месяца: месячный шаг; он ставит день = 1
 	else:
 		day += 1
-		if day == 8 or day == 15 or day == 22 or day == 29:
+		if day == 8 or day == 15 or day == 22:
 			week_tick()
 	day_tick()
+	week_day_hooks()
+	live_days = false
 	return true
 
 
@@ -418,11 +517,16 @@ func _process(delta: float) -> void:
 		return
 	day_acc += delta * float(PLAY_SPEEDS[play_idx])
 	var guard := 0
+	var t0 := Time.get_ticks_msec()
 	while day_acc >= 1.0 and guard < 120:
 		day_acc -= 1.0
 		guard += 1
 		if not advance_day():
 			day_acc = 0.0
+			break
+		# 0.62: недельные шаги дороже старых; если расчёт не успевает за выбранной скоростью, интерфейс не замораживаем, время идёт медленнее
+		if Time.get_ticks_msec() - t0 > 50:
+			day_acc = minf(day_acc, 1.0)
 			break
 	if guard > 0:
 		refresh()
@@ -479,6 +583,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		+ mil_g()
 		+ revolt_g()
 		+ rl_g()
+		+ fin_g()
 	)
 	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
@@ -496,8 +601,8 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl()) / 12.0 * dt, 0.0, 40.0)
-	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp()
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl() + fin_infl()) / 12.0 * dt, 0.0, 40.0)
+	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp() + fin_unemp()
 	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
 	for i in regions.size():
@@ -553,13 +658,16 @@ func week_tick() -> void:
 		return
 	if month_snap.is_empty():
 		take_month_snap()
+	var bud_h := bud_hold_begin()     # неутверждённый черновик бюджета в расчёт не входит (как в next_turn)
 	var b := compute_budget()
 	debt -= float(b["balance"]) / 12.0 * dt
 	debt_erode(dt)
 	var deficit_pct: float = -float(b["balance"]) / gdp * 100.0
 	macro_step(dt, last_ecf, deficit_pct, debt / gdp * 100.0, false)
+	week_hooks_run(dt)
+	bud_hold_end(bud_h)
 	month_done += dt
-	if debt / gdp > 1.5:
+	if debt / gdp > 1.5 and not fin_on():
 		end_game("Государственный дефолт. Страна не смогла обслуживать долг.")
 		return
 	if inflation >= 30.0:
@@ -568,8 +676,10 @@ func week_tick() -> void:
 	if not blocked() and not game_over:
 		if randf() < 0.22 * float(game_opts["news"]) * dt:
 			show_news()
-		if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * dt:
+		if not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * dt and ev_month_n == 0:      # исторические события (fire_scripted) выходят только на закрытии месяца
 			show_event()
+			if not current_event.is_empty():
+				ev_month_n += 1
 
 
 func take_month_snap() -> void:
@@ -582,7 +692,11 @@ func next_turn() -> void:
 		return
 	# v50: неутверждённый черновик бюджета в месячный расчёт не входит
 	var bud_h := bud_hold_begin()
+	wdt = maxf(0.0, 1.0 - month_done)     # 0.62: доля месяца, не пройденная недельными тиками (без тиков — 1.0)
+	wmonth = true
 	next_turn_core()
+	wdt = 1.0
+	wmonth = true
 	bud_hold_end(bud_h)
 
 
@@ -598,6 +712,8 @@ func next_turn_core() -> void:
 	turn += 1
 	month += 1
 	day = 1
+	var ev_n0: int = ev_month_n     # окна, уже открытые недельными тиками этого месяца
+	ev_month_n = 0
 	if month > 12:
 		month = 1
 		year += 1
@@ -661,6 +777,7 @@ func next_turn_core() -> void:
 	var ecf := economy_step()
 	last_ecf = ecf
 	last_deficit_pct = deficit_pct
+	fin_week()
 	macro_step(rest, ecf, deficit_pct, debt_ratio)
 	ag_step()
 	month_done = 0.0
@@ -673,7 +790,7 @@ func next_turn_core() -> void:
 		oneoff_year_reset()
 
 	# --- крах государства ---
-	if debt / gdp > 1.5:
+	if debt / gdp > 1.5 and not fin_on():
 		end_game("Государственный дефолт. Страна не смогла обслуживать долг.")
 		return
 	if inflation >= 30.0:
@@ -705,7 +822,8 @@ func next_turn_core() -> void:
 		return
 	martial_step()
 	if turn - last_parl >= parl_term() and not martial_on():
-		hold_parliament("плановые выборы")
+		if not live_days:      # 0.62: в живой игре выборы ждут воскресенья (week_day_hooks)
+			hold_parliament("плановые выборы")
 	elif opp_mode:
 		opp_step()
 	elif not decree_power():
@@ -720,7 +838,7 @@ func next_turn_core() -> void:
 	if game_over:
 		return
 
-	if pres_due >= 0 and turn >= pres_due and not martial_on() and not election_open and current_event.is_empty():
+	if pres_due >= 0 and turn >= pres_due and not martial_on() and not election_open and current_event.is_empty() and not live_days:
 		hold_head("плановые выборы")
 	if game_over:
 		return
@@ -728,10 +846,11 @@ func next_turn_core() -> void:
 	# --- события ---
 	campaign_check()
 	head_campaign_check()
-	dip_events()
+	if ev_n0 == 0:      # 0.62: если недельные тики уже открывали окно в этом месяце, дипломатические события ждут следующего
+		dip_events()
 	if randf() < 0.22 * float(game_opts["news"]) * rest:
 		show_news()
-	if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * rest:
+	if not fire_scripted() and not ev_tick() and randf() < 0.22 * float(game_opts["ev"]) * rest and ev_n0 == 0:
 		show_event()
 	refresh()
 
@@ -893,6 +1012,7 @@ func init_state() -> void:
 	mil_init()
 	mil_start_ongoing()
 	ind_init()
+	fin_init()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}

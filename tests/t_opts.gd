@@ -62,6 +62,18 @@ func _init():
 	run_months(g4, 18)
 	check(g4.gdp > 0.0, "ev=0: игра идёт")
 	await drop(g4)
+	# 0.63: финансовый модуль и частота финансовых кризисов
+	var g6 = mk({"finlev": 1, "fincr": 2})
+	for i in 3: await process_frame
+	check(g6.fin_on(), "finlev=1: финансовый модуль включён")
+	check(absf(g6.fin_cr_mult() - 2.0) < 0.001, "fincr=2: финансовые кризисы вдвое чаще")
+	check(not g6.fin_acts("bank").is_empty(), "finlev=1: есть действия с банками")
+	await drop(g6)
+	var g7 = mk({"finlev": 0, "fincr": 1})
+	for i in 3: await process_frame
+	check(not g7.fin_on(), "finlev=0: финансовый модуль выключен")
+	check(g7.fin_acts("bank").is_empty(), "finlev=0: действий финансов нет")
+	await drop(g7)
 	# зерно: два запуска дают одинаковый результат
 	var res := []
 	for r in 2:

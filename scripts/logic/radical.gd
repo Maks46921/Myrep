@@ -28,6 +28,10 @@ func es_step() -> void:
 	pass
 
 
+func fin_euro_exit() -> void:
+	pass
+
+
 func hist_dyn() -> void:
 	pass
 
@@ -37,6 +41,18 @@ func io_dyn() -> void:
 
 
 func io_step() -> void:
+	pass
+
+
+func reg60_events() -> Array:
+	return []
+
+
+func uq_dyn() -> void:
+	pass
+
+
+func uq_step() -> void:
 	pass
 
 
@@ -107,6 +123,8 @@ func radical_req(tid: String, idx: int) -> String:
 		return "нужна поддержка силовиков не ниже %.0f (сейчас %.0f)." % [float(rq["force"]), float(support["Силовики"])]
 	if rq.has("unrest") and reg_avg("unrest") < float(rq["unrest"]) and approval() > 40.0:
 		return "нужен кризис: недовольство в регионах не ниже %.0f или рейтинг ниже 40%%." % float(rq["unrest"])
+	if rq.has("biz") and float(support["Бизнес"]) < float(rq["biz"]):
+		return "нужна поддержка бизнеса не ниже %.0f (сейчас %.0f)." % [float(rq["biz"]), float(support["Бизнес"])]
 	if rq.get("noteu", false) and bool(MACRO.get("eu", true)):
 		return "несовместимо с членством в ЕС: сначала выйдите из ЕС."
 	if rq.get("nodefault", false) and turn - default_t < 120:
@@ -149,6 +167,9 @@ func auth_idx(tid: String) -> int:
 func radical_enact(tid: String, idx: int, old_rid: String) -> void:
 	var v: Dictionary = variant_of(tid, idx)
 	var new_rid: String = String(v.get("rid", ""))
+	if tid == "gov_form":
+		# 0.60: как возник режим — от этого зависит его вариант (хунта правая или левая, партия вождистская или технократическая)
+		reg_cause = "coup" if bool(v.get("coup", false)) else ("war" if martial_on() else "reform")
 	# выход из авторитарного режима: освобождаем законы
 	if tid == "gov_form" and old_rid in RAD_AUTH and not (new_rid in RAD_AUTH):
 		for t2 in RAD_AUTH_TOPICS:
@@ -181,6 +202,7 @@ func radical_enact(tid: String, idx: int, old_rid: String) -> void:
 			risk_prem = minf(2.0, risk_prem + 0.4)
 			if bool(MACRO.get("euro", false)):
 				MACRO["euro"] = false
+				fin_euro_exit()
 				MACRO["cb_own"] = 1.0
 				MACRO["cb_off"] = float(MACRO.get("cb_off", 0.0)) + 0.4
 				log_line("[color=%s]Страна покинула еврозону: ставку теперь задаёт национальный центробанк, курс валюты колеблется.[/color]" % COL_WARN)
@@ -236,6 +258,7 @@ func radical_dyn() -> void:
 	es_dyn()
 	hist_dyn()
 	io_dyn()
+	uq_dyn()
 
 
 func radical_step() -> void:
@@ -270,6 +293,7 @@ func radical_step() -> void:
 	else:
 		regime_risk *= 0.9
 	au_step()
+	uq_step()
 	es_step()
 	io_step()
 
@@ -350,15 +374,16 @@ func radical_events() -> Array:
 		if ok:
 			out.append(e)
 			out.append(e)
+	out.append_array(reg60_events())
 	return out
 
 
-func radical_add_variants(tid: String, vars: Array, fund_flag: bool = true) -> void:
+func radical_add_variants(tid: String, vars: Array, fund_flag: bool = true, cap: int = 8) -> void:
 	if not law_index_pre.has(tid):
 		return
 	var t: Dictionary = law_index_pre[tid]
 	for v in vars:
-		if (t["v"] as Array).size() >= 8:
+		if (t["v"] as Array).size() >= cap:
 			break
 		(t["v"] as Array).append(v)
 	if fund_flag:
@@ -382,7 +407,7 @@ func radical_inject() -> void:
 		gov_new.append(RV("Республика", "Монархия упраздняется по итогам референдума: глава государства избирается, а династия лишается привилегий. Молодёжь довольна, консерваторы и деревня возмущены.", 48.0,
 			{"Молодёжь": 3.0, "Рабочие": 1.0, "Пенсионеры": -2.0, "Село": -2.0, "Силовики": -1.0}, {"dem_shift": 0.03, "capital_bonus": -0.05},
 			{"left": 8, "soc": 3, "green": 3, "popl": 3, "cons": -6, "popr": -3, "region": 1, "euro": 1}, {"rid": "republic"}))
-	gov_new.append(RV("Абсолютная монархия", "Монарх правит указами, парламент распущен или совещателен, суды подчиняются двору. Решения мгновенны, политкапитал не нужен, но страна выпадает из семьи демократий, а власть зависит от верности армии. Переворот: голосование не требуется, нужна поддержка силовиков.", 55.0,
+	gov_new.append(RV("Абсолютная монархия", "Монарх правит указами, парламент распущен или совещателен, суды подчиняются двору. Решения мгновенны, политкапитал не нужен, но страна выпадает из семьи демократий, а власть зависит от верности армии. Переворот: голосование не требуется, нужна поддержка силовиков. Вариант (традиционная династия, просвещённая монархия, нефтяная монархия, династия-корпорация) выбирается по идеологии вашей партии и причине смены строя.", 55.0,
 		{"Силовики": 4.0, "Село": 3.0, "Пенсионеры": 2.0, "Молодёжь": -8.0, "Бюджетники": -3.0, "Рабочие": -3.0, "Экологи": -3.0},
 		{"dem_shift": -0.60, "capital_bonus": 0.55, "mood_shift": -0.5, "corr_shift": 6.0, "dip_bonus": -1.2, "sec_bonus": 2.0},
 		{"cons": 2, "popr": 2, "own": 5, "lib": -8, "soc": -10, "left": -10, "green": -9, "popl": -6, "euro": -9, "region": -4, "oth": -3},
@@ -398,13 +423,13 @@ func radical_inject() -> void:
 		{"own": 6, "cons": -3, "popr": -2, "lib": -10, "soc": -10, "left": -10, "green": -10, "popl": -7, "euro": -10, "region": -6, "oth": -4},
 		{"rid": "dictatorship", "coup": true, "req": {"force": 60}, "set": {"parl_term": 120}, "st": {"security_lvl": 5.0, "corruption": 6.0, "equality": -2.0},
 		 "fxnow": {"all": -6.0, "regall": {"unrest": 7.0, "loyalty": -3.0}}, "enact": "regime_shock"}))
-	gov_new.append(RV("Военное правление (хунта)", "Власть переходит к военному совету: конституция приостановлена, комендантский час, армия получает бюджеты и контроль над ведомствами. Порядок и безопасность растут, свободы исчезают. Нужен кризис и сильная опора на силовиков; голосование не требуется.", 50.0,
+	gov_new.append(RV("Военное правление (хунта)", "Власть переходит к военному совету: конституция приостановлена, комендантский час, армия получает бюджеты и контроль над ведомствами. Порядок и безопасность растут, свободы исчезают. Нужен кризис и сильная опора на силовиков; голосование не требуется. Вариант (правая антикоммунистическая, левая революционная, националистическая, «временная» хунта) выбирается по идеологии партии и причине смены строя.", 50.0,
 		{"Силовики": 8.0, "Молодёжь": -8.0, "Экологи": -4.0, "Бюджетники": -2.0, "Рабочие": -2.0},
 		{"dem_shift": -0.75, "capital_bonus": 0.50, "sec_bonus": 4.0, "mood_shift": -0.5, "corr_shift": 4.0, "dip_bonus": -1.5, "extra_spend": 0.3},
 		{"own": 5, "cons": -2, "popr": -1, "lib": -10, "soc": -10, "left": -10, "green": -10, "popl": -7, "euro": -10, "region": -6, "oth": -4},
 		{"rid": "junta", "coup": true, "req": {"force": 65, "unrest": 28}, "set": {"parl_term": 120}, "st": {"security_lvl": 6.0},
 		 "fxnow": {"all": -5.0, "regall": {"unrest": 5.0, "loyalty": -2.0}}, "enact": "regime_shock"}))
-	gov_new.append(RV("Однопартийное государство", "Остаётся одна легальная партия — ваша: остальные запрещены, парламент собирается для одобрения решений. Бюджетники и рабочие получают стабильность и равенство, но политических свобод нет. Нужна опора на силовиков; голосование не требуется.", 50.0,
+	gov_new.append(RV("Однопартийное государство", "Остаётся одна легальная партия — ваша: остальные запрещены, парламент собирается для одобрения решений. Бюджетники и рабочие получают стабильность и равенство, но политических свобод нет. Нужна опора на силовиков; голосование не требуется. Вариант (коммунистическое, фашистское корпоративное, националистическое, вождистское, партия-армия, технократическое, революционно-демократическое) выбирается по идеологии партии и причине смены строя.", 50.0,
 		{"Бюджетники": 3.0, "Рабочие": 1.0, "Силовики": 4.0, "Молодёжь": -7.0, "Бизнес": -3.0, "Экологи": -4.0},
 		{"dem_shift": -0.70, "capital_bonus": 0.50, "corr_shift": 5.0, "mood_shift": -0.3, "equal_shift": 1.5, "sec_bonus": 2.5, "dip_bonus": -1.3},
 		{"own": 6, "cons": -4, "popr": -3, "lib": -10, "soc": -10, "left": -9, "green": -10, "popl": -6, "euro": -10, "region": -6, "oth": -4},
@@ -415,8 +440,31 @@ func radical_inject() -> void:
 		{"dem_shift": 0.15, "capital_bonus": -0.40, "mood_shift": 0.3, "corr_shift": -3.0, "reg_unrest_shift": -1.0},
 		{"popl": 6, "popr": 6, "prot": 5, "region": 4, "own": -6, "lib": -3, "cons": -4, "soc": -2, "euro": -5, "left": 3, "green": 2},
 		{"rid": "direct_dem"}))
+	# 0.60: новые типы режимов — технократия, олигархия, коллективное руководство, переходное правительство
+	gov_new.append(RV("Технократическое правительство", "Правительство специалистов вместо политиков: решения строятся на расчётах, а не на голосах. Меньше популизма и коррупции, но избиратели чувствуют, что их не слышат.",
+		35.0, {"Бизнес": 3.0, "Бюджетники": 1.0, "Пенсионеры": -3.0, "Рабочие": -2.0, "Молодёжь": -1.0},
+		{"dem_shift": -0.22, "capital_bonus": -0.10, "corr_shift": -2.0, "growth_bonus": 0.05},
+		{"lib": 3, "euro": 4, "own": -2, "soc": -2, "left": -5, "green": -1, "popl": -6, "popr": -5, "cons": 1, "region": -2, "prot": -7},
+		{"rid": "technocracy", "set": {"parl_term": 120}, "st": {"corruption": -2.0}, "enact": "regime_shock"}))
+	gov_new.append(RV("Олигархическая республика", "Страной управляют несколько богатых и знатных семей: законы пишут те, кто платит. Рынок и порядок надёжны для своих и безжалостны к остальным.",
+		30.0, {"Бизнес": 6.0, "Силовики": 2.0, "Рабочие": -5.0, "Бюджетники": -3.0, "Молодёжь": -4.0, "Экологи": -3.0},
+		{"dem_shift": -0.45, "capital_bonus": 0.30, "corr_shift": 6.0, "equal_shift": -4.0, "growth_bonus": 0.10, "dip_bonus": -0.5},
+		{"own": 5, "lib": 2, "cons": 2, "popr": -2, "soc": -7, "left": -9, "green": -6, "popl": -6, "euro": -3, "region": -3, "oth": -1},
+		{"rid": "oligarchy", "coup": true, "req": {"biz": 52}, "set": {"parl_term": 120}, "st": {"corruption": 5.0, "equality": -4.0},
+		 "fxnow": {"all": -4.0, "regall": {"unrest": 4.0}}, "enact": "regime_shock"}))
+	gov_new.append(RV("Коллективное руководство", "Власть принадлежит узкому совету: политбюро, консулат или директория. Решения принимаются сообща, медленнее, но без культа одного лица.",
+		32.0, {"Бюджетники": 2.0, "Силовики": 2.0, "Молодёжь": -4.0, "Бизнес": -1.0, "Экологи": -2.0},
+		{"dem_shift": -0.50, "capital_bonus": 0.20, "corr_shift": 2.0, "mood_shift": 0.0, "sec_bonus": 1.0, "dip_bonus": -0.6},
+		{"own": 3, "cons": -1, "popr": -2, "lib": -7, "soc": -6, "left": -7, "green": -7, "popl": -4, "euro": -7, "region": -4, "oth": -3},
+		{"rid": "collective", "coup": true, "req": {"force": 45}, "set": {"parl_term": 120}, "st": {"corruption": 2.0},
+		 "fxnow": {"all": -3.0, "regall": {"unrest": 3.0}}, "enact": "regime_shock"}))
+	gov_new.append(RV("Переходное правительство", "Временная власть до новых выборов: опытные руководители и представители всех сторон. Срок ограничен тремя годами; дальше — либо выборы, либо споры о продлении.",
+		28.0, {"Молодёжь": 2.0, "Бизнес": 1.0, "Силовики": -1.0},
+		{"dem_shift": -0.08, "capital_bonus": -0.15, "mood_shift": 0.05, "dip_bonus": 0.3},
+		{"own": -1, "lib": 2, "soc": 2, "left": 1, "green": 2, "popl": -2, "popr": -2, "cons": 1, "euro": 3, "region": 1, "prot": -3},
+		{"rid": "transitional", "req": {"unrest": 15}, "set": {"parl_term": 36}, "st": {}, "fxnow": {"all": 1.0}}))
 	if law_index_pre.has("gov_form"):
-		radical_add_variants("gov_form", [gov_new[0], gov_new[1], gov_new[3 + 1], gov_new[3 + 2], gov_new[3 + 3]])
+		radical_add_variants("gov_form", [gov_new[0], gov_new[1], gov_new[3 + 1], gov_new[3 + 2], gov_new[3 + 3], gov_new[3 + 4], gov_new[3 + 5], gov_new[3 + 6], gov_new[3 + 7]], true, 14)
 	else:
 		var tg := {"id": "gov_form", "cat": 0, "name": "Форма правления", "desc": "Кто и как управляет страной: от конституционной монархии и республики до диктатуры. Радикальные формы правления меняют всю политическую систему и замораживают несовместимые законы.", "fund": true,
 			"v": [{"n": cur_name if cur_name != "" else "Действующий строй", "d": "Действующий порядок."}]}

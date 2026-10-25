@@ -61,17 +61,52 @@ func au_pe() -> float:
 	return 0.0
 
 
+func reg60_act(id: String) -> bool:
+	return false
+
+
+func reg60_act_def(id: String) -> Array:
+	return []
+
+
+func reg60_check(id: String) -> String:
+	return ""
+
+
+func reg60_dyn() -> void:
+	pass
+
+
+func reg60_enter(cls: String, quiet: bool) -> void:
+	pass
+
+
+func reg60_has(id: String) -> bool:
+	return false
+
+
+func reg60_step() -> void:
+	pass
+
+
+func reg60_tool_mult(id: String) -> float:
+	return 0.0
+
+
 # --- конец заглушек ---
 
 
 # 0.56: во сколько раз страх и пропаганда сильнее влияют на протесты, подполье, оппозицию, агентов, сепаратизм и рейтинг (и стоят денег: regime2.gd)
 const AU2 := 2.0
 const AU_CLASS_NAMES := {"dem": "Демократия", "hybrid": "Гибридный режим", "dictatorship": "Диктатура", "junta": "Военная хунта",
-	"oneparty": "Однопартийное государство", "monarchy_abs": "Абсолютная монархия", "theocracy": "Теократия"}
+	"oneparty": "Однопартийное государство", "monarchy_abs": "Абсолютная монархия", "theocracy": "Теократия",
+	"technocracy": "Технократическое правительство", "oligarchy": "Олигархическая республика", "collective": "Коллективное руководство", "transitional": "Переходное правительство"}
 const AU_CLASS_MOTTO := {"hybrid": "Выборы есть, но исход известен заранее",
 	"dictatorship": "Режим личной власти: правитель, его семья и силовики", "junta": "Военный совет: приказы вместо законов",
 	"oneparty": "Партия — руководящая и направляющая сила", "monarchy_abs": "Воля монарха — закон",
-	"theocracy": "Власть от веры: духовенство над государством"}
+	"theocracy": "Власть от веры: духовенство над государством",
+	"technocracy": "Решают специалисты, а не избиратели", "oligarchy": "Власть немногих богатых и знатных", "collective": "Никто не правит один: решает совет",
+	"transitional": "Власть временная, а споры надолго"}
 # кланы: id, название, значок, интерес (force — силовой, money — деньги, reg — регионы, apparat — аппарат,
 # ideo_c — консерваторы и вера, ideo_r — реформаторы), исходное влияние
 const AU_CLANS := {
@@ -81,6 +116,10 @@ const AU_CLANS := {
 	"oneparty": [["pb", "Политбюро", "hall", "apparat", 0.32], ["cons", "Консерваторы", "scroll", "ideo_c", 0.24], ["ref", "Реформаторы", "flask", "ideo_r", 0.20], ["kgb", "Госбезопасность", "shield", "force", 0.24]],
 	"monarchy_abs": [["court", "Двор и знать", "crown", "apparat", 0.30], ["guard", "Гвардия", "shield", "force", 0.28], ["clergy", "Духовенство", "faith", "ideo_c", 0.20], ["merch", "Купечество", "coin", "money", 0.22]],
 	"theocracy": [["council", "Совет духовенства", "faith", "ideo_c", 0.34], ["guard", "Стражи веры", "shield", "force", 0.28], ["bazaar", "Торговые кланы", "coin", "money", 0.20], ["bur", "Чиновничество", "bank", "apparat", 0.18]],
+	"technocracy": [["exp", "Эксперты и советники", "flask", "apparat", 0.30], ["cb", "Центробанк и финансовое ведомство", "bank", "money", 0.26], ["biz", "Деловые ассоциации", "coin", "money", 0.22], ["bur", "Госаппарат", "hall", "apparat", 0.22]],
+	"oligarchy": [["fam", "Старые семьи", "crown", "apparat", 0.28], ["bank", "Банкиры и финансисты", "bank", "money", 0.26], ["res", "Сырьевые магнаты", "coin", "money", 0.24], ["sil", "Охрана и наёмники", "shield", "force", 0.22]],
+	"collective": [["core", "Ядро руководства", "hall", "apparat", 0.34], ["sil", "Силовое ведомство", "shield", "force", 0.26], ["ref", "Реформаторы", "flask", "ideo_r", 0.20], ["cons", "Консерваторы", "scroll", "ideo_c", 0.20]],
+	"transitional": [["gov", "Временное правительство", "hall", "apparat", 0.30], ["army", "Армия и полиция", "shield", "force", 0.28], ["old", "Старый аппарат", "scroll", "ideo_c", 0.22], ["new", "Новые политики и реформаторы", "flask", "ideo_r", 0.20]],
 }
 const AU_UNDER := {
 	"hybrid": [["lib", "Несистемная оппозиция"], ["media", "Независимые журналисты и блогеры"], ["union", "Независимые профсоюзы"]],
@@ -89,6 +128,10 @@ const AU_UNDER := {
 	"oneparty": [["dis", "Диссиденты и самиздат"], ["union", "Свободные профсоюзы"], ["nat", "Национальные движения"]],
 	"monarchy_abs": [["const", "Конституционалисты"], ["rep", "Республиканское подполье"], ["stud", "Студенты и интеллигенция"]],
 	"theocracy": [["sec", "Светская оппозиция"], ["women", "Женское движение"], ["stud", "Студенческие протесты"]],
+	"technocracy": [["lib", "Критики «правления без выборов»"], ["union", "Профсоюзы против экономии"], ["pop", "Популистские движения"]],
+	"oligarchy": [["lib", "Либеральная оппозиция"], ["union", "Рабочие союзы"], ["reg", "Региональные недовольные"]],
+	"collective": [["dis", "Диссиденты"], ["union", "Рабочие комитеты"], ["nat", "Национальные движения"]],
+	"transitional": [["old", "Сторонники прежнего строя"], ["rad", "Радикалы"], ["reg", "Региональные лидеры"]],
 }
 # рычаги режима: id, название, цена в капитале, перезарядка (мес.), классы ("" — все недемократические), подсказка
 const AU_ACTS := [
@@ -103,7 +146,7 @@ const AU_ACTS := [
 	["fraud_dn", "Честнее выборы", 0.0, 3, "", "Фальсификации −15: меньше протестов после выборов, демократии одобряют."],
 	["succ", "Назначить преемника", 15.0, 0, "", "Снимает «усталость от правителя» и страх элит перед будущим; клан, из которого вышел преемник, усиливается."],
 	["lib", "Оттепель (либерализация)", 10.0, 12, "", "Страх, пропаганда, культ и фальсификации снижаются, часть заключённых на свободе. Реформаторы и молодёжь рады, силовики насторожены, подполье на время смелеет."],
-	["roundtable", "Круглый стол и переход к демократии", 15.0, 0, "dictatorship,junta,oneparty,monarchy_abs,theocracy", "Договор с оппозицией: режим уступает место республике со свободными выборами. Конец власти указами."],
+	["roundtable", "Круглый стол и переход к демократии", 15.0, 0, "dictatorship,junta,oneparty,monarchy_abs,theocracy,technocracy,oligarchy,collective", "Договор с оппозицией: режим уступает место республике со свободными выборами. Конец власти указами."],
 	["promise", "Пообещать передать власть гражданским (через 2 года)", 6.0, 0, "junta", "Риск переворота −12, отношения с миром лучше, подполье спокойнее. Но через 2 года обещание надо выполнить (круглый стол), иначе — взрыв недовольства."],
 	["constitution", "Даровать конституцию", 12.0, 0, "monarchy_abs", "Монарх делит власть с парламентом: конституционная монархия. Двор и духовенство недовольны, конституционалисты удовлетворены."],
 	["plenum_c", "Пленум ЦК: консервативный курс", 6.0, 6, "oneparty", "Консерваторы и госбезопасность усиливаются, реформаторы в опале, страх растёт."],
@@ -117,7 +160,7 @@ var au := {}
 
 func regime_class() -> String:
 	var r := regime_id()
-	if r in RAD_AUTH and r != "theocracy":
+	if (r in RAD_AUTH or r == "transitional") and r != "theocracy":
 		return r
 	if rid_of("state_church") == "theocracy" or r == "theocracy":
 		return "theocracy"
@@ -171,6 +214,7 @@ func au_set_class(cls: String, quiet: bool = false) -> void:
 	if cls == "dem":
 		au["cl"] = {}
 		au["und"] = {}
+		au["var"] = ""
 		if not quiet:
 			au["sw_t"] = turn
 			au["sw_from"] = old
@@ -207,6 +251,7 @@ func au_set_class(cls: String, quiet: bool = false) -> void:
 		if cls != "dem":
 			log_line("[color=%s][b]%s.[/b] Теперь власть держится на кланах: %s. Раздел «Политика» перестроен под новый режим.[/color]" % [COL_WARN, au_class_name(cls),
 				", ".join((AU_CLANS[cls] as Array).map(func(c: Array) -> String: return String(c[1])))])
+	reg60_enter(cls, quiet)
 
 
 func au_clan_def(id: String) -> Array:
@@ -348,6 +393,7 @@ func au_step() -> void:
 		log_line("[color=%s][b]Срок обещания хунты истёк.[/b] Власть не передана гражданским — недовольство резко растёт.[/color]" % COL_BAD)
 		regime_risk = minf(100.0, regime_risk + 20.0)
 	au2_step()
+	reg60_step()
 	if observer:
 		au_ai()
 	au_events()
@@ -390,6 +436,7 @@ func au_dyn() -> void:
 	mods["mood_shift"] = float(mods["mood_shift"]) + prop * 0.008 * AU2 - fraud * 0.001
 	mods["dem_shift"] = float(mods.get("dem_shift", 0.0)) - fear * 0.0012 * AU2 - fraud * 0.001 - cult * 0.01 - (0.03 if bool(au.get("censor", false)) else 0.0)
 	au2_dyn()
+	reg60_dyn()
 
 
 # официальный рейтинг (то, что показывают государственные СМИ и «правильные» опросы)
@@ -501,17 +548,29 @@ func au_after_election() -> void:
 # ---------- рычаги ----------
 func au_act_def(id: String) -> Array:
 	var d2 := au2_def(id)
-	if not d2.is_empty():
+	if d2.is_empty():
+		d2 = reg60_act_def(id)
+	if d2.is_empty():
+		for a in AU_ACTS:
+			if String(a[0]) == id:
+				d2 = a
+				break
+	if d2.is_empty():
 		return d2
-	for a in AU_ACTS:
-		if String(a[0]) == id:
-			return a
-	return []
+	# 0.60: цена рычага зависит от варианта режима
+	var mu: float = reg60_tool_mult(id)
+	if mu == 1.0:
+		return d2
+	var cp: Array = d2.duplicate()
+	cp[2] = float(cp[2]) * mu
+	return cp
 
 
 func au_check(id: String) -> String:
 	if au2_has(id):
 		return au2_check(id)
+	if reg60_has(id):
+		return reg60_check(id)
 	var why := pl_why("gov")
 	if why != "":
 		return why
@@ -525,7 +584,7 @@ func au_check(id: String) -> String:
 		var cid: String = parts[1] if parts.size() > 1 else ""
 		if not (au["cl"] as Dictionary).has(cid):
 			return "нет такого клана"
-		var cost: float = 6.0 if base == "reward" else 8.0
+		var cost: float = (6.0 if base == "reward" else 8.0) * reg60_tool_mult(base)
 		if cap_spendable() < cost:
 			return "нужно %.0f капитала" % cost
 		if int(au["cd"].get(id, -99)) > turn:
@@ -536,6 +595,8 @@ func au_check(id: String) -> String:
 	var a := au_act_def(base)
 	if a.is_empty():
 		return "неизвестное действие"
+	if reg60_tool_mult(base) <= 0.0:
+		return "при этом варианте режима недоступно"
 	var cls_req: String = String(a[4])
 	if cls_req != "" and not (String(au["cls"]) in cls_req.split(",")):
 		return "только для режима: %s" % ", ".join(Array(cls_req.split(",")).map(func(x: String) -> String: return au_class_name(x)))
@@ -615,6 +676,8 @@ func au_und_add(d: float, only: String = "") -> void:
 func au_act(id: String) -> bool:
 	if au2_has(id):
 		return au2_act(id)
+	if reg60_has(id):
+		return reg60_act(id)
 	var why := au_check(id)
 	if why != "":
 		log_line("[color=%s]Нельзя: %s.[/color]" % [COL_WARN, why])
@@ -626,7 +689,7 @@ func au_act(id: String) -> bool:
 		var cid: String = parts[1]
 		var cname: String = String(au_clan_def(cid)[1])
 		if base == "reward":
-			capital -= 6.0
+			capital -= 6.0 * reg60_tool_mult("reward")
 			debt += gdp * 0.001
 			au_clan_add(cid, 14.0, 1.12)
 			for k in au["cl"]:
@@ -635,7 +698,7 @@ func au_act(id: String) -> bool:
 			au_cd(id, 3)
 			txt = "Клан «%s» получил должности, контракты и привилегии (0,1%% ВВП): лояльность растёт, остальные ревнуют." % cname
 		else:
-			capital -= 8.0
+			capital -= 8.0 * reg60_tool_mult("purge")
 			var was_low: bool = float(au["cl"][cid]["loy"]) < 30.0
 			au_clan_add(cid, -10.0, 0.6)
 			for k in au["cl"]:
@@ -920,6 +983,15 @@ func au_fx(d: Dictionary) -> void:
 		au["pris"] = int(au["pris"]) + int(d["pris"])
 	if d.has("risk"):
 		regime_risk = clampf(regime_risk + float(d["risk"]), 0.0, 100.0)
+	# 0.60: пропаганда, фальсификации, культ; «clan2» — соперничающий клан теряет половину того, что получил первый
+	if d.has("prop"):
+		au["prop"] = clampf(float(au["prop"]) + float(d["prop"]), 0.0, 100.0)
+	if d.has("fraud"):
+		au["fraud"] = clampf(float(au["fraud"]) + float(d["fraud"]), 0.0, 100.0)
+	if d.has("cult"):
+		au["cult"] = clampi(int(au["cult"]) + int(d["cult"]), 0, 5)
+	if d.has("clan2"):
+		au_clan_add(String(d["clan2"]), -0.5 * float(d.get("b", 0.0)))
 
 
 # режим за наблюдателя: ИИ награждает самый нелояльный клан и сажает подполье, если оно крепнет

@@ -5,7 +5,7 @@ static var pending_code := ""
 static var pending_party := 0
 
 # Настройки новой игры (задаются в меню перед стартом и не меняются во время игры; переживают перезагрузку сцены)
-static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "bldev": 1, "tut": 1, "coal": 1, "observer": false, "music": 0.45, "sfx": 0.6}
+static var game_opts := {"agents": true, "k": 0, "seed": 0, "ev": 1.0, "news": 1.0, "econ": 1, "volat": 1.0, "cap": 1.0, "detail": false, "fedev": 1, "socev": 1, "exev": 1, "milev": 1, "revev": 1, "rlev": 1, "finlev": 1, "fincr": 1, "bldev": 1, "tut": 1, "coal": 1, "observer": false, "music": 0.45, "sfx": 0.6}
 
 var ccode := "DE"
 var map_reg_pick: OptionButton = null   # список регионов в окне карты
@@ -299,6 +299,10 @@ var week_btn: Button
 
 var day := 1                  # день месяца (календарь; месячный шаг экономики — на границе месяцев)
 var month_done := 0.0
+var wdt := 1.0                # 0.62: доля месяца в текущем шаге расчёта (1.0 — старый месячный шаг; недельный тик — 7/дней в месяце)
+var live_days := false         # 0.62: идёт посуточная игра (advance_day): выборы только по воскресеньям, голосования по средам
+var ev_month_n := 0            # 0.62: окон случайных событий, открытых недельными тиками в этом месяце (не больше одного, как в месячном расчёте)
+var wmonth := true            # 0.62: этот шаг закрывает месяц (дискретные месячные действия делаются только при wmonth)
 var last_ecf := {"g": 0.0, "infl": 0.0, "unemp": 0.0}
 var last_deficit_pct := 0.0
 var month_snap := {}
@@ -493,6 +497,16 @@ var sel_topic := "elect_threshold"
 var sel_variant := 1
 
 var law_cat := 0
+var law_view := 0                      # 0.60: окно законов: 0 список, 1 плитки
+var law_area_sel := -1                 # 0.60: показанная область законов (-1 все)
+var law_sections: Array = []
+var law_area_opt: OptionButton = null
+var law_view_btns: Array = []
+var law_scale: Control = null
+var law_text_idx := {}                 # id закона -> строка для поиска по тексту
+var law_collapsed := {}
+var law_icons := {}
+var law_scale_map: Array = []
 
 var politics_page := 1
 var econ_page := 5
@@ -882,10 +896,5 @@ var fl_pick := ""                    # выбранный в списке фла
 var fl_all := false                  # показывать все флаги страны, а не только подходящие строю
 var fl_view := 0                     # 0 — сведения, 1 — выбор флага
 var fe_ov: Control = null            # редактор флага
-var fe: Dictionary = {}              # параметры редактора
-var fe_prev: TextureRect = null
-var fe_warn: Label = null
-var fe_ctl: Dictionary = {}
 var fl_dot: ColorRect = null
 var fl_mat: ShaderMaterial = null
-var fl_small_cache: Dictionary = {}

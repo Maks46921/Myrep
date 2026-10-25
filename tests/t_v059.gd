@@ -123,12 +123,13 @@ func _init():
 		check(g.flag_cur_id() == other and g.Flags.cur[g.ccode] == other, "флаги: смена флага применяется")
 		check(g.flag_title() != "", "флаги: название государства не пустое")
 	# редактор: свой флаг
-	g.fe_reset()
-	g.fe["name"] = "Тест"
-	g.fe["sym"] = 0
-	var svg_t: String = g.flag_build_svg(g.fe)
+	var fd = g.FlagDoc.template_doc(1)
+	fd["name"] = "Тест"
+	var sl: Dictionary = g.FlagDoc.new_layer("star", 45, 30, 20, 20, "#ffd200")
+	(fd["layers"] as Array).append(sl)
+	var svg_t: String = g.FlagDoc.build_svg(fd, g.FLAG_SYM60)
 	check(g.Flags.render_image(svg_t, 90.0) != null, "флаги: SVG из редактора читается")
-	g.flag_editor_save()
+	g.flag_editor_save(fd, true, "")
 	check(g.flag_custom.size() == 1 and String(g.flag_cur_id()).begins_with("my"), "флаги: свой флаг сохранён и выбран")
 	var pk: PackedByteArray = g.sv_pack()
 	g.flag_custom = {}

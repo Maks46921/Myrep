@@ -1,0 +1,18 @@
+{
+ "092b9ca5b342": "1 wk/s",
+ "256d12fe7ff9": "Monday",
+ "677afb97c3d0": "Tuesday",
+ "6eb1432a3265": "Sunday",
+ "70399548f6e3": "16 wk/s",
+ "81a1c14a1b03": "8 wk/s",
+ "85852f2748e4": "4 wk/s",
+ "903dac9fa4f5": "Thursday",
+ "90f314d3bf46": "Friday",
+ "b1dda156ff0d": "Saturday",
+ "dd0e1a5c6faa": "2 wk/s",
+ "f81e505f9bbb": "Wednesday",
+ "17d8d297a0b8": "Current in-game date. The calendar runs by day, while the economy, politics and the world are calculated every week.",
+ "a193319eb168": "%d weeks per second",
+ "ad1d3569602a": "Speed: how many calendar weeks pass per second of real time",
+ "d26754d3927c": "%s, %d %s %d. Week %d of 4 this month. The calendar runs by day, while the economy, politics and the world are calculated every week."
+}

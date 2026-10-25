@@ -44,6 +44,14 @@ func ev_ext_val(k: String) -> float:
 	return 0.0
 
 
+func fin_opt_desc(act: String) -> String:
+	return ""
+
+
+func fin_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func fleet_resolve(i: int) -> void:
 	pass
 
@@ -84,6 +92,10 @@ func realism_resolve(opt: Dictionary) -> void:
 	pass
 
 
+func reg60_resolve(opt: Dictionary) -> void:
+	pass
+
+
 func resolve_crisis(opt: Dictionary) -> void:
 	pass
 
@@ -93,6 +105,10 @@ func revolt_resolve(opt: Dictionary) -> void:
 
 
 func set_time_btns(dis: bool) -> void:
+	pass
+
+
+func uq_resolve(opt: Dictionary) -> void:
 	pass
 
 
@@ -334,6 +350,10 @@ func ev_title(e: Dictionary, text: String) -> String:
 	if e.has("title"):
 		return String(e["title"])
 	var t: String = text.split(".")[0].split("!")[0].split(":")[0]
+	# 0.63: окна финансов начинаются с [b]…[/b] — в заголовке картинки теги не нужны
+	var rx := RegEx.new()
+	rx.compile("\\[[^\\]]*\\]")
+	t = rx.sub(t, "", true).strip_edges()
 	if t.length() > 58:
 		t = t.substr(0, 56) + "…"
 	return t
@@ -465,6 +485,8 @@ func ev_kind_info() -> Array:
 		return [String(a[0]) if String(a[0]) != "ПОЛИТИКА" else "КРИЗИС", "!", C_BAD, "shield"]
 	if String(e.get("special", "")) == "rl":
 		return ["ГОСУДАРСТВО", "◆", C_TEAL, "flag"]
+	if String(e.get("special", "")) == "fin":
+		return ["ФИНАНСЫ", "▲", C_WARN, "coin"]
 	return a
 
 
@@ -639,7 +661,12 @@ func present_event() -> void:
 			if blk != "":
 				extra += "\n[color=%s]✖ Недоступно: %s[/color]" % [COL_BAD, blk]
 			var stars := ""
-			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", fx_pros_cons(fx_no_capital(o["fx"]), event_region), extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
+			var pc: String = fx_pros_cons(fx_no_capital(o["fx"]), event_region)
+			# 0.63: у решений финансов последствия считает логика модуля — показываем их описание словами
+			var fd: String = fin_opt_desc(String(o["act"])) if spec == "fin" and o.has("act") else ""
+			if fd != "":
+				pc = ("[color=%s]%s[/color]" % [COL_DIM, fd]) if fx_no_capital(o["fx"]).is_empty() else pc + "\n[color=%s]%s[/color]" % [COL_DIM, fd]
+			(event_fx_rts[i] as RichTextLabel).text = "[font_size=13]%s%s%s%s[/font_size]" % [(stars + "\n") if stars != "" else "", pc, extra, ("\n[color=%s]%s[/color]" % [COL_DIM, cn]) if cn != "" else ""]
 			var card: PanelContainer = event_boxes[i]
 			var bcol: Color = C_TEAL if i == best else kc.darkened(0.45)
 			var csb := sbox(C_PANEL2.darkened(0.18) if blk == "" else C_PANEL.darkened(0.2), bcol, 2 if i == best else 1, 10, 4.0, 3.0)
@@ -766,6 +793,12 @@ func choose(i: int) -> void:
 		revolt_resolve(opt)
 	elif special == "rl":
 		realism_resolve(opt)
+	elif special == "fin":
+		fin_resolve(opt)
+	elif special == "reg60":
+		reg60_resolve(opt)
+	elif special == "uq60":
+		uq_resolve(opt)
 	refresh()
 
 

@@ -31,6 +31,11 @@ func _init():
 			for k in String(a).substr(7).split(","):
 				g.gd_open[k] = true
 			g.update_goods_windows()
+		if String(a).begins_with("topic="):
+			g.sel_topic = String(a).substr(6)
+			g.sel_variant = g.first_other_variant(g.sel_topic)
+		if String(a).begins_with("lawview="):
+			g.law_view = int(String(a).substr(8))
 		if String(a).begins_with("call="):
 			g.call(String(a).substr(5))
 		# 0.56: open=meas|tech|crisis — открыть окно поверх игры
@@ -49,6 +54,15 @@ func _init():
 					g.fl_view = 1
 					g.flag_win_fill()
 				"fedit": g.flag_editor_open(true)
+				"flagoffer":
+					g.flag_month()
+					g.reg_cause = "revolution"
+					g.au_set_class("oneparty", false)
+					g.flag_win_open(true)
+				"uq":
+					g.uq_init()
+					g.uq_proclaim(g.uq_def())
+					g.capital = 40.0
 		if String(a).begins_with("pol="):
 			for kv in String(a).substr(4).split(","):
 				var pr := kv.split(":")

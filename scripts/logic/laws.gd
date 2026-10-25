@@ -1232,6 +1232,8 @@ func build_law_topics() -> Array:
 			extra.append(make_param_topic(p))
 	for t in NEW_TOPICS:
 		extra.append((t as Dictionary).duplicate(true))
+	for t in NEW_TOPICS60:
+		extra.append((t as Dictionary).duplicate(true))
 	# новые законы вставляем в конец своей сферы
 	for t in extra:
 		var at := out.size()
@@ -1499,9 +1501,44 @@ func de_law_params() -> Array:
 			for k in o:
 				q[k] = o[k]
 		out.append(q)
+	# 0.60: новые ползунки; действующее значение берётся из PARAM_REF60 для выбранной страны
+	var refs: Dictionary = PARAM_REF60.get(ccode, {})
+	for p in LAW_PARAMS60:
+		var id60: String = p["id"]
+		if id60 in DE_REMOVE or id60 in REMOVE60.get(ccode, []):
+			continue
+		var q60: Dictionary = (p as Dictionary).duplicate(true)
+		if refs.has(id60):
+			q60["ref"] = float(refs[id60])
+		if DE_PARAM.has(id60):
+			var o60: Dictionary = DE_PARAM[id60]
+			for k in o60:
+				q60[k] = o60[k]
+		out.append(q60)
 	for p in DE_NEW_PARAMS:
 		out.append((p as Dictionary).duplicate(true))
 	return out
+
+
+# 0.60: область закона (0..10, см. LAW_AREA_NAMES); у id без записи — по сфере темы
+func law_area(tid: String) -> int:
+	if LAW_AREA60.has(tid):
+		return int(LAW_AREA60[tid])
+	var tp: Dictionary = law_index.get(tid, {})
+	match int(tp.get("cat", 0)):
+		1: return 0
+		2: return 1
+	return 10
+
+
+# 0.60: тема из data_laws60.gd (их доли партий заданы по архетипам и не пересчитываются)
+func is_law60(tid: String) -> bool:
+	if law60_ids.is_empty():
+		for t in NEW_TOPICS60:
+			law60_ids[t["id"]] = true
+		for p in LAW_PARAMS60:
+			law60_ids[p["id"]] = true
+	return law60_ids.has(tid)
 
 
 func de_fix_ps(topics: Array) -> void:
@@ -1510,7 +1547,7 @@ func de_fix_ps(topics: Array) -> void:
 			if not v.has("ps"):
 				continue
 			var ps: Dictionary = (v["ps"] as Dictionary).duplicate()
-			if t["id"] in ["debt_brake", "eu_policy", "citizenship_law", "rent_control", "auto_policy", "schengen"] or DE_OWN.has(t["id"]):
+			if t["id"] in ["debt_brake", "eu_policy", "citizenship_law", "rent_control", "auto_policy", "schengen"] or DE_OWN.has(t["id"]) or is_law60(t["id"]):
 				v["ps"] = ps
 				continue
 			# старые слоты: 3 «Земля и порядок» -> Левые, 5 «Нац. союз» -> BSW, 6 -> Прочие
@@ -1525,11 +1562,14 @@ func de_fix_ps(topics: Array) -> void:
 
 
 func de_adapt_topics(out: Array) -> Array:
+	var own60: Array = COUNTRY_TOPICS60.get(ccode, [])
+	for t in own60:
+		DE_OWN[t["id"]] = true
 	for t in DE_TOPICS:
 		DE_OWN[t["id"]] = true
 	var res: Array = []
 	for t in out:
-		if t["id"] in DE_REMOVE or DE_OWN.has(t["id"]):
+		if t["id"] in DE_REMOVE or DE_OWN.has(t["id"]) or (is_law60(t["id"]) and t["id"] in REMOVE60.get(ccode, [])):
 			continue
 		res.append(t)
 	de_fix_ps(res)
@@ -1541,6 +1581,15 @@ func de_adapt_topics(out: Array) -> Array:
 				at = i
 				break
 		res.insert(at, tt)
+	# 0.60: особые законы страны (реальные законы; доли партий — по местам партий страны)
+	for t in own60:
+		var t60: Dictionary = (t as Dictionary).duplicate(true)
+		var at60 := res.size()
+		for i in res.size():
+			if int(res[i]["cat"]) > int(t60["cat"]):
+				at60 = i
+				break
+		res.insert(at60, t60)
 	for t in res:
 		if t["id"] in DE_FUND_ADD:
 			t["fund"] = true
@@ -1560,39 +1609,57 @@ func brake_active() -> bool:
 	return float(mods["brake_room"]) < 50.0
 
 
+# 0.62: недельный шаг: спецфонд, надбавка за риск и штрафы текут по доле месяца wdt; счётчик месяцев нарушения и журнал — только при wmonth
 func brake_step(deficit_pct: float) -> void:
 	if fund_left > 0.0:
-		fund_left = maxf(0.0, fund_left - 0.010 * gdp / 12.0)
+		fund_left = maxf(0.0, fund_left - 0.010 * gdp / 12.0 * wdt)
 	if not brake_active():
 		brake_over = 0
 		return
 	var over: float = deficit_pct - brake_allowed() - 0.5
-	if over > 0.0:
-		brake_over += 1
-	else:
-		brake_over = maxi(0, brake_over - 2)
+	if wmonth:
+		if over > 0.0:
+			brake_over += 1
+		else:
+			brake_over = maxi(0, brake_over - 2)
 	if ccode != "DE":
 		var fname := String(MACRO.get("fiscal_name", "Правила ЕС"))
 		var strict: bool = float(MACRO.get("fiscal_base", 3.0)) < 1.5
 		if over > 0.0:
-			risk_prem = minf(2.0 if not strict else 0.5, risk_prem + 0.03 * minf(over, 3.0))
+			risk_prem = minf(2.0 if not strict else 0.5, risk_prem + 0.03 * minf(over, 3.0) * wdt)
 		else:
-			risk_prem = maxf(0.0, risk_prem - 0.05)
-		if brake_over == 3:
+			risk_prem = maxf(0.0, risk_prem - 0.05 * wdt)
+		if not wmonth:
+			if brake_over >= 6:
+				capital -= (0.8 if strict else 0.15) * wdt
+				add_support("Бизнес", (-0.3 if not strict else -0.4) * wdt)
+		elif brake_over == 3:
 			log_line("[color=%s][b]%s:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. %s[/color]" % [COL_WARN, fname, deficit_pct, brake_allowed(), "Звучат предупреждения министерства финансов и суда." if strict else ("Еврокомиссия предупреждает" if bool(MACRO.get("eu", false)) else "Рейтинговые агентства предупреждают") + " правительство, инвесторы требуют премию за риск."])
 		elif brake_over >= 6:
-			capital -= (0.8 if strict else 0.15)
+			capital -= (0.8 if strict else 0.15) * wdt
 			if brake_over % 6 == 0:
 				log_line("[color=%s][b]Нарушение бюджетного правила (%s).[/b] Рынки и партнёры давят на правительство (политкапитал -%s в месяц, ставка по долгу выше).[/color]" % [COL_BAD, fname, "0.8" if strict else "0.15"])
-			apply_fx({"support": {"Бизнес": -0.3 if not strict else -0.4}})
+			apply_fx({"support": {"Бизнес": (-0.3 if not strict else -0.4) * wdt}})
+		return
+	if not wmonth:
+		if brake_over >= 6:
+			capital -= 0.8 * wdt
+			add_support("Бизнес", -0.4 * wdt)
+			add_support("Пенсионеры", -0.2 * wdt)
 		return
 	if brake_over == 3:
 		log_line("[color=%s][b]Долговой тормоз:[/b] дефицит %.1f%% ВВП выше допустимых %.1f%%. Федеральное министерство финансов и Конституционный суд предупреждают правительство.[/color]" % [COL_WARN, deficit_pct, brake_allowed()])
 	elif brake_over >= 6:
-		capital -= 0.8
+		capital -= 0.8 * wdt
 		if brake_over % 6 == 0:
 			log_line("[color=%s][b]Нарушение долгового тормоза.[/b] Суд требует сократить дефицит (политкапитал -0.8 в месяц, доверие рынков падает).[/color]" % COL_BAD)
-		apply_fx({"support": {"Бизнес": -0.4, "Пенсионеры": -0.2}})
+		apply_fx({"support": {"Бизнес": -0.4 * wdt, "Пенсионеры": -0.2 * wdt}})
+
+
+# 0.62: недельный тик долгового тормоза: дефицит по текущему бюджету
+func brake_week() -> void:
+	var b := compute_budget()
+	brake_step(-float(b["balance"]) / gdp * 100.0)
 
 
 func brake_text() -> String:

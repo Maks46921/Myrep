@@ -74,16 +74,18 @@ func dx_name(c: String) -> String:
 # ============================================================
 #  ЕЖЕМЕСЯЧНЫЙ ШАГ
 # ============================================================
+# 0.62: недельный расчёт: потоки и сближение — на wdt, вероятности — wp(), паузы и сроки (целые месяцы), темпы роста rl["g"] — при wmonth
 func diplo_month() -> void:
 	if not rl_on():
 		return
 	if dx.is_empty():
 		dx_init()
-	var cd: Dictionary = dx["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
+	if wmonth:
+		var cd: Dictionary = dx["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
 	dx_treaty_step()
 	dx_spy_step()
 	dx_conf_month()
@@ -106,30 +108,31 @@ func dx_treaty_step() -> void:
 			continue
 		if bool(t.get("tech", false)):
 			n_tech += 1
-			debt += gdp * 0.02 / 100.0 / 12.0
+			debt += gdp * 0.02 / 100.0 / 12.0 * wdt
 		if bool(t.get("energy", false)):
 			var e: Dictionary = rl["e"]
-			e["dep"] = maxf(2.0, float(e["dep"]) - 0.05)
+			e["dep"] = maxf(2.0, float(e["dep"]) - 0.05 * wdt)
 			if float(e["price"]) > 110.0:
-				e["price"] = float(e["price"]) - 1.5
+				e["price"] = float(e["price"]) - 1.5 * wdt
 		if bool(t.get("defense", false)):
-			ex_rel_change(String(c), 0.05)
+			ex_rel_change(String(c), 0.05 * wdt)
 		if bool(t.get("visa", false)):
 			g += 0.03
 		if bool(t.get("nagg", false)) and rel < 40.0:
-			ex_rel_change(String(c), (40.0 - rel) * 0.1)
+			ex_rel_change(String(c), (40.0 - rel) * 0.1 * wdt)
 		# v50: пункты из конструктора договоров
 		if bool(t.get("trade", false)):
 			g += 0.025
 		if bool(t.get("culture", false)):
-			ex_rel_change(String(c), 0.08)
+			ex_rel_change(String(c), 0.08 * wdt)
 		if bool(t.get("invest", false)):
 			g += 0.02
-			debt += gdp * 0.01 / 100.0 / 12.0
+			debt += gdp * 0.01 / 100.0 / 12.0 * wdt
 		if bool(t.get("migr", false)) and rv_on():
 			var nat: Dictionary = rv["nat"]
-			nat["wave"] = rv_clamp(float(nat["wave"]) - 0.05)
-	rl["g"] = float(rl["g"]) + g
+			nat["wave"] = rv_clamp(float(nat["wave"]) - 0.05 * wdt)
+	if wmonth:
+		rl["g"] = float(rl["g"]) + g
 	dx["n_tech"] = n_tech
 
 
@@ -141,7 +144,7 @@ func dx_has_treaty(c: String, id: String) -> bool:
 func dx_spy_step() -> void:
 	var ci: int = int(dx["ci"])
 	if ci > 0:
-		debt += gdp * float(DX_CI_COST[ci]) / 100.0 / 12.0
+		debt += gdp * float(DX_CI_COST[ci]) / 100.0 / 12.0 * wdt
 	if observer or not current_event.is_empty():
 		return
 	for c in tech_nb():
@@ -149,7 +152,7 @@ func dx_spy_step() -> void:
 		if rel >= 35.0 and not (rel < 45.0 and randf() < 0.0):
 			continue
 		var p: float = 0.018 * (1.0 - 0.25 * float(ci)) * (1.0 - (0.5 if dx_has_treaty(String(c), "defense") else 0.0))
-		if randf() >= p:
+		if randf() >= wp(p):
 			continue
 		var kinds := ["leak", "cyber", "theft", "sabotage"]
 		var kd: String = kinds[randi() % kinds.size()]
@@ -200,7 +203,7 @@ func dx_conf_month() -> void:
 		# чужая помощь повстанцам от враждебных соседей, помощь правительству от оборонных партнёров
 		for p in tech_nb():
 			var rel: float = fed_rel(String(p))
-			if rel < 33.0 and (fi["reb"] as Array).size() < 3 and not (String(p) in fi["reb"]) and randf() < 0.05 and String(c["side"]) == "gov":
+			if rel < 33.0 and (fi["reb"] as Array).size() < 3 and not (String(p) in fi["reb"]) and randf() < wp(0.05) and String(c["side"]) == "gov":
 				(fi["reb"] as Array).append(String(p))
 				c["aid"] = float(c["aid"]) + 1.2
 				ex_rel_change(String(p), -2.0)
@@ -211,7 +214,7 @@ func dx_conf_month() -> void:
 				dx_log("союзник «%s» по оборонному договору помогает правительству в конфликте «%s»." % [dx_name(String(p)), c["name"]], COL_GOOD)
 		# предложение миротворцев
 		var months: int = turn - int(c["start"])
-		if months >= 8 and float(c["kia"]) > 1.5 and not bool(fi["pk"]) and turn - int(dx["last_pk"]) > 18 and int(c["truce"]) == 0 and randf() < 0.06:
+		if months >= 8 and float(c["kia"]) > 1.5 and not bool(fi["pk"]) and turn - int(dx["last_pk"]) > 18 and int(c["truce"]) == 0 and randf() < wp(0.06):
 			dx["last_pk"] = turn
 			rl_event("dxpk", "Евросоюз и ООН предлагают ввести миротворцев в зону конфликта «%s»: потери растут, беженцев всё больше." % c["name"], [
 				{"l": "Принять миротворцев и перемирие на год (капитал −3)", "fx": {"capital": -3.0}, "act": "dx_pk_yes", "arg": str(int(c["id"]))},
@@ -312,7 +315,7 @@ func dx_rec_step() -> void:
 		if not rec.has(code):
 			rec[code] = {"by": [], "blk": 0, "us": false, "un": false}
 		var r: Dictionary = rec[code]
-		if int(r["blk"]) > 0:
+		if wmonth and int(r["blk"]) > 0:
 			r["blk"] = int(r["blk"]) - 1
 		var base: float = 0.05 if String(st["how"]) != "war" else 0.02
 		var have: Array = r["by"]
@@ -328,7 +331,7 @@ func dx_rec_step() -> void:
 				p *= 0.5
 			if int(r["blk"]) > 0:
 				p *= 0.4
-			if randf() < p:
+			if randf() < wp(p):
 				have.append(c)
 				if rel > 55.0 and String(st["how"]) == "war":
 					ex_rel_change(c, 0.0)
@@ -339,8 +342,8 @@ func dx_rec_step() -> void:
 			r["un"] = true
 			dx_log("новое государство «%s» признано более чем половиной стран и принято в ООН." % st["name"], COL_WARN)
 		if wsim.has(code):
-			wsim[code]["growth"] = float(wsim[code]["growth"]) + (share - 0.3) * 0.02
-			wsim[code]["stab"] = clampf(float(wsim[code]["stab"]) + (share - 0.35) * 0.1, 10.0, 95.0)
+			wsim[code]["growth"] = float(wsim[code]["growth"]) + (share - 0.3) * 0.02 * wdt
+			wsim[code]["stab"] = clampf(float(wsim[code]["stab"]) + (share - 0.35) * 0.1 * wdt, 10.0, 95.0)
 
 
 func dx_rec_text() -> String:
@@ -406,18 +409,18 @@ func dx_army_step() -> void:
 		for c in rv["conf"]:
 			if float(c["ctl"]) > 55.0 and String(c["side"]) == "gov":
 				target -= 6.0
-	loy += (target - loy) * 0.03
+	loy += (target - loy) * wr(0.03)
 	if loy < 40.0:
-		amb += 0.15
+		amb += 0.15 * wdt
 	else:
-		amb -= 0.05
-	amb = clampf(amb + (0.6 - democracy_index()) * 0.02, 0.0, 100.0)
+		amb -= 0.05 * wdt
+	amb = clampf(amb + (0.6 - democracy_index()) * 0.02 * wdt, 0.0, 100.0)
 	a["loy"] = clampf(loy, 0.0, 100.0)
 	a["amb"] = amb
 	if rv_on():
 		var nat: Dictionary = rv["nat"]
-		nat["coup"] = rv_clamp(float(nat["coup"]) + maxf(0.0, 45.0 - loy) * 0.04 + maxf(0.0, amb - 50.0) * 0.03)
-	if amb > 55.0 and dx_cd_get("gen") == 0 and current_event.is_empty() and not observer and randf() < 0.02:
+		nat["coup"] = rv_clamp(float(nat["coup"]) + maxf(0.0, 45.0 - loy) * 0.04 * wdt + maxf(0.0, amb - 50.0) * 0.03 * wdt)
+	if amb > 55.0 and dx_cd_get("gen") == 0 and current_event.is_empty() and not observer and randf() < wp(0.02):
 		(dx["cd"] as Dictionary)["gen"] = 24
 		rl_event("dxgen", "Генералы собрались у министра обороны и заявили: армия «устала от политиков». Они требуют больше денег и места в принятии решений.", [
 			{"l": "Удовлетворить: бюджет армии выше (капитал −2)", "fx": {"capital": -2.0, "slider": {"army": 0.15}}, "act": "dx_gen_pay"},
@@ -485,9 +488,10 @@ func dx_science_step() -> void:
 	for i in range(adj.size() - 1, -1, -1):
 		var a: Dictionary = adj[i]
 		mult *= float(a["m"])
-		a["left"] = int(a["left"]) - 1
-		if int(a["left"]) <= 0:
-			adj.remove_at(i)
+		if wmonth:
+			a["left"] = int(a["left"]) - 1
+			if int(a["left"]) <= 0:
+				adj.remove_at(i)
 	# договоры научного обмена
 	mult *= 1.0 + 0.02 * float(mini(3, int(dx.get("n_tech", 0))))
 	# совместные проекты
@@ -497,11 +501,12 @@ func dx_science_step() -> void:
 		var p: Dictionary = proj[i]
 		mult *= 1.05
 		pm += 0.6
-		debt += gdp * 0.15 / 100.0 / 24.0
-		p["left"] = int(p["left"]) - 1
-		if int(p["left"]) <= 0:
-			dx_log("совместный научный проект с «%s» завершён." % dx_name(String(p["cc"])), COL_GOOD)
-			proj.remove_at(i)
+		debt += gdp * 0.15 / 100.0 / 24.0 * wdt
+		if wmonth:
+			p["left"] = int(p["left"]) - 1
+			if int(p["left"]) <= 0:
+				dx_log("совместный научный проект с «%s» завершён." % dx_name(String(p["cc"])), COL_GOOD)
+				proj.remove_at(i)
 	tech_pas_mult = pm
 	# этика технологий замедляет исследования
 	mult *= 1.0 - 0.05 * float(int(dx["eth"]))
@@ -518,7 +523,7 @@ func dx_science_step() -> void:
 	# утечка умов: слабые институты, низкая свобода
 	if dx_cd_get("brain") == 0 and current_event.is_empty() and not observer:
 		var bad: float = maxf(0.0, 45.0 - float(rl["m"]["free"])) * 0.1 + maxf(0.0, float(rl["l"]["cor"]) - 55.0) * 0.1
-		if bad > 0.5 and randf() < 0.004 * bad:
+		if bad > 0.5 and randf() < wp(0.004 * bad):
 			(dx["cd"] as Dictionary)["brain"] = 36
 			rl_event("dxbrain", "Лучшие учёные и инженеры уезжают за границу: платят больше, а работать там спокойнее. Научные центры пустеют.", [
 				{"l": "Повысить зарплаты учёных и дать гранты (долг +0,4% ВВП)", "fx": {"debt": 0.4}, "act": "dx_brain_pay"},

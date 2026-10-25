@@ -1725,21 +1725,24 @@ func mil_score_update() -> void:
 func mil_month() -> void:
 	if not mil_on() or game_over:
 		return
-	if int(mil["dm"]) == 0:
-		for k in 30:
-			mil_day()
-			if game_over:
-				return
-	mil["dm"] = 0
+	# 0.62: сроки в целых месяцах (перемирия, санкции, учёт дней) идут только при wmonth; всё непрерывное масштабируется на wdt
+	if wmonth:
+		if int(mil["dm"]) == 0:
+			for k in 30:
+				mil_day()
+				if game_over:
+					return
+		mil["dm"] = 0
 	war_timers_month()
-	var tr: Dictionary = mil["truce"]
-	for c in tr.keys():
-		tr[c] = int(tr[c]) - 1
-		if int(tr[c]) <= 0:
-			tr.erase(c)
+	if wmonth:
+		var tr: Dictionary = mil["truce"]
+		for c in tr.keys():
+			tr[c] = int(tr[c]) - 1
+			if int(tr[c]) <= 0:
+				tr.erase(c)
 	var lf: Dictionary = mil["loss"]
 	for c in lf.keys():
-		lf[c] = minf(1.0, float(lf[c]) + 0.03)
+		lf[c] = minf(1.0, float(lf[c]) + 0.03 * wdt)
 		if float(lf[c]) >= 1.0:
 			lf.erase(c)
 	# мирное время: армия подтягивается к численности, которую оплачивает бюджет
@@ -1751,29 +1754,34 @@ func mil_month() -> void:
 			regs.append(f)
 	if not regs.is_empty() and have > cap * 1.03:
 		var k2: float = maxf(cap / have, 0.95)
+		if wdt != 1.0:
+			k2 = pow(k2, wdt)
 		for f in regs:
 			f["max"] = float(f["max"]) * k2
 			f["str"] = minf(float(f["str"]), float(f["max"]))
 	elif not regs.is_empty() and have < cap * 0.97 and (mil["rec"] as Array).is_empty():
 		var k3: float = minf(cap / maxf(have, 0.1), 1.03)
+		if wdt != 1.0:
+			k3 = pow(k3, wdt)
 		for f in regs:
 			f["max"] = minf(float(f["max"]) * k3, MIL_DIV * 1.6)
 	var q := mil_q(ccode)
 	for f in regs:
-		f["q"] = lerpf(float(f["q"]), q, 0.15)
+		f["q"] = lerpf(float(f["q"]), q, wr(0.15))
 		if not mil_at_war():
-			f["str"] = minf(float(f["max"]), float(f["str"]) + float(f["max"]) * 0.05)
+			f["str"] = minf(float(f["max"]), float(f["str"]) + float(f["max"]) * 0.05 * wdt)
 			f["org"] = 1.0
 	# содержание резервистов
 	var mk := mil_mob_k()
 	if mk > 0.0:
-		debt += mk * 0.006
-		add_support("Молодёжь", -0.4 * float(mil["mob"]))
+		debt += mk * 0.006 * wdt
+		add_support("Молодёжь", -0.4 * float(mil["mob"]) * wdt)
 	if mil_at_war():
 		mil_war_month()
 	else:
 		mil_fix_positions()
-		mil_ai_declare()
+		if wmonth:
+			mil_ai_declare()      # 0.62: дорогая оценка соседей и решение «объявить войну» — раз в месяц (вероятность месячная)
 	ar_month()
 
 
@@ -1782,28 +1790,28 @@ func mil_war_month() -> void:
 	var months: float = float(w["days"]) / 30.0
 	if bool(w.get("ongoing", false)):
 		# v50: расходы на идущую войну уже в бюджете (ползунок обороны) — в долг идёт только сверх стартовой армии
-		debt += maxf(0.0, mil_total(ccode) - float((w["str0"] as Dictionary).get(ccode, 0.0))) * 0.004
+		debt += maxf(0.0, mil_total(ccode) - float((w["str0"] as Dictionary).get(ccode, 0.0))) * 0.004 * wdt
 	else:
-		debt += gdp * 0.0025 + mil_total(ccode) * 0.004
+		debt += (gdp * 0.0025 + mil_total(ccode) * 0.004) * wdt
 	var op: float = float(w["occ"][0])
 	# в демократии затяжная наступательная война бьёт по рейтингу сильнее
 	var dk: float = 1.0 + (0.6 * war_demo(ccode) * war_demo(String(w["lead"])) if bool(w["aggr"]) else 0.0)
-	add_support("Молодёжь", (-0.8 - op * 6.0) * dk)
-	add_support("Пенсионеры", -0.4 - op * 4.0)
-	add_support("Рабочие", -0.4 - op * 4.0)
-	add_support("Экологи", -0.5)
+	add_support("Молодёжь", (-0.8 - op * 6.0) * dk * wdt)
+	add_support("Пенсионеры", (-0.4 - op * 4.0) * wdt)
+	add_support("Рабочие", (-0.4 - op * 4.0) * wdt)
+	add_support("Экологи", -0.5 * wdt)
 	if bool(w["aggr"]):
-		add_support("Бизнес", -0.5 * dk)
-		add_support("Пенсионеры", -0.3 * (dk - 1.0))
+		add_support("Бизнес", -0.5 * dk * wdt)
+		add_support("Пенсионеры", -0.3 * (dk - 1.0) * wdt)
 	if float(w["score"]) > 10.0:
-		add_support("Силовики", 0.8)
+		add_support("Силовики", 0.8 * wdt)
 	elif float(w["score"]) < -10.0:
-		add_support("Силовики", -0.8)
+		add_support("Силовики", -0.8 * wdt)
 	# экономика противника
 	for c in w["side"]:
 		if int(w["side"][c]) == 1 and wsim.has(c):
 			var ws: Dictionary = wsim[c]
-			ws["growth"] = float(ws["growth"]) - 0.5 - float(w["occ"][1]) * 6.0 - (0.4 if bool(w["blk_e"]) else 0.0)
+			ws["growth"] = float(ws["growth"]) - 0.5 * wdt - float(w["occ"][1]) * 6.0 * wdt - (0.4 if bool(w["blk_e"]) else 0.0) * wdt
 	# противник объявляет мобилизацию, если проигрывает
 	# (в войне, идущей с начала игры, противник уже мобилизовался — новая волна только при тяжёлых неудачах)
 	var mob_need: bool = float(w["score"]) > 25.0 if bool(w.get("ongoing", false)) else (float(w["score"]) > 15.0 or months > 2.0)

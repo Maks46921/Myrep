@@ -11,6 +11,11 @@ func ind_cat_term(cat: String) -> float:
 # --- конец заглушек ---
 
 
+# 0.62: множитель затухания за шаг, если за месяц он k (x *= wdec(k)); при wdt == 1.0 возвращает k без изменений
+func wdec(k: float) -> float:
+	return k if wdt == 1.0 else pow(k, wdt)
+
+
 func good_def(id: String) -> Dictionary:
 	for g in GOODS:
 		if g["id"] == id:
@@ -91,6 +96,10 @@ func goods_prices() -> void:
 	var gap: float = float(ec["real_gap"])
 	var vat_r: float = float(pol["vat"]) / maxf(0.01, float(pol_def["vat"])) - 1.0
 	var gp: Dictionary = ec["gp"]
+	# 0.62: недельный шаг: сближение и затухание шоков по доле месяца, шум по корню из неё, годовая история цен только при закрытии месяца
+	var k_gp: float = rt(0.2, wdt)
+	var k_sh: float = wdec(0.9)
+	var sq: float = 1.0 if wdt == 1.0 else sqrt(wdt)
 	for g in GOODS:
 		var id: String = g["id"]
 		var pm: float = float((mk[g["mk"]] as Dictionary)["p"])
@@ -100,14 +109,15 @@ func goods_prices() -> void:
 		if id == "housing":
 			t += 0.5 * (float((mk["con"] as Dictionary)["p"]) - float((mk["srv"] as Dictionary)["p"])) - 0.02 * gap
 		t += float(ec["gsh"][id]) + float(g["dr"]) * years_passed() + ind_cat_term(id)
-		ec["gsh"][id] = float(ec["gsh"][id]) + randf_range(-0.005, 0.005) * float(game_opts["volat"])
+		ec["gsh"][id] = float(ec["gsh"][id]) + randf_range(-0.005, 0.005) * float(game_opts["volat"]) * sq
 		t -= float(ec["cpi_s"]) * 0.4
-		gp[id] = clampf(float(gp[id]) + (t - float(gp[id])) * 0.2, 0.5, 2.5)
-		ec["gsh"][id] = float(ec["gsh"][id]) * 0.9
-		var h: Array = ec["gh"][id]
-		h.append(float(gp[id]))
-		if h.size() > 14:
-			h.pop_front()
+		gp[id] = clampf(float(gp[id]) + (t - float(gp[id])) * k_gp, 0.5, 2.5)
+		ec["gsh"][id] = float(ec["gsh"][id]) * k_sh
+		if wmonth:
+			var h: Array = ec["gh"][id]
+			h.append(float(gp[id]))
+			if h.size() > 14:
+				h.pop_front()
 
 
 func goods_shock(id: String, v: float) -> void:

@@ -21,15 +21,19 @@ const REG_SKIN := {
 	"oneparty": {"acc": Color(0.90, 0.30, 0.22), "bg": Color(0.080, 0.042, 0.036), "border": Color(0.36, 0.16, 0.12), "emb": "star", "gold": Color(0.98, 0.80, 0.30)},
 	"monarchy_abs": {"acc": Color(0.84, 0.68, 0.32), "bg": Color(0.066, 0.046, 0.086), "border": Color(0.30, 0.22, 0.36), "emb": "crown", "gold": Color(0.95, 0.82, 0.45)},
 	"theocracy": {"acc": Color(0.32, 0.74, 0.48), "bg": Color(0.040, 0.070, 0.055), "border": Color(0.15, 0.30, 0.22), "emb": "faith", "gold": Color(0.90, 0.85, 0.55)},
+	"technocracy": {"acc": Color(0.36, 0.72, 0.84), "bg": Color(0.040, 0.062, 0.078), "border": Color(0.15, 0.27, 0.34), "emb": "gauge", "gold": Color(0.80, 0.90, 0.95)},
+	"oligarchy": {"acc": Color(0.80, 0.70, 0.30), "bg": Color(0.062, 0.058, 0.036), "border": Color(0.30, 0.27, 0.13), "emb": "coin", "gold": Color(0.96, 0.86, 0.45)},
+	"collective": {"acc": Color(0.84, 0.40, 0.34), "bg": Color(0.068, 0.044, 0.048), "border": Color(0.30, 0.17, 0.18), "emb": "hall", "gold": Color(0.94, 0.78, 0.50)},
+	"transitional": {"acc": Color(0.62, 0.66, 0.84), "bg": Color(0.050, 0.054, 0.076), "border": Color(0.20, 0.22, 0.34), "emb": "scroll", "gold": Color(0.84, 0.86, 0.96)},
 }
 const REG_POL_DESKS := [1, 3, 4, 6, 11, 12]
 const REG_HIDE_AUTH := ["parliament", "parties", "party", "polls", "opp", "pacts", "neg"]
 const REG_HIDE_HYB := ["party", "polls"]
 const REG_WINS_HYB := ["reg_vert", "reg_tools", "reg_mood", "reg_dec"]
-const REG_TOOL_GROUPS := [["Страх и репрессии", ["arrests", "amnesty", "censor", "pol_up", "pol_dn", "pris_swap"]], ["Пропаганда и культ", ["prop_up", "prop_dn", "cult", "decult", "media_reg", "youth_org"]],
+const REG_TOOL_GROUPS := [["Страх и репрессии", ["arrests", "show_trial", "amnesty", "censor", "pol_up", "pol_dn", "pris_swap"]], ["Пропаганда и культ", ["prop_up", "prop_dn", "cult", "decult", "media_reg", "youth_org", "rally", "enemy", "rel_ban"]],
 	["Выборы", ["fraud_up", "fraud_dn", "referendum", "turn_up", "turn_dn", "stage_on", "stage_off"]],
 	["Экономика, границы и мир", ["bm_raid", "bm_legal", "brain_ret", "borders_open", "evade", "patron_east", "patron_gulf", "patron_bloc", "patron_drop"]],
-	["Будущее режима", ["succ", "succ_train", "succ_swap", "promise", "plenum_c", "plenum_r", "fatwa", "lib", "constitution", "roundtable"]]]
+	["Будущее режима", ["succ", "succ_train", "succ_swap", "promise", "plenum_c", "plenum_r", "fatwa", "lib", "constitution", "roundtable", "tr_elect", "tr_extend"]]]
 
 var ui_reg_cls := ""
 var rg_head: Control = null
@@ -70,6 +74,13 @@ func reg_acc() -> Color:
 
 # ---------- окна ----------
 func build_regime_windows() -> void:
+	# 0.60: окна строятся заново (например после загрузки) — прежние строки кланов и флажки организаций уже уничтожены
+	ui_reg_cls = ""
+	rg_clan_cls = ""
+	rg_clan_rows.clear()
+	rg_und_rows.clear()
+	dec_orgs_sig = ""
+	dec_orgs.clear()
 	var w: FloatWindow = new_window("reg_vert", "Вертикаль власти", 1, Rect2(0.0, 0.0, 0.28, 0.60))
 	rg_head = Control.new()
 	rg_head.custom_minimum_size = Vector2(0.0, 64.0)
@@ -134,6 +145,7 @@ func build_regime_windows() -> void:
 		b2.pressed.connect(reg_do.bind(id))
 		rg_repr_btns[id] = b2
 	build_dec_window()
+	build_uq_window()
 	for id in ["reg_vert", "reg_tools", "reg_mood", "reg_facade", "reg_repr", "reg_dec"]:
 		(wins[id] as FloatWindow).visible = false
 
@@ -147,6 +159,11 @@ func reg_do(id: String) -> void:
 
 
 func win_mode_ok(id: String) -> bool:
+	# 0.63: при выключенном финансовом модуле на вкладке «Финансы» остаётся только сводка (с одной строкой)
+	if id.begins_with("fn_") and id != "fn_sum" and not fin_on():
+		return false
+	if id == "uq_win":
+		return not uq_def().is_empty()
 	var cls := ui_reg_cls
 	if cls == "" or cls == "dem":
 		return not id.begins_with("reg_")
@@ -384,6 +401,7 @@ func reg_build_rows() -> void:
 
 
 func update_regime_windows() -> void:
+	uq_ui_update()
 	if ui_reg_cls == "" or ui_reg_cls == "dem" or au.is_empty():
 		return
 	reg_build_rows()
@@ -442,6 +460,10 @@ func update_regime_windows() -> void:
 		(rg_und_rows[uid] as Control).queue_redraw()
 	# настроения
 	var t := ""
+	var vt: Dictionary = reg60_var()
+	if not vt.is_empty():
+		t += "[b]%s.[/b] %s\n%s" % [String(vt["n"]), String(vt["d"]), reg60_effect_text(vt)]
+		t += "[color=%s]Правящая сила: %s. Образцы: %s. Цены рычагов у этого варианта свои (см. подсказки кнопок).[/color]\n\n" % [COL_DIM, String(vt.get("party", "—")), String(vt.get("real", "—"))]
 	var real := approval()
 	var off := au_official_approval()
 	t += "Официальный рейтинг: [b]%.0f%%[/b] · на самом деле: [b]%.0f%%[/b]\n" % [off, real]
@@ -454,6 +476,9 @@ func update_regime_windows() -> void:
 	t += "Политзаключённых: [b]%d[/b] · цензура: %s\n" % [int(au["pris"]), "есть" if bool(au.get("censor", false)) else "нет"]
 	if au_lib():
 		t += "[color=%s]Идёт оттепель (ещё %s): подполье смелее, реформаторы на подъёме.[/color]\n" % [COL_WARN, months_text(24 - (turn - int(au["lib_t"])))]
+	if ui_reg_cls == "transitional":
+		var trl: int = int(au.get("tr_end", turn)) - turn
+		t += ("[color=%s]До конца срока переходного правительства: %s.[/color]\n" % [COL_WARN, months_text(trl)]) if trl > 0 else ("[color=%s]Срок истёк: нужно решение — выборы или продление.[/color]\n" % COL_BAD)
 	if ui_reg_cls == "junta" and int(au.get("promise", -1)) > 0:
 		var left: int = int(au["promise"]) - turn
 		t += ("[color=%s]Обещание передать власть гражданским: осталось %s.[/color]\n" % [COL_WARN, months_text(left)]) if left > 0 else ("[color=%s]Обещание нарушено — недовольство растёт.[/color]\n" % COL_BAD)
@@ -492,12 +517,19 @@ func reg_draw_head() -> void:
 	reg_emblem(c, ui_reg_cls, Vector2(32.0, sz.y * 0.5), 26.0, acc)
 	var f: Font = c.get_theme_default_font()
 	# v54_1: длинное название режима (особенно по-английски) уменьшает шрифт, а не обрезается
-	var cnm: String = au_class_name().to_upper()
+	var vt: Dictionary = reg60_var()
+	var cnm: String = (String(vt["n"]) if not vt.is_empty() else au_class_name()).to_upper()
 	var cfs := 18
 	while cfs > 11 and f.get_string_size(cnm, HORIZONTAL_ALIGNMENT_LEFT, -1, cfs).x > sz.x - 72.0:
 		cfs -= 1
 	c.draw_string(f, Vector2(68.0, 26.0), cnm, HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, cfs, sk["gold"])
-	c.draw_string(f, Vector2(68.0, 46.0), String(AU_CLASS_MOTTO.get(ui_reg_cls, "")), HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, 11, Color(0.80, 0.82, 0.88))
+	var sub: String = String(AU_CLASS_MOTTO.get(ui_reg_cls, ""))
+	if not vt.is_empty():
+		var mo: String = String(vt.get("mo", sub))
+		sub = "%s · «%s»" % [au_class_name(), mo]
+		if f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x > sz.x - 72.0:
+			sub = "«%s»" % mo
+	c.draw_string(f, Vector2(68.0, 46.0), sub, HORIZONTAL_ALIGNMENT_LEFT, sz.x - 72.0, 11, Color(0.80, 0.82, 0.88))
 
 
 func reg_loy_col(loy: float) -> Color:
@@ -828,3 +860,131 @@ func dec_sign() -> void:
 	else:
 		sfx("bad")
 	dec_update()
+
+
+# ---------- 0.60: окно «Особый строй» (работает и в демократиях) ----------
+var uq_box: VBoxContainer = null
+var uq_sig := ""
+
+
+func build_uq_window() -> void:
+	var w: FloatWindow = new_window("uq_win", "Особый строй", 1, Rect2(0.12, 0.02, 0.52, 0.92))
+	uq_box = VBoxContainer.new()
+	uq_box.add_theme_constant_override("separation", 6)
+	uq_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	w.body.add_child(uq_box)
+	w.closed = true
+	w.visible = false
+
+
+func uq_ui_open() -> void:
+	if not wins.has("uq_win"):
+		return
+	var w: FloatWindow = wins["uq_win"]
+	w.closed = false
+	uq_sig = ""
+	show_desk(1)
+	w.move_to_front()
+	uq_ui_update()
+
+
+func uq_ui_update() -> void:
+	if uq_box == null or not wins.has("uq_win") or uq.is_empty():
+		return
+	var d := uq_def()
+	if d.is_empty():
+		return
+	var w: FloatWindow = wins["uq_win"]
+	if w.closed:
+		return
+	var sig := "%s|%s|%s|%d|%d|%d|%d" % [str(uq.get("on")), str(uq.get("stage")), str(uq.get("m")), int(capital), int(float(uq.get("fund", 0.0))), turn, int(game_over)]
+	if sig == uq_sig:
+		return
+	uq_sig = sig
+	for c in uq_box.get_children():
+		c.queue_free()
+	if not uq_on():
+		uq_fill_teaser(d)
+	else:
+		uq_fill_active(d)
+
+
+func uq_rt_add(bb: String) -> RichTextLabel:
+	var rt := make_rt(uq_box)
+	rt.text = bb
+	return rt
+
+
+func uq_fill_teaser(d: Dictionary) -> void:
+	add_title(uq_box, "У страны возможен особый путь: «%s»" % String(d["n"]))
+	uq_rt_add("[i]%s[/i]\n\n%s" % [String(d["mo"]), String(d["d"])])
+	var stg := int(uq.get("stage", 0))
+	uq_rt_add("[color=%s]Включить строй кнопкой нельзя. К нему ведёт цепочка из трёх событий; они начинаются, когда в стране складываются условия, и каждое можно отложить или отвергнуть. Пройдено этапов: %d из 3.[/color]" % [COL_DIM, stg])
+	if d.has("hist"):
+		uq_rt_add("[color=%s]Историческая опора: %s[/color]" % [COL_DIM, String(d["hist"])])
+	var mt := PackedStringArray()
+	for id in d["mech"]:
+		mt.append(String(uq_mech_def(String(id))["n"]))
+	uq_rt_add("[b]Механики строя:[/b] %s." % ", ".join(mt))
+
+
+func uq_fill_active(d: Dictionary) -> void:
+	add_title(uq_box, "%s" % String(d["n"]))
+	uq_rt_add("[i]%s[/i]\n\n%s\n%s" % [String(d["mo"]), String(d["d"]), uq_effect_text(d["m"])])
+	if d.has("hist"):
+		uq_rt_add("[color=%s]Историческая опора: %s[/color]" % [COL_DIM, String(d["hist"])])
+	var mv: Dictionary = uq["m"]
+	for id in d["mech"]:
+		var mid := String(id)
+		var md: Dictionary = uq_mech_def(mid)
+		var val := float(mv.get(mid, 0.0))
+		add_title(uq_box, "%s: %.0f из 100" % [String(md["n"]), val])
+		var bar := ProgressBar.new()
+		bar.min_value = 0.0
+		bar.max_value = 100.0
+		bar.value = val
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0.0, 10.0)
+		uq_box.add_child(bar)
+		uq_rt_add("%s\n%s[color=%s]%s[/color]" % [String(md["d"]), uq_effect_text(md["m"], val / 100.0), COL_DIM, String(md["h"])])
+		if mid == "fund":
+			uq_rt_add("[b]Фонд сейчас:[/b] %.1f млрд €." % float(uq.get("fund", 0.0)))
+		for b in md["b"]:
+			var bid := "%s:%s" % [mid, String(b["id"])]
+			var why := uq_act_check(bid)
+			var btn := make_button("%s  ·  %.0f кап." % [String(b["l"]), float(b["cost"])], uq_box)
+			btn.theme_type_variation = "SmallButton"
+			btn.tooltip_text = String(b["tip"]) + ("\nСейчас нельзя: %s." % why if why != "" else "")
+			btn.disabled = why != "" or game_over
+			btn.pressed.connect(uq_ui_do.bind(bid))
+	add_title(uq_box, "Что думают другие страны")
+	var lines := PackedStringArray()
+	for cc in (d["w"].get("dip", {}) as Dictionary):
+		if dip.has(cc) and WORLD.has(cc):
+			lines.append("%s: отношения %.0f" % [String(WORLD[cc]["name"]), float(dip[cc]["rel"])])
+	if lines.is_empty():
+		lines.append("отношения с соседями сохраняются.")
+	if turn < int((uq["sanc"] as Array)[1]):
+		lines.append("торговые ограничения действуют ещё %d мес. (рост медленнее на %.2f п.п.)" % [int((uq["sanc"] as Array)[1]) - turn, float((uq["sanc"] as Array)[0])])
+	uq_rt_add("; ".join(lines) + ".")
+	var ab := make_button("Отказаться от особого строя  ·  6 кап.", uq_box)
+	ab.theme_type_variation = "SmallButton"
+	ab.tooltip_text = "Прежний порядок будет восстановлен; вернуться к этому пути можно не раньше, чем через пять лет."
+	ab.disabled = cap_spendable() < 6.0 or game_over
+	ab.pressed.connect(uq_ui_abandon)
+
+
+func uq_ui_do(id: String) -> void:
+	if uq_act(id):
+		sfx("good")
+	else:
+		sfx("bad")
+	uq_sig = ""
+	refresh()
+
+
+func uq_ui_abandon() -> void:
+	if uq_abandon():
+		sfx("good")
+	uq_sig = ""
+	refresh()

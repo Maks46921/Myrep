@@ -40,7 +40,12 @@ func _init():
 	g._process(1.0)
 	check(g.day_total > dt0, "на скорости дни идут (%d → %d)" % [dt0, g.day_total])
 	g.set_speed(0)
-	g.advance_month()
+	for tries in 4:      # 0.62: по пути может открыться окно (воскресные выборы, среда с голосованием): закрываем и идём дальше
+		if g.election_open: g.election_continue()
+		g.current_event = {}
+		g.advance_month()
+		if g.day == 1:
+			break
 	check(g.day == 1, "«Месяц» доводит до 1-го числа")
 	print("t_time: проблем ", bad)
 	m.free()

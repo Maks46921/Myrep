@@ -53,7 +53,12 @@ const AU_NEW_NAMES := ["Великая Республика", "Народная 
 func au2_def(id: String) -> Array:
 	for a in AU2_ACTS:
 		if String(a[0]) == id:
-			return a
+			var mu: float = reg60_tool_mult(id)
+			if mu == 1.0:
+				return a
+			var cp: Array = (a as Array).duplicate()
+			cp[2] = float(cp[2]) * mu
+			return cp
 	return []
 
 
@@ -375,6 +380,8 @@ func au2_check(id: String) -> String:
 	if not au_on():
 		return "при демократии эти рычаги недоступны"
 	var a := au2_def(id)
+	if reg60_tool_mult(id) <= 0.0:
+		return "при этом варианте режима недоступно"
 	var cls_req: String = String(a[4])
 	if cls_req != "" and not (String(au["cls"]) in cls_req.split(",")):
 		return "только для режима: %s" % ", ".join(Array(cls_req.split(",")).map(func(c: String) -> String: return au_class_name(c)))

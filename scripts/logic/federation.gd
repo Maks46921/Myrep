@@ -555,38 +555,42 @@ func fed_admit(i: int) -> bool:
 
 
 func fed_month() -> void:
-	for k in (fst["cd"] as Dictionary).keys():
-		(fst["cd"] as Dictionary)[k] = int((fst["cd"] as Dictionary)[k]) - 1
-		if int((fst["cd"] as Dictionary)[k]) <= 0:
-			(fst["cd"] as Dictionary).erase(k)
+	# 0.62: кулдауны, возраст требований и «since» считаются в целых месяцах (только при wmonth); отношения и вероятность требований — по неделям
+	if wmonth:
+		for k in (fst["cd"] as Dictionary).keys():
+			(fst["cd"] as Dictionary)[k] = int((fst["cd"] as Dictionary)[k]) - 1
+			if int((fst["cd"] as Dictionary)[k]) <= 0:
+				(fst["cd"] as Dictionary).erase(k)
 	for k in (fst["rel_x"] as Dictionary).keys():
-		(fst["rel_x"] as Dictionary)[k] = float((fst["rel_x"] as Dictionary)[k]) * 0.99
-	for k in (fst["terr_cd"] as Dictionary).keys():
-		(fst["terr_cd"] as Dictionary)[k] = int((fst["terr_cd"] as Dictionary)[k]) - 1
-		if int((fst["terr_cd"] as Dictionary)[k]) <= 0:
-			(fst["terr_cd"] as Dictionary).erase(k)
-	for i in regions.size():
-		if int(regions[i].get("since", 999)) < 999:
-			regions[i]["since"] = int(regions[i]["since"]) + 1
+		(fst["rel_x"] as Dictionary)[k] = float((fst["rel_x"] as Dictionary)[k]) * (0.99 if wdt == 1.0 else pow(0.99, wdt))
+	if wmonth:
+		for k in (fst["terr_cd"] as Dictionary).keys():
+			(fst["terr_cd"] as Dictionary)[k] = int((fst["terr_cd"] as Dictionary)[k]) - 1
+			if int((fst["terr_cd"] as Dictionary)[k]) <= 0:
+				(fst["terr_cd"] as Dictionary).erase(k)
+		for i in regions.size():
+			if int(regions[i].get("since", 999)) < 999:
+				regions[i]["since"] = int(regions[i]["since"]) + 1
 	var evs: int = int(game_opts.get("fedev", 1))
 	if evs == 0:
 		return
 	# уже поданные требования: через 6 месяцев без ответа — отказ
-	var keep: Array = []
-	for dm in fst["demand"]:
-		dm["age"] = int(dm["age"]) + 1
-		if int(dm["age"]) > 6:
-			fed_demand_decide(dm, false, true)
-		else:
-			keep.append(dm)
-	fst["demand"] = keep
+	if wmonth:
+		var keep: Array = []
+		for dm in fst["demand"]:
+			dm["age"] = int(dm["age"]) + 1
+			if int(dm["age"]) > 6:
+				fed_demand_decide(dm, false, true)
+			else:
+				keep.append(dm)
+		fst["demand"] = keep
 	for i in regions.size():
 		var r: Dictionary = regions[i]
 		if bool(r["terr"]) or not r.has("comp") or int(r["status"]) >= 2:
 			continue
 		if float(r["unrest"]) < 42.0 or float(r["loy"]) > 46.0 or fed_cd_get("dem%d" % i) > 0 or fed_demand_of(i) >= 0:
 			continue
-		if fed_rng.randf() > 0.12 * (0.5 + float(REGIONS[i].get("reg", 0.3))):
+		if fed_rng.randf() > wp(0.12 * (0.5 + float(REGIONS[i].get("reg", 0.3)))):
 			continue
 		var d := {"uid": String(REGIONS[i]["uid"]), "age": 0, "kind": "", "s": -1}
 		if int(r["status"]) == 0 and fed_rng.randf() < 0.4:

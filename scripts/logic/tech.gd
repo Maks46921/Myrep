@@ -479,36 +479,38 @@ func tech_count() -> int:
 func tech_month() -> void:
 	if tech.is_empty():
 		return
-	# стройка
-	var q: Array = tech["q"]
-	for i in range(q.size() - 1, -1, -1):
-		q[i]["left"] = int(q[i]["left"]) - 1
-		if int(q[i]["left"]) <= 0:
-			var bd := tech_bdef(String(q[i]["id"]))
-			tech["bld"][q[i]["id"]] = int(tech["bld"][q[i]["id"]]) + 1
-			log_tag("НАУКА", COL_GOOD, "%s: построено — «%s». Исследования идут быстрее, технологии сильнее." % [date_text(), bd["name"]])
-			q.remove_at(i)
-	# выбор исследований
-	for b in TECH_NB:
-		var c: String = tech["cur"][b]
-		if c != "" and (tech_done(c) or not tech_avail(c)):
-			tech["cur"][b] = ""
-		if String(tech["cur"][b]) == "" and not opp_mode:
-			tech["cur"][b] = tech_q_next(b)
-		if String(tech["cur"][b]) == "" and (bool(tech["auto"]) or opp_mode):
-			tech["cur"][b] = tech_ai_pick(b, false)
-			if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
-				# выбор «или»: ИИ-советник решает сразу, если разрешено (или партией управляет ИИ), иначе ждёт вашего решения полгода
-				tech["wait"][b] = int(tech["wait"][b]) + 1
-				if int(tech["wait"][b]) >= TECH_WAIT_MONTHS or observer or opp_mode or bool(tech["ai_all"]):
-					var pick := tech_ai_pick(b, true)
-					tech["cur"][b] = pick
+	# 0.62: стройка (сроки в целых месяцах), выбор исследований и ожидание выбора — только при закрытии месяца; очки идут понедельно
+	if wmonth:
+		# стройка
+		var q: Array = tech["q"]
+		for i in range(q.size() - 1, -1, -1):
+			q[i]["left"] = int(q[i]["left"]) - 1
+			if int(q[i]["left"]) <= 0:
+				var bd := tech_bdef(String(q[i]["id"]))
+				tech["bld"][q[i]["id"]] = int(tech["bld"][q[i]["id"]]) + 1
+				log_tag("НАУКА", COL_GOOD, "%s: построено — «%s». Исследования идут быстрее, технологии сильнее." % [date_text(), bd["name"]])
+				q.remove_at(i)
+		# выбор исследований
+		for b in TECH_NB:
+			var c: String = tech["cur"][b]
+			if c != "" and (tech_done(c) or not tech_avail(c)):
+				tech["cur"][b] = ""
+			if String(tech["cur"][b]) == "" and not opp_mode:
+				tech["cur"][b] = tech_q_next(b)
+			if String(tech["cur"][b]) == "" and (bool(tech["auto"]) or opp_mode):
+				tech["cur"][b] = tech_ai_pick(b, false)
+				if String(tech["cur"][b]) == "" and tech_choice_waiting(b):
+					# выбор «или»: ИИ-советник решает сразу, если разрешено (или партией управляет ИИ), иначе ждёт вашего решения полгода
+					tech["wait"][b] = int(tech["wait"][b]) + 1
+					if int(tech["wait"][b]) >= TECH_WAIT_MONTHS or observer or opp_mode or bool(tech["ai_all"]):
+						var pick := tech_ai_pick(b, true)
+						tech["cur"][b] = pick
+						tech["wait"][b] = 0
+						if pick != "":
+							var why := tech_score_text(pick, tech_needs_player())
+							log_tag("НАУКА", COL_DIM, "%s: ИИ-советник выбрал «%s» (ветка «%s»)%s." % [date_text(), tech_def(pick)["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), (": " + why) if why != "" else ""])
+				else:
 					tech["wait"][b] = 0
-					if pick != "":
-						var why := tech_score_text(pick, tech_needs_player())
-						log_tag("НАУКА", COL_DIM, "%s: ИИ-советник выбрал «%s» (ветка «%s»)%s." % [date_text(), tech_def(pick)["name"], String(TECH_BRANCHES[b]["name"]).to_lower(), (": " + why) if why != "" else ""])
-			else:
-				tech["wait"][b] = 0
 	tech_refresh_rates()
 	var spd: float = tech["speed"]
 	var wsum := 0.0
@@ -519,7 +521,7 @@ func tech_month() -> void:
 		for b in TECH_NB:
 			if float(tech["w"][b]) <= 0.0:
 				continue
-			var add: float = spd * float(tech["w"][b]) / wsum
+			var add: float = spd * float(tech["w"][b]) / wsum * wdt
 			tech["pts"] = float(tech["pts"]) + add
 			var id: String = tech["cur"][b]
 			if id == "":
@@ -530,9 +532,9 @@ func tech_month() -> void:
 			var pas := 0.0
 			var room: float = TECH_PASSIVE_CAP * float(d["cost"]) - float(tech["pas"].get(id, 0.0))
 			if room > 0.0:
-				pas = minf(tech_passive_rate(id), room)
+				pas = minf(tech_passive_rate(id) * wdt, room)
 				tech["pas"][id] = float(tech["pas"].get(id, 0.0)) + pas
-			tech["pasm"][b] = pas
+			tech["pasm"][b] = pas / maxf(wdt, 0.05)     # для окна технологий — очков в месяц
 			var pg: float = float(tech["prog"].get(id, 0.0)) + add + pas + float(tech["bank"][b])
 			tech["bank"][b] = 0.0
 			if pg >= float(d["cost"]):
@@ -553,11 +555,12 @@ func tech_month() -> void:
 						log_tag("НАУКА", COL_WARN, "В ветке «%s» открыт выбор «или»: можно изучить только одну технологию. Выберите в окне технологий, иначе ИИ-советник выберет сам через %d мес." % [String(TECH_BRANCHES[b]["name"]).to_lower(), TECH_WAIT_MONTHS])
 			else:
 				tech["prog"][id] = pg
-	var h: Dictionary = tech["h"]
-	for k in ["s", "c", "r"]:
-		(h[k] as Array).append(float(tech[{"s": "speed", "c": "cap", "r": "raw"}[k]]))
-		if (h[k] as Array).size() > 240:
-			(h[k] as Array).pop_front()
+	if wmonth:
+		var h: Dictionary = tech["h"]
+		for k in ["s", "c", "r"]:
+			(h[k] as Array).append(float(tech[{"s": "speed", "c": "cap", "r": "raw"}[k]]))
+			if (h[k] as Array).size() > 240:
+				(h[k] as Array).pop_front()
 
 
 func tech_fx_text(d: Dictionary) -> String:

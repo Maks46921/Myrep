@@ -152,6 +152,13 @@ func _init():
 		var occ: Array = m.mil_occupied_by_us(foe)
 		var debt0: float = m.debt
 		var pr2: Dictionary = m.talk_propose()
+		for att in 4:      # принятие вероятностное (p = 0.95): при редком отказе повторяем
+			if bool(pr2["done"]):
+				break
+			if not m.current_event.is_empty():
+				m.choose(0)
+			m.mil["war"]["prop_cd"] = 0
+			pr2 = m.talk_propose()
 		print(pr2["msg"])
 		check(bool(pr2["done"]) and not m.mil_at_war(), "мир на условиях игрока: " + String(pr2["msg"]))
 		check(m.debt < debt0, "репарации уменьшили долг")

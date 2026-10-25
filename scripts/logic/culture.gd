@@ -375,11 +375,13 @@ func cu_party_cult(p: int) -> String:
 func cult_month() -> void:
 	if not cu_on():
 		return
-	var cd: Dictionary = cu["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
+	# 0.62: кулдауны и история — в целых месяцах (только при закрытии месяца); сближения и приросты — на долю месяца wdt
+	if wmonth:
+		var cd: Dictionary = cu["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
 	var dyn := soc_dyn()
 	var p: Dictionary = cu["pol"]
 	var course_f: float = [1.8, 1.0, 0.45][int(p["course"])]
@@ -409,7 +411,7 @@ func cult_month() -> void:
 					elif cu_is_mig(cid):
 						a *= 0.5 + 0.6 * integ
 					a *= 1.0 - 0.5 * cu_griev(cid, i)
-					var f: float = s * a / 12.0
+					var f: float = s * a / 12.0 * wdt
 					v[k] = s - f
 					moved += f
 				v[tt] = float(v.get(tt, 0.0)) + moved
@@ -420,25 +422,26 @@ func cult_month() -> void:
 				favg += float(v[k]) * float(cu_def(String(k))["fert"])
 			for k in v.keys():
 				var s2: float = float(v[k])
-				v[k] = maxf(0.0, s2 + s2 * (float(cu_def(String(k))["fert"]) - favg) * 0.004 / 12.0)
+				v[k] = maxf(0.0, s2 + s2 * (float(cu_def(String(k))["fert"]) - favg) * 0.004 / 12.0 * wdt)
 			cu_norm(v)
-			r["cuh"] = maxf(0.0, float(r["cuh"]) * 0.97)
+			r["cuh"] = maxf(0.0, float(r["cuh"]) * (0.97 if wdt == 1.0 else pow(0.97, wdt)))
 		var tg := cu_target_t(i)
-		r["cut"] = clampf(float(r["cut"]) + (tg - float(r["cut"])) * mrate(0.45), 0.0, 100.0)
+		r["cut"] = clampf(float(r["cut"]) + (tg - float(r["cut"])) * wr(mrate(0.45)), 0.0, 100.0)
 	cu["tension"] = cu_nat_tension()
-	var hh: Dictionary = cu["h"]
-	(hh["t"] as Array).append(float(cu["tension"]))
-	(hh["m"] as Array).append(1.0 - cu_tit_share())
-	for hk in ["t", "m"]:
-		if (hh[hk] as Array).size() > 144:
-			(hh[hk] as Array).pop_front()
+	if wmonth:
+		var hh: Dictionary = cu["h"]
+		(hh["t"] as Array).append(float(cu["tension"]))
+		(hh["m"] as Array).append(1.0 - cu_tit_share())
+		for hk in ["t", "m"]:
+			if (hh[hk] as Array).size() > 144:
+				(hh[hk] as Array).pop_front()
 	cu_kin_month(dyn)
 	cu_dia_month()
 	# расходы на поддержку культур (сверх стартового уровня)
 	var cost: float = (float(p["fund"]) - float(cu["pol0"]["fund"])) * 0.0004 * maxf(0.2, 1.0 - cu_tit_share()) * 3.0
 	cost += float((cu["dia"] as Dictionary).get("lvl", 0)) * 0.0002
 	if cost != 0.0:
-		debt += gdp * cost / 12.0
+		debt += gdp * cost / 12.0 * wdt
 	if dyn:
 		cu_events()
 
@@ -517,17 +520,17 @@ func cu_kin_month(dyn: bool) -> void:
 		# отношения с родной страной следуют за политикой к её народу (отклонение от старта)
 		var tgt: float = -26.0 * minf(1.0, s * 18.0) * cu_dr() - 0.25 * float((cu["hate"] as Dictionary).get(cid, 0.0))
 		tgt += 4.0 * (float(cu["pol"]["fund"]) - float(cu["pol0"]["fund"])) * minf(1.0, s * 18.0)
-		var step: float = (tgt - float(e["d"])) * 0.08
-		if absf(step) > 0.0005:
+		var step: float = (tgt - float(e["d"])) * wr(0.08)
+		if absf(step) > 0.0005 * wdt:
 			e["d"] = float(e["d"]) + step
 			ex_rel_change(h, step)
 		if dyn:
 			# недружественная родная страна агитирует меньшинство (особенно крупное)
 			var rel: float = fed_rel(h)
 			var at: float = clampf((40.0 - rel) * 1.6, 0.0, 70.0) * minf(1.0, s * 10.0)
-			e["agit"] = float(e["agit"]) + (at - float(e["agit"])) * 0.05
+			e["agit"] = float(e["agit"]) + (at - float(e["agit"])) * wr(0.05)
 		else:
-			e["agit"] = float(e["agit"]) * 0.95
+			e["agit"] = float(e["agit"]) * (0.95 if wdt == 1.0 else pow(0.95, wdt))
 
 
 # наш народ за рубежом: [[страна, доля нашего народа там], ...]
@@ -562,7 +565,7 @@ func cu_dia_month() -> void:
 		var cc: String = it[0]
 		var s: float = it[1]
 		# поддержка соотечественников раздражает правительства этих стран (тем сильнее, чем больше община)
-		ex_rel_change(cc, -0.05 * float(lv) * minf(1.0, s * 10.0))
+		ex_rel_change(cc, -0.05 * float(lv) * minf(1.0, s * 10.0) * wdt)
 
 
 # ---------------- события ----------------
@@ -572,7 +575,7 @@ func cu_events() -> void:
 	if not current_event.is_empty() or election_open:
 		return
 	var nat_t: float = float(cu["tension"])
-	if cu_rng.randf() > 0.028 + 0.0006 * nat_t:
+	if cu_rng.randf() > wp(0.028 + 0.0006 * nat_t):
 		return
 	# регион с самой высокой напряжённостью и его крупнейшее меньшинство
 	var worst := -1

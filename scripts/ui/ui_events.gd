@@ -297,7 +297,7 @@ func build_event_window() -> void:
 	event_buttons.clear()
 	event_boxes.clear()
 	event_fx_rts.clear()
-	for i in 4:
+	for i in 5:     # 0.63: окна финансов (банковский кризис, дефолт) дают пять вариантов
 		var card := PanelContainer.new()
 		card.add_theme_stylebox_override("panel", sbox(C_PANEL2.darkened(0.18), C_BORDER, 1, 10, 4.0, 3.0))
 		w.body.add_child(card)
@@ -322,7 +322,7 @@ func build_event_window() -> void:
 		event_buttons.append(b)
 		event_boxes.append(card)
 		event_fx_rts.append(rt)
-	ev_hint = add_note(w.body, "Выберите вариант щелчком или клавишами 1–4. Последствия показаны под каждым вариантом: зелёное — плюсы, красное — минусы.")
+	ev_hint = add_note(w.body, "Выберите вариант щелчком или клавишами 1–5. Последствия показаны под каждым вариантом: зелёное — плюсы, красное — минусы.")
 
 
 func refit_event() -> void:
@@ -332,7 +332,7 @@ func refit_event() -> void:
 	if current_event.is_empty():
 		return
 	var opts: Array = current_event["o"]
-	for i in opts.size():
+	for i in mini(opts.size(), event_fx_rts.size()):
 		var rt: RichTextLabel = event_fx_rts[i]
 		var tx := rt.text
 		rt.text = ""

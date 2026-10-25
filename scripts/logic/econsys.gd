@@ -96,6 +96,7 @@ func es_bonus(key: String) -> bool:
 	return turn < int((es.get("bon", {}) as Dictionary).get(key, -1))
 
 
+# 0.62: недельный шаг: сближения и приросты — по доле месяца wdt; история, сроки в месяцах и журнал — при wmonth
 func es_step() -> void:
 	if es.is_empty():
 		es_init()
@@ -108,33 +109,35 @@ func es_step() -> void:
 		conf_t -= 25.0
 	elif cls == "statecap" or cls == "coop":
 		conf_t -= 8.0
-	es["conf"] = clampf(float(es["conf"]) + (conf_t - float(es["conf"])) * 0.15, 0.0, 100.0)
-	es["idx"] = maxf(10.0, float(es["idx"]) * (1.0 + (growth + inflation) / 1200.0 + (float(es["conf"]) - 50.0) * 0.0004))
-	(es["hist"] as Array).append(snappedf(float(es["idx"]), 0.1))
-	if (es["hist"] as Array).size() > 60:
-		(es["hist"] as Array).pop_front()
+	es["conf"] = clampf(float(es["conf"]) + (conf_t - float(es["conf"])) * rt(0.15, wdt), 0.0, 100.0)
+	es["idx"] = maxf(10.0, float(es["idx"]) * (1.0 + (growth + inflation) / 1200.0 * wdt + (float(es["conf"]) - 50.0) * 0.0004 * wdt))
+	if wmonth:
+		(es["hist"] as Array).append(snappedf(float(es["idx"]), 0.1))
+		if (es["hist"] as Array).size() > 60:
+			(es["hist"] as Array).pop_front()
 	match cls:
 		"social":
 			var st_t: float = 20.0 + maxf(0.0, inflation - 2.0) * 6.0 + maxf(0.0, unemployment - 6.0) * 3.0 + (12.0 if int(es["wage"]) == 0 else 0.0) + minf(30.0, float(turn - int(es["deal_t"])) * 0.6)
-			es["strike"] = clampf(float(es["strike"]) + (st_t - float(es["strike"])) * 0.1, 0.0, 100.0)
-			add_support("Рабочие", (float(es["wage"]) - 1.0) * 0.15)
-			add_support("Бизнес", -(float(es["wage"]) - 1.0) * 0.1)
+			es["strike"] = clampf(float(es["strike"]) + (st_t - float(es["strike"])) * rt(0.1, wdt), 0.0, 100.0)
+			add_support("Рабочие", (float(es["wage"]) - 1.0) * 0.15 * wdt)
+			add_support("Бизнес", -(float(es["wage"]) - 1.0) * 0.1 * wdt)
 			if es_bonus("retrain"):
-				unemployment = maxf(1.0, unemployment - 0.02)
+				unemployment = maxf(1.0, unemployment - 0.02 * wdt)
 		"planned":
 			var l := 0
 			for k in es["plan"]:
 				l += int(es["plan"][k])
 			var corr: float = float(lvl.get("corruption", 30.0))
 			var ful_t: float = clampf(108.0 - float(l - 4) * 8.0 - corr * 0.2 - shortage * 0.15 + float(lvl.get("infra_lvl", 50.0)) * 0.1, 40.0, 120.0)
-			es["ful"] = clampf(float(es["ful"]) + (ful_t - float(es["ful"])) * 0.2, 30.0, 130.0)
-			shortage = clampf(shortage + (1.0 - float(es["plan"]["cons"])) * 0.35 + (1.0 - float(es["plan"]["agr"])) * 0.2 - (float(es["ctl"]) - 1.0) * 0.3, 0.0, 100.0)
+			es["ful"] = clampf(float(es["ful"]) + (ful_t - float(es["ful"])) * rt(0.2, wdt), 30.0, 130.0)
+			shortage = clampf(shortage + (1.0 - float(es["plan"]["cons"])) * 0.35 * wdt + (1.0 - float(es["plan"]["agr"])) * 0.2 * wdt - (float(es["ctl"]) - 1.0) * 0.3 * wdt, 0.0, 100.0)
 			if int(es["ctl"]) == 2:
-				inflation += 0.05
-			(es["ful_hist"] as Array).append(snappedf(float(es["ful"]), 0.1))
-			if (es["ful_hist"] as Array).size() > 60:
-				(es["ful_hist"] as Array).pop_front()
-			if turn - int(es["five_t"]) >= 60:
+				inflation += 0.05 * wdt
+			if wmonth:
+				(es["ful_hist"] as Array).append(snappedf(float(es["ful"]), 0.1))
+				if (es["ful_hist"] as Array).size() > 60:
+					(es["ful_hist"] as Array).pop_front()
+			if wmonth and turn - int(es["five_t"]) >= 60:
 				var avg := 0.0
 				for x in es["ful_hist"]:
 					avg += float(x)
@@ -145,8 +148,21 @@ func es_step() -> void:
 				es["five_t"] = turn
 				es["ful_hist"] = []
 		"coop":
-			add_support("Рабочие", (float(es["share"]) - 1.0) * 0.12)
+			add_support("Рабочие", (float(es["share"]) - 1.0) * 0.12 * wdt)
 	corp_step()
+
+
+# 0.62: недельный тик экономической группы (WEEK_HOOKS): те же шаги, что в месячном расчёте, в том же порядке, с долей месяца wdt.
+# Неутверждённый черновик бюджета в расчёт не входит (как в next_turn).
+func econ_week() -> void:
+	var h := bud_hold_begin()
+	bud_glide_step()
+	brake_week()
+	update_levels()
+	update_regions()
+	economy_week()
+	es_step()
+	bud_hold_end(h)
 
 
 # вклад модели в показатели (детерминированно, вызывается при пересчёте модификаторов)
@@ -396,11 +412,12 @@ func corp_step() -> void:
 	if corp.is_empty():
 		return
 	var cls: String = String(es.get("cls", "mixed"))
+	var k_att: float = rt(0.05, wdt)
 	for c in corp["list"]:
 		var u := 1.0
 		if not ec.is_empty() and (ec["mk"] as Dictionary).has(String(c["mk"])):
 			u = float(ec["mk"][String(c["mk"])]["u"])
-		c["rev"] = float(c["rev"]) * (1.0 + (growth + inflation) / 1200.0 + (u - 0.9) * 0.002)
+		c["rev"] = float(c["rev"]) * (1.0 + (growth + inflation) / 1200.0 * wdt + (u - 0.9) * 0.002 * wdt)
 		var t: float = 50.0 + (float(support["Бизнес"]) - 50.0) * 0.4 if int(c["st"]) < 50 else 60.0
 		if bool(c["champ"]):
 			t += 15.0
@@ -410,7 +427,7 @@ func corp_step() -> void:
 			t -= 5.0
 		if cls == "planned":
 			t = 55.0 + (float(es["ful"]) - 100.0) * 0.3 - float(int(c["pl"]) - 1) * 10.0
-		c["att"] = clampf(float(c["att"]) + (t - float(c["att"])) * 0.05, 0.0, 100.0)
+		c["att"] = clampf(float(c["att"]) + (t - float(c["att"])) * k_att, 0.0, 100.0)
 	# иностранный капитал: уходит из плановой и автаркичной экономики, приходит при хорошем климате
 	var ft: float = float(corp["fs0"]) + float(corp["inv"])
 	if cls == "planned" or rid_of("trade_policy") == "autarky":
@@ -419,7 +436,7 @@ func corp_step() -> void:
 		ft *= 0.85
 	if au_auth():
 		ft *= 0.8
-	corp["fs"] = clampf(float(corp["fs"]) + (ft - float(corp["fs"])) * 0.02, 0.0, 0.9)
+	corp["fs"] = clampf(float(corp["fs"]) + (ft - float(corp["fs"])) * rt(0.02, wdt), 0.0, 0.9)
 
 
 func corp_growth() -> float:

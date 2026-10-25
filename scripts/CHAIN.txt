@@ -1,11 +1,15 @@
 scripts/data/data_core.gd
 scripts/data/data_content.gd
+scripts/data/data_laws60.gd
+scripts/data/data_regimes60.gd
+scripts/data/data_flags60.gd
 scripts/data/data_tech.gd
 scripts/data/data_events.gd
 scripts/data/data_countries.gd
 scripts/data/data_corp.gd
 scripts/data/data_hist.gd
 scripts/data/data_orgs.gd
+scripts/data/data_fin63.gd
 scripts/state/state_data.gd
 scripts/state/state.gd
 scripts/logic/util.gd
@@ -45,6 +49,12 @@ scripts/logic/realism.gd
 scripts/logic/diplo2.gd
 scripts/logic/fpai.gd
 scripts/logic/regime2.gd
+scripts/logic/regime60.gd
+scripts/logic/uniq60.gd
+scripts/logic/fin63.gd
+scripts/logic/cbank63.gd
+scripts/logic/bank63.gd
+scripts/logic/debt63.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd
 scripts/logic/log.gd
@@ -55,6 +65,7 @@ scripts/ui/ui_politics.gd
 scripts/ui/ui_laws.gd
 scripts/ui/ui_gov.gd
 scripts/ui/ui_econ.gd
+scripts/ui/ui_fin.gd
 scripts/ui/ui_world.gd
 scripts/ui/ui_pop.gd
 scripts/ui/ui_events.gd

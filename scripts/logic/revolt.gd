@@ -186,10 +186,12 @@ func revolt_month() -> void:
 		rv["g"] = 0.0
 		rv["u"] = 0.0
 		return
-	rv_cd_tick()
+	# 0.62: сроки в месяцах (кулдауны, счётчики спокойствия, история) — при wmonth; динамика и вероятности масштабируются на wdt
+	if wmonth:
+		rv_cd_tick()
 	rv_nat_step()
 	if float(rv.get("fiscal_cost", 0.0)) > 0.0:
-		debt += gdp * float(rv["fiscal_cost"]) / 100.0 / 12.0
+		debt += gdp * float(rv["fiscal_cost"]) / 100.0 / 12.0 * wdt
 	var gs := 0.0
 	var us := 0.0
 	var sep_max := 0.0
@@ -216,21 +218,22 @@ func revolt_month() -> void:
 	rv["u"] = us * float(rv_lvl()) * 0.6
 	# последствия национальной волны для настроения групп
 	if wv > 35.0:
-		var dr: float = (wv - 35.0) * 0.0016
+		var dr: float = (wv - 35.0) * 0.0016 * wdt
 		add_support("Молодёжь", -dr)
 		add_support("Рабочие", -dr * 0.6)
 		add_support("Бюджетники", -dr * 0.4)
-	var h: Dictionary = rv["h"]
-	(h["wave"] as Array).append(wv)
-	(h["rev"] as Array).append(float(nat["rev"]))
-	(h["coup"] as Array).append(float(nat["coup"]))
-	(h["sep"] as Array).append(sep_max)
-	(h["unrest"] as Array).append(unrest_max)
-	for k in h:
-		if (h[k] as Array).size() > 240:
-			(h[k] as Array).pop_front()
+	if wmonth:
+		var h: Dictionary = rv["h"]
+		(h["wave"] as Array).append(wv)
+		(h["rev"] as Array).append(float(nat["rev"]))
+		(h["coup"] as Array).append(float(nat["coup"]))
+		(h["sep"] as Array).append(sep_max)
+		(h["unrest"] as Array).append(unrest_max)
+		for k in h:
+			if (h[k] as Array).size() > 240:
+				(h[k] as Array).pop_front()
 	rv_events()
-	if observer or opp_mode:
+	if wmonth and (observer or opp_mode):
 		rv_ai_step()
 
 
@@ -246,18 +249,18 @@ func rv_nat_step() -> void:
 		+ maxf(0.0, unemployment - 8.0) * 2.0 + ag_t * 50.0 + float(nat["hate"]) * 0.3 + maxf(0.0, float(lvl["corruption"]) - 55.0) * 0.5 \
 		- (float(lvl["security_lvl"]) - 50.0) * 0.15 * (1.0 - dem * 0.5)
 	wave_t = rv_clamp(wave_t)
-	nat["wave"] = rv_clamp(float(nat["wave"]) + (wave_t - float(nat["wave"])) * 0.18)
+	nat["wave"] = rv_clamp(float(nat["wave"]) + (wave_t - float(nat["wave"])) * wr(0.18))
 	var cn := rv_conf_count()
 	var rev_t: float = float(nat["wave"]) * 0.55 + maxf(0.0, 45.0 - ap_n) * 0.9 + (regime_risk * 0.3 if decree_power() else 0.0) + cn * 8.0 \
 		+ float(nat["hate"]) * 0.2 + maxf(0.0, float(lvl["corruption"]) - 60.0) * 0.4 - maxf(0.0, float(support["Силовики"]) - 55.0) * 0.25
-	nat["rev"] = rv_clamp(float(nat["rev"]) + (rv_clamp(rev_t) - float(nat["rev"])) * 0.10)
+	nat["rev"] = rv_clamp(float(nat["rev"]) + (rv_clamp(rev_t) - float(nat["rev"])) * wr(0.10))
 	var army_cut: float = maxf(0.0, float(pol_def["army"]) - float(pol["army"])) * 10.0
 	var coup_t: float = maxf(0.0, 52.0 - float(support["Силовики"])) * 1.3 + army_cut + maxf(0.0, 42.0 - ap_n) * 0.9 + float(nat["rev"]) * 0.25 + cn * 5.0 \
 		+ (1.0 - dem) * 22.0 + (regime_risk * 0.2 if decree_power() else 0.0) - float(nat["loyal"])
-	nat["coup"] = rv_clamp(float(nat["coup"]) + (rv_clamp(coup_t) - float(nat["coup"])) * 0.08)
-	nat["hate"] = float(nat["hate"]) * 0.97
-	nat["loyal"] = float(nat["loyal"]) * 0.985
-	rv["army_up"] = float(rv["army_up"]) * 0.99
+	nat["coup"] = rv_clamp(float(nat["coup"]) + (rv_clamp(coup_t) - float(nat["coup"])) * wr(0.08))
+	nat["hate"] = float(nat["hate"]) * (0.97 if wdt == 1.0 else pow(0.97, wdt))
+	nat["loyal"] = float(nat["loyal"]) * (0.985 if wdt == 1.0 else pow(0.985, wdt))
+	rv["army_up"] = float(rv["army_up"]) * (0.99 if wdt == 1.0 else pow(0.99, wdt))
 
 
 # ============================================================
@@ -300,12 +303,13 @@ func rv_region_step(i: int) -> void:
 	if bool(rg.get("lost", false)):
 		return
 	var u: float = float(r["unrest"])
-	rg["hate"] = rv_clamp(float(rg["hate"]) * 0.985)
-	rg["sep"] = rv_clamp(float(rg["sep"]) + (rv_sep_target(i) - float(rg["sep"])) * 0.05)
+	rg["hate"] = rv_clamp(float(rg["hate"]) * (0.985 if wdt == 1.0 else pow(0.985, wdt)))
+	rg["sep"] = rv_clamp(float(rg["sep"]) + (rv_sep_target(i) - float(rg["sep"])) * wr(0.05))
 	if int(rg.get("comm", 0)) > 0:
-		rg["comm"] = int(rg["comm"]) - 1
-		rg["sep"] = rv_clamp(float(rg["sep"]) - 0.8)
-		rg["hate"] = rv_clamp(float(rg["hate"]) - 0.6)
+		if wmonth:
+			rg["comm"] = int(rg["comm"]) - 1
+		rg["sep"] = rv_clamp(float(rg["sep"]) - 0.8 * wdt)
+		rg["hate"] = rv_clamp(float(rg["hate"]) - 0.6 * wdt)
 	var st: int = int(rg["stage"])
 	var in_conf: bool = rv_conf_of(rv_uid(i)) >= 0
 	# повышение и понижение стадий (с гистерезисом)
@@ -322,7 +326,7 @@ func rv_region_step(i: int) -> void:
 		rg["calm"] = 0
 		rg["peak"] = maxi(int(rg["peak"]), st)
 		rv_stage_news(i, st, true)
-	elif st > 0 and not in_conf:
+	elif wmonth and st > 0 and not in_conf:
 		var down_at: Array = [0.0, 30.0, 50.0, 68.0]
 		if u < float(down_at[st]):
 			rg["calm"] = int(rg["calm"]) + 1
@@ -339,30 +343,31 @@ func rv_region_step(i: int) -> void:
 	# последствия стадии
 	var k: float = float(rv_lvl())
 	if st >= 1:
-		capital -= [0.0, 0.15, 0.4, 0.8, 1.2][st] * k * gdp_w[i] * 4.0
+		capital -= [0.0, 0.15, 0.4, 0.8, 1.2][st] * k * gdp_w[i] * 4.0 * wdt
 	if st >= 2:
-		r["infra"] = maxf(0.0, float(r["infra"]) - 0.35 * float(st - 1))
-		r["dev"] = maxf(0.0, float(r["dev"]) - 0.12 * float(st - 1))
+		r["infra"] = maxf(0.0, float(r["infra"]) - 0.35 * float(st - 1) * wdt)
+		r["dev"] = maxf(0.0, float(r["dev"]) - 0.12 * float(st - 1) * wdt)
 	if st >= 3:
-		r["popm"] = float(r["popm"]) * (1.0 - 0.0008 * float(st - 2))
-		rg["t3"] = int(rg["t3"]) + 1
+		r["popm"] = float(r["popm"]) * (1.0 - 0.0008 * float(st - 2) * wdt)
+		if wmonth:
+			rg["t3"] = int(rg["t3"]) + 1
 	else:
 		rg["t3"] = 0
 	if st >= 2:
 		for j in neighbors[i]:
-			regions[j]["unrest"] = minf(100.0, float(regions[j]["unrest"]) + 0.25 * float(st - 1))
+			regions[j]["unrest"] = minf(100.0, float(regions[j]["unrest"]) + 0.25 * float(st - 1) * wdt)
 	# сепаратизм: требования, референдум, провозглашение независимости, мятеж
 	if rv_conf_of(rv_uid(i)) >= 0 or not current_event.is_empty() or election_open:
 		return
 	var sep: float = float(rg["sep"])
 	var capital_reg: bool = rv_is_capital(i)
-	if st >= 1 and sep >= 60.0 and int(rg["refcd"]) == 0 and not capital_reg and regions.size() >= 3 and randf() < 0.07 * k:
+	if st >= 1 and sep >= 60.0 and int(rg["refcd"]) == 0 and not capital_reg and regions.size() >= 3 and randf() < wp(0.07 * k):
 		rv_event_referendum_demand(i)
 		return
-	if st >= 2 and sep >= 78.0 and not capital_reg and regions.size() >= 3 and (int(rg["ref"]) > 0 or float(rg["hate"]) >= 55.0) and randf() < 0.05 * k:
+	if st >= 2 and sep >= 78.0 and not capital_reg and regions.size() >= 3 and (int(rg["ref"]) > 0 or float(rg["hate"]) >= 55.0) and randf() < wp(0.05 * k):
 		rv_event_udi(i)
 		return
-	if st >= 3 and int(rg["t3"]) >= 2 and randf() < (0.2 + maxf(0.0, sep - 40.0) * 0.008) * k:
+	if st >= 3 and int(rg["t3"]) >= 2 and randf() < wp((0.2 + maxf(0.0, sep - 40.0) * 0.008) * k):
 		var kind := "secession" if sep >= 55.0 and not capital_reg else "insurgency"
 		rv_conf_start(kind, i, 12.0 + sep * 0.2, "мятеж в регионе «%s»" % REGIONS[i]["short"])
 
@@ -738,15 +743,18 @@ func rv_conf_step(k: int) -> void:
 	var mob: int = int(c["mob"])
 	var g_pow: float = rv_gov_power() * [0.7, 1.0, 1.3][mob] + float(c["gaid"]) * 2.5
 	var side_rebel: bool = String(c["side"]) == "rebel"
+	var sw: float = sqrt(wdt)      # 0.62: случайный шаг масштабируется как корень из доли месяца (при wdt = 1 множитель 1)
 	if side_rebel:
 		# вы — повстанцы: сила правительства определяется слабостью власти и режимом
 		g_pow = 34.0 + (1.0 - democracy_index()) * 14.0 + randf_range(-2.0, 2.0)
 	var truce: int = int(c["truce"])
-	c["talk_cd"] = maxi(0, int(c["talk_cd"]) - 1)
+	if wmonth:
+		c["talk_cd"] = maxi(0, int(c["talk_cd"]) - 1)
 	if truce > 0:
-		c["truce"] = truce - 1
-		if int(c["truce"]) == 0:
-			rv_log("перемирие в конфликте «%s» закончилось, бои возобновились." % c["name"], COL_BAD)
+		if wmonth:
+			c["truce"] = truce - 1
+			if int(c["truce"]) == 0:
+				rv_log("перемирие в конфликте «%s» закончилось, бои возобновились." % c["name"], COL_BAD)
 		return
 	var r_pow: float = float(c["R"])
 	if side_rebel:
@@ -754,35 +762,35 @@ func rv_conf_step(k: int) -> void:
 	else:
 		var sep_v: float = float(rg["sep"]) if i >= 0 else 40.0
 		var r_eq: float = 14.0 + hate * 0.25 + sep_v * 0.15 + float(c["aid"]) * 2.0 + (float(c["ctl"]) - 30.0) * 0.12 - (g_pow - 40.0) * 0.2
-		c["R"] = clampf(r_pow + (r_eq - r_pow) * 0.07 + randf_range(-1.0, 1.0), 3.0, 95.0)
+		c["R"] = clampf(r_pow + (r_eq - r_pow) * wr(0.07) + randf_range(-1.0, 1.0) * sw, 3.0, 95.0)
 		r_pow = float(c["R"])
 	var terr: float = 1.0
 	if i >= 0:
 		terr += float(rg["sep"]) * 0.003
-	var d: float = 0.12 * (r_pow * terr - g_pow) + randf_range(-4.0, 4.0)
+	var d: float = 0.12 * (r_pow * terr - g_pow) * wdt + randf_range(-4.0, 4.0) * sw
 	c["ctl"] = clampf(float(c["ctl"]) + d, 0.0, 100.0)
 	# потери и разрушения
 	var pop_k: float = (float(regions[i]["popm"]) * 1000.0) if i >= 0 else total_pop() * 1000.0
-	var dead: float = pop_k * 0.00004 * (r_pow + g_pow) / 100.0 * (float(mob) + 0.6)
+	var dead: float = pop_k * 0.00004 * (r_pow + g_pow) / 100.0 * (float(mob) + 0.6) * wdt
 	c["kia"] = float(c["kia"]) + dead
 	c["ref"] = float(c["ref"]) + dead * 3.0
-	debt += gdp * 0.0007 * (float(mob) + 0.5) * (1.0 if not side_rebel else 0.0)
+	debt += gdp * 0.0007 * (float(mob) + 0.5) * (1.0 if not side_rebel else 0.0) * wdt
 	if i >= 0:
-		regions[i]["popm"] = float(regions[i]["popm"]) * (1.0 - 0.0006 * (float(mob) + 0.6))
-		regions[i]["infra"] = maxf(0.0, float(regions[i]["infra"]) - 0.8)
-		regions[i]["dev"] = maxf(0.0, float(regions[i]["dev"]) - 0.4)
-		regions[i]["unrest"] = rv_clamp(float(regions[i]["unrest"]) + 0.3)
-		rg["hate"] = rv_clamp(float(rg["hate"]) + 0.8 * float(mob))
+		regions[i]["popm"] = float(regions[i]["popm"]) * (1.0 - 0.0006 * (float(mob) + 0.6) * wdt)
+		regions[i]["infra"] = maxf(0.0, float(regions[i]["infra"]) - 0.8 * wdt)
+		regions[i]["dev"] = maxf(0.0, float(regions[i]["dev"]) - 0.4 * wdt)
+		regions[i]["unrest"] = rv_clamp(float(regions[i]["unrest"]) + 0.3 * wdt)
+		rg["hate"] = rv_clamp(float(rg["hate"]) + 0.8 * float(mob) * wdt)
 		for j in neighbors[i]:
-			regions[j]["unrest"] = minf(100.0, float(regions[j]["unrest"]) + 0.4)
+			regions[j]["unrest"] = minf(100.0, float(regions[j]["unrest"]) + 0.4 * wdt)
 	else:
 		for rr in regions:
-			rr["unrest"] = rv_clamp(float(rr["unrest"]) + 0.25)
+			rr["unrest"] = rv_clamp(float(rr["unrest"]) + 0.25 * wdt)
 	if mob == 2:
-		add_support("Молодёжь", -0.05)
+		add_support("Молодёжь", -0.05 * wdt)
 	if i >= 0 and (rv["nat"] as Dictionary).has("hate"):
-		rv["nat"]["hate"] = rv_clamp(float(rv["nat"]["hate"]) + 0.15 * float(mob))
-	capital -= 0.6
+		rv["nat"]["hate"] = rv_clamp(float(rv["nat"]["hate"]) + 0.15 * float(mob) * wdt)
+	capital -= 0.6 * wdt
 	# исходы
 	var ctl: float = float(c["ctl"])
 	var months: int = turn - int(c["start"])
@@ -1019,15 +1027,15 @@ func rv_events() -> void:
 		return
 	var nat: Dictionary = rv["nat"]
 	var k: float = float(rv_lvl())
-	if float(nat["wave"]) >= 58.0 and rv_cd("wave") == 0 and randf() < 0.18 * k:
+	if float(nat["wave"]) >= 58.0 and rv_cd("wave") == 0 and randf() < wp(0.18 * k):
 		rv_cd_set("wave", 12)
 		rv_event_wave()
 		return
-	if float(nat["rev"]) >= 72.0 and rv_cd("rev") == 0 and randf() < 0.10 * k:
+	if float(nat["rev"]) >= 72.0 and rv_cd("rev") == 0 and randf() < wp(0.10 * k):
 		rv_cd_set("rev", 36)
 		rv_event_rev()
 		return
-	if float(nat["coup"]) >= 58.0 and rv_cd("coup") == 0 and randf() < (float(nat["coup"]) - 52.0) * 0.006 * k:
+	if float(nat["coup"]) >= 58.0 and rv_cd("coup") == 0 and randf() < wp((float(nat["coup"]) - 52.0) * 0.006 * k):
 		rv_cd_set("coup", 36)
 		rv_event_coup()
 

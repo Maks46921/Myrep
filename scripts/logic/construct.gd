@@ -155,6 +155,7 @@ const CS_CORP_MAP := {"agr": ["agro", "foodplant", "winery", "livestock", "fishe
 
 var cs := {}
 var cs_rng := RandomNumberGenerator.new()
+var bq_wkey := ""      # 0.62: метка недельного шага (месяц + доля месяца): повторный вызов bq_month в том же шаге ничего не делает
 
 
 func con_dyn() -> bool:
@@ -427,7 +428,7 @@ func con_accidents() -> void:
 				wc = float(bt[id]["cond"])
 				worst = i
 				wid = String(id)
-	if worst < 0 or cs_rng.randf() > 0.04 * (30.0 - wc) / 30.0 + 0.01:
+	if worst < 0 or cs_rng.randf() > wp(0.04 * (30.0 - wc) / 30.0 + 0.01):      # 0.62: первый барьер (0,5) не масштабируется
 		return
 	var pd := find_by_id(PROJECTS, wid)
 	var rc := con_repair_cost(worst, wid)
@@ -520,21 +521,22 @@ func con_ai_month() -> void:
 		var a: Dictionary = ai[c]
 		var w: Dictionary = wsim[c]
 		var qq: Array = a["q"]
-		for k in range(qq.size() - 1, -1, -1):
-			qq[k] = int(qq[k]) - 1
-			if int(qq[k]) <= 0:
-				qq.remove_at(k)
-				a["n"] = int(a["n"]) + 1
+		if wmonth:      # 0.62: сроки строек ИИ-стран — в целых месяцах
+			for k in range(qq.size() - 1, -1, -1):
+				qq[k] = int(qq[k]) - 1
+				if int(qq[k]) <= 0:
+					qq.remove_at(k)
+					a["n"] = int(a["n"]) + 1
 		var room: float = clampf((100.0 - float(w.get("debt", 60.0))) / 60.0, 0.1, 1.3)
-		if qq.size() < 3 and cs_rng.randf() < 0.05 * room:
+		if qq.size() < 3 and cs_rng.randf() < wp(0.05 * room):
 			qq.append(8 + cs_rng.randi() % 10)
-		if int(a["mega"]) == 0 and turn >= 6 and cs_rng.randf() < 0.006 * room:
+		if int(a["mega"]) == 0 and turn >= 6 and cs_rng.randf() < wp(0.006 * room):
 			var md := con_mega_def(String(c))
 			if not md.is_empty():
 				a["mega"] = 1
 				a["ml"] = int(md["months"])
 				con_log_world("«%s» начала мегапроект «%s»." % [String(WORLD[c]["name"]) if WORLD.has(c) else c, md["name"]])
-		elif int(a["mega"]) == 1:
+		elif wmonth and int(a["mega"]) == 1:
 			a["ml"] = int(a["ml"]) - 1
 			if int(a["ml"]) <= 0:
 				a["mega"] = 2
@@ -651,25 +653,28 @@ func bq_add(pid: String, i: int, ate: int, cost_bn: float, months: int, upg: boo
 
 
 # распределение денег и мощностей: сначала госочередь по порядку, остаток мощностей — частным
+# 0.62: apply = true — реальный шаг расчёта (деньги, мощности и темп считаются на долю месяца wdt; "got" хранит месячный темп для срока ETA);
+# apply = false — плановая оценка месяца (бюджет, окна), всегда в месячных величинах
 func bq_alloc(apply: bool) -> Dictionary:
-	var money := bld_money_month()
-	var cap := bld_cap_month()
+	var f: float = wdt if apply else 1.0
+	var money := bld_money_month() * f
+	var cap := bld_cap_month() * f
 	var st := 0.0
 	for it in bq:
-		var need: float = minf(bq_rate(it), float(it["cost"]) - float(it["done"]))
+		var need: float = minf(bq_rate(it) * f, float(it["cost"]) - float(it["done"]))
 		var use: float = clampf(minf(need, minf(money - st, cap - st)), 0.0, need)
 		if apply:
 			it["done"] = float(it["done"]) + use
-			it["got"] = use
+			it["got"] = use / f if f > 0.0 else 0.0
 		st += use
 	var pv := 0.0
 	var brk := 0.0
 	for it in bq_priv:
-		var need2: float = minf(bq_rate(it), float(it["cost"]) - float(it["done"]))
+		var need2: float = minf(bq_rate(it) * f, float(it["cost"]) - float(it["done"]))
 		var use2: float = clampf(minf(need2, cap - st - pv), 0.0, need2)
 		if apply:
 			it["done"] = float(it["done"]) + use2
-			it["got"] = use2
+			it["got"] = use2 / f if f > 0.0 else 0.0
 		pv += use2
 		if bool(it.get("brk", false)):
 			brk += use2 * BQ_BRK_SHARE
@@ -743,12 +748,21 @@ func bq_migrate() -> void:
 
 
 func bq_month() -> void:
+	# 0.62: стройки двигаются каждую неделю на долю месяца wdt. Функцию зовёт и update_regions (месячный шаг), и недельный хук,
+	# поэтому в одном недельном шаге она отрабатывает один раз
+	if wdt != 1.0:
+		var key := "%d:%.4f" % [turn, month_done]
+		if key == bq_wkey:
+			return
+		bq_wkey = key
+	if wdt <= 0.0:
+		return
 	bld_budget_init()
 	bq_migrate()
 	var a := bq_alloc(true)
-	bq_spent = float(a["state"])
-	bq_priv_spent = float(a["priv"])
-	bq_brk_spent = float(a["brk"])
+	bq_spent = float(a["state"]) / wdt
+	bq_priv_spent = float(a["priv"]) / wdt
+	bq_brk_spent = float(a["brk"]) / wdt
 	for k in range(bq.size() - 1, -1, -1):
 		var it: Dictionary = bq[k]
 		if float(it["done"]) >= float(it["cost"]) - 0.0001:
@@ -761,7 +775,7 @@ func bq_month() -> void:
 			bq_priv_done(it2)
 	if con_dyn():
 		bq_priv_spawn()
-	if bool(ap.get("build", false)) and not opp_mode:
+	if wmonth and bool(ap.get("build", false)) and not opp_mode:
 		bld_plan_step()
 
 
@@ -851,7 +865,7 @@ func bq_priv_spawn() -> void:
 		var p: float = 0.012 * clampf(float(c["rev"]) / 40.0, 0.3, 2.5) * (float(c["att"]) / 60.0) * clampf((12.0 - by) / 6.0, 0.1, 1.5)
 		if is_state:
 			p = maxf(p, 0.006 * clampf(float(c["rev"]) / 40.0, 0.3, 2.5)) * 1.4
-		if cs_rng.randf() > p:
+		if cs_rng.randf() > wp(p):
 			continue
 		var pd := find_by_id(PROJECTS, best)
 		var r: float = cs_rng.randf()

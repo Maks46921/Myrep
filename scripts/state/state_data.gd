@@ -1,5 +1,5 @@
 # Таблицы, которые страна подменяет при запуске (REGIONS, LEAN, PARTY_NAMES и др.).
-extends "res://scripts/data/data_orgs.gd"
+extends "res://scripts/data/data_fin63.gd"
 
 var SEATS := 630
 
@@ -546,6 +546,10 @@ var DE_TOPICS := [
 ]
 
 var DE_OWN := {}
+var law60_ids := {}
+# 0.60: как возник нынешний режим (reform, revolution, coup, war, crisis) — от этого зависит вариант режима
+var reg_cause := "reform"
+var uq := {}                 # 0.60: особый строй страны (этап пути, показатели механик, фонд, отложенные реакции мира)
 
 var DE_JOIN_ADJ := [0.0, 7.0, 0.0, -14.0, 0.0, -8.0, 0.0, 0.0, 0.0, 0.0]
 

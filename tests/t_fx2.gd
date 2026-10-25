@@ -11,7 +11,7 @@ func walk(x, path: String, depth: int) -> void:
 			for sk in x["sector"]:
 				if not (x["sector"][sk] is Dictionary):
 					bad.append("%s: sector.%s = %s" % [path, sk, str(x["sector"][sk])])
-		if x.has("reg") and (x["reg"] is float or x["reg"] is int) and not ("REGIONS" in path):
+		if x.has("reg") and (x["reg"] is float or x["reg"] is int) and not ("REGIONS" in path) and not ("fin/bk" in path):
 			bad.append("%s: reg = %s" % [path, str(x["reg"])])
 		for k in x:
 			walk(x[k], path + "/" + str(k), depth + 1)

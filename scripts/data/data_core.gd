@@ -41,12 +41,14 @@ const CountryMap := preload("res://scripts/classes/country_map.gd")
 const PartyHemi := preload("res://scripts/classes/party_hemi.gd")
 const Gfx := preload("res://scripts/classes/gfx.gd")
 const EventArt := preload("res://scripts/classes/event_art.gd")
+const WeekStrip := preload("res://scripts/classes/week_strip.gd")
 
 const START_YEAR := 2026
 
-# скорости авто-хода: дней календаря в секунду реального времени (0 — пауза)
-const PLAY_SPEEDS := [0.0, 1.0, 3.0, 7.0, 15.0, 30.0, 90.0]
-const PLAY_NAMES := ["⏸", "1×", "3×", "7×", "15×", "30×", "90×"]
+# скорости авто-хода: дней календаря в секунду реального времени (0 — пауза); с 0.62 в неделях: 1, 2, 4, 8, 16 недель в секунду
+const PLAY_SPEEDS := [0.0, 7.0, 14.0, 28.0, 56.0, 112.0]
+const PLAY_NAMES := ["⏸", "1 нед/с", "2 нед/с", "4 нед/с", "8 нед/с", "16 нед/с"]
+const WEEKDAYS := ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 const MONTHS_GEN := ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 const MONTHS := ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
 
@@ -773,7 +775,7 @@ const LOG_CAT_COL := {"sum": "#7fb0ff", "ev": "#f0b64a", "pol": "#a58af0", "eco"
 
 const LOG_CAT_NAME := {"sum": "ИТОГИ", "ev": "СОБЫТИЕ", "pol": "ПОЛИТИКА", "eco": "ЭКОНОМИКА", "sys": "СОВЕТ"}
 
-const LOG_TAG_CAT := {"БЮДЖЕТ": "eco", "ПРОЕКТ": "eco", "РЕМОНТ": "eco", "ДЕФИЦИТ": "eco", "АВТОПИЛОТ": "eco", "ЗАКОН": "pol", "ПЕРЕГОВОРЫ": "pol",
+const LOG_TAG_CAT := {"ФИНАНСЫ": "eco", "БЮДЖЕТ": "eco", "ПРОЕКТ": "eco", "РЕМОНТ": "eco", "ДЕФИЦИТ": "eco", "АВТОПИЛОТ": "eco", "ЗАКОН": "pol", "ПЕРЕГОВОРЫ": "pol",
 	"КАБИНЕТ": "pol", "КОАЛИЦИЯ": "pol", "ОБЕЩАНИЕ": "pol", "НОВОСТЬ": "ev", "СОБЫТИЕ": "ev",
 	"МИНИСТР": "pol", "ПАРТНЁР": "pol", "ОППОЗИЦИЯ": "pol", "ЗАКОНОПРОЕКТ": "pol", "ФРАКЦИЯ": "pol", "ВЕТО": "pol"}
 
@@ -889,7 +891,7 @@ const W_KINDS := [
 const EMIT_MAX := 3.0   # предел ползунка эмиссии, % ВВП в год (если у страны своя валюта)
 const RAD_MONARCHIES := ["BE", "NL", "LU", "DK", "NO", "SE", "ES", "GB"]
 
-const RAD_AUTH := ["dictatorship", "junta", "oneparty", "monarchy_abs", "theocracy"]
+const RAD_AUTH := ["dictatorship", "junta", "oneparty", "monarchy_abs", "theocracy", "technocracy", "oligarchy", "collective"]
 
 const RAD_CUR := {
 	"FR": "Пятая республика",

@@ -100,6 +100,18 @@ func fed_tax_leak() -> float:
 	return 0.0
 
 
+func fin_debt_rate() -> float:
+	return 0.0
+
+
+func fin_on() -> bool:
+	return false
+
+
+func fin_prem() -> float:
+	return 0.0
+
+
 func fulfill_coalition_demands() -> void:
 	pass
 
@@ -689,7 +701,7 @@ func update_levels() -> void:
 		- (float(lvl["security_lvl"]) - 50.0) * 0.1 + float(mods["corr_shift"]) + gov_corr)
 	for k in t:
 		var tv: float = float(t[k])
-		lvl[k] = clampf(float(lvl[k]) + (tv - float(lvl[k])) * mrate(float(LEVEL_RATE[k])), 0.0, 100.0)
+		lvl[k] = clampf(float(lvl[k]) + (tv - float(lvl[k])) * rt(mrate(float(LEVEL_RATE[k])), wdt), 0.0, 100.0)
 
 
 # ============================================================
@@ -1175,10 +1187,18 @@ func describe_econ(e: Dictionary) -> String:
 
 
 func debt_rate() -> float:
+	if fin_on():
+		return fin_debt_rate()     # 0.63: средневзвешенная ставка по долгу (срок, выкуп ЦБ)
+	return debt_mkt_rate()
+
+
+# рыночная ставка, по которой государство заняло бы сегодня
+func debt_mkt_rate() -> float:
 	var ratio: float = debt / gdp * 100.0
 	var rate: float = float(MACRO.get("debt_base", 0.014)) + maxf(0.0, ratio - float(MACRO.get("debt_thr", 80.0))) * float(MACRO.get("debt_slope", 0.0007)) + risk_prem / 100.0 + war_prem() / 100.0
 	if not ec.is_empty():
 		rate += (float(ec["rate"]) - RATE0) / 100.0 * 0.35
+	rate += fin_prem() / 100.0
 	return maxf(rate, 0.005)
 
 
@@ -1506,19 +1526,24 @@ func bud_glide_start(ch: Array) -> void:
 			bud_glide.erase(k)
 
 
+# 0.62: недельный шаг — за шаг не больше BUD_GLIDE_STEP * wdt, инерция по доле месяца; "last" хранит ход в п.п. за месяц
 func bud_glide_step() -> void:
+	if wdt <= 0.0:
+		return
+	var inr: float = BUD_GLIDE_INERTIA if wdt == 1.0 else rt(BUD_GLIDE_INERTIA, wdt)
+	var cap: float = BUD_GLIDE_STEP * wdt
 	for k in bud_glide.keys():
 		if bud_base.has(k) or not policy_by_key.has(k):
 			continue
 		var g: Dictionary = bud_glide[k]
 		var d: float = float(g["t"]) - float(pol[k])
-		var mv: float = clampf(d, -BUD_GLIDE_STEP, BUD_GLIDE_STEP) * (1.0 - BUD_GLIDE_INERTIA) + float(g["last"]) * BUD_GLIDE_INERTIA
+		var mv: float = clampf(d, -cap, cap) * (1.0 - inr) + float(g["last"]) * wdt * inr
 		if mv * d <= 0.0 or absf(d) <= absf(mv) + 0.05:
 			set_policy(k, float(g["t"]))
 			bud_glide.erase(k)
 		else:
 			set_policy(k, float(pol[k]) + mv)
-			g["last"] = mv
+			g["last"] = mv / wdt
 
 
 # сумма правок статей в % ВВП (налоги и расходы), для вопроса «Вы уверены?»

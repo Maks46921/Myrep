@@ -19,7 +19,7 @@ func flag_top_refresh() -> void:
 
 const SV_DIR := "user://saves"
 # v55_3: неизменные данные (все страны, сетка АТЕ, треугольники и хэш карты) в снимок не пишутся: сохранение было 35 МБ и 3,5 с
-const SV_SKIP := ["CDATA", "ATE", "map_ate_tris", "map_hash", "map_seg_cache", "wrap_pass", "law_index_pre", "CU", "PROJECTS", "cs_rng", "ind_rng", "ch_rng", "cu_rng", "sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix", "map_pin_cache", "map_pin_key", "map_lab_pts"]
+const SV_SKIP := ["CDATA", "ATE", "map_ate_tris", "map_hash", "map_seg_cache", "wrap_pass", "law_index_pre", "CU", "PROJECTS", "cs_rng", "ind_rng", "ch_rng", "cu_rng", "sv_hist", "ag_cache", "current_event", "event_region", "map_lab", "map_hatch", "map_front", "map_own_rect", "map_own_mix", "map_pin_cache", "map_pin_key", "map_lab_pts", "dec_orgs", "dec_opt", "rg_clan_rows", "rg_und_rows"]
 const SV_KEEP := 4
 
 var sv_clean_cache := {}  # имя переменной -> можно ли её сохранять (проверяется один раз)
@@ -55,6 +55,11 @@ func sv_collect() -> Dictionary:
 		if v == null:
 			continue
 		# v55_3: глубокая проверка (нет ли внутри объектов) — один раз на переменную: по WORLD_UNITS она шла секунду
+		# 0.60: пустой словарь или массив не кэшируем: потом в нём могут появиться узлы интерфейса (строки кланов, флажки организаций)
+		var empty_box: bool = (typeof(v) == TYPE_DICTIONARY or typeof(v) == TYPE_ARRAY) and v.is_empty()
+		if empty_box:
+			out[nm] = v
+			continue
 		if not sv_clean_cache.has(nm):
 			sv_clean_cache[nm] = sv_clean(v)
 		if bool(sv_clean_cache[nm]):

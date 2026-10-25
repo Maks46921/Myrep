@@ -11,6 +11,18 @@ func diplo_resolve(opt: Dictionary) -> void:
 	pass
 
 
+func fin_erm_ready() -> bool:
+	return false
+
+
+func fin_erm_text() -> String:
+	return ""
+
+
+func fin_euro_join() -> void:
+	pass
+
+
 func sv_auto() -> void:
 	pass
 
@@ -129,16 +141,20 @@ func rl_infl() -> float:
 # ============================================================
 #  ЕЖЕМЕСЯЧНЫЙ ШАГ
 # ============================================================
+# 0.62: недельный расчёт. Накопители rl["g"], rl["inf"] (темп роста и инфляции от модуля, п.п./год) собираются заново раз в месяц
+# (при wmonth) и держатся до следующего месяца; потоки долга и запасов (на wdt), сглаживание (wr), случайные события (wp) идут каждую
+# неделю; счётчики в целых месяцах, пороги по месяцам, история и автосохранение — только при wmonth. При wdt = 1 результат прежний.
 func realism_month() -> void:
 	if not rl_on():
 		return
-	var cd: Dictionary = rl["cd"]
-	for k in cd.keys():
-		cd[k] = int(cd[k]) - 1
-		if int(cd[k]) <= 0:
-			cd.erase(k)
-	rl["g"] = 0.0
-	rl["inf"] = 0.0
+	if wmonth:
+		var cd: Dictionary = rl["cd"]
+		for k in cd.keys():
+			cd[k] = int(cd[k]) - 1
+			if int(cd[k]) <= 0:
+				cd.erase(k)
+		rl["g"] = 0.0
+		rl["inf"] = 0.0
 	rl_blocs_step()
 	rl_demo_step()
 	rl_energy_step()
@@ -148,8 +164,9 @@ func realism_month() -> void:
 	rl_parl_step()
 	rl_pending_step()
 	rl_events()
-	rl_rec_hist()
-	sv_auto()
+	if wmonth:
+		rl_rec_hist()
+		sv_auto()
 
 
 # ---------- А1. Блоки и союзы ----------
@@ -165,28 +182,33 @@ func rl_deficit_ema() -> float:
 
 func rl_blocs_step() -> void:
 	var b: Dictionary = rl["b"]
-	var dpct: float = (debt - float(rl["debt_prev"])) / maxf(1.0, gdp) * 1200.0
-	rl["debt_prev"] = debt
-	rl["defe"] = float(rl["defe"]) * 0.9 + clampf(dpct, -15.0, 15.0) * 0.1
+	if wmonth:          # дефицит-EMA считается по долгу за целый месяц
+		var dpct: float = (debt - float(rl["debt_prev"])) / maxf(1.0, gdp) * 1200.0
+		rl["debt_prev"] = debt
+		rl["defe"] = float(rl["defe"]) * 0.9 + clampf(dpct, -15.0, 15.0) * 0.1
 	var ratio: float = debt / maxf(1.0, gdp) * 100.0
 	if bool(b["eu"]):
-		rl["g"] = float(rl["g"]) + 0.12
+		if wmonth:
+			rl["g"] = float(rl["g"]) + 0.12
 		if bool(rl.get("eu_rebate", false)):
-			debt -= gdp * 0.05 / 100.0 / 12.0
+			debt -= gdp * 0.05 / 100.0 / 12.0 * wdt
 		var pc: float = rl_pc()
 		if pc < 35.0:
 			# структурные фонды: бедные члены получают долю ВВП
-			debt -= gdp * (35.0 - pc) / 35.0 * 0.5 / 100.0 / 12.0
+			debt -= gdp * (35.0 - pc) / 35.0 * 0.5 / 100.0 / 12.0 * wdt
 		# процедура чрезмерного дефицита: дефицит выше 3% при долге выше 60% дольше года
-		if float(rl["defe"]) > 3.0 and ratio > 60.0:
-			rl["edp"] = int(rl["edp"]) + 1
-			if int(rl["edp"]) % 12 == 0:
-				debt += gdp * 0.05 / 100.0
-				add_support("Бизнес", -1.0)
-				dip_all(-1.0, true)
-				rl_log("Брюссель открыл процедуру чрезмерного дефицита: штраф 0,05% ВВП, партнёры недовольны.", COL_WARN)
-		else:
-			rl["edp"] = maxi(0, int(rl["edp"]) - 1)
+		if wmonth:
+			if float(rl["defe"]) > 3.0 and ratio > 60.0:
+				rl["edp"] = int(rl["edp"]) + 1
+				if int(rl["edp"]) % 12 == 0:
+					debt += gdp * 0.05 / 100.0
+					add_support("Бизнес", -1.0)
+					dip_all(-1.0, true)
+					rl_log("Брюссель открыл процедуру чрезмерного дефицита: штраф 0,05% ВВП, партнёры недовольны.", COL_WARN)
+			else:
+				rl["edp"] = maxi(0, int(rl["edp"]) - 1)
+	if not wmonth:
+		return          # дальше только месячное: темпы, счётчики и заявки на вступление
 	if bool(b["schg"]):
 		if bool(b["ctrl"]):
 			rl["g"] = float(rl["g"]) - 0.06
@@ -218,7 +240,10 @@ func rl_blocs_step() -> void:
 		a["m"] = int(a["m"]) + 1
 		var goal: float = {"eu": 40.0, "euro": 24.0, "nato": 18.0}.get(k, 30.0)
 		if float(a["p"]) >= goal:
-			if fa_ws_lvl() > 0:
+			if String(k) == "euro" and fin_on() and not fin_erm_ready():
+				if int(a["m"]) % 6 == 0:
+					rl_log("Переход на евро ждёт: %s." % fin_erm_text(), COL_WARN)
+			elif fa_ws_lvl() > 0:
 				if int(a["m"]) % 6 == 0:
 					rl_log("Заявка (%s) заморожена: против страны действуют санкции Запада." % rl_bloc_name(String(k)), COL_WARN)
 			elif rl_avg_rel() < 40.0:
@@ -258,6 +283,7 @@ func rl_accept(k: String) -> void:
 	elif k == "euro":
 		b["euro"] = true
 		MACRO["euro"] = true
+		fin_euro_join()
 		add_all_support(1.0)
 		rl_log("Страна перешла на евро: собственная эмиссия закрыта, зато растёт доверие инвесторов.", COL_GOOD)
 		risk_prem = maxf(0.0, risk_prem - 0.4)
@@ -279,23 +305,24 @@ func rl_demo_step() -> void:
 	var d: Dictionary = rl["d"]
 	var lv: Dictionary = rl["lv"]
 	var tfr_t: float = float(d["tfr0"]) + float(lv["fam"]) * 0.12
-	d["tfr"] = float(d["tfr"]) + (tfr_t - float(d["tfr"])) * 0.012
+	d["tfr"] = float(d["tfr"]) + (tfr_t - float(d["tfr"])) * wr(0.012)
 	# старение: базовый темп 0,017 п.п./мес., ускоряется низкой рождаемостью, замедляется миграцией
 	var da: float = 0.017 + (1.7 - float(d["tfr"])) * 0.006 - float(int(lv["imm"]) - 1) * 0.004
-	d["age"] = clampf(float(d["age"]) + da, 5.0, 45.0)
+	d["age"] = clampf(float(d["age"]) + da * wdt, 5.0, 45.0)
 	var over: float = float(d["age"]) - float(d["age0"])
 	var relief: float = 1.0 - float(lv["ret"]) * 0.15
 	var pen: float = maxf(0.0, over) * 0.30 * relief
 	d["pen"] = pen
-	debt += gdp * pen / 100.0 / 12.0
-	debt += gdp * float(lv["fam"]) * 0.22 / 100.0 / 12.0
+	debt += gdp * pen / 100.0 / 12.0 * wdt
+	debt += gdp * float(lv["fam"]) * 0.22 / 100.0 / 12.0 * wdt
 	if int(lv["imm"]) > 1:
-		debt += gdp * float(int(lv["imm"]) - 1) * 0.04 / 100.0 / 12.0
-	rl["g"] = float(rl["g"]) - maxf(0.0, over) * 0.05 + float(int(lv["imm"]) - 1) * 0.06 + float(lv["ret"]) * 0.03
+		debt += gdp * float(int(lv["imm"]) - 1) * 0.04 / 100.0 / 12.0 * wdt
+	if wmonth:
+		rl["g"] = float(rl["g"]) - maxf(0.0, over) * 0.05 + float(int(lv["imm"]) - 1) * 0.06 + float(lv["ret"]) * 0.03
 	# напряжение вокруг миграции питает волну протестов
 	if int(lv["imm"]) >= 3 and rv_on():
 		var nat: Dictionary = rv["nat"]
-		nat["wave"] = rv_clamp(float(nat["wave"]) + 0.25)
+		nat["wave"] = rv_clamp(float(nat["wave"]) + 0.25 * wdt)
 
 
 # ---------- А4. Энергия и климат ----------
@@ -304,26 +331,28 @@ func rl_energy_step() -> void:
 	var lv: Dictionary = rl["lv"]
 	var p: float = float(e["price"])
 	# цена энергоносителей возвращается к 100, случайно колеблется; запасы газа гасят скачки
-	p += (100.0 - p) * 0.05 + randf_range(-3.0, 3.0) * (1.0 - float(lv["gas"]) * 0.2)
-	if int(e["shock"]) > 0:
+	p += (100.0 - p) * wr(0.05) + randf_range(-3.0, 3.0) * (1.0 - float(lv["gas"]) * 0.2) * sqrt(wdt)
+	if wmonth and int(e["shock"]) > 0:
 		e["shock"] = int(e["shock"]) - 1
 	e["price"] = clampf(p, 60.0, 400.0)
 	# зелёный переход: каждая ступень вкладывает 0,3% ВВП в год и добавляет ≈0,5 п.п. зелёной доли в месяц
 	var gr: float = float(e["green"])
 	if int(lv["grn"]) > 0:
-		debt += gdp * 0.3 * float(lv["grn"]) / 100.0 / 12.0
-		gr += 0.45 * float(lv["grn"])
-		e["dep"] = maxf(2.0, float(e["dep"]) - 0.06 * float(lv["grn"]))
-		rl["g"] = float(rl["g"]) + 0.02 * float(lv["grn"])
+		debt += gdp * 0.3 * float(lv["grn"]) / 100.0 / 12.0 * wdt
+		gr += 0.45 * float(lv["grn"]) * wdt
+		e["dep"] = maxf(2.0, float(e["dep"]) - 0.06 * float(lv["grn"]) * wdt)
+		if wmonth:
+			rl["g"] = float(rl["g"]) + 0.02 * float(lv["grn"])
 	if int(lv["gas"]) > 0:
-		debt += gdp * 0.1 * float(lv["gas"]) / 100.0 / 12.0
+		debt += gdp * 0.1 * float(lv["gas"]) / 100.0 / 12.0 * wdt
 	e["green"] = clampf(gr, 0.0, 100.0)
 	var pr: float = float(e["price"]) - 100.0
 	var dep: float = float(e["dep"]) * (1.0 - float(e["green"]) / 250.0)
-	rl["inf"] = float(rl["inf"]) + pr * dep * 0.0004
-	rl["g"] = float(rl["g"]) - pr * dep * 0.00012
+	if wmonth:
+		rl["inf"] = float(rl["inf"]) + pr * dep * 0.0004
+		rl["g"] = float(rl["g"]) - pr * dep * 0.00012
 	# климат: риск медленно растёт, зелёная доля его сдерживает
-	e["clim"] = clampf(float(e["clim"]) + 0.03 * (1.0 - float(e["green"]) / 150.0), 0.0, 100.0)
+	e["clim"] = clampf(float(e["clim"]) + 0.03 * (1.0 - float(e["green"]) / 150.0) * wdt, 0.0, 100.0)
 
 
 # ---------- А5. Правовое государство и коррупция ----------
@@ -342,15 +371,16 @@ func rl_law_step() -> void:
 	var dem: float = democracy_index()
 	# независимость судов следует за демократией (от базового уровня), коррупция — за судами и свободой прессы
 	var jt: float = float(l["j0"]) + (dem - float(l["dem0"])) * 60.0
-	l["jud"] = clampf(jud + (jt - jud) * 0.01, 3.0, 99.0)
+	l["jud"] = clampf(jud + (jt - jud) * wr(0.01), 3.0, 99.0)
 	var ct: float = 100.0 - (0.6 * jud + 0.4 * fr) + float(l["cx"])
-	l["cor"] = clampf(cor + (ct - cor) * 0.015, 1.0, 98.0)
+	l["cor"] = clampf(cor + (ct - cor) * wr(0.015), 1.0, 98.0)
 	cor = float(l["cor"])
-	rl["g"] = float(rl["g"]) - cor * 0.0035 + jud * 0.0012
-	debt += gdp * cor * 0.00002 / 12.0
+	if wmonth:
+		rl["g"] = float(rl["g"]) - cor * 0.0035 + jud * 0.0012
+	debt += gdp * cor * 0.00002 / 12.0 * wdt
 	if rv_on():
 		var nat: Dictionary = rv["nat"]
-		nat["hate"] = rv_clamp(float(nat["hate"]) + maxf(0.0, cor - 45.0) * 0.004 - maxf(0.0, 35.0 - cor) * 0.002)
+		nat["hate"] = rv_clamp(float(nat["hate"]) + maxf(0.0, cor - 45.0) * 0.004 * wdt - maxf(0.0, 35.0 - cor) * 0.002 * wdt)
 
 
 # ---------- А8. СМИ ----------
@@ -361,21 +391,22 @@ func rl_media_step() -> void:
 	var st: int = int(m["state"])
 	if st > 0:
 		# контроль над СМИ: рейтинг выше, но свобода и доверие падают
-		trust = maxf(5.0, trust - 0.15 * float(st))
-		add_all_support(0.05 * float(st))
-	free = clampf(free + (float(m["tgt"]) - 20.0 * float(st) - free) * 0.02, 3.0, 99.0)
+		trust = maxf(5.0, trust - 0.15 * float(st) * wdt)
+		add_all_support(0.05 * float(st) * wdt)
+	free = clampf(free + (float(m["tgt"]) - 20.0 * float(st) - free) * wr(0.02), 3.0, 99.0)
 	# фейки растут при слабых СМИ и гаснут при независимых
 	var fk: float = float(m["fake"])
-	fk = clampf(fk + (55.0 - free) * 0.004 - 0.05 + (0.1 if inflation > 6.0 else 0.0), 0.0, 100.0)
+	fk = clampf(fk + (55.0 - free) * 0.004 * wdt - 0.05 * wdt + (0.1 if inflation > 6.0 else 0.0) * wdt, 0.0, 100.0)
 	m["fake"] = fk
-	trust = clampf(trust + (free - 50.0) * 0.003 - fk * 0.004, 5.0, 95.0)
+	trust = clampf(trust + (free - 50.0) * 0.003 * wdt - fk * 0.004 * wdt, 5.0, 95.0)
 	m["trust"] = trust
 	m["free"] = free
 	free_adj = (free - float(RL_PRESS.get(ccode, 65))) / 100.0 * 0.25
-	rl["g"] = float(rl["g"]) - fk * 0.0015
+	if wmonth:
+		rl["g"] = float(rl["g"]) - fk * 0.0015
 	if rv_on() and fk > 30.0:
 		var nat: Dictionary = rv["nat"]
-		nat["wave"] = rv_clamp(float(nat["wave"]) + (fk - 30.0) * 0.004)
+		nat["wave"] = rv_clamp(float(nat["wave"]) + (fk - 30.0) * 0.004 * wdt)
 
 
 # ---------- А9. Региональное выравнивание ----------
@@ -384,7 +415,7 @@ func rl_region_step() -> void:
 		return
 	var eq: int = int((rl["lv"] as Dictionary)["eq"])
 	if eq > 0:
-		debt += gdp * 0.25 * float(eq) / 100.0 / 12.0
+		debt += gdp * 0.25 * float(eq) / 100.0 / 12.0 * wdt
 	var avg_dev := 0.0
 	for r in regions:
 		avg_dev += float(r["dev"])
@@ -396,15 +427,15 @@ func rl_region_step() -> void:
 		if eq > 0:
 			if dev < avg_dev:
 				# бедные регионы довольны трансфертами
-				rg["hate"] = maxf(0.0, float(rg["hate"]) - 0.35 * float(eq) * clampf(gap, 0.0, 1.5))
-				rg["sep"] = rv_clamp(float(rg["sep"]) - 0.12 * float(eq))
+				rg["hate"] = maxf(0.0, float(rg["hate"]) - 0.35 * float(eq) * clampf(gap, 0.0, 1.5) * wdt)
+				rg["sep"] = rv_clamp(float(rg["sep"]) - 0.12 * float(eq) * wdt)
 			else:
 				# богатые платят за остальных и ропщут (Каталония, Фландрия, Ломбардия)
-				rg["sep"] = rv_clamp(float(rg["sep"]) + 0.07 * float(eq) * clampf(-gap, 0.0, 1.5))
+				rg["sep"] = rv_clamp(float(rg["sep"]) + 0.07 * float(eq) * clampf(-gap, 0.0, 1.5) * wdt)
 		elif dev > avg_dev + 6.0:
-			rg["sep"] = rv_clamp(float(rg["sep"]) + 0.02)
+			rg["sep"] = rv_clamp(float(rg["sep"]) + 0.02 * wdt)
 		elif dev < avg_dev - 6.0:
-			rg["hate"] = minf(100.0, float(rg["hate"]) + 0.03)
+			rg["hate"] = minf(100.0, float(rg["hate"]) + 0.03 * wdt)
 
 
 # ---------- А6. Парламент и президент ----------
@@ -421,9 +452,10 @@ func rl_parl_step() -> void:
 	if not rl_cohab():
 		rl["cohab"] = 0
 		return
-	rl["cohab"] = int(rl.get("cohab", 0)) + 1
-	capital -= 0.15
-	if rl_cd_get("cohab") == 0 and current_event.is_empty() and not observer and randf() < 0.05:
+	if wmonth:
+		rl["cohab"] = int(rl.get("cohab", 0)) + 1
+	capital -= 0.15 * wdt
+	if rl_cd_get("cohab") == 0 and current_event.is_empty() and not observer and randf() < wp(0.05):
 		rl_cd_set("cohab", 18)
 		rl_event("cohab", "Сожительство: президент из оппозиции отказался подписать назначения и вернул закон на доработку. Страна смотрит, кто уступит.", [
 			{"l": "Пойти на компромисс: уступить в назначениях (капитал −3)", "fx": {"capital": -3.0}, "act": "coh_comp"},
@@ -456,7 +488,7 @@ func rl_events() -> void:
 	if k <= 0.0:
 		return
 	# энергетический шок
-	if rl_cd_get("shock") == 0 and randf() < 0.006 * k * (0.5 + float(e["dep"]) / 100.0):
+	if rl_cd_get("shock") == 0 and randf() < wp(0.006 * k * (0.5 + float(e["dep"]) / 100.0)):
 		rl_cd_set("shock", 30)
 		rl_event("shock", "Скачок цен на газ и нефть: поставщики сократили объёмы, биржи лихорадит. Промышленность и домохозяйства требуют помощи.", [
 			{"l": "Субсидии на энергию (долг +0,8% ВВП)", "fx": {"debt": 0.8, "all": 1.0}, "act": "shock_sub"},
@@ -464,7 +496,7 @@ func rl_events() -> void:
 			{"l": "Пусть рынок сам: цены вырастут", "fx": {"all": -1.5}, "act": "shock_none"}])
 		return
 	# климатическое бедствие
-	if rl_cd_get("clim") == 0 and randf() < 0.0012 * k * (0.5 + float(e["clim"]) / 40.0):
+	if rl_cd_get("clim") == 0 and randf() < wp(0.0012 * k * (0.5 + float(e["clim"]) / 40.0)):
 		rl_cd_set("clim", 36)
 		var kinds := ["засуха", "наводнение", "лесные пожары", "аномальная жара"]
 		var kd: String = kinds[randi() % kinds.size()]
@@ -474,7 +506,7 @@ func rl_events() -> void:
 			{"l": "Ограничиться компенсациями (капитал −2)", "fx": {"capital": -2.0}, "act": "clim_min"}])
 		return
 	# коррупционный скандал
-	if rl_cd_get("scand") == 0 and randf() < 0.004 * k * float(l["cor"]) / 40.0 * (0.6 + float(m["free"]) / 100.0):
+	if rl_cd_get("scand") == 0 and randf() < wp(0.004 * k * float(l["cor"]) / 40.0 * (0.6 + float(m["free"]) / 100.0)):
 		rl_cd_set("scand", 24)
 		rl_event("scand", "Журналисты опубликовали расследование: министр и приближённые бизнесмены делили госзаказы. В парламенте требуют отставки.", [
 			{"l": "Уволить министра и передать дело прокуратуре (капитал −3)", "fx": {"capital": -3.0, "all": -0.5}, "act": "scand_fire"},
@@ -482,7 +514,7 @@ func rl_events() -> void:
 			{"l": "Замять: «ложные обвинения»", "fx": {}, "act": "scand_hide"}])
 		return
 	# дезинформация
-	if rl_cd_get("fake") == 0 and randf() < 0.004 * k * float(m["fake"]) / 40.0:
+	if rl_cd_get("fake") == 0 and randf() < wp(0.004 * k * float(m["fake"]) / 40.0):
 		rl_cd_set("fake", 24)
 		rl_event("fake", "По соцсетям разошёлся фейк о правительстве: видео и «утечки», которых не было. Люди растеряны.", [
 			{"l": "Опровержение через независимые СМИ и проверка фактов (капитал −3)", "fx": {"capital": -3.0}, "act": "fake_fact"},
@@ -490,7 +522,7 @@ func rl_events() -> void:
 			{"l": "Не обращать внимания", "fx": {}, "act": "fake_ignore"}])
 		return
 	# демографический или миграционный вызов
-	if rl_cd_get("demo") == 0 and float(rl["d"]["pen"]) > 0.8 and randf() < 0.01 * k:
+	if rl_cd_get("demo") == 0 and float(rl["d"]["pen"]) > 0.8 and randf() < wp(0.01 * k):
 		rl_cd_set("demo", 48)
 		rl_event("demo", "Пенсионная система трещит: работающих всё меньше, пенсионеров всё больше. Эксперты просят решения.", [
 			{"l": "Поднять пенсионный возраст на год (капитал −5)", "fx": {"capital": -5.0, "support": {"Пенсионеры": -5.0, "Бизнес": 2.0}}, "act": "demo_ret"},
@@ -578,12 +610,13 @@ func rl_pending_step() -> void:
 		var sec: String = String(p["sec"])
 		var key: String = String(p["key"])
 		var d: Dictionary = rl[sec]
-		d[key] = clampf(float(d[key]) + float(p["step"]), -100.0 if key == "cx" else 0.0, 100.0)
+		d[key] = clampf(float(d[key]) + float(p["step"]) * wdt, -100.0 if key == "cx" else 0.0, 100.0)
 		if p.has("key2"):
-			d[String(p["key2"])] = float(d[String(p["key2"])]) + float(p["step"])
-		p["left"] = int(p["left"]) - 1
-		if int(p["left"]) <= 0:
-			pend.remove_at(i)
+			d[String(p["key2"])] = float(d[String(p["key2"])]) + float(p["step"]) * wdt
+		if wmonth:          # срок — в целых месяцах, шаг за месяц делится по неделям
+			p["left"] = int(p["left"]) - 1
+			if int(p["left"]) <= 0:
+				pend.remove_at(i)
 
 
 # ============================================================
@@ -753,6 +786,7 @@ func rl_do(id: String) -> bool:
 			rl_log("Взнос в бюджет ЕС снижен.", COL_GOOD)
 		"eu_leave":
 			b["eu"] = false
+			fin_euro_exit()
 			b["euro"] = false
 			b["schg"] = false
 			dip_all(-6.0, true)
