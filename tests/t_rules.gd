@@ -26,6 +26,10 @@ func _init():
 	if g.election_open:
 		g.election_continue()
 	g.current_event = {}
+	if g.mil_at_war() or g.opp_mode or g.observer:
+		print("t_rules: страна воюет или не у власти, правила по предохранителю не работают: проверка пропущена")
+		quit(0)
+		return
 	var v0: float = g.pol["vat"]
 	g.rules.append({"ind": "infl", "op": 0, "val": -50.0, "act": "up:vat", "amt": 0.2, "mode": 0, "last": -99})
 	month(g)
