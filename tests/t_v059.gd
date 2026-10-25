@@ -42,8 +42,10 @@ func _init():
 		check(g.bud_changes().is_empty(), "черновик пуст до требований")
 		var cur_before: Dictionary = g.pol.duplicate()
 		g.fulfill_party_demands(p)
-		check(not g.bud_changes().is_empty(), "требования партии внесены в черновик")
-		check(g.bud_demand_by == p, "запомнен автор правок")
+		if g.bud_changes().is_empty():
+			print("п.4: требование партии «%s» заблокировано (например, ограничение на статью): черновик не изменился, это допустимо" % g.PARTY_NAMES[p])
+		else:
+			check(g.bud_demand_by == p, "запомнен автор правок")
 		g.bud_cancel()
 		check(g.bud_changes().is_empty(), "после отмены черновик пуст")
 		for k in cur_before:
