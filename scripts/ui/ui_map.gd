@@ -167,7 +167,7 @@ func map_rebuild() -> void:
 	rebuild_region_widgets()
 	map_prepare()
 	if map_ctl != null:
-		map_ctl.queue_redraw()
+		map_redraw()
 	update_regions_ui()
 
 
@@ -524,6 +524,24 @@ func map_border_segs(key: String) -> PackedVector2Array:
 	return out
 
 
+func map_redraw() -> void:
+	if map_cv == null:
+		return
+	map_cv.queue_redraw()
+	map_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
+func map_vp_resize() -> void:
+	if map_vp == null or map_ctl == null:
+		return
+	var sc: float = get_window().content_scale_factor if get_window() != null else 1.0
+	map_vp.size = Vector2i(maxi(16, int(map_ctl.size.x * sc)), maxi(16, int(map_ctl.size.y * sc)))
+	map_vp.canvas_transform = Transform2D().scaled(Vector2(sc, sc))
+	map_cv.position = Vector2.ZERO
+	map_cv.size = map_ctl.size
+	map_redraw()
+
+
 func map_view() -> Array:
 	var c := map_ctl
 	var s0: float = minf(c.size.x / maxf(1.0, map_bounds.size.x), c.size.y / maxf(1.0, map_bounds.size.y)) * 0.96
@@ -577,7 +595,7 @@ func map_fit_rect(r: Rect2, instant: bool = false) -> void:
 	map_center_t = r.get_center() - (fr.get_center() - c.size * 0.5) / s
 	if instant:
 		map_cam_snap()
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 func map_zoom_cmd(k: int) -> void:
@@ -597,7 +615,7 @@ func map_zoom_at(pos: Vector2, f: float) -> void:
 	map_zoom_t = clampf(map_zoom_t * f, 0.4, 24.0)
 	map_center_t = wp - (pos - map_ctl.size * 0.5) / (s0 * map_zoom_t)
 	map_clamp()
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 func map_clamp() -> void:
@@ -626,7 +644,7 @@ func map_cam_step(delta: float) -> void:
 		var k: float = 1.0 - exp(-delta * 11.0)
 		map_zoom = exp(lerpf(log(map_zoom), log(map_zoom_t), k))
 		map_center = map_center.lerp(map_center_t, k)
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 # малые регионы своей страны (Берлин, Бремен…) на текущем масштабе: их можно выбрать по «булавке»
@@ -847,7 +865,7 @@ func on_map_input(ev: InputEvent) -> void:
 				map_center_t -= mm.relative / float(map_view()[0])
 				map_clamp()
 				map_center = map_center_t
-				map_ctl.queue_redraw()
+				map_redraw()
 			return
 		if current_desk == 13 or current_desk == 14:
 			war_hover(mm.position)
@@ -870,7 +888,7 @@ func on_map_input(ev: InputEvent) -> void:
 				map_ctl.tooltip_text = "%s\nСтрана пока не входит в игру." % String(WORLD_CTX[ci]["name"])
 			else:
 				map_ctl.tooltip_text = ""
-			map_ctl.queue_redraw()
+			map_redraw()
 		return
 	var mb := ev as InputEventMouseButton
 	if mb == null:
@@ -959,13 +977,37 @@ func build_map_windows() -> void:
 	map_base.add_child(map_ctl)
 	map_ctl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	map_ctl.clip_contents = true
-	map_ctl.draw.connect(draw_map)
+	# 0.59: карта рисуется в отдельный SubViewport и показывается готовой картинкой; пока ничего не меняется, она не перерисовывается
+	# (раньше видеокарта каждый кадр заново получала сотни тысяч команд отрисовки карты, и игра шла на 17 кадрах в секунду)
+	map_vp = SubViewport.new()
+	map_vp.disable_3d = true
+	map_vp.transparent_bg = false
+	map_vp.gui_disable_input = true
+	map_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	map_vp.size = Vector2i(1200, 800)
+	map_ctl.add_child(map_vp)
+	map_cv = Control.new()
+	map_cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_cv.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	map_cv.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	map_cv.theme = theme
+	map_vp.add_child(map_cv)
+	map_cv.draw.connect(draw_map)
+	map_img = TextureRect.new()
+	map_img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_img.texture = map_vp.get_texture()
+	map_img.stretch_mode = TextureRect.STRETCH_SCALE
+	map_img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	map_ctl.add_child(map_img)
+	map_img.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	map_ctl.resized.connect(map_vp_resize)
+	map_vp_resize.call_deferred()
 	map_ctl.gui_input.connect(on_map_input)
 	map_ctl.mouse_exited.connect(func() -> void:
 		map_drag = false
 		map_hover_unit = -1
 		map_hover_ate = -1
-		map_ctl.queue_redraw())
+		map_redraw())
 	map_fx = Control.new()
 	map_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	map_fx.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
@@ -1341,7 +1383,9 @@ func draw_map() -> void:
 		return
 	if map_unit_rect.size() != WORLD_UNITS.size() or ate_lists.size() != WORLD_UNITS.size():
 		map_prepare()
-	var c := map_ctl
+	var c := map_cv
+	if c.size.x < 50.0 or c.size.y < 50.0:
+		return
 	if not map_inited and c.size.x > 50.0:
 		map_inited = true
 		map_fit_rect(map_country_rect(ccode), true)
@@ -1520,7 +1564,7 @@ func draw_map() -> void:
 		var wpx: float = rr2.size.x * s
 		if is_world_layer() or (cc3 != ccode and s < 2.4) or s < 1.3:
 			continue
-		if cc3 == ccode and map_own_mix > 0.5:
+		if cc3 == ccode and (map_own_mix > 0.5 or not map_unit_local.has(ui)):
 			continue
 		var ctr: Vector2 = Vector2(float(u["c"][0]), float(u["c"][1])) * s + off
 		var nm := ""
@@ -1677,7 +1721,7 @@ func update_regions_ui() -> void:
 		for wid in ["region", "regact", "regecon", "regtable", "dinfo", "dact", "dtable"]:
 			loc_tree(wins[wid])
 	map_legend.text = MAP_LEGENDS[map_layer] + " Колёсико — масштаб, перетаскивание — перемещение, щелчок по стране или региону — сведения."
-	map_ctl.queue_redraw()
+	map_redraw()
 	if map_reg_pick != null and selected_region >= 0 and selected_region < map_reg_pick.item_count and map_reg_pick.selected != selected_region:
 		map_reg_pick.select(selected_region)
 	update_region_info()
@@ -2169,7 +2213,7 @@ func ate_click(a: int, whole: bool) -> void:
 		if i >= 0 and ate_sel.size() <= 1:
 			selected_region = i
 	update_adm_ui()
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 # ============================================================
@@ -2189,7 +2233,7 @@ func build_adm_window() -> void:
 			ate_sel.clear()
 			map_seg_cache.erase("s")
 		update_adm_ui()
-		map_ctl.queue_redraw())
+		map_redraw())
 	w.body.add_child(cb)
 	adm_ui["mode"] = cb
 	var clr := fed_btn("Снять выделение", w.body)
@@ -2197,7 +2241,7 @@ func build_adm_window() -> void:
 		ate_sel.clear()
 		map_seg_cache.erase("s")
 		update_adm_ui()
-		map_ctl.queue_redraw())
+		map_redraw())
 	adm_ui["clear"] = clr
 	adm_ui["sel"] = make_rt(w.body)
 	# свои АТЕ: передать или создать регион
@@ -2263,7 +2307,7 @@ func adm_open() -> void:
 	show_desk(2)
 	w.move_to_front()
 	update_adm_ui()
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 func adm_opt_fill(o: OptionButton, items: Array, keep_id: int) -> void:

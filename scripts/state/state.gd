@@ -399,6 +399,9 @@ var event_text := ""
 var event_buttons: Array = []
 
 var map_ctl: Control
+var map_vp: SubViewport              # 0.59: карта рисуется сюда один раз и показывается как картинка
+var map_cv: Control                  # холст внутри map_vp, на нём работает draw_map
+var map_img: TextureRect
 
 var map_legend: Label
 

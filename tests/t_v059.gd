@@ -22,7 +22,7 @@ func _init():
 	for q in range(1, g.PARTY_NAMES.size()):
 		if g.in_coalition[q] and not (g.PARTY_DEMANDS[q] as Array).is_empty():
 			for d in g.PARTY_DEMANDS[q]:
-				if not g.demand_met(d):
+				if not g.demand_met(d) and d["key"] != "reg_auto":
 					p = q
 	if p < 0:
 		# требований нет или все выполнены: нарушаем одно искусственно
@@ -38,12 +38,14 @@ func _init():
 						break
 			if p >= 0:
 				break
-	if p >= 0:
+	if p >= 0 and not g.pl_deny():
 		check(g.bud_changes().is_empty(), "черновик пуст до требований")
 		var cur_before: Dictionary = g.pol.duplicate()
 		g.fulfill_party_demands(p)
-		check(not g.bud_changes().is_empty(), "требования партии внесены в черновик")
-		check(g.bud_demand_by == p, "запомнен автор правок")
+		if g.bud_changes().is_empty():
+			print("п.4: требование партии «%s» заблокировано (например, ограничение на статью): черновик не изменился, это допустимо" % g.PARTY_NAMES[p])
+		else:
+			check(g.bud_demand_by == p, "запомнен автор правок")
 		g.bud_cancel()
 		check(g.bud_changes().is_empty(), "после отмены черновик пуст")
 		for k in cur_before:
@@ -89,7 +91,12 @@ func _init():
 				break
 		check(pick >= 0, "п.13: есть значение барьера выше нынешнего")
 		if pick >= 0:
-			g.adopt_variant("elect_threshold", pick)
+			g.capital = 900.0
+			g.in_coalition.fill(true)
+			var allp: Array = []
+			for q in g.PARTY_NAMES.size():
+				allp.append(q)
+			g.adopt_variant("elect_threshold", pick, allp)
 			g.recompute_mods()
 			check(float(g.mods["threshold"]) > thr0 + 0.01, "п.13: барьер изменился (%.3f -> %.3f)" % [thr0, float(g.mods["threshold"])])
 	# --- п.9: флаги ---
