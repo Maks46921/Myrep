@@ -171,7 +171,7 @@ func build_settings_window() -> void:
 	st_option(g, "Море на карте", SEA_NAMES, "sea", "Цвет и глубина воды на карте мира и страны.", func(_i: int) -> void:
 		settings_apply_static()
 		if map_ctl != null:
-			map_ctl.queue_redraw())
+			map_redraw())
 	st_option(g, "Масштаб интерфейса", UI_SCALES.map(func(x: float) -> String: return "%d%%" % int(round(x * 100.0))), "scale",
 		"Размер шрифтов и кнопок. Удобно на больших или маленьких экранах.", func(_i: int) -> void: settings_apply_static())
 	# 0.56: подсказки — размер шрифта и задержка перед показом

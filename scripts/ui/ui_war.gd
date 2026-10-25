@@ -278,7 +278,7 @@ func war_select(id: int) -> void:
 	mil["sel"] = id
 	refresh()
 	if map_ctl != null:
-		map_ctl.queue_redraw()
+		map_redraw()
 
 
 func update_war_windows() -> void:
@@ -664,7 +664,7 @@ func war_map_click(pos: Vector2, shift: bool) -> void:
 		if nid != "" and flt_has_sea() and not bool(flt["land"]):
 			mil_nav_station_set(nid)
 			refresh()
-			map_ctl.queue_redraw()
+			map_redraw()
 		return
 	var tk := war_token_at(pos)
 	var fsel := mil_unit(int(mil.get("sel", -1)))
@@ -681,7 +681,7 @@ func war_map_click(pos: Vector2, shift: bool) -> void:
 	else:
 		war_msg = mil_order_move(int(fsel["id"]), a)
 	refresh()
-	map_ctl.queue_redraw()
+	map_redraw()
 
 
 func war_tip(a: int) -> String:
@@ -716,4 +716,4 @@ func war_hover(pos: Vector2) -> void:
 			if nid != "":
 				map_ctl.tooltip_text = "%s\nЩелчок — поставить эскадру сюда." % String(flt_nodes[nid]["name"])
 		map_ctl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if (tk >= 0 or a >= 0) else Control.CURSOR_ARROW
-		map_ctl.queue_redraw()
+		map_redraw()
