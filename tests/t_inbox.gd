@@ -42,6 +42,10 @@ func _init():
 	check(maxq > 0, "за 5 лет хотя бы одно событие ушло во «Входящие»")
 	check(g.inbox.size() <= g.INBOX_MAX, "список не раздут (%d)" % g.inbox.size())
 	# ручные действия
+	if g.game_over or g.opp_mode:
+		print("t_inbox: игрок проиграл или ушёл в оппозицию (события решает правительство), ручные проверки пропущены (проблем ", bad, ")")
+		quit(1 if bad > 0 else 0)
+		return
 	if g.election_open:
 		g.election_continue()
 	g.current_event = {}

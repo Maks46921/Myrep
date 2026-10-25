@@ -2097,7 +2097,7 @@ func mil_annex(cc: String, sel: Array) -> String:
 			if int(votes[ri]) > bv:
 				bv = int(votes[ri])
 				dst = int(ri)
-		if dst < 0 and regions.size() >= ADM_MAX_REG:
+		if dst < 0 and regions.size() >= adm_max_reg():
 			dst = 0
 		var q := ate_buy_quote(comp, 1.0, dst)
 		if not q.has("parts"):

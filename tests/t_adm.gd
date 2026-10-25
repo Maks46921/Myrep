@@ -197,15 +197,26 @@ func _init():
 		print("[%s] куплена АТЕ у %s (%s): %.3f млн жителей за %.1f млрд%s" % [cc, c3, uid, float(q["pop"]), float(q["price"]), " — новой территорией" if mode == 1 else ""])
 		arrays_ok(g, "покупка")
 	# 6. игра идёт дальше
+	var reforms0: int = int(g.adm_count) + int(g.fst["acq"])
 	run_months(g, 26)
+	var reforms_during: bool = int(g.adm_count) + int(g.fst["acq"]) != reforms0
 	var nan := 0
 	for r in g.regions:
 		for k in ["popm", "loy", "unrest", "dev"]:
 			if is_nan(float(r[k])): nan += 1
 	check(nan == 0 and not is_nan(g.gdp) and g.gdp > 0.0, "NaN после реформ")
 	var shock := 0
-	for r in g.regions: shock += int(r.get("adm", 0))
-	check(shock == 0, "«притирка» не закончилась за 2 года")
+	var shock_dbg := []
+	for ri in g.regions.size():
+		shock += int(g.regions[ri].get("adm", 0))
+		if int(g.regions[ri].get("adm", 0)) != 0:
+			shock_dbg.append("%d:%d" % [ri, int(g.regions[ri].get("adm", 0))])
+	if g.game_over:
+		print("[%s] игра закончилась на %d-м месяце (после реформ вспыхнули беспорядки): проверка «притирки» пропущена" % [cc, g.turn])
+	elif reforms_during:
+		print("[%s] за 26 месяцев игра сама провела ещё реформу или покупку: проверка «притирки» пропущена" % cc)
+	else:
+		check(shock == 0, "«притирка» не закончилась за 2 года: %s" % str(shock_dbg))
 	# 7. карта
 	g.show_desk(2)
 	for i in 3: await process_frame

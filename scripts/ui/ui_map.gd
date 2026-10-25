@@ -1564,7 +1564,7 @@ func draw_map() -> void:
 		var wpx: float = rr2.size.x * s
 		if is_world_layer() or (cc3 != ccode and s < 2.4) or s < 1.3:
 			continue
-		if cc3 == ccode and map_own_mix > 0.5:
+		if cc3 == ccode and (map_own_mix > 0.5 or not map_unit_local.has(ui)):
 			continue
 		var ctr: Vector2 = Vector2(float(u["c"][0]), float(u["c"][1])) * s + off
 		var nm := ""
