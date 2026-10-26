@@ -1626,7 +1626,7 @@ func pa_add_bill(p: int, tid: String, idx: int) -> void:
 	pcap[p] = maxf(0.0, float(pcap[p]) - 3.0)
 	var who := "партнёр по коалиции" if in_coalition[p] and not opp_mode else "оппозиция"
 	log_tag("ЗАКОНОПРОЕКТ", COL_TEAL, "«%s» (%s) внесла законопроект «%s»: %s. Голосование через 3 мес. Как голосует ваша фракция, решите в окне «Законопроекты» (сейчас — %s)." % [
-		PARTY_NAMES[p], who, law_index[tid]["name"], variant_of(tid, idx)["n"], "за" if pa_line(bills[bills.size() - 1]) else "против"])
+		PARTY_NAMES[p], who, law_index[tid]["name"], variant_of(tid, idx)["n"], pa_line_text(bills[bills.size() - 1])])
 
 
 func pa_do(p: int, kind: String, o: Dictionary) -> void:
@@ -1687,11 +1687,17 @@ func pa_do(p: int, kind: String, o: Dictionary) -> void:
 					log_tag("ОППОЗИЦИЯ", COL_WARN, "«%s» провела митинги против вашего правительства: рейтинг власти −%.1f." % [PARTY_NAMES[p], 0.06 * w])
 
 
-# линия партии игрока по чужому законопроекту: true — «за»
+# линия партии игрока по чужому законопроекту: true — «за» (0.64: единый расчёт в laws.gd, line_kind_for)
 func pa_line(b: Dictionary) -> bool:
-	var s := variant_stance(0, String(b["tid"]), int(b["idx"]))
-	var sp: int = int(b["sponsor"])
-	return s >= 0.0 or (in_coalition[0] and sp > 0 and sp < in_coalition.size() and in_coalition[sp] and s >= -1.0)
+	return pa_line_kind(b) == "yes"
+
+
+func pa_line_kind(b: Dictionary) -> String:
+	return line_kind_for(String(b["tid"]), int(b["idx"]), int(b["sponsor"]))
+
+
+func pa_line_text(b: Dictionary) -> String:
+	return {"yes": "за", "no": "против", "abst": "воздержаться"}[pa_line_kind(b)]
 
 
 func pa_set_vote(bid: int, v: String) -> void:
@@ -1740,10 +1746,10 @@ func pa_vote_after(b: Dictionary, p: int) -> void:
 	if seats[0] <= 0:
 		return
 	var pv: String = String(b.get("pv", "line"))
-	var line := pa_line(b)
-	var eff: String = pv if pv != "line" else ("yes" if line else "no")
+	var lk := pa_line_kind(b)
+	var eff: String = pv if pv != "line" else lk
 	var nm: String = String(law_index[String(b["tid"])]["name"])
-	if (eff == "yes" and not line) or (eff == "no" and line):
+	if (eff == "yes" and lk == "no") or (eff == "no" and lk == "yes"):
 		pl_disc = minf(1.0, pl_disc + 0.15)
 		add_all_support(-0.2)
 		log_tag("ФРАКЦИЯ", COL_WARN, "по закону «%s» ваша фракция проголосовала против линии партии: дисциплина слабеет, часть избирателей недовольна." % nm)

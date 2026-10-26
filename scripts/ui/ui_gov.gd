@@ -98,16 +98,10 @@ func build_gov_windows() -> void:
 	make_tail(cabfx_rt, "Кто что приносит")
 
 	w = new_window("neg", "Переговоры с партией", 4, Rect2(0.50, 0.0, 0.205, 0.58))
-	neg_option = OptionButton.new()
-	neg_option.focus_mode = Control.FOCUS_NONE
-	neg_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	neg_option.fit_to_longest_item = false
-	neg_option.clip_text = true
-	for p in range(1, PARTY_NAMES.size()):
-		if can_govern(p):
-			neg_option.add_item(PARTY_NAMES[p], p)
-	neg_option.item_selected.connect(on_neg_selected)
-	w.body.add_child(neg_option)
+	neg_pick = party_pick_make(w.body, func(q: int) -> void:
+		neg_party = q
+		selected_party = q
+		refresh())
 	neg_promise_btn = Button.new()
 	neg_promise_btn.toggle_mode = true
 	neg_promise_btn.focus_mode = Control.FOCUS_NONE
@@ -149,12 +143,6 @@ func select_neg_party(p: int) -> void:
 		show_desk(4)
 	else:
 		refresh()
-
-
-func on_neg_selected(idx: int) -> void:
-	neg_party = neg_option.get_item_id(idx)
-	selected_party = neg_party
-	refresh()
 
 
 func on_neg_promise(on: bool) -> void:
@@ -304,7 +292,12 @@ func update_neg() -> void:
 	if not can_govern(p):
 		p = 1
 		neg_party = 1
-	neg_option.select(neg_option.get_item_index(p))
+	var neg_items: Array = []
+	for q in range(1, PARTY_NAMES.size()):
+		if q in NO_GOV_SLOTS:
+			continue
+		neg_items.append({"p": q, "why": "" if can_govern(q) else "эта партия не участвует в формировании правительства"})
+	party_pick_set(neg_pick, neg_items, p)
 	var tr: Dictionary = PARTY_TRAITS[p]
 	var col: String = (PARTY_COLORS[p] as Color).lightened(0.25).to_html(false)
 	var t := "[b][font_size=18][color=#%s]%s[/color][/font_size][/b]\nЛидер: %s. Характер: [b]%s[/b]\n[color=%s]%s[/color]\n" % [col, PARTY_NAMES[p], PARTY_LEADERS[p], tr["trait"], COL_DIM, tr["desc"]]
@@ -737,19 +730,169 @@ func cn_build_left() -> void:
 		hb.add_child(b2)
 
 
-func cn_opt(parent: Control, cur: int, cb: Callable) -> OptionButton:
-	var ob := OptionButton.new()
-	ob.focus_mode = Control.FOCUS_NONE
-	ob.fit_to_longest_item = false
-	ob.clip_text = true
-	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var holders: Array = [0] + cn_parties()
-	for q in holders:
-		ob.add_item(party_abbr(q), q)
-	ob.select(maxi(0, ob.get_item_index(cur)))
-	ob.item_selected.connect(func(i: int) -> void: cb.call(ob.get_item_id(i)))
-	parent.add_child(ob)
-	return ob
+# 0.64: выбор партии карточками вместо выпадающих списков. Один вид везде: цвет партии, название, положение «слева — справа»,
+# краткое описание, голоса в опросе и места, отношение к вам, статус и сходство программ. Недоступные партии серые, с причиной.
+func party_pick_make(parent: Control, cb: Callable, compact: bool = false) -> Dictionary:
+	var host := VBoxContainer.new()
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(host)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.add_child(grid)
+	var h := {"host": host, "grid": grid, "cb": cb, "compact": compact, "sig": "", "n": 0}
+	host.resized.connect(func() -> void:
+		var cw: float = 76.0 if compact else 172.0
+		var c: int = clampi(int(host.size.x / (cw + 6.0)), 2, 8 if compact else 4)
+		if grid.columns != c:
+			grid.columns = c)
+	return h
+
+
+# положение партии на шкале «левые — правые» (0…1) по месту в зале парламента
+func party_lr(p: int) -> float:
+	var i := HEMI_ORDER.find(p)
+	return -1.0 if i < 0 or HEMI_ORDER.size() < 2 else float(i) / float(HEMI_ORDER.size() - 1)
+
+
+func party_status_text(p: int) -> String:
+	if p == 0:
+		return "ваша партия"
+	if in_coalition[p]:
+		return "в коалиции"
+	if seats[p] <= 0:
+		return "вне парламента"
+	return "оппозиция" if not opp_mode else ("правящая" if gov_party_of(p) else "оппозиция")
+
+
+func gov_party_of(p: int) -> bool:
+	return bool(in_coalition[p])
+
+
+func party_short_desc(p: int, n: int = 78) -> String:
+	if p < 0 or p >= PARTY_DESC.size():
+		return ""
+	var d: String = String(PARTY_DESC[p])
+	var cut := d.find(". ")
+	if cut > 0 and cut < n + 14:
+		d = d.substr(0, cut)
+	return d if d.length() <= n else d.substr(0, n - 1) + "…"
+
+
+# items: [{"p": номер, "why": "" или причина, почему выбрать нельзя}], sel: выбранная партия
+func party_pick_set(h: Dictionary, items: Array, sel: int) -> void:
+	if h.is_empty() or not is_instance_valid(h["grid"]):
+		return
+	var compact: bool = bool(h["compact"])
+	var ps: Array = []
+	if not compact:
+		ps = parl_shares()
+	var cards: Array = []
+	var sg := PackedStringArray([str(sel)])
+	for it in items:
+		var p: int = int(it["p"])
+		var d := {"p": p, "why": String(it.get("why", "")), "name": String(PARTY_NAMES[p]).replace(" (вы)", ""), "abbr": party_abbr(p), "col": PARTY_COLORS[p],
+			"seats": seats[p], "rel": float(prel[p]) if p > 0 and p < prel.size() else 100.0, "sim": party_sim(0, p) * 100.0 if p > 0 else 100.0,
+			"poll": float(ps[p]) * 100.0 if (not compact and p < ps.size()) else 0.0, "status": party_status_text(p), "lr": party_lr(p), "desc": party_short_desc(p)}
+		cards.append(d)
+		sg.append("%d|%s|%d|%.0f|%.0f|%.1f|%s" % [p, d["why"], d["seats"], d["rel"], d["sim"], d["poll"], d["status"]])
+	var sig := ";".join(sg)
+	if sig == String(h["sig"]):
+		return
+	h["sig"] = sig
+	var grid: GridContainer = h["grid"]
+	for ch in grid.get_children():
+		grid.remove_child(ch)
+		ch.queue_free()
+	for d in cards:
+		grid.add_child(party_pick_card(d, int(d["p"]) == sel, compact, h["cb"]))
+
+
+func party_pick_card(d: Dictionary, on: bool, compact: bool, cb: Callable) -> PanelContainer:
+	var p: int = int(d["p"])
+	var off: bool = String(d["why"]) != ""
+	var col: Color = d["col"]
+	if off:
+		col = col.lerp(Color(0.5, 0.5, 0.5), 0.75)
+	var pc := PanelContainer.new()
+	pc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pc.mouse_filter = Control.MOUSE_FILTER_STOP
+	pc.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN if off else Control.CURSOR_POINTING_HAND
+	var sb := sbox(C_PANEL2 if not on else C_PANEL2.lerp(col, 0.20), col if on else C_BORDER, 2 if on else 1, 8, 6.0 if compact else 8.0, 4.0 if compact else 6.0)
+	sb.border_width_left = 4
+	sb.border_color = col if on else col.darkened(0.35)
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.tooltip_text = loc(("Нельзя, потому что " + String(d["why"])) if off else ("%s\n%s" % [d["name"], PARTY_DESC[p] if p < PARTY_DESC.size() else ""]))
+	if not off:
+		pc.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventMouseButton and (e as InputEventMouseButton).pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+				cb.call(p))
+	if off:
+		pc.modulate = Color(1, 1, 1, 0.62)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 1)
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pc.add_child(vb)
+	var nm := Label.new()
+	nm.text = loc(String(d["abbr"]) if compact else String(d["name"]))
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.add_theme_font_size_override("font_size", 12 if compact else 13)
+	nm.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0) if on else C_TEXT)
+	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(nm)
+	if compact:
+		return pc
+	var lr: float = float(d["lr"])
+	if lr >= 0.0:
+		var bar := Control.new()
+		bar.custom_minimum_size = Vector2(0.0, 11.0)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var x: float = clampf(lr, 0.03, 0.97)
+		bar.draw.connect(func() -> void:
+			var w: float = bar.size.x
+			var n := 20
+			for i in n:
+				var a: float = float(i) / float(n)
+				bar.draw_rect(Rect2(w * a, 4.0, w / float(n) + 0.5, 3.0), Color(0.85, 0.32, 0.32).lerp(Color(0.32, 0.50, 0.90), a).darkened(0.25))
+			bar.draw_circle(Vector2(x * w, 5.5), 4.5, Color(1, 1, 1, 0.9))
+			bar.draw_circle(Vector2(x * w, 5.5), 3.2, col))
+		vb.add_child(bar)
+	var ds := Label.new()
+	ds.text = loc(String(d["desc"]))
+	ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ds.add_theme_font_size_override("font_size", 11)
+	ds.add_theme_color_override("font_color", C_DIM)
+	ds.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(ds)
+	var info := RichTextLabel.new()
+	info.bbcode_enabled = true
+	info.fit_content = true
+	info.scroll_active = false
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.add_theme_font_size_override("normal_font_size", 11)
+	info.add_theme_font_size_override("bold_font_size", 11)
+	var rc: Color = scale_color(clampf(float(d["rel"]) / 100.0, 0.0, 1.0))
+	var t := "[color=%s]%s[/color]\n" % [COL_DIM, String(d["status"])] if p > 0 else ""
+	t += "голоса [b]%.0f%%[/b] · мест [b]%d[/b]" % [float(d["poll"]), int(d["seats"])]
+	if p > 0:
+		t += "\nотн. [b][color=#%s]%.0f[/color][/b] · сходство [b]%.0f%%[/b]" % [rc.to_html(false), float(d["rel"]), float(d["sim"])]
+	if off:
+		t += "\n[color=%s]нельзя: %s[/color]" % [COL_BAD, String(d["why"])]
+	info.text = loc(t)
+	vb.add_child(info)
+	return pc
+
+
+func cn_opt(parent: Control, cur: int, cb: Callable) -> Dictionary:
+	var h := party_pick_make(parent, cb, true)
+	var items: Array = []
+	for q in [0] + cn_parties():
+		items.append({"p": q})
+	party_pick_set(h, items, cur)
+	return h
 
 
 func cn_build_mid() -> void:
@@ -807,7 +950,11 @@ func cn_build_mid() -> void:
 	l.text = "Глава правительства"
 	l.custom_minimum_size = Vector2(200.0, 0.0)
 	hb.add_child(l)
-	cn_opt(hb, int(cn_draft.get("pm", 0)), cn_set_pm)
+	var pm_items: Array = []
+	for q in [0] + cn_parties():
+		pm_items.append({"p": q})
+	var pm_pick := party_pick_make(pmc, cn_set_pm)
+	party_pick_set(pm_pick, pm_items, int(cn_draft.get("pm", 0)))
 	if int(cn_draft.get("pm", 0)) != 0:
 		cn_mk_rt(pmc, 12).text = "[color=%s]Пост отдаётся партнёру: вы станете младшим партнёром — меньше влияния на решения кабинета.[/color]" % COL_WARN
 	# министерства

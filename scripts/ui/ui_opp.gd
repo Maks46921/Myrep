@@ -4,7 +4,7 @@ extends "res://scripts/ui/ui_realm.gd"
 var opp_rt: RichTextLabel
 var opp_btns := {}
 var pact_rt: RichTextLabel
-var pact_opt: OptionButton
+var pact_pick := {}
 var pact_btns := {}
 var pact_sel := 1
 var bill_rt: RichTextLabel
@@ -15,6 +15,7 @@ var rider_kind: OptionButton = null
 var rider_arg: OptionButton = null
 var rider_btn: Button = null
 var rider_args: Array = []
+var rider_pick := {}
 
 
 func build_opp_windows() -> void:
@@ -27,8 +28,9 @@ func build_opp_windows() -> void:
 	add_note(w.body, "Оппозиция не управляет бюджетом и министерствами: их ведёт правительство. Ваше оружие — критика, расследования, вотум недоверия, досрочные выборы и поиск союзников. На выборах ваша партия получает обратную часть недовольства властью.", true)
 
 	w = new_window("pacts", "Переговоры и соглашения партий", 12, Rect2(0.35, 0.0, 0.355, 1.0))
-	pact_opt = fed_opt(w.body, [], "Выберите партию для переговоров.")
-	pact_opt.item_selected.connect(on_pact_party)
+	pact_pick = party_pick_make(w.body, func(q: int) -> void:
+		pact_sel = q
+		refresh())
 	pact_rt = make_rt(w.body)
 	var cls_names := {"friend": "Дружеские действия", "support": "Поддержка и союзы", "hostile": "Враждебные действия"}
 	for cls in ["friend", "support", "hostile"]:
@@ -105,6 +107,11 @@ func build_opp_windows() -> void:
 		rider_fill()
 		refresh())
 	rider_arg = fed_opt(w.body, [], "Кому или чему оговорка.")
+	rider_pick = party_pick_make(w.body, func(q: int) -> void:
+		var ix := rider_args.find(["party", str(q)])
+		if ix >= 0:
+			rider_arg.select(ix)
+		refresh())
 	rider_btn = fed_btn("Внести оговорку", w.body, "Оговорка привлекает партии, которым дорога эта группа или показатель, а после принятия закона действует сама. Учёт требований партии может оттолкнуть её противников.")
 	rider_btn.pressed.connect(on_rider_add)
 	rider_fill()
@@ -143,6 +150,9 @@ func rider_fill() -> void:
 		return
 	rider_arg.clear()
 	rider_args.clear()
+	rider_arg.visible = rider_kind.selected != 2
+	(rider_pick["host"] as Control).visible = rider_kind.selected == 2
+	rider_pick["sig"] = ""
 	match rider_kind.selected:
 		0:
 			for g in GROUPS:
@@ -212,9 +222,9 @@ func update_bill_window() -> void:
 	var t := "[b]%s[/b] → %s
 " % [law_index[b["tid"]]["name"], variant_of(b["tid"], int(b["idx"]))["n"]]
 	if int(b["sponsor"]) != 0:
-		var lyes := pa_line(b)
+		var lyes := pa_line_text(b)
 		t += "Внесла: [b]%s[/b]. Линия вашей партии: [b]%s[/b]. Ваша фракция: [b]%s[/b].
-" % [PARTY_NAMES[int(b["sponsor"])], "за" if lyes else "против", PA_VOTE_NAMES.get(String(b.get("pv", "line")), "по линии партии")]
+" % [PARTY_NAMES[int(b["sponsor"])], lyes, PA_VOTE_NAMES.get(String(b.get("pv", "line")), "по линии партии")]
 	t += "Голосование через %d мес. Сейчас «за» %d из нужных %d.
 " % [maxi(0, int(b["due"]) - turn), int(v["yes"]), law_need(String(b["tid"]), v)]
 	if is_hybrid(String(b["tid"])):
@@ -223,8 +233,9 @@ func update_bill_window() -> void:
 	var pend := false
 	for r in b["req"]:
 		var st := int(r["state"])
-		t += "• %s %s
-" % [String(r["txt"]), "[color=%s](принято)[/color]" % COL_GOOD if st == 1 else ("[color=%s](отклонено)[/color]" % COL_BAD if st == 2 else "")]
+		# 0.64: итог просьбы — значок слева и цвет текста вместо приписки «(принято)»
+		t += "[color=%s]%s %s[/color]
+" % [COL_GOOD if st == 1 else (COL_BAD if st == 2 else COL_DIM), "✔" if st == 1 else ("✖" if st == 2 else "○"), String(r["txt"])]
 		if st == 0:
 			pend = true
 	var rl: Array = b.get("riders", [])
@@ -235,6 +246,14 @@ func update_bill_window() -> void:
 		t += "Оговорки: %s\n" % ", ".join(rt)
 	bill_rt.text = loc(t)
 	if rider_btn != null:
+		if rider_kind.selected == 2:
+			var rit: Array = []
+			for ra in rider_args:
+				rit.append({"p": int(ra[1]), "why": bill_rider_check(b, "party", String(ra[1]))})
+			var rsel := -1
+			if rider_arg.selected >= 0 and rider_arg.selected < rider_args.size():
+				rsel = int(rider_args[rider_arg.selected][1])
+			party_pick_set(rider_pick, rit, rsel)
 		var ai := rider_arg.selected
 		var why2 := bill_rider_check(b, String(rider_args[ai][0]), String(rider_args[ai][1])) if ai >= 0 and ai < rider_args.size() else "выберите"
 		rider_btn.disabled = why2 != "" or game_over
@@ -398,7 +417,7 @@ func bill_make_card(b: Dictionary, att: Dictionary) -> PanelContainer:
 		var can_vote: bool = pl_parl() and seats[0] > 0
 		for vk in ["line", "yes", "no", "abst", "free"]:
 			var vkk: String = vk
-			var vbt := bill_card_btn({"line": "По линии", "yes": "За", "no": "Против", "abst": "Воздержаться", "free": "Свободно"}[vk], row, func() -> void: pa_set_vote(bid, vkk), "Как голосует ваша фракция по этому законопроекту.", not can_vote)
+			var vbt := bill_card_btn({"line": "По линии (%s)" % pa_line_text(b), "yes": "За", "no": "Против", "abst": "Воздержаться", "free": "Свободно"}[vk], row, func() -> void: pa_set_vote(bid, vkk), "Как голосует ваша фракция по этому законопроекту.", not can_vote)
 			vbt.toggle_mode = true
 			vbt.button_group = vg
 			vbt.set_pressed_no_signal(vk == cur_pv)
@@ -409,17 +428,30 @@ func bill_make_card(b: Dictionary, att: Dictionary) -> PanelContainer:
 	bill_card_btn("Подробнее ▸", row, func() -> void:
 		bill_sel = bid
 		bill_sig = ""
-		refresh(), "Оговорки, отзыв, вето и сводка по выбранному законопроекту.")
+		bill_open_law(b)
+		refresh(), "Оговорки, отзыв, вето и сводка по выбранному законопроекту; закон и предложенный вариант откроются в окне «Закон и его варианты».")
 	return pc
+
+
+# 0.64: «Подробнее» в законопроектах открывает закон и предложенный вариант в окне «Закон и его варианты» (поверх, окно законопроектов остаётся рядом)
+func bill_open_law(b: Dictionary) -> void:
+	var tid := String(b["tid"])
+	if not law_index.has(tid):
+		return
+	sel_topic = tid
+	law_cat = int(law_index[tid]["cat"])
+	sel_variant = int(b["idx"])
+	if wins.has("law_detail"):
+		var w: FloatWindow = wins["law_detail"]
+		w.closed = false
+		w.visible = win_mode_ok("law_detail")
+		w.move_to_front()
+	if wins.has("bills"):
+		(wins["bills"] as FloatWindow).move_to_front()
 
 
 func on_opp_act(id: String) -> void:
 	opp_act(id)
-	refresh()
-
-
-func on_pact_party(i: int) -> void:
-	pact_sel = pact_opt.get_item_id(i)
 	refresh()
 
 
@@ -464,27 +496,12 @@ func update_opp_windows() -> void:
 	for p in range(1, PARTY_NAMES.size()):
 		if not (p in NO_GOV_SLOTS):
 			want.append(p)
-	var have: Array = []
-	for i in pact_opt.item_count:
-		have.append(pact_opt.get_item_id(i))
-	var rebuild := have != want
-	if rebuild:
-		pact_opt.clear()
-		for p in want:
-			pact_opt.add_item("", p)
-	for i in pact_opt.item_count:
-		var p: int = pact_opt.get_item_id(i)
-		var tag := ""
-		if in_coalition[p]:
-			tag = " ★"
-		pact_opt.set_item_text(i, loc("%s%s — отн. %.0f, мест %d" % [PARTY_NAMES[p], tag, float(prel[p]), seats[p]]))
-	if rebuild or pact_opt.get_selected_id() != pact_sel:
-		var idx := pact_opt.get_item_index(pact_sel)
-		if idx < 0 and pact_opt.item_count > 0:
-			idx = 0
-			pact_sel = pact_opt.get_item_id(0)
-		if idx >= 0:
-			pact_opt.select(idx)
+	if not want.has(pact_sel) and not want.is_empty():
+		pact_sel = int(want[0])
+	var pitems: Array = []
+	for p in want:
+		pitems.append({"p": p})
+	party_pick_set(pact_pick, pitems, pact_sel)
 	var t := "[b]%s[/b]: отношения [b]%.0f[/b]/100, сходство программ %.0f%%. " % [PARTY_NAMES[pact_sel], float(prel[pact_sel]), party_sim(0, pact_sel) * 100.0]
 	var act: PackedStringArray = []
 	for k in PACT_KINDS:

@@ -115,6 +115,10 @@ func fx_score(fx: Dictionary, style: int) -> float:
 
 
 func auto_event_pick(ev: Dictionary) -> int:
+	if String(ev.get("special", "")) == "war":
+		var wp := mil_ai_war_pick(ev)
+		if wp >= 0:
+			return wp
 	var best := 0
 	var bs := -1e9
 	var opts: Array = ev["o"]

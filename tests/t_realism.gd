@@ -98,7 +98,7 @@ func _init():
 	g.capital = 90.0
 	settle(g)
 	check(g.rl_do("coal_summit"), "саммит коалиции")
-	check(g.noc_constr == (cc in g.RL_CONSTR), "конструктивный вотум")
+	check(g.noc_constr == (int(g.mods["constr"]) == 1 and int(g.game_opts.get("rlev", 1)) > 0), "конструктивный вотум")   # 0.58: по действующему закону, а не по списку стран
 	for k2 in ["coh_comp", "coh_fight", "coh_wait"]:
 		g.realism_resolve({"act": k2})
 	# --- события ---

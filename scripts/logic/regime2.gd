@@ -335,6 +335,8 @@ func au2_age() -> float:
 # правитель умер или ушёл по здоровью
 func au2_ruler_gone() -> void:
 	var x: Dictionary = au_x()
+	if not mil.is_empty():
+		mil["ldr_gone"] = true       # 0.64: после ухода правителя условия мира для ИИ-правительства зависят от партии власти
 	var succ: String = String(au.get("succ", ""))
 	var cl: Dictionary = au["cl"]
 	if succ != "" and cl.has(succ):

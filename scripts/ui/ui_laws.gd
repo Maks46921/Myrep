@@ -368,16 +368,21 @@ func update_law_windows() -> void:
 			tag += "● "
 		var acol := Color(LAW_AREA_COLORS[ar])
 		if tiles:
-			var short := cur_name if cur_name.length() <= 24 else cur_name.substr(0, 23) + "…"
-			btn.text = "\n\n%s%s\n%s%s" % [tag, t["name"], "▸ " if cur > 0 else "", short]
+			# 0.64: плитка растёт под длинное название, до 5 строк вместе с действующим вариантом; полный текст в подсказке
+			var tw: float = maxf(60.0, avail / float(cols) - 8.0 - 20.0)
+			var nm_fit := law_tile_fit(tag + String(t["name"]), tw, 3)
+			var cur_fit := law_tile_fit(("▸ " if cur > 0 else "") + cur_name, tw, 5 - int(nm_fit["n"]))
+			btn.text = "\n\n%s\n%s" % [nm_fit["t"], cur_fit["t"]]
 			btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
-			btn.custom_minimum_size = Vector2(80.0, 92.0)
+			btn.clip_text = false
+			btn.custom_minimum_size = Vector2(80.0, 34.0 + 12.0 + float(int(nm_fit["n"]) + int(cur_fit["n"])) * float(nm_fit["lh"]))
 		else:
 			var line2 := ("▸ " + cur_name) if cur > 0 else ("— " + cur_name)
 			if cd > 0:
 				line2 += "   (ещё %d мес.)" % cd
 			btn.text = "      %s%s\n      %s" % [tag, t["name"], line2]
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.clip_text = true
 			btn.custom_minimum_size = Vector2(0.0, 0.0)
 		var ic: Control = law_icons.get(id)
 		if ic != null:
@@ -425,6 +430,29 @@ func update_law_windows() -> void:
 	update_law_effects()
 	update_law_detail()
 	update_law_votes()
+
+
+# 0.64: текст плитки: сколько строк он займёт при ширине w; если больше max_lines, режем по словам и ставим «…»
+func law_tile_fit(txt: String, w: float, max_lines: int) -> Dictionary:
+	var font: Font = law_list_box.get_theme_font("font", "TopicButton") if law_list_box.has_theme_font("font", "TopicButton") else ThemeDB.fallback_font
+	var fs := 14
+	var lh: float = font.get_height(fs)
+	max_lines = maxi(1, max_lines)
+	var words := txt.split(" ")
+	var cur_t := txt
+	var guard := 0
+	while guard < 80:
+		guard += 1
+		var h: float = font.get_multiline_string_size(cur_t, HORIZONTAL_ALIGNMENT_LEFT, w, fs, -1, TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE).y
+		var n := int(round(h / lh))
+		if n <= max_lines:
+			return {"t": cur_t, "n": maxi(1, n), "lh": lh}
+		if words.size() > 1:
+			words.remove_at(words.size() - 1)
+			cur_t = " ".join(words) + "…"
+		else:
+			cur_t = cur_t.substr(0, maxi(1, cur_t.length() - 3)) + "…"
+	return {"t": cur_t, "n": max_lines, "lh": lh}
 
 
 func update_law_effects() -> void:
@@ -808,6 +836,9 @@ func update_law_detail() -> void:
 		(card["title"] as Label).text = String(v["n"]) if is_param else "%d. %s" % [vi + 1, v["n"]]
 		var badge: Label = card["badge"]
 		badge.text = "ДЕЙСТВУЕТ" if (is_cur or tweak) else ("ВЫБРАН ДЛЯ ГОЛОСОВАНИЯ" if selected else "")
+		var bsel := bill_index(bill_sel)
+		if bsel >= 0 and not is_cur and String(bills[bsel]["tid"]) == tid and int(bills[bsel]["idx"]) == vi:
+			badge.text = "ВАРИАНТ ЗАКОНОПРОЕКТА" + ("  ·  голосование через %d мес." % maxi(0, int(bills[bsel]["due"]) - turn))
 		badge.add_theme_color_override("font_color", C_GOOD if is_cur else C_ACCENT)
 		(card["desc"] as Label).text = v["d"]
 		var fx: RichTextLabel = card["fx"]
