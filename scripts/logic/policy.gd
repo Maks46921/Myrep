@@ -144,6 +144,10 @@ func mk_def(id: String) -> Dictionary:
 	return {}
 
 
+func mv65_mood() -> float:
+	return 0.0
+
+
 func new_minister(m: int, p: int) -> Dictionary:
 	return {}
 
@@ -214,6 +218,10 @@ func war_prem() -> float:
 
 func world_help(c: String) -> void:
 	pass
+
+
+func x65_mood() -> float:
+	return 0.0
 
 
 # --- конец заглушек ---
@@ -371,7 +379,7 @@ func target_support(g: String) -> float:
 
 
 func target_gov_support(g: String) -> float:
-	var t: float = float(GROUP_BASE[g]) + float(bias[g]) - fatigue() + lvl_sum("mood") + float(mods["mood_shift"]) + float(mods.get("gb_" + g, 0.0))
+	var t: float = float(GROUP_BASE[g]) + float(bias[g]) - fatigue() + lvl_sum("mood") + float(mods["mood_shift"]) + float(mods.get("gb_" + g, 0.0)) + x65_mood() + mv65_mood()
 	var fx: Dictionary = GROUP_FX[g]
 	for k in fx:
 		t += float(fx[k]) * factor(k)

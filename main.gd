@@ -4,7 +4,7 @@
 # Все окна плавающие: двигайте за заголовок, меняйте размер за правый/нижний край и угол,
 # двойной щелчок по заголовку (или кнопка «–») сворачивает окно.
 # Весь интерфейс создаётся кодом. Повесьте скрипт на корневой узел Control (Godot 4.x).
-extends "res://scripts/ui/ui_flag.gd"
+extends "res://scripts/ui/ui_up65.gd"
 
 # ============================================================
 #  СТРАНЫ: применение пакета данных
@@ -882,7 +882,7 @@ const MENU_FILTERS := [
 	["size", "Размер экономики (ВВП)", ["Экономика: любая", "Крупная (больше 1000 млрд)", "Средняя (100–1000 млрд)", "Малая (меньше 100 млрд)"]],
 	["col", "Чем раскрашены страны", ["Цвета: политическая карта", "Цвета: сложность"]],
 ]
-const MENU_ROLE_N := {"head": "во главе правительства", "gov": "в коалиции", "opp": "оппозиция", "out": "вне парламента", "obs": "наблюдатель"}
+const MENU_ROLE_N := {"head": "во главе правительства", "gov": "в коалиции", "opp": "оппозиция", "out": "вне парламента", "obs": "наблюдатель", "mov": "движение без мест"}
 var menu_flt := {}
 var menu_leg: Control = null
 var menu_hemi: Control = null
@@ -1028,12 +1028,49 @@ func menu_party_rows(code: String) -> Array:
 	return out
 
 
+# 0.65: движения страны для режима «Оппозиция без места в парламенте»: номер карточки 1000 + порядок в данных
+func menu_move_rows(code: String) -> Array:
+	var out: Array = []
+	var rows: Array = MV65_DATA.get(code, [])
+	var inf: Dictionary = CDATA[code]["INFO"] if CDATA[code].has("INFO") else INFO
+	var cd: int = int(inf["difficulty"])
+	var links: Dictionary = MV_LINK.get(code, {})
+	for i in rows.size():
+		var r: Array = rows[i]
+		if String(r[7]) == "pro" or links.has(String(r[0])):
+			continue
+		var col := Color.from_hsv(float(abs(String(r[0]).hash()) % 360) / 360.0, 0.55, 0.85)
+		out.append({"p": 1000 + i, "name": String(r[2]), "leader": "", "col": col, "seats": 0, "rate": float(r[4]), "lr": -1.0,
+			"role": "mov", "diff": clampi(cd + 2, 1, 5), "small": false, "cordon": false, "prot": false, "reg": false})
+	return out
+
+
+func menu_move_info(code: String, p: int) -> String:
+	var rows: Array = MV65_DATA.get(code, [])
+	var i: int = p - 1000
+	if i < 0 or i >= rows.size():
+		return ""
+	var r: Array = rows[i]
+	var t := "\n[color=#98a1b8]%s[/color]\n" % String(r[3])
+	t += "\n[b]Как играть[/b]\n[color=#98a1b8]· у движения нет мест в парламенте: оно действует улицей, подписями, забастовками, блогерами, пожертвованиями, расследованиями\n· политкапитал копится от взносов активистов и пожертвований\n· власть отвечает по типу режима: от «ничего» до запретов и репрессий\n· когда поддержка не ниже %.0f%%, движению не меньше %d мес., организованность от %.0f и режим разрешает, его можно зарегистрировать как партию (часть радикалов уйдёт)[/color]\n" % [MV_PARTY_SUP, MV_PARTY_AGE, MV_PARTY_ORG]
+	t += "\n[b]Старт[/b]\n[color=#98a1b8]поддержка ≈%.0f%%, организованность %d, радикальность %d[/color]" % [float(r[4]) * 0.9, int(r[5]), int(r[6])]
+	return t
+
+
+func menu_sel_name(code: String, sel: int) -> String:
+	if sel >= 1000:
+		var rows: Array = MV65_DATA.get(code, [])
+		return String((rows[sel - 1000] as Array)[2]) if sel - 1000 < rows.size() else ""
+	return String(cdat(code, "PARTY_NAMES")[sel]).replace(" (вы)", "")
+
+
 func menu_fill_parties(code: String, sel: int) -> void:
 	if menu_party_grid == null or not is_instance_valid(menu_party_grid) or code == "":
 		return
 	menu_party_sel = sel
 	var rows := menu_party_rows(code)
-	if sel != OBSERVER_ID and rows.filter(func(r) -> bool: return int(r["p"]) == sel).is_empty():
+	var mrows: Array = menu_move_rows(code)
+	if sel != OBSERVER_ID and rows.filter(func(r) -> bool: return int(r["p"]) == sel).is_empty() and mrows.filter(func(r) -> bool: return int(r["p"]) == sel).is_empty():
 		menu_party_sel = 0
 	var seats_n: int = 630 if code == "DE" else int(cdat(code, "SEATS"))
 	var hemi: Array = cdat(code, "HEMI_ORDER")
@@ -1054,12 +1091,14 @@ func menu_fill_parties(code: String, sel: int) -> void:
 	rows.sort_custom(func(a, b) -> bool: return int(a["seats"]) > int(b["seats"]) if int(a["seats"]) != int(b["seats"]) else float(a["rate"]) > float(b["rate"]))
 	for r in rows:
 		menu_party_card(r, code)
+	for r in mrows:
+		menu_party_card(r, code)
 	menu_party_card({"p": OBSERVER_ID, "name": "Никем — наблюдать", "leader": "", "col": Color(0.45, 0.5, 0.6), "seats": 0, "rate": 0.0, "lr": -1.0, "role": "obs", "diff": 0, "small": false, "cordon": false, "prot": false, "reg": false}, code)
 	update_menu_party(menu_party_sel)
 	if menu_party_rt != null and is_instance_valid(menu_party_rt):
-		menu_party_rt.text = "" if menu_party_sel == OBSERVER_ID else "[b]Выбрана: %s[/b]\n%s" % [String(pnames[menu_party_sel]).replace(" (вы)", ""), menu_party_info(code, menu_party_sel)]
+		menu_party_rt.text = "" if menu_party_sel == OBSERVER_ID else "[b]Выбрана: %s[/b]\n%s" % [menu_sel_name(code, menu_party_sel), menu_party_info(code, menu_party_sel)]
 	var cur: Dictionary = {}
-	for r in rows:
+	for r in rows + mrows:
 		if int(r["p"]) == menu_party_sel:
 			cur = r
 	if menu_party_lbl != null:
@@ -1184,6 +1223,11 @@ func update_menu_party(p: int) -> void:
 	if menu_sit_rt == null or not is_instance_valid(menu_sit_rt) or menu_sit_code == "":
 		return
 	var code := menu_sit_code
+	if p >= 1000:
+		var mr: Array = MV65_DATA.get(code, [])
+		if p - 1000 < mr.size():
+			menu_sit_rt.text = "[b]«%s»[/b] — движение, а не партия. Мест в парламенте у него нет. Ваше оружие — улица, подписи, блогеры, пожертвования, расследования; власть может отвечать штрафами, арестами и запретами, если режим к этому склонен. Цель: вырасти и, когда хватит поддержки, организованности и разрешения власти, зарегистрировать партию и пройти в парламент." % String((mr[p - 1000] as Array)[2])
+		return
 	var pnames: Array = cdat(code, "PARTY_NAMES")
 	var pleaders: Array = cdat(code, "PARTY_LEADERS")
 	var pseats: Array = cdat(code, "DE_START_SEATS")
@@ -1223,6 +1267,8 @@ func update_menu_party(p: int) -> void:
 
 # 0.59: подробности о партии в окне выбора: кто голосует, союзники, сильные и слабые стороны, программа, прогноз первого года
 func menu_party_info(code: String, p: int) -> String:
+	if p >= 1000:
+		return menu_move_info(code, p)
 	var pnames: Array = cdat(code, "PARTY_NAMES")
 	var pseats: Array = cdat(code, "DE_START_SEATS")
 	var pdesc: Array = cdat(code, "PARTY_DESC")

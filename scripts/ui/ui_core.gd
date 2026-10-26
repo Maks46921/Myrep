@@ -88,6 +88,10 @@ func build_more_menu(tabs: Control) -> void:
 	pass
 
 
+func build_move_windows() -> void:
+	pass
+
+
 func build_notify_ui() -> void:
 	pass
 
@@ -129,6 +133,10 @@ func build_tech_windows() -> void:
 
 
 func build_today_windows() -> void:
+	pass
+
+
+func build_up_windows() -> void:
 	pass
 
 
@@ -308,6 +316,10 @@ func update_meas_window() -> void:
 	pass
 
 
+func update_move_windows() -> void:
+	pass
+
+
 func update_opp_windows() -> void:
 	pass
 
@@ -345,6 +357,10 @@ func update_today() -> void:
 
 
 func update_ui_extras() -> void:
+	pass
+
+
+func update_up_window() -> void:
 	pass
 
 
@@ -392,7 +408,7 @@ func new_window(id: String, title: String, desk: int, fr: Rect2, scrolling: bool
 
 
 # окна, закрытые по умолчанию (открываются через «Окна»)
-const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm", "build", "pop_agent", "bud_tr", "reg_dec", "uq_win"]
+const WIN_DEFAULT_CLOSED := ["regtable", "regact", "regecon", "dtable", "adm", "build", "pop_agent", "bud_tr", "reg_dec", "uq_win", "up_house"]
 
 
 func win_vis(id: String, on: bool) -> void:
@@ -760,6 +776,8 @@ func build_ui() -> void:
 	build_meas_overlay()
 	build_cn_overlay()
 	build_opp_windows()
+	build_move_windows()
+	build_up_windows()
 	build_fleet_windows()
 	build_war_windows()
 	build_army_windows()
@@ -1480,6 +1498,7 @@ func refresh() -> void:
 			b.text = txt
 			b.disabled = cd > 0 or game_over or cap_spendable() < float(a["cost"]) or (a["id"] == "snap" and (turn - last_parl < 12 or not bool(snap_info()["ok"]) or opp_mode))
 		update_parliament()
+		update_up_window()
 		update_polls()
 		update_regime_windows()
 		if selfcoup_btn != null and not rv.is_empty():
@@ -1517,6 +1536,7 @@ func refresh() -> void:
 		update_society_windows()
 	elif current_desk == 12:
 		update_opp_windows()
+		update_move_windows()
 		update_regime_windows()
 	elif current_desk == 13:
 		update_war_windows()

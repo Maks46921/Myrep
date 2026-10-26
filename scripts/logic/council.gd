@@ -371,7 +371,7 @@ func upper_gov() -> int:
 
 
 # после выборов в нижнюю палату часть верхней обновляется по новым долям партий
-func upper_renew(shares: Array) -> String:
+func upper_renew_base(shares: Array) -> String:
 	if not upper_on() or String(UPPER.get("mode", "")) == "all":
 		return ""
 	var k: float = float(UPPER_RENEW.get(ccode, 0.0))

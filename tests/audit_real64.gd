@@ -11,6 +11,8 @@ var outdir := ".testlogs/real64"
 var rows: Array = []
 var notes: Array = []
 var done_flag := {}
+var trace := false
+var last_dem := 0.0
 
 
 func gv(name: String, d = null):
@@ -31,7 +33,8 @@ func war_info() -> Dictionary:
 	r = {"at_war": true, "lead": String(w.get("lead", "")), "score": float(w.get("score", 0.0)), "days": int(w.get("days", 0)),
 		"nwon": int(w.get("nwon", 0)), "nlost": int(w.get("nlost", 0)), "cap_lost": int(w.get("cap_lost", 0)),
 		"kia0": float((w.get("kia", [0, 0]) as Array)[0]), "kia1": float((w.get("kia", [0, 0]) as Array)[1]), "weary": float(w.get("weary", 0.0)),
-		"don_full": g.mil_don_full(), "sanct": bool(w.get("sanct", false))}
+		"don_full": g.mil_don_full(), "sanct": bool(w.get("sanct", false)),
+		"pw0": g.mil_side_power(0), "pw1": g.mil_side_power(1), "stale": int(w.get("stale", 0))}
 	return r
 
 
@@ -68,6 +71,10 @@ func snap(y: int) -> Dictionary:
 		if g.dip.has(c):
 			rel[c] = float(g.dip[c].get("rel", 0.0))
 	r["rel"] = rel
+	if g.has_method("war65_wf"):
+		r["x65"] = {"wf": g.war65_wf(), "ls": float(g.x65.get("ls", 100.0)), "ls_pk": float(g.x65.get("ls_pk", 100.0)), "cut": float(g.x65.get("cut", 0.0)), "aid": float(g.x65.get("aid", 0.0)),
+			"aid_m": float(g.x65.get("aid_m", 0.0)), "mood": float(g.x65.get("mood", 0.0)), "fear": float(g.au.get("fear", 0.0)) if g.au_on() else 0.0, "tgt": g.infl_tgt(),
+			"stale": int((g.mil.get("war", {}) as Dictionary).get("stale", 0)) if not g.mil.is_empty() else 0}
 	r["gt"] = {"target": g.g_target_last, "mil": g.mil_g(), "rl": g.rl_g(), "fin": g.fin_g(), "soc": g.soc_g(), "ex": g.ex_g(), "spill": g.world_spill_g(),
 		"ddrag": g.debt_drag(g.debt / maxf(1.0, g.gdp) * 100.0), "lvl": g.lvl_sum("growth"), "mil_i": g.mil_infl(), "mil_u": g.mil_unemp()}
 	r["sanc"] = (g.fa["sanc"] as Dictionary).keys() if typeof(g.fa) == TYPE_DICTIONARY and g.fa.has("sanc") else []
@@ -156,6 +163,7 @@ func _init():
 		elif s.begins_with("seed="): sd = int(s.substr(5))
 		elif s.begins_with("years="): years = int(s.substr(6))
 		elif s.begins_with("out="): outdir = s.substr(4)
+		elif s == "trace=1": trace = true
 	var m0 = load("res://main.gd")
 	g = m0.new()
 	g.game_opts.merge({"ev": 1.0, "news": 1.0, "agents": false, "seed": sd}, true)
@@ -195,6 +203,30 @@ func _init():
 		g.next_turn()
 		if g.election_open:
 			g.election_continue()
+		if trace:
+			var dn: float = g.democracy_index()
+			if absf(dn - last_dem) >= 0.02:
+				print("TRACE ", g.date_text(), " dem %.2f -> %.2f shift %.2f cls %s rid %s" % [last_dem, dn, float(g.mods.get("dem_shift", 0.0)), str(g.au.get("cls", "")), g.regime_id()])
+				for e in (g.log_entries as Array).slice(maxi(0, (g.log_entries as Array).size() - 4)):
+					print("   LOG ", str(e).left(200))
+			last_dem = dn
+		if trace and m % 3 == 2 and not g.mil.is_empty() and g.mil_at_war():
+			var w2: Dictionary = g.mil["war"]
+			var n0 := 0
+			var s0 := 0.0
+			var n1 := 0
+			var s1 := 0.0
+			var fg := 0
+			for f in g.mil["units"]:
+				if g.mil_side(String(f["cc"])) == 0:
+					n0 += 1
+					s0 += float(f["str"])
+				else:
+					n1 += 1
+					s1 += float(f["str"])
+				if int(f["fight"]) >= 0:
+					fg += 1
+			print("WAR m%d units %d/%d str %.0f/%.0f pw %.0f/%.0f fights %d won %d/%d nw %d/%d occ %s stale %d sc %.0f" % [m + 1, n0, n1, s0, s1, g.mil_side_power(0), g.mil_side_power(1), fg, int(w2["won"]), int(w2["lost"]), int(w2["nwon"]), int(w2["nlost"]), str(w2["occ"]), int(w2.get("stale", 0)), float(w2["score"])])
 		if m % 12 == 11:
 			rows.append(snap((m + 1) / 12))
 		if g.game_over:

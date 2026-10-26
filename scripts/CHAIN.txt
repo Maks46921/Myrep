@@ -10,6 +10,7 @@ scripts/data/data_corp.gd
 scripts/data/data_hist.gd
 scripts/data/data_orgs.gd
 scripts/data/data_fin63.gd
+scripts/data/data_move65.gd
 scripts/state/state_data.gd
 scripts/state/state.gd
 scripts/logic/util.gd
@@ -55,6 +56,9 @@ scripts/logic/fin63.gd
 scripts/logic/cbank63.gd
 scripts/logic/bank63.gd
 scripts/logic/debt63.gd
+scripts/logic/war65.gd
+scripts/logic/move65.gd
+scripts/logic/upper65.gd
 scripts/logic/agents.gd
 scripts/logic/autopilot.gd
 scripts/logic/log.gd
@@ -93,4 +97,6 @@ scripts/ui/ui_notify.gd
 scripts/ui/ui_nav.gd
 scripts/ui/ui_rules.gd
 scripts/ui/ui_flag.gd
+scripts/ui/ui_move65.gd
+scripts/ui/ui_up65.gd
 main.gd

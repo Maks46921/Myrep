@@ -294,7 +294,7 @@ func update_neg() -> void:
 		neg_party = 1
 	var neg_items: Array = []
 	for q in range(1, PARTY_NAMES.size()):
-		if q in NO_GOV_SLOTS:
+		if no_gov(q):
 			continue
 		neg_items.append({"p": q, "why": "" if can_govern(q) else "эта партия не участвует в формировании правительства"})
 	party_pick_set(neg_pick, neg_items, p)

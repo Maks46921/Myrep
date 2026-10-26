@@ -14,6 +14,10 @@ func fa_ws_annex_has(c: String) -> bool:
 	return false
 
 
+func war65_aid_money(w: Dictionary, it: Dictionary) -> float:
+	return 0.0
+
+
 # --- конец заглушек ---
 
 
@@ -734,8 +738,7 @@ func war_intl_month() -> void:
 			add_k += d
 		it["aid"] = float(it["aid"]) + add_k
 		if vi == ccode:
-			var money: float = gdp * 0.002 * float(it["cond"]) / 100.0 * wdt
-			debt = maxf(0.0, debt - money)
+			debt = maxf(0.0, debt - war65_aid_money(w, it))
 		if wmonth and months % 2 == 1 and add_k > 0.2 * wdt:
 			mil_log("Партнёры передали стране «%s» оружие и снаряжение (≈ %.1f тыс. бойцов пополнения)." % [vn, add_k / wdt], COL_GOOD if vi == ccode else COL_WARN)
 	if wmonth and months >= 2 and float(it["cond"]) >= 55.0 and int(it["vol"]) < 3 and months % 3 == 2:

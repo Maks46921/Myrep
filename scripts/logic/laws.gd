@@ -32,6 +32,10 @@ func martial_on() -> bool:
 	return false
 
 
+func mv_others(p: int) -> bool:
+	return false
+
+
 func national_shares(pres: bool, only: Array = []) -> Array[float]:
 	var r: Array[float] = []
 	return r
@@ -83,6 +87,30 @@ func sfx(name: String) -> void:
 
 func tolerates(p: int) -> bool:
 	return false
+
+
+func up65_conciliate(tid: String, idx: int, upc: Dictionary) -> Dictionary:
+	return {}
+
+
+func up65_delay_law(tid: String, idx: int, cost: float, delay: int, v: Dictionary) -> void:
+	pass
+
+
+func up65_note_block(tid: String) -> void:
+	pass
+
+
+func up65_note_override(tid: String, delayed: bool) -> void:
+	pass
+
+
+func upper_check(tid: String, idx: int, forced: Array = []) -> Dictionary:
+	return {}
+
+
+func upper_text(up: Dictionary) -> String:
+	return ""
 
 
 func vote_show(replay: bool = false) -> void:
@@ -612,7 +640,7 @@ func party_vote_split(p: int, s: float, line_yes: bool) -> Array:
 	return [yes, no, ab]
 
 
-func upper_check(tid: String, idx: int, forced: Array = []) -> Dictionary:
+func upper_check_base(tid: String, idx: int, forced: Array = []) -> Dictionary:
 	var kind: String = String(UPPER.get("kind", "none"))
 	if radical_bypass(tid, idx):
 		return {"on": false, "block": false, "extra": 0.0}
@@ -683,7 +711,7 @@ func court_chance(tid: String, idx: int) -> float:
 	return clampf(p, 0.0, 0.4)
 
 
-func upper_text(up: Dictionary) -> String:
+func upper_text_base(up: Dictionary) -> String:
 	if not bool(up.get("on", false)):
 		return ""
 	if String(up.get("kind", "")) == "veto":
@@ -789,8 +817,17 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	last_vote["extra"] = []
 	if bool(upc["on"]):
 		(last_vote["extra"] as Array).append([upper_text(upc), not bool(upc["block"])])
+	var ccm_msg := ""
 	if bool(upc["block"]):
-		log_line("[color=%s]Закон «%s» не прошёл: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
+		var ccm: Dictionary = up65_conciliate(tid, idx, upc)
+		if bool(ccm["ok"]):
+			upc = ccm["upc"]
+			(last_vote["extra"] as Array).append([String(ccm["msg"]), true])
+		elif String(ccm["msg"]) != "":
+			ccm_msg = " " + String(ccm["msg"]) + "."
+	if bool(upc["block"]):
+		up65_note_block(tid)
+		log_line("[color=%s]Закон «%s» не прошёл: %s.%s[/color]" % [COL_BAD, topic["name"], upper_text(upc), ccm_msg])
 		last_vote["passed"] = false
 		last_vote["final"] = "ПРИНЯТ ПАРЛАМЕНТОМ, ЗАБЛОКИРОВАН ВЕРХНЕЙ ПАЛАТОЙ" if String(upc.get("kind", "")) != "veto" else "ПРИНЯТ ПАРЛАМЕНТОМ, НО ПРЕЗИДЕНТ НАЛОЖИЛ ВЕТО"
 		vote_show()
@@ -833,6 +870,17 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 		log_line("[color=%s]Для закона «%s» не хватает капитала: %s.[/color]" % [COL_BAD, topic["name"], upper_text(upc)])
 		refresh()
 		return
+	if int(upc.get("delay", 0)) > 0:
+		up65_delay_law(tid, idx, cost, int(upc["delay"]), v)
+		return
+	if String(upc.get("ovr", "")) == "fast":
+		up65_note_override(tid, false)
+	law_apply(tid, idx, cost, v)
+
+
+# 0.65: применение принятого закона (вынесено, чтобы закон с отлагательным вето мог вступить в силу позже)
+func law_apply(tid: String, idx: int, cost: float, v: Dictionary, charge: bool = true, show: bool = true) -> void:
+	var topic: Dictionary = law_index[tid]
 	var cur := cur_idx(tid)
 	var old_v := variant_of(tid, cur)
 	var new_v := variant_of(tid, idx)
@@ -841,7 +889,8 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	for p in range(1, PARTY_NAMES.size()):
 		if in_coalition[p]:
 			partner_stance[p] = variant_stance(p, tid, idx)
-	capital -= cost
+	if charge:
+		capital -= cost
 	var ksup := 1.0 if vote_sponsor == 0 else (0.5 if not opp_mode else -0.6)   # 0.56: закон партнёра или оппозиции при вашей власти
 	for g in sd:
 		add_support(g, float(sd[g]) * ksup)
@@ -874,7 +923,8 @@ func adopt_variant(tid: String, idx: int, forced: Array = []) -> void:
 	var lv: Dictionary = last_vote if (not last_vote.is_empty() and String(last_vote.get("tid", "")) == tid and int(last_vote.get("turn", -1)) == turn) else {"yes": v["yes"], "no": v["no"], "abst": int(v.get("abst", 0))}
 	log_tag("ЗАКОН", COL_GOOD, "%s%s — «%s»: %s → [b]%s[/b] [color=%s](за %d, против %d, воздержались %d; политкапитал -%.0f)[/color]. %s" % [
 		date_text(), "" if vote_sponsor == 0 else " (правительство «%s»)" % PARTY_NAMES[vote_sponsor], topic["name"], old_v["n"], new_v["n"], COL_DIM, int(lv["yes"]), int(lv["no"]), int(lv.get("abst", 0)), cost, new_v["d"]])
-	vote_show()
+	if show:
+		vote_show()
 	refresh()
 
 
@@ -981,7 +1031,7 @@ func thr_party_info(thr: float) -> Array:
 	var wasted := 0.0
 	for p in raw.size():
 		var ex: bool = (p in exempt) or reserved.has(p) or reserved.has(str(p))
-		if (raw[p] >= thr and not (p == 6 and lump_out and not ex)) or (ex and raw[p] > 0.0):
+		if (raw[p] >= thr and not (p == 6 and lump_out and not ex and mv_others(p))) or (ex and raw[p] > 0.0):
 			n += 1
 		else:
 			wasted += raw[p]

@@ -76,7 +76,7 @@ func ideo_keys() -> Array:
 
 
 func ideo_valid(q: int) -> bool:
-	return q == 0 or (q > 0 and q < PARTY_NAMES.size() and not (q in NO_PLAY_SLOTS))
+	return q == 0 or (q > 0 and q < PARTY_NAMES.size() and not no_play(q))
 
 
 func lean_share(p: int) -> Dictionary:
@@ -552,7 +552,7 @@ func ai_parties_step() -> void:
 	var n := PARTY_NAMES.size()
 	# капитал: базовый прирост + вес в парламенте + правительство
 	for p in range(1, n):
-		if p == 6:
+		if no_gov(p):
 			continue
 		var sh: float = float(seats[p]) / float(maxi(1, SEATS))
 		var gain := 0.45 + 5.5 * sh + (0.7 if in_coalition[p] else 0.0)
@@ -579,7 +579,7 @@ func ai_parties_step() -> void:
 	else:
 		ai_gov_rule()
 	for p in range(1, n):
-		if p == 6 or pcap.size() <= p:
+		if no_gov(p) or pcap.size() <= p:
 			continue
 		if seats[p] <= 0 and p != PROTEST_P:
 			continue
@@ -729,7 +729,7 @@ func ai_recruit(pm: int) -> bool:
 	var best := -1
 	var bs := 0.0
 	for q in range(1, PARTY_NAMES.size()):
-		if q in members or seats[q] <= 0 or (q in NO_GOV_SLOTS) or q == 0:
+		if q in members or seats[q] <= 0 or no_gov(q) or q == 0:
 			continue
 		var sc := party_sim(pm, q) + (rel(pm, q) - 50.0) / 250.0
 		if sc > 0.34 and sc > bs:
@@ -903,7 +903,7 @@ func bill_request_new(b: Dictionary) -> void:
 	var ps_best := 0.0
 	var sponsor: int = int(b["sponsor"])
 	for p in range(1, PARTY_NAMES.size()):
-		if p == sponsor or seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in forced or p in cands:
+		if p == sponsor or seats[p] <= 0 or no_gov(p) or p in forced or p in cands:
 			continue
 		var s := variant_stance(p, tid, idx)
 		var need: bool = s < 0.0 or (in_coalition[p] and randf() < 0.2)
@@ -998,7 +998,7 @@ func bill_amend(bid: int, kind: String) -> bool:
 				return false
 			var added: PackedStringArray = []
 			for p in range(1, PARTY_NAMES.size()):
-				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+				if seats[p] <= 0 or no_gov(p) or p in b["forced"]:
 					continue
 				var s := variant_stance(p, tid, int(b["idx"]))
 				if s < 0.0 and s >= -4.0:
@@ -1082,7 +1082,7 @@ func bill_rider_add(bid: int, kind: String, arg: String) -> bool:
 			title = "в пользу группы «%s»" % arg
 			# партии, чей электорат — эта группа, охотнее голосуют «за»
 			for p in range(1, PARTY_NAMES.size()):
-				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+				if seats[p] <= 0 or no_gov(p) or p in b["forced"]:
 					continue
 				var lean_sh: float = float(LEAN[arg][p]) / maxf(0.001, _lean_sum(arg))
 				if lean_sh > 1.4 / float(PARTY_NAMES.size()) and variant_stance(p, tid, int(b["idx"])) >= -3.0:
@@ -1094,7 +1094,7 @@ func bill_rider_add(bid: int, kind: String, arg: String) -> bool:
 			title = String(ch[0]).to_lower()
 			var pk: String = String(ch[1])
 			for p in range(1, PARTY_NAMES.size()):
-				if seats[p] <= 0 or (p in NO_GOV_SLOTS) or p in b["forced"]:
+				if seats[p] <= 0 or no_gov(p) or p in b["forced"]:
 					continue
 				var st: float = ideo_stance(p, pk) if policy_by_key.has(pk) else (0.4 if arg == "corruption" else 0.0)
 				if st > 0.25 and variant_stance(p, tid, int(b["idx"])) >= -3.5:
@@ -1279,7 +1279,7 @@ func bill_swing_parties(b: Dictionary) -> Array:
 	var out: Array = []
 	var forced := bill_forced(b)
 	for p in range(1, PARTY_NAMES.size()):
-		if seats[p] <= 0 or p == int(b["sponsor"]) or (p in NO_GOV_SLOTS) or p in forced:
+		if seats[p] <= 0 or p == int(b["sponsor"]) or no_gov(p) or p in forced:
 			continue
 		if variant_stance(p, String(b["tid"]), int(b["idx"])) < 0.0:
 			out.append(p)
@@ -1471,7 +1471,7 @@ func pa_quarter() -> void:
 	if game_over or PARTY_NAMES.size() < 3 or pcap.size() != PARTY_NAMES.size():
 		return
 	for p in range(1, PARTY_NAMES.size()):
-		if p == 6 or seats[p] <= 0:
+		if no_gov(p) or seats[p] <= 0:
 			continue
 		var opts := pa_options(p)
 		var n: int = 1 + int(pa_power(p) >= 0.12) + int(float(pcap[p]) >= 45.0)
