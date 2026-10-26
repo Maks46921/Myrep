@@ -1781,6 +1781,8 @@ func mil_month() -> void:
 			f["org"] = 1.0
 	# содержание резервистов
 	var mk := mil_mob_k()
+	var mg_now: float = -mk / maxf(100.0, total_pop() * 1000.0 * 0.5) * 100.0 * 1.5
+	mil["mg_ref"] = float(mil.get("mg_ref", mg_now)) + (mg_now - float(mil.get("mg_ref", mg_now))) * rt(0.15, wdt)
 	if mk > 0.0:
 		debt += mk * 0.006 * wdt
 		add_support("Молодёжь", -0.4 * float(mil["mob"]) * wdt)
@@ -1859,7 +1861,9 @@ func mil_mob_g() -> float:
 	if not mil_on():
 		return 0.0
 	var labor: float = maxf(100.0, total_pop() * 1000.0 * 0.5)
-	return -mil_mob_k() / labor * 100.0 * 1.5
+	# 0.64: призыв — разовая потеря рабочих рук, а не вечный минус к темпу роста: влияет, пока число мобилизованных меняется, и рассасывается за год-полтора
+	var now: float = -mil_mob_k() / labor * 100.0 * 1.5
+	return now - float(mil.get("mg_ref", now))
 
 
 func mil_g() -> float:

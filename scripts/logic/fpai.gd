@@ -265,7 +265,11 @@ func fa_month() -> void:
 	# отказ от демократии замечают сразу (переворот, указы, хунта)
 	var dem: float = democracy_index()
 	var dem_jump := false
-	if float(fa["dem"]) - dem >= 0.08:
+	# 0.64: военное положение страны, которую обороняют от нападения, мир не считает отказом от демократии (иначе Запад вводил санкции против Украины)
+	var def_martial: bool = martial_on() and mil_on() and mil_at_war() and not bool((mil["war"] as Dictionary).get("aggr", false))
+	if float(fa["dem"]) - dem >= 0.08 and def_martial:
+		dem_jump = true
+	elif float(fa["dem"]) - dem >= 0.08:
 		dem_jump = true
 		fa_notify("authoritarian", "", clampf((float(fa["dem"]) - dem) / 0.3, 0.3, 1.5))
 		fa_log("демократии осуждают отказ от демократических институтов: отношения резко ухудшились.", COL_BAD)

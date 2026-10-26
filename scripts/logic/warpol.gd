@@ -653,8 +653,9 @@ func war_sanc_list(ag: String, vi: String, cond: float, eu: bool) -> Array:
 	var tot := 0.0
 	var sh := 0.0
 	if ag == ccode:
-		for c in dip:
-			var tv: float = float((DIP_C[c] as Dictionary).get("trade", 0.0)) if DIP_C.has(c) else 0.0
+		# 0.64: считаем по всем торговым партнёрам из справочника, а не по «живым» (dip): после объединения с Беларусью её торговля выпадала из знаменателя, доля санкций росла сама собой, и рост России падал ещё на 1,2 п.п. навсегда
+		for c in DIP_C:
+			var tv: float = float((DIP_C[c] as Dictionary).get("trade", 0.0))
 			tot += tv
 			if c in out:
 				sh += tv

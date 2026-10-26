@@ -166,6 +166,57 @@ func _init():
 		g.ar_world_month()
 		check(not (g.ar["wlog"] as Dictionary).has("BY"), "Беларусь отреагировала на усиление России как на угрозу")
 		check(float((g.ar["wmt"] as Dictionary).get("BY", 1.0)) < 1.2, "Беларусь наращивает армию слишком сильно")
+	# --- п.4 (проверка реалистичности): исправления ---
+	# автопилот не поднимает налоги в спад, но поднимает в обычное время
+	var ap_t: float = float(g.ap["target"])
+	g.ap["target"] = -30.0
+	var taxes0: float = float(g.pol["vat"]) + float(g.pol["income"]) + float(g.pol["social"]) + float(g.pol["corp"])
+	var gr0: float = g.growth
+	var un0: float = g.unemployment
+	g.growth = -2.0
+	g.unemployment = g.U_NEU + 4.0
+	g.autobalance_step()
+	var taxes1: float = float(g.pol["vat"]) + float(g.pol["income"]) + float(g.pol["social"]) + float(g.pol["corp"])
+	check(absf(taxes1 - taxes0) < 0.001, "автопилот поднял налоги в спад")
+	g.growth = 1.0
+	g.unemployment = g.U_NEU
+	g.autobalance_step()
+	var taxes2: float = float(g.pol["vat"]) + float(g.pol["income"]) + float(g.pol["social"]) + float(g.pol["corp"])
+	check(taxes2 >= taxes1 - 0.001, "автопилот снизил налоги при дефиците выше цели")
+	g.ap["target"] = ap_t
+	g.growth = gr0
+	g.unemployment = un0
+	# призыв — разовая потеря рабочих рук: при устоявшемся числе мобилизованных минус к росту исчезает
+	if cc == "RU" and not g.mil.is_empty():
+		g.mil["mob_k"] = 800.0
+		g.mil["mob_t"] = 12
+		g.mil["mg_ref"] = 0.0
+		var mg_new: float = g.mil_mob_g()
+		check(mg_new < -0.05, "новый призыв не бьёт по росту (%.2f)" % mg_new)
+		g.mil["mg_ref"] = mg_new
+		check(absf(g.mil_mob_g()) < 0.001, "устоявшийся призыв всё ещё тянет рост вниз (%.2f)" % g.mil_mob_g())
+		g.mil["mob_k"] = 0.0
+		g.mil["mob_t"] = 0
+		g.mil.erase("mg_ref")
+		# доля санкций не растёт сама собой после объединения с Беларусью
+		var sh0: float = float(g.war_sanc_list("RU", "UA", 60.0, true)[1])
+		var by_dip: Variant = g.dip.get("BY")
+		g.dip.erase("BY")
+		var sh1: float = float(g.war_sanc_list("RU", "UA", 60.0, true)[1])
+		if by_dip != null:
+			g.dip["BY"] = by_dip
+		check(absf(sh1 - sh0) < 0.0001, "доля торговли под санкциями изменилась после выхода Беларуси из списка партнёров (%.3f → %.3f)" % [sh0, sh1])
+	# оборонительное военное положение мир не считает отказом от демократии
+	if cc == "UA" and g.mil_at_war() and not g.fa.is_empty():
+		g.martial = true
+		g.fa["dem"] = g.democracy_index() + 0.3
+		(g.fa["log"] as Array).clear()
+		g.fa_month()
+		var cond_seen := false
+		for x in g.fa["log"]:
+			if "осуждают отказ от демократических" in String(x):
+				cond_seen = true
+		check(not cond_seen, "Запад осудил военное положение обороняющейся страны как отказ от демократии")
 	if bad == 0:
 		print("OK v064 %s" % cc)
 	quit(1 if bad > 0 else 0)
