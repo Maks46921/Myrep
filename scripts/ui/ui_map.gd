@@ -1775,6 +1775,9 @@ func update_region_table() -> void:
 			projects += 1
 	reg_summary.text = "Регионов: %d. Неспокойных (недовольство ≥ 60): %d. Нелояльных (< 40): %d. Строек (●): %d. ВВП/душа — тыс. в год, в среднем по стране %.1f. Сортировка: %s%s." % [
 		regions.size(), angry, disloyal, projects, avg_pc, ["название", "население", "ВВП", "лояльность", "недовольство", "ВВП на душу", "безработица", "рост ВРП", "долг региона"][sort_col], " (по убыванию)" if sort_desc else ""]
+	var lost: Array = CDATA[ccode].get("REG_LOST", []) as Array
+	if not lost.is_empty():
+		reg_summary.text += "\nНе контролируем: " + "; ".join(PackedStringArray(lost)) + "."
 
 
 func update_transfer_ui() -> void:

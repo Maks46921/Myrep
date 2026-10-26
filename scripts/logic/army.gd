@@ -419,12 +419,17 @@ func ar_world_month() -> void:
 		# общее перевооружение Европы: НАТО идёт к новым целям по расходам
 		var t: float = 1.0 + (minf(0.2, float(turn) * 0.0025) if mil_is_nato(c) else minf(0.08, float(turn) * 0.001))
 		var threat := 0.0
-		if c in nbs:
+		# 0.64: Беларусь не видит угрозы в усилении российской армии (и наоборот): наращивает силы только по своему решению или вместе с Россией
+		var kin: bool = (c == "BY" and ccode == "RU") or (c == "RU" and ccode == "BY")
+		if c in nbs and not kin:
 			var hawk: float = float(fa_pers(c)["hawk"]) if fa_on() else 0.5
 			if ratio > 1.15 and (fed_rel(c) < 45.0 or hawk >= 0.5):
 				threat = clampf((ratio - 1.15) * 0.8, 0.0, 0.35) * (0.6 + 0.8 * hawk)
 			if aggr:
 				threat += 0.15
+		# вместе с Россией: если та идёт на заметное перевооружение, Минск подтягивается лишь частично, без тревоги и ухудшения отношений
+		if kin and ccode == "RU":
+			t += clampf((ratio - 1.15) * 0.25, 0.0, 0.08)
 		t += threat
 		wmt[c] = t
 		var cur: float = float(wm.get(c, 1.0))

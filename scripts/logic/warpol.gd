@@ -330,6 +330,11 @@ func talk_budget() -> float:
 		b += 8.0
 	if int(w.get("cf", 0)) > 0:
 		b += 4.0
+	# 0.64: Россия при нынешнем правителе не идёт на мир «по усталости»: ни базовой уступки, ни надбавки за затянувшуюся войну
+	if String(w.get("lead", "")) == "RU" and ccode == "UA":
+		b -= 10.0 + 1.5 * months + 12.0
+	elif String(w.get("lead", "")) == "UA" and ccode == "RU":
+		b -= 10.0      # 0.64: Украина идёт на мир, только сохраняя суверенитет и не теряя земель сверх нынешних
 	return b
 
 
@@ -648,8 +653,9 @@ func war_sanc_list(ag: String, vi: String, cond: float, eu: bool) -> Array:
 	var tot := 0.0
 	var sh := 0.0
 	if ag == ccode:
-		for c in dip:
-			var tv: float = float((DIP_C[c] as Dictionary).get("trade", 0.0)) if DIP_C.has(c) else 0.0
+		# 0.64: считаем по всем торговым партнёрам из справочника, а не по «живым» (dip): после объединения с Беларусью её торговля выпадала из знаменателя, доля санкций росла сама собой, и рост России падал ещё на 1,2 п.п. навсегда
+		for c in DIP_C:
+			var tv: float = float((DIP_C[c] as Dictionary).get("trade", 0.0))
 			tot += tv
 			if c in out:
 				sh += tv

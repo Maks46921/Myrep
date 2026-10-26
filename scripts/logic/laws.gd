@@ -487,6 +487,16 @@ func variant_stance(p: int, tid: String, idx: int) -> float:
 	return s
 
 
+# 0.64: линия партии игрока по чужому законопроекту: "yes" / "no" / "abst" (определённой линии нет).
+# Один источник для подсказки на кнопке, итога голосования и последствий для фракции.
+func line_kind_for(tid: String, idx: int, sponsor: int) -> String:
+	var s := variant_stance(0, tid, idx)
+	if absf(s) < 0.05:
+		return "abst"
+	var coal: bool = in_coalition[0] and sponsor > 0 and sponsor < in_coalition.size() and in_coalition[sponsor]
+	return "yes" if (s >= 0.0 or (coal and s >= -1.0)) else "no"
+
+
 var last_vote := {}    # v51: итог последнего голосования (для окна с анимацией)
 var vote_notes := {}   # 0.57.1: пометки к фракциям в таблице итогов (сделки, давление, обмен голосами)
 
@@ -511,12 +521,14 @@ func variant_votes(tid: String, idx: int, forced: Array = []) -> Dictionary:
 		var s := variant_stance(p, tid, idx)
 		var ok: bool = p == vote_sponsor or s >= 0.0 or (in_coalition[p] and s >= -1.0) or (p in forced) or (s >= -3.0 and pact_has(p, "votes"))
 		# 0.56: по чужому законопроекту фракция игрока голосует так, как он решил
-		if p == 0 and vote_sponsor != 0 and vote_pl != "" and vote_pl != "line":
-			if vote_pl == "yes":
+		# 0.64: «по линии партии» берётся из той же функции, что и подсказка на кнопке (раньше итог мог разойтись с подсказкой)
+		if p == 0 and vote_sponsor != 0 and vote_pl != "":
+			var vpl: String = vote_pl if vote_pl != "line" else line_kind_for(tid, idx, vote_sponsor)
+			if vpl == "yes":
 				ok = true
-			elif vote_pl == "no":
+			elif vpl == "no":
 				ok = false
-			elif vote_pl == "abst":
+			elif vpl == "abst":
 				per.append([p, s, false, 0, 0, seats[0]])
 				ab += seats[0]
 				continue

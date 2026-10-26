@@ -35,6 +35,9 @@ func autobalance_step(target: float = -1.0, big: bool = false) -> bool:
 		return false
 	var st: float = 0.2 if (absf(diff) > 1.5 or big) else 0.1
 	if diff > 0.0:
+		# 0.64: автопилот не поднимает налоги в спад (рост ниже нуля и безработица выше нормы): иначе налоги росли годами, а экономика уходила в дефляционную спираль
+		if target < 0.0 and growth < 0.0 and unemployment > U_NEU + 2.0:
+			return false
 		for key in ["vat", "income", "social", "corp"]:
 			if ap_can_adj(key, st):
 				set_policy(key, float(pol[key]) + st)
@@ -115,6 +118,10 @@ func fx_score(fx: Dictionary, style: int) -> float:
 
 
 func auto_event_pick(ev: Dictionary) -> int:
+	if String(ev.get("special", "")) == "war":
+		var wp := mil_ai_war_pick(ev)
+		if wp >= 0:
+			return wp
 	var best := 0
 	var bs := -1e9
 	var opts: Array = ev["o"]

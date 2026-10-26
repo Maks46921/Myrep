@@ -99,6 +99,10 @@ func ar_wm(cc: String) -> float:
 	return 0.0
 
 
+func au_auth() -> bool:
+	return false
+
+
 func fa_war_ended(kind: String, terms: Dictionary, annexed: bool, lead: String) -> void:
 	pass
 
@@ -144,6 +148,10 @@ func war_demo(cc: String) -> float:
 
 
 func war_dip_extra(c: String) -> float:
+	return 0.0
+
+
+func war_hawk(p: int) -> float:
 	return 0.0
 
 
@@ -1773,6 +1781,8 @@ func mil_month() -> void:
 			f["org"] = 1.0
 	# содержание резервистов
 	var mk := mil_mob_k()
+	var mg_now: float = -mk / maxf(100.0, total_pop() * 1000.0 * 0.5) * 100.0 * 1.5
+	mil["mg_ref"] = float(mil.get("mg_ref", mg_now)) + (mg_now - float(mil.get("mg_ref", mg_now))) * rt(0.15, wdt)
 	if mk > 0.0:
 		debt += mk * 0.006 * wdt
 		add_support("Молодёжь", -0.4 * float(mil["mob"]) * wdt)
@@ -1851,7 +1861,9 @@ func mil_mob_g() -> float:
 	if not mil_on():
 		return 0.0
 	var labor: float = maxf(100.0, total_pop() * 1000.0 * 0.5)
-	return -mil_mob_k() / labor * 100.0 * 1.5
+	# 0.64: призыв — разовая потеря рабочих рук, а не вечный минус к темпу роста: влияет, пока число мобилизованных меняется, и рассасывается за год-полтора
+	var now: float = -mil_mob_k() / labor * 100.0 * 1.5
+	return now - float(mil.get("mg_ref", now))
 
 
 func mil_g() -> float:
@@ -2186,7 +2198,7 @@ func mil_ai_peace() -> void:
 		mil_event(["", "lose_cede", "lose_pay"], "«%s» предлагает мир: вы уступаете занятые ею земли и платите репарации (1%% ВВП). Через посредников можно выторговать другой вариант: оставить земли, но заплатить больше. Военный счёт %+.0f." % [nm, sc],
 			[{"l": "Отклонить: воюем дальше", "fx": {"support": {"Силовики": 1.0}}}, {"l": "Принять мир на условиях противника", "fx": {}},
 			{"l": "Выкупить земли: репарации %.0f%% ВВП" % pay, "fx": {"support": {"Бизнес": -1.0}}}])
-	elif sc >= 25.0 and int(w["days"]) >= 45 and mil_rng.randf() < 0.35:
+	elif sc >= (55.0 if (String(w["lead"]) == "RU" and ccode == "UA") else 25.0) and int(w["days"]) >= 45 and mil_rng.randf() < 0.35:
 		# противник сам предлагает уступки — столько, сколько готов отдать при нынешнем счёте
 		w["offer_cd"] = 50
 		var want: Array = []
@@ -2205,7 +2217,7 @@ func mil_ai_peace() -> void:
 			mil["cnt"] = cnt
 			mil_event(["", "talk_cnt"], "«%s» проигрывает и сама предлагает мир: %s. Военный счёт %+.0f." % [nm, talk_pkg_text(cnt), sc],
 				[{"l": "Отклонить: добиваться большего", "fx": {}}, {"l": "Принять предложение", "fx": {"support": {"Бизнес": 1.0}}}])
-	elif float(w["days"]) > 120.0 and absf(sc) < 12.0 and mil_rng.randf() < 0.3:
+	elif float(w["days"]) > 120.0 and absf(sc) < 12.0 and mil_rng.randf() < 0.3 and not (String(w["lead"]) == "RU" and ccode == "UA"):
 		w["offer_cd"] = 60
 		mil_event(["", "white"], "Фронт встал. «%s» предлагает белый мир — вернуться к довоенным границам. Военный счёт %+.0f." % [nm, sc],
 			[{"l": "Отклонить: воюем дальше", "fx": {}}, {"l": "Принять белый мир", "fx": {"support": {"Молодёжь": 2.0}}}])
@@ -2247,6 +2259,76 @@ func mil_resolve(i: int) -> void:
 		mil_log("вы отвергли требование прекратить огонь: осуждение растёт, санкций больше.", COL_BAD)
 	elif k != "":
 		mil_peace(k)
+
+
+# 0.64: решения ИИ-правительства о мире (когда вы в оппозиции или наблюдаете): Россия и Украина не подписывают мир «как получится».
+# Россия (пока у власти авторитарный правитель, прежний или преемник без смены партии): мир только когда вся Донецкая область
+# под её контролем и Украина нейтральна; после ухода правителя условия зависят от партии власти: либералы и левые при смене режима —
+# мир на разумных условиях, «Единая Россия» с другим лидером и КПРФ при гибридном режиме — мягкие условия, ЛДПР и силовики — прежние.
+# Украина соглашается на мир, только если сохраняет суверенитет и не теряет земель сверх нынешних.
+func mil_don_full() -> bool:
+	var n := 0
+	for a in ate_unit.size():
+		if String(WORLD_UNITS[ate_unit[a]]["id"]) == "UA-DON":
+			n += 1
+			if mil_ctl(a) != "RU":
+				return false
+	return n > 0
+
+
+func mil_ai_stance() -> String:
+	if au_auth() and not bool(mil.get("ldr_gone", false)):
+		return "hard"
+	var pm: int = int(opp_gov["pm"]) if (opp_mode and not opp_gov.is_empty()) else gov_pm_party()
+	var h: float = war_hawk(pm) if pm >= 0 and pm < PARTY_NAMES.size() else 0.6
+	if h <= -0.3:
+		return "mild" if au_on() or ccode == "RU" and pm == 1 else "soft"
+	if h <= 0.2:
+		return "mild"
+	return "hard"
+
+
+# индекс варианта события войны, который выберет ИИ-правительство; -1 — решает общий расчёт
+func mil_ai_war_pick(_ev: Dictionary) -> int:
+	if not mil_at_war() or not (ccode in ["RU", "UA"]):
+		return -1
+	var ks: Array = (mil.get("pend", {}) as Dictionary).get("kinds", [])
+	var lead := String(mil["war"]["lead"])
+	if ks.size() < 2 or not ((ccode == "RU" and lead == "UA") or (ccode == "UA" and lead == "RU")):
+		return -1
+	var sc: float = float(mil["war"]["score"])
+	var st := mil_ai_stance() if ccode == "RU" else "hard"
+	var don := mil_don_full() if ccode == "RU" else false
+	var neutral := false
+	for it in mil.get("cnt", []):
+		if String(it[0]) == "neutral":
+			neutral = true
+	var pick := 0
+	for i in range(1, ks.size()):
+		var k := String(ks[i])
+		var ok := false
+		if k == "mob1":
+			return -1
+		if k == "capit" or k == "full":
+			ok = true
+		elif ccode == "RU":
+			match k:
+				"talk_cnt":
+					ok = st == "soft" or (don and (neutral or st == "mild"))
+				"white":
+					ok = st == "soft" or (st == "mild" and don)
+				"lose_pay", "lose_cede":
+					var lim: float = -40.0 if st == "soft" else (-60.0 if st == "mild" else -80.0)
+					ok = sc <= lim and (k == "lose_pay" or st == "soft")
+		else:
+			match k:
+				"talk_cnt", "white", "lose_pay":
+					ok = true
+				"lose_cede":
+					ok = sc <= -85.0
+		if ok:
+			pick = i
+	return pick
 
 
 # v49: союзники-покровители: нападение на страну — нападение и на покровителя (учитывается его сила)

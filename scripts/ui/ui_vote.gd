@@ -454,12 +454,12 @@ func vote_plan_own(b: Dictionary, v: Dictionary) -> String:
 
 func vote_plan_other(b: Dictionary, _v: Dictionary) -> String:
 	var sp: int = int(b["sponsor"])
-	var line := pa_line(b)
+	var lk := pa_line_kind(b)
 	var opts := [
 		["yes", "За", "Фракция голосует за."],
 		["no", "Против", "Фракция голосует против."],
 		["abst", "Воздержаться", "Голоса фракции не идут ни за, ни против."],
-		["line", "Как велит линия партии (сейчас: %s)" % ("за" if line else "против"), "Дисциплина не страдает."],
+		["line", "Как велит линия партии (сейчас: %s)" % pa_line_text(b), "Дисциплина не страдает."],
 		["free", "Свободное голосование", "Каждый депутат решает сам; дисциплина слегка слабеет."],
 		["trade", "Обменять свои голоса (политкапитал +%.0f)" % pa_trade_value(b), "Фракция голосует «за», а вам должны: отношения с партией лучше."]]
 	for o in opts:
@@ -494,9 +494,9 @@ func vote_plan_other(b: Dictionary, _v: Dictionary) -> String:
 	if eff == "trade":
 		eff = "yes"
 	elif eff == "line":
-		eff = "yes" if line else "no"
+		eff = lk
 	var t := ""
-	if (eff == "yes" and not line) or (eff == "no" and line):
+	if (eff == "yes" and lk == "no") or (eff == "no" and lk == "yes"):
 		t = "[color=%s]Это против линии вашей партии: дисциплина ослабнет, часть избирателей будет недовольна.[/color]" % COL_WARN
 	elif vt_pv == "free":
 		t = "Свободное голосование чуть ослабляет дисциплину фракции."

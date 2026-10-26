@@ -1406,7 +1406,31 @@ func _ready() -> void:
 
 
 # v35: пробел — пауза / пуск времени (если фокус не в поле ввода и не открыто меню стран)
+# 0.64: поле ввода отпускается щелчком в любом другом месте, а также Esc и Enter: раньше после ввода названия закона
+# пробел ставил пробел в поле, а не паузу. Введённый текст остаётся.
+func text_focus_release(e: InputEvent) -> bool:
+	var fo := get_viewport().gui_get_focus_owner()
+	if not (fo is LineEdit or fo is TextEdit):
+		return false
+	if e is InputEventMouseButton:
+		var mb := e as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and not (fo as Control).get_global_rect().has_point(mb.position):
+			fo.release_focus()
+		return false
+	if e is InputEventKey:
+		var ke := e as InputEventKey
+		if ke.pressed and not ke.echo and (ke.keycode == KEY_ESCAPE or (ke.keycode in [KEY_ENTER, KEY_KP_ENTER] and fo is LineEdit)):
+			if fo is LineEdit and ke.keycode != KEY_ESCAPE:
+				(fo as LineEdit).text_submitted.emit((fo as LineEdit).text)
+			fo.release_focus()
+			get_viewport().set_input_as_handled()
+			return true
+	return false
+
+
 func _input(e: InputEvent) -> void:
+	if text_focus_release(e):
+		return
 	if not (e is InputEventKey):
 		return
 	var ke := e as InputEventKey

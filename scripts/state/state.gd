@@ -590,7 +590,7 @@ var min_cand_rows: Array = []
 
 var min_replace_btn: Button
 
-var neg_option: OptionButton
+var neg_pick := {}              # 0.64: карточки выбора партии в «Переговорах с партией»
 
 var neg_rt: RichTextLabel
 

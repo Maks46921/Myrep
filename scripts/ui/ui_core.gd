@@ -1689,6 +1689,10 @@ func make_theme() -> Theme:
 		th.set_color("font_hover_pressed_color", t, Color(1, 1, 1))
 		th.set_color("font_disabled_color", t, C_FAINT)
 		th.set_color("font_focus_color", t, C_TEXT)
+	# 0.64: поле ввода с курсором подсвечено рамкой (видно, когда пробел пойдёт в текст, а не на паузу)
+	for t2 in ["LineEdit", "TextEdit"]:
+		th.set_stylebox("normal", t2, sbox(C_PANEL2, C_BORDER, 1, 6, 8.0, 4.0))
+		th.set_stylebox("focus", t2, sbox(C_PANEL2.lightened(0.06), C_ACCENT, 2, 6, 8.0, 4.0))
 	# акцентная кнопка («Следующий месяц»)
 	th.set_type_variation("AccentButton", "Button")
 	th.set_stylebox("normal", "AccentButton", sbox(C_ACCENT.darkened(0.20), C_ACCENT.lightened(0.15), 1, 8, 14.0, 6.0))
