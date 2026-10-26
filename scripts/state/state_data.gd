@@ -1,5 +1,5 @@
 # Таблицы, которые страна подменяет при запуске (REGIONS, LEAN, PARTY_NAMES и др.).
-extends "res://scripts/data/data_fin63.gd"
+extends "res://scripts/data/data_move65.gd"
 
 var SEATS := 630
 
@@ -295,6 +295,10 @@ var TERMS := {}
 var INFO := {}
 
 var UPPER := {}
+
+var x65: Dictionary = {}
+var up65: Dictionary = {}        # 0.65: верхняя палата (upper65.gd)
+var mv65: Dictionary = {}        # 0.65: политические движения (move65.gd)        # 0.65: усталость от войны, помощь жертве, уровень жизни, настроение регионов (war65.gd)
 
 var MACRO := {}
 

@@ -16,6 +16,10 @@ func fin_cb_bias(base: float) -> float:
 	return 0.0
 
 
+func infl_tgt() -> float:
+	return 0.0
+
+
 func world_ea_update() -> void:
 	pass
 
@@ -255,7 +259,7 @@ func cb_rule() -> float:
 	if own >= 0.0:
 		ew = own
 	var infl_cb: float = (1.0 - ew) * ea_infl + ew * inflation
-	return infl_cb + RATE_NEUTRAL_REAL + 0.55 * (infl_cb - I_TGT) + 0.20 * (growth - G_NEU) + float(mods.get("cb_bias", 0.0)) + float(MACRO.get("cb_off", 0.0))
+	return infl_cb + RATE_NEUTRAL_REAL + 0.55 * (infl_cb - infl_tgt()) + 0.20 * (growth - G_NEU) + float(mods.get("cb_bias", 0.0)) + float(MACRO.get("cb_off", 0.0))
 
 
 func cb_name() -> String:

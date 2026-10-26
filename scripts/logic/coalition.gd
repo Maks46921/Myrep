@@ -40,6 +40,10 @@ func invite_offer_w(p: int, promise: bool, mins: int) -> float:
 	return 0.0
 
 
+func no_gov(p: int) -> bool:
+	return false
+
+
 func party_abbr(p: int) -> String:
 	return ""
 
@@ -71,7 +75,7 @@ const CORDON_JOIN := -30.0     # v35: «санитарный кордон» вм
 
 # может ли партия вообще входить в правительство/договариваться
 func can_govern(p: int) -> bool:
-	return p > 0 and p < PARTY_NAMES.size() and not (p in GOV_EXCLUDE)
+	return p > 0 and p < PARTY_NAMES.size() and not no_gov(p)
 
 
 # партия, с которой мейнстрим обычно не вступает в коалицию

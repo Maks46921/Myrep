@@ -164,7 +164,7 @@ func rider_fill() -> void:
 				rider_args.append(["char", k])
 		_:
 			for p in range(1, PARTY_NAMES.size()):
-				if seats[p] > 0 and not (p in NO_GOV_SLOTS):
+				if seats[p] > 0 and not no_gov(p):
 					rider_arg.add_item(party_abbr(p) + " — " + String(PARTY_NAMES[p]).left(40))
 					rider_args.append(["party", str(p)])
 
@@ -494,7 +494,7 @@ func update_opp_windows() -> void:
 	# список партий для переговоров
 	var want: Array = []
 	for p in range(1, PARTY_NAMES.size()):
-		if not (p in NO_GOV_SLOTS):
+		if not no_gov(p):
 			want.append(p)
 	if not want.has(pact_sel) and not want.is_empty():
 		pact_sel = int(want[0])

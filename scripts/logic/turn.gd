@@ -204,6 +204,10 @@ func ind_month() -> void:
 	pass
 
 
+func infl_anchor() -> float:
+	return 0.0
+
+
 func io_init() -> void:
 	pass
 
@@ -250,6 +254,18 @@ func mil_start_ongoing() -> void:
 
 func mil_unemp() -> float:
 	return 0.0
+
+
+func mv65_g() -> float:
+	return 0.0
+
+
+func mv65_month() -> void:
+	pass
+
+
+func mv_init() -> void:
+	pass
 
 
 func observer_step() -> void:
@@ -340,6 +356,14 @@ func ui_anim_step(delta: float) -> void:
 	pass
 
 
+func up65_g() -> float:
+	return 0.0
+
+
+func up65_month() -> void:
+	pass
+
+
 func world_init() -> void:
 	pass
 
@@ -356,6 +380,18 @@ func wsim_step() -> void:
 	pass
 
 
+func x65_g() -> float:
+	return 0.0
+
+
+func x65_init() -> void:
+	pass
+
+
+func x65_month() -> void:
+	pass
+
+
 # --- конец заглушек ---
 
 
@@ -368,7 +404,7 @@ const WEEK_HOOKS: Array = [
 	"econ_week", "fin_week",
 
 	# --- world: мир, дипломатия, агенты ---
-	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "ag_step",
+	"dip_step", "wsim_step", "realism_month", "diplo_month", "fa_month", "ex_month", "x65_month", "ag_step",
 
 	# --- mil: армия, флот, революции, федерация, стройка ---
 	"bq_month", "fed_month", "revolt_month", "fleet_month", "mil_month", "con_month",
@@ -584,6 +620,9 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 		+ revolt_g()
 		+ rl_g()
 		+ fin_g()
+		+ x65_g()
+		+ mv65_g()
+		+ up65_g()
 	)
 	g_target_last = g_target
 	shock *= (0.9 if dt == 1.0 else pow(0.9, dt))
@@ -601,7 +640,7 @@ func macro_step(dt: float, ecf: Dictionary, deficit_pct: float, debt_ratio: floa
 	if full:
 		sync_abs_policies()
 		expire_locks()
-	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - I_TGT) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl() + fin_infl()) / 12.0 * dt, 0.0, 40.0)
+	inflation = clampf(inflation + (fimp * 0.3 + (growth - g_ref) * 0.15 - (inflation - infl_anchor()) * 0.2 + emit_excess() * 1.2 + 0.2 * float(ecf["infl"]) + world_spill_infl() + ex_infl() + fleet_infl() + mil_infl() + rl_infl() + fin_infl()) / 12.0 * dt, 0.0, 40.0)
 	var u_target: float = U_NEU + float(mods["unemp_base"]) + (pp0("benefits") - float(pol_def["benefits"])) * 0.3 - (pp0("subs") - float(pol_def["subs"])) * 0.25 - (pp0("agri") - float(pol_def["agri"])) * 0.1 + lvl_sum("unemp") + float(ecf["unemp"]) + soc_unemp() + mil_unemp() + revolt_unemp() + fin_unemp()
 	unemployment = clampf(unemployment + (-(growth - g_ref) * 0.5 + (u_target - unemployment) * 0.15) / 12.0 * dt, 2.0, 30.0)
 	var rloss := 0.0
@@ -771,6 +810,9 @@ func next_turn_core() -> void:
 	diplo_month()
 	fa_month()
 	ex_month()
+	x65_month()
+	mv65_month()
+	up65_month()
 	con_month()
 
 	# --- экономика ---
@@ -883,7 +925,7 @@ func log_month(b: Dictionary, old_infl: float, old_unemp: float, old_support: Di
 		notes.append("Сильнее всего изменилось отношение: " + ", ".join(sp))
 	var rg: Array = []
 	for i in regions.size():
-		rg.append([REGIONS[i]["name"], float(regions[i]["unrest"]) - float(old_regs[i]["unrest"]), float(regions[i]["unrest"])])
+		rg.append([REGIONS[i]["name"], float(regions[i]["unrest"]) - (float(old_regs[i]["unrest"]) if i < old_regs.size() else float(regions[i]["unrest"])), float(regions[i]["unrest"])])
 	rg.sort_custom(func(a, c): return a[2] > c[2])
 	if float(rg[0][2]) >= 45.0:
 		notes.append("[color=%s]⚠[/color] Самый неспокойный регион: «%s», недовольство %.0f." % [COL_WARN, rg[0][0], rg[0][2]])
@@ -1013,6 +1055,8 @@ func init_state() -> void:
 	mil_start_ongoing()
 	ind_init()
 	fin_init()
+	x65_init()
+	mv_init()
 	recompute_mods()
 	dip_bonus0 = float(mods["dip_bonus"])
 	year_start = {"gdp": gdp, "debt": debt, "appr": approval(), "infl": inflation, "unemp": unemployment}

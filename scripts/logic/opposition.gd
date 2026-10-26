@@ -8,6 +8,14 @@ func idl_react(p: int, kind: String) -> void:
 	pass
 
 
+func mv_play_prepare(idx: int) -> bool:
+	return false
+
+
+func no_play(p: int) -> bool:
+	return false
+
+
 func prm_init() -> void:
 	pass
 
@@ -144,7 +152,7 @@ func cd_left(id: String) -> int:
 
 # ---------- обмен идентичностями с прежней партией власти ----------
 func player_swap_ok(k: int) -> bool:
-	return k > 0 and k < PARTY_NAMES.size() and not (k in NO_PLAY_SLOTS) and party_name_playable(String(PARTY_NAMES[k]))
+	return k > 0 and k < PARTY_NAMES.size() and not no_play(k) and party_name_playable(String(PARTY_NAMES[k]))
 
 
 func swap_idx(v: int, k: int) -> int:
@@ -153,7 +161,12 @@ func swap_idx(v: int, k: int) -> int:
 
 func apply_player_party(k: int) -> void:
 	player_orig = 0
-	if not player_swap_ok(k):
+	if k >= 1000:
+		# 0.65: «Оппозиция без места в парламенте» — вы играете за движение; его строка становится вашей вместо «Прочих партий» (слот 6)
+		if not mv_play_prepare(k - 1000):
+			return
+		k = 6
+	elif not player_swap_ok(k):
 		return
 	var n := PARTY_NAMES.size()
 	player_orig = k
@@ -261,7 +274,7 @@ func ai_coalition(f: int, allow0: bool) -> Dictionary:
 	var s: int = int(seats[f])
 	var cands: Array = []
 	for q in PARTY_NAMES.size():
-		if q == f or seats[q] <= 0 or (q in NO_GOV_SLOTS) or (q == 0 and not allow0):
+		if q == f or seats[q] <= 0 or no_gov(q) or (q == 0 and not allow0):
 			continue
 		var sc: float = party_sim(f, q) + (0.0 if q != 0 else float(prel[f]) / 400.0)
 		if is_cordon(q) or is_cordon(f):
@@ -282,7 +295,7 @@ func ai_coalition(f: int, allow0: bool) -> Dictionary:
 func ai_form_gov(allow0: bool) -> Dictionary:
 	var order: Array = []
 	for p in PARTY_NAMES.size():
-		if seats[p] > 0 and not (p in NO_GOV_SLOTS) and (p != 0 or allow0):
+		if seats[p] > 0 and not no_gov(p) and (p != 0 or allow0):
 			order.append([int(seats[p]), p])
 	order.sort_custom(func(a, b) -> bool: return a[0] > b[0])
 	if order.is_empty():
@@ -572,7 +585,7 @@ func pact_need(kind: String) -> float:
 func pact_can(p: int, kind: String) -> String:
 	if game_over or p <= 0 or p >= PARTY_NAMES.size():
 		return "нельзя"
-	if p in NO_GOV_SLOTS and kind != "attack":
+	if no_gov(p) and kind != "attack":
 		return "партия не заключает соглашений"
 	# v50: предвыборный блок, помощь, похвала и прочее доступны и партиям без мест; в парламенте нужны места только для голосов
 	if seats[p] <= 0 and (kind == "tol" or kind == "votes"):
@@ -695,7 +708,7 @@ func opp_after_election() -> String:
 	# вы сильнейшая из допустимых партий — пробуем собрать власть вокруг себя
 	var best := -1
 	for p in PARTY_NAMES.size():
-		if seats[p] > 0 and not (p in NO_GOV_SLOTS):
+		if seats[p] > 0 and not no_gov(p):
 			if best < 0 or seats[p] > seats[best]:
 				best = p
 	if best == 0:

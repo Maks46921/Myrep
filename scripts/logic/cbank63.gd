@@ -69,7 +69,7 @@ func fin_cb_step() -> void:
 		cb["ind"] = clampf(float(cb["ind0"]) + float(cb["law"]) + (democracy_index() - float(cb["dem0"])) * 40.0, 0.0, 100.0)
 	cb["press"] = float(cb["press"]) * wdec(0.9)
 	cb["lobby"] = float(cb["lobby"]) * wdec(0.85)
-	var infl_dev: float = absf(inflation - I_TGT)
+	var infl_dev: float = absf(inflation - infl_tgt())
 	var drift := 0.0
 	drift -= 0.8 * maxf(0.0, inflation - maxf(4.0, float(cb["infl0"]) + 1.0))
 	drift -= 0.5 * maxf(0.0, 1.0 - inflation)
@@ -80,7 +80,7 @@ func fin_cb_step() -> void:
 	# покупки облигаций: свёртываются сами при высокой инфляции, ослабляют валюту
 	var qe: float = float(cb["qe"])
 	if qe > 0.0:
-		if inflation > I_TGT + 2.0 and float(cb["ind"]) > 40.0:
+		if inflation > infl_tgt() + 2.0 and float(cb["ind"]) > 40.0:
 			qe = maxf(0.0, qe - 0.5 * wdt)
 		ec["fx_shock"] = float(ec["fx_shock"]) - 0.0008 * qe * wdt
 		cb["qe"] = qe

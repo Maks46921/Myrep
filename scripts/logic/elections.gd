@@ -89,6 +89,18 @@ func mil_at_war() -> bool:
 	return false
 
 
+func mv65_ballot() -> float:
+	return 0.0
+
+
+func mv65_dem() -> float:
+	return 0.0
+
+
+func mv65_vote_mult(p: int) -> float:
+	return 0.0
+
+
 func opp_after_election() -> String:
 	return ""
 
@@ -144,6 +156,10 @@ func upper_renew(shares: Array) -> String:
 func uq_lot_shares(sh: Array[float]) -> Array[float]:
 	var r: Array[float] = []
 	return r
+
+
+func war65_dem_floor(d: float) -> float:
+	return 0.0
 
 
 # --- конец заглушек ---
@@ -231,7 +247,9 @@ func vote_weights(ri: int, g: String, pres: bool) -> Array[float]:
 			v *= 1.0 + 0.08 * roles[p] * clampf(1.0 - float(turn - gov_born) / 9.0, 0.0, 1.0)
 		v *= cult_vote_mult(ri, p) * church_vote_mult(ri, p) * au_opp_mult(p, roles[p]) * er_mig_mult(ri, p)
 		if p > 0:
-			v *= issue_multiplier(p)
+			v *= issue_multiplier(p) * mv65_vote_mult(p)
+		else:
+			v *= mv65_ballot()
 		if pres and p > 0:
 			v *= charisma[p]
 		w.append(v)
@@ -292,7 +310,7 @@ func parl_shares() -> Array[float]:
 	var keep := 0.0
 	for p in raw.size():
 		var ex: bool = (p in exempt) or reserved.has(p) or reserved.has(str(p))
-		if (raw[p] < thr and not ex) or (p == 6 and lump_out and not ex):
+		if (raw[p] < thr and not ex) or (p == 6 and lump_out and not ex and mv_others(p)):
 			raw[p] = 0.0
 		keep += raw[p]
 	if keep <= 0.0001:
@@ -1189,7 +1207,7 @@ func national_shares(pres: bool, only: Array = []) -> Array[float]:
 
 
 func democracy_index() -> float:
-	return clampf(minf(DEM_BASE, float(MIL_DEMO.get(ccode, DEM_BASE))) + float(mods.get("dem_shift", 0.0)), 0.0, 1.0)
+	return war65_dem_floor(clampf(minf(DEM_BASE, float(MIL_DEMO.get(ccode, DEM_BASE))) + float(mods.get("dem_shift", 0.0)) + mv65_dem(), 0.0, 1.0))
 
 
 func democracy_name(d: float) -> String:

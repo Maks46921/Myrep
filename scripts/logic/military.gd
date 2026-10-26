@@ -143,6 +143,18 @@ func talk_terms(pkg: Array) -> Dictionary:
 	return {}
 
 
+func war65_attrition() -> void:
+	pass
+
+
+func war65_draft_k() -> float:
+	return 0.0
+
+
+func war65_stance(st: String) -> String:
+	return ""
+
+
 func war_demo(cc: String) -> float:
 	return 0.0
 
@@ -780,7 +792,7 @@ func mil_mobilize(level: int) -> bool:
 
 
 func mil_mob_arrive() -> void:
-	var tot: float = float(mil["mob_k"])
+	var tot: float = float(mil["mob_k"]) * war65_draft_k()
 	mil["mob_k"] = 0.0
 	if tot <= 0.5:
 		return
@@ -1079,6 +1091,8 @@ func mil_day() -> void:
 		mil_plan_t = 3
 		mil_plan(0)
 		mil_plan(1)
+		w["stale"] = int(w.get("stale", 0)) + 3
+		war65_attrition()
 	mil_join_battles()
 	mil_battles()
 	mil_move_all()
@@ -1254,6 +1268,8 @@ func mil_battles() -> void:
 				fronts[x] = []
 			(fronts[x] as Array).append(f)
 	var w: Dictionary = mil["war"]
+	if not fronts.is_empty():
+		w["stale"] = 0
 	for x in fronts:
 		var att: Array = fronts[x]
 		var acc := String(att[0]["cc"])
@@ -1430,7 +1446,7 @@ func mil_plan(side: int) -> void:
 	for f in mil["units"]:
 		if mil_side(String(f["cc"])) != side or int(f["fight"]) >= 0 or not (f["sea"] as Dictionary).is_empty() or int(f["a"]) < 0:
 			continue
-		if String(f["cc"]) == ccode and not (String(f["mode"]) in ["auto", "def"]):
+		if String(f["cc"]) == ccode and not (String(f["mode"]) in ["auto", "def"]) and not (observer or opp_mode):
 			continue
 		mine.append(f)
 	if mine.is_empty():
@@ -1496,8 +1512,12 @@ func mil_plan(side: int) -> void:
 				break
 		var tgt := -1
 		# v50: в затяжной позиционной войне (идёт с начала игры) ИИ наступает только при заметном перевесе
-		var off_thr: float = 1.9 if bool(w.get("ongoing", false)) else 1.15
-		var offense: bool = (ratio >= off_thr and String(f["cc"]) != ccode) or (String(f["mode"]) == "auto" and String(f["cc"]) == ccode and ratio >= 0.9)
+		var off_thr: float = 1.15
+		if bool(w.get("ongoing", false)):
+			# 0.65: позиционный тупик не вечен — чем дольше нет боёв, тем ниже планка, при которой сильная сторона идёт на штурм (1,9 → 1,6 за четыре года)
+			off_thr = lerpf(1.9, 1.6, clampf(float(w.get("stale", 0)) / 1440.0, 0.0, 1.0))
+		var ai_own: bool = String(f["cc"]) != ccode or observer or opp_mode      # 0.65: наблюдатель и оппозиция — свои войска ведёт ИИ
+		var offense: bool = (ratio >= off_thr and ai_own) or (String(f["mode"]) == "auto" and String(f["cc"]) == ccode and ratio >= 0.9)
 		# при перевесе часть сил гонится за прорвавшимися соединениями противника, остальные освобождают землю
 		if intruder >= 0 and ratio > 1.0 and k % 2 == 0:
 			tgt = intruder
@@ -2217,7 +2237,7 @@ func mil_ai_peace() -> void:
 			mil["cnt"] = cnt
 			mil_event(["", "talk_cnt"], "«%s» проигрывает и сама предлагает мир: %s. Военный счёт %+.0f." % [nm, talk_pkg_text(cnt), sc],
 				[{"l": "Отклонить: добиваться большего", "fx": {}}, {"l": "Принять предложение", "fx": {"support": {"Бизнес": 1.0}}}])
-	elif float(w["days"]) > 120.0 and absf(sc) < 12.0 and mil_rng.randf() < 0.3 and not (String(w["lead"]) == "RU" and ccode == "UA"):
+	elif float(w["days"]) > 120.0 and absf(sc) < 12.0 and mil_rng.randf() < 0.3 and not (String(w["lead"]) == "RU" and ccode == "UA" and not bool(mil.get("ldr_gone", false))):
 		w["offer_cd"] = 60
 		mil_event(["", "white"], "Фронт встал. «%s» предлагает белый мир — вернуться к довоенным границам. Военный счёт %+.0f." % [nm, sc],
 			[{"l": "Отклонить: воюем дальше", "fx": {}}, {"l": "Принять белый мир", "fx": {"support": {"Молодёжь": 2.0}}}])
@@ -2279,6 +2299,10 @@ func mil_don_full() -> bool:
 func mil_ai_stance() -> String:
 	if au_auth() and not bool(mil.get("ldr_gone", false)):
 		return "hard"
+	return war65_stance(mil_ai_stance0())
+
+
+func mil_ai_stance0() -> String:
 	var pm: int = int(opp_gov["pm"]) if (opp_mode and not opp_gov.is_empty()) else gov_pm_party()
 	var h: float = war_hawk(pm) if pm >= 0 and pm < PARTY_NAMES.size() else 0.6
 	if h <= -0.3:
