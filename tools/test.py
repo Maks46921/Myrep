@@ -13,7 +13,7 @@ import argparse, os, re, subprocess, sys, time, concurrent.futures as cf
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOGS = os.path.join(ROOT, '.testlogs')
 TEST_DIR = 'tests/'      # v54_1: --en -> en/tests/ (английская версия, собирается tools/i18n.py build)
-ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT MD BY UA RU'.split()
+ALL = 'DE FR NL BE LU AT CH CZ DK ES IT NO PL PT SE GB IE SI SK HU FI HR RS BA ME MK AL XK BG RO GR EE LV LT MD BY UA RU LI MT AD SM MC PM CY'.split()
 
 # имя: (скрипт, доп.аргументы, таймаут, нужен ли seed-эталон)
 TESTS = {
@@ -103,7 +103,7 @@ RULES = [  # (regex, функция-проверка значения -> тек�
     (r'расхождение с прежней моделью: макс ([\d.]+)', lambda v: 'агенты расходятся с моделью групп на %s п.п.' % v if float(v) > 1.0 else None),
     (r'группы: макс откл\. ([\d.]+)', lambda v: 'рейтинг группы != среднее агентов (%s)' % v if float(v) > 0.01 else None),
     (r'отношение ([\d.]+)', lambda v: 'полукруг: точки слипаются (%s)' % v if float(v) < 1.0 else None),
-    (r'(regional_econ false|регион-состояние false|регионов 0\b)', lambda v: 'покрытие: %s' % v),
+    (r'(regional_econ false|регион-состояние false|, регионов 0,)', lambda v: 'покрытие: %s' % v),
 ]
 
 

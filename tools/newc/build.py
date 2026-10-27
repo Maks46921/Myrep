@@ -36,6 +36,8 @@ def world_entry(cc):
                      "unrest": r["unrest"], "auto": r["auto"], "infra": r["infra"], "edu": r["edu"], "health": r["health"], "env": r["env"], "loy": r["loy"], "desc": r["desc"],
                      "sh": [round(x / s, 3) for x in E]})
     e["regions"] = regs; e["eu"] = bool(W["eu"]); e["euro"] = bool(W["euro"])
+    for k in ("short", "unrec", "patron", "claim"):       # 0.66: непризнанные страны (PM) и короткие названия
+        if k in W: e[k] = W[k]
     return e
 
 def project(lat, lon):
@@ -48,6 +50,7 @@ def main():
     W = datio.loadn(wp)
     for cc in NEWALL:
         W[cc] = world_entry(cc)
+    if "PM" in NEWALL: W.pop("PMR", None)                # 0.66: старая заготовка Приднестровья заменена играбельной страной PM
     datio.dump(wp, W)
     # --- таблицы в data_core.gd ---
     g = lambda n: gdconst.get(DC, n)

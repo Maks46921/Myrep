@@ -6,9 +6,9 @@ func _init():
 	for a in OS.get_cmdline_user_args():
 		if String(a).begins_with("out="): outp = String(a).substr(4)
 	var codes := ["DE", "FR", "NL", "BE", "LU", "AT", "CH", "CZ", "DK", "ES", "IT", "NO", "PL", "PT", "SE", "GB", "IE", "SI", "SK",
-		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR"]
+		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PM", "DNR", "LNR", "LI", "MT", "AD", "SM", "MC", "CY"]
 	var c := Control.new()
-	c.size = Vector2(1000, 660)
+	c.size = Vector2(1000, 760)
 	root.add_child(c)
 	c.draw.connect(func() -> void:
 		c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0.08, 0.09, 0.12))

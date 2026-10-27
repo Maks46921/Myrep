@@ -12,7 +12,7 @@ static func has(code: String) -> bool:
 	if db_has(code):
 		return true
 	return code in ["DE", "FR", "NL", "BE", "LU", "AT", "CH", "CZ", "DK", "ES", "IT", "NO", "PL", "PT", "SE", "GB", "IE", "SI", "SK",
-		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR",
+		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PM", "DNR", "LNR", "LI", "MT", "AD", "SM", "MC", "CY",
 		"US", "CN", "JP", "KR", "TR", "IN", "CA", "AE", "SA", "IL", "TW"]
 
 
@@ -231,10 +231,53 @@ static func px(code: String, u: float, v: float) -> Color:
 				var oy: float = fposmod(v * 7.0, 1.0)
 				return Color(0.78, 0.15, 0.17) if ox + absf(oy - 0.5) * 2.0 < 0.9 else WHITE
 			return Color(0.78, 0.15, 0.17) if v < 2.0 / 3.0 else Color(0.0, 0.60, 0.28)
-		"PMR":
+		"PM":
 			if circle(u, v, 0.17, 0.2, 0.06) or (u > 0.13 and u < 0.21 and v > 0.22 and v < 0.31 and absf(u - 0.17) < 0.04 + (v - 0.22) * 0.0):
 				return Color(1.0, 0.82, 0.0)
 			return Color(0.0, 0.47, 0.25) if absf(v - 0.5) < 0.10 else Color(0.75, 0.05, 0.10)
+		# 0.66: малые страны Европы и Кипр
+		"LI":
+			# синий над красным, золотая корона в верхнем левом углу
+			var lx: float = (u - 0.17) * 1.5
+			var ly: float = v - 0.24
+			if absf(lx) < 0.085 and ly > -0.07 and ly < 0.08 and (ly > 0.02 or fposmod(lx * 14.0, 2.0) < 1.0 or ly > -0.03):
+				return GOLD
+			return Color(0.0, 0.17, 0.53) if v < 0.5 else Color(0.80, 0.07, 0.15)
+		"MT":
+			# белое древко, красное полотнище, серебристый крест Святого Георгия
+			var mx: float = (u - 0.14) * 1.5
+			var my: float = v - 0.2
+			if (absf(mx) < 0.025 and absf(my) < 0.11) or (absf(my) < 0.025 and absf(mx) < 0.10):
+				return Color(0.62, 0.64, 0.68)
+			return WHITE if u < 0.5 else Color(0.81, 0.06, 0.18)
+		"AD":
+			# синий, жёлтый, красный (герб в середине)
+			var ax2: float = (u - 0.5) * 1.5
+			var ay2: float = v - 0.5
+			if absf(ax2) < 0.10 and ay2 > -0.17 and ay2 < 0.17 + (0.0 if ay2 < 0.05 else -ax2 * 0.0) and (ay2 < 0.07 or absf(ax2) < 0.10 - (ay2 - 0.07) * 0.9):
+				return Color(0.78, 0.18, 0.15) if (ay2 < 0.0) == (ax2 < 0.0) else Color(0.98, 0.80, 0.10).lerp(Color(0.75, 0.22, 0.12), 0.35)
+			return Color(0.0, 0.20, 0.60) if u < 0.28 else (Color(1.0, 0.82, 0.0) if u < 0.72 else Color(0.82, 0.07, 0.17))
+		"SM":
+			# белое над светло-голубым, герб с зелёным венком
+			var sx: float = (u - 0.5) * 1.5
+			var sy: float = v - 0.5
+			if circle(u, v, 0.5, 0.5, 0.17):
+				if circle(u, v, 0.5, 0.5, 0.11):
+					return Color(0.35, 0.60, 0.88) if sy < 0.0 else Color(0.97, 0.93, 0.80)
+				return Color(0.10, 0.55, 0.25)
+			return WHITE if v < 0.5 else Color(0.35, 0.67, 0.89)
+		"MC": return Color(0.81, 0.07, 0.17) if v < 0.5 else WHITE
+		"CY":
+			# белое полотнище, медный остров и две зелёные оливковые ветви
+			var cx2: float = (u - 0.5) * 1.5
+			var cy2: float = v - 0.42
+			if absf(cy2) < 0.12 and absf(cx2) < 0.25 - absf(cy2) * 0.9 and not (cx2 > 0.12 and cy2 < -0.05):
+				return Color(0.84, 0.50, 0.17)
+			if v > 0.68 and v < 0.84:
+				var br: float = absf(cx2) - 0.10
+				if br > 0.0 and br < 0.20 and absf(v - (0.84 - br * 0.9)) < 0.05:
+					return Color(0.15, 0.50, 0.20)
+			return WHITE
 		"DNR": return h3(v, BLACK, Color(0.0, 0.31, 0.65), Color(0.80, 0.08, 0.10))
 		"LNR": return h3(v, Color(0.36, 0.67, 0.92), Color(0.05, 0.20, 0.55), Color(0.80, 0.08, 0.10))
 		# v51: страны происхождения иностранных компаний

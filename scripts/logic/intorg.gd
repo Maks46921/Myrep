@@ -27,7 +27,7 @@ func rl_pc() -> float:
 
 
 const IO_EAST := ["PL", "CZ", "SK", "HU", "SI", "HR", "BG", "RO", "EE", "LV", "LT", "AT", "GR"]
-const IO_POSTSOV := ["RU", "BY", "UA", "MD", "EE", "LV", "LT"]
+const IO_POSTSOV := ["RU", "BY", "UA", "MD", "PM", "EE", "LV", "LT"]
 const IO_BLACKSEA := ["RU", "UA", "MD", "RO", "BG", "GR", "AL", "RS", "ME", "MK"]
 const IO_GEO := {"v4": ["PL", "CZ", "SK", "HU"], "benelux": ["BE", "NL", "LU"], "nordic": ["DK", "NO", "SE", "FI"], "baltic": ["EE", "LV", "LT"], "union": ["RU", "BY"]}
 
