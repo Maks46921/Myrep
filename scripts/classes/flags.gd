@@ -12,7 +12,7 @@ static func has(code: String) -> bool:
 	if db_has(code):
 		return true
 	return code in ["DE", "FR", "NL", "BE", "LU", "AT", "CH", "CZ", "DK", "ES", "IT", "NO", "PL", "PT", "SE", "GB", "IE", "SI", "SK",
-		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR",
+		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PM", "DNR", "LNR",
 		"US", "CN", "JP", "KR", "TR", "IN", "CA", "AE", "SA", "IL", "TW"]
 
 
@@ -231,7 +231,7 @@ static func px(code: String, u: float, v: float) -> Color:
 				var oy: float = fposmod(v * 7.0, 1.0)
 				return Color(0.78, 0.15, 0.17) if ox + absf(oy - 0.5) * 2.0 < 0.9 else WHITE
 			return Color(0.78, 0.15, 0.17) if v < 2.0 / 3.0 else Color(0.0, 0.60, 0.28)
-		"PMR":
+		"PM":
 			if circle(u, v, 0.17, 0.2, 0.06) or (u > 0.13 and u < 0.21 and v > 0.22 and v < 0.31 and absf(u - 0.17) < 0.04 + (v - 0.22) * 0.0):
 				return Color(1.0, 0.82, 0.0)
 			return Color(0.0, 0.47, 0.25) if absf(v - 0.5) < 0.10 else Color(0.75, 0.05, 0.10)

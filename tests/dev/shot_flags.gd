@@ -6,7 +6,7 @@ func _init():
 	for a in OS.get_cmdline_user_args():
 		if String(a).begins_with("out="): outp = String(a).substr(4)
 	var codes := ["DE", "FR", "NL", "BE", "LU", "AT", "CH", "CZ", "DK", "ES", "IT", "NO", "PL", "PT", "SE", "GB", "IE", "SI", "SK",
-		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PMR", "DNR", "LNR"]
+		"HU", "FI", "HR", "RS", "BA", "ME", "MK", "AL", "XK", "BG", "RO", "GR", "EE", "LV", "LT", "MD", "BY", "UA", "RU", "PM", "DNR", "LNR"]
 	var c := Control.new()
 	c.size = Vector2(1000, 660)
 	root.add_child(c)
