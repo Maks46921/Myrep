@@ -411,10 +411,97 @@ TYP2 = {
             "Организации, требующие автономии региона.", "Organisations demanding regional autonomy.", 5.0, 40, 15),
 }
 
+# 0.66: малые страны и Кипр
+SPEC.update({
+    "LI": [
+        ("li_prince", "nat", "Круг сторонников князя", "Circle of the Prince's supporters",
+         "Консервативные организации и семьи, считающие, что князь должен сохранить вето и власть над судьями. Мирные, но влиятельные.",
+         "Conservative groups and families who hold that the Prince must keep his veto and his say over judges. Peaceful but influential.",
+         4.0, 45, 8, ""),
+        ("li_veto", "civ", "Инициатива «Ограничить вето князя»", "“Limit the Prince's veto” initiative",
+         "Граждане, собирающие подписи за референдумы, где последнее слово остаётся за народом. В 2012 году такой референдум проиграл с большим отрывом.",
+         "Citizens collecting signatures for referendums where the people have the last word. A 2012 referendum of this kind lost by a wide margin.",
+         3.5, 30, 10, ""),
+    ],
+    "MT": [
+        ("mt_repub", "civ", "Движение «Республика» (Repubblika)", "The Repubblika movement",
+         "Юристы и журналисты после убийства Дафны Каруаны Галиции: расследования, суды и митинги против коррупции и безнаказанности.",
+         "Lawyers and journalists since the murder of Daphne Caruana Galizia: investigations, lawsuits and rallies against corruption and impunity.",
+         5.0, 40, 12, ""),
+        ("mt_hunt", "farm", "Охотничье и птицеловное лобби", "Hunting and trapping lobby",
+         "Охотники и ловцы птиц: давят на партии из-за сезонов и квот, дважды вынесли вопрос на референдум.",
+         "Hunters and bird trappers: they press the parties over seasons and quotas and twice forced a referendum.",
+         3.0, 55, 15, ""),
+        ("mt_patr", "nat", "Движение «Мальтийские патриоты»", "Maltese Patriots movement",
+         "Радикальные противники миграции из Африки и «продажи гражданства»: шествия и акции у лагерей мигрантов.",
+         "Radical opponents of migration from Africa and of selling citizenship: marches and actions outside migrant centres.",
+         2.0, 25, 50, ""),
+    ],
+    "AD": [
+        ("ad_eu", "civ", "Движение за ассоциацию с ЕС", "Movement for EU association",
+         "Предприниматели, молодёжь и часть парламента: требуют скорее подписать соглашение, чтобы жить и работать по всей Европе.",
+         "Business people, young voters and part of parliament who want the agreement signed soon so they can live and work across Europe.",
+         4.5, 35, 8, ""),
+        ("ad_rent", "civ", "Жилищное движение", "Housing movement",
+         "Работники и семьи, которых вытесняет дорогая аренда; собирают подписи за потолок цен и социальное жильё.",
+         "Workers and families priced out by high rents; they gather signatures for a rent cap and social housing.",
+         4.0, 30, 12, ""),
+    ],
+    "SM": [
+        ("sm_women", "civ", "Союз сан-маринских женщин", "Union of Sammarinese Women",
+         "Женские организации, добившиеся референдума 2021 года о легализации абортов; теперь следят за исполнением закона.",
+         "Women's organisations that won the 2021 referendum on legalising abortion; they now watch that the law is carried out.",
+         4.0, 40, 10, ""),
+        ("sm_eu", "civ", "Движение за ассоциацию с ЕС", "Movement for EU association",
+         "Сторонники соглашения с ЕС: в 2013 году референдум не набрал явку, но тема не уходит.",
+         "Backers of the EU agreement: the 2013 referendum missed the turnout threshold, but the topic does not go away.",
+         5.0, 35, 8, ""),
+    ],
+    "MC": [
+        ("mc_sea", "clim", "Против застройки моря", "Against sea-reclamation building",
+         "Жители и экологи, возражающие против новых намывных кварталов: петиции, лодочные акции и иски.",
+         "Residents and environmentalists who object to new land-reclamation districts: petitions, boat actions and lawsuits.",
+         2.5, 30, 12, ""),
+        ("mc_nat", "nat", "Союз коренных монегасков", "Union of native Monegasques",
+         "Гражданство даёт круг около 9 тысяч человек: они защищают приоритет коренных жителей в работе и жилье.",
+         "Citizenship covers a circle of about 9,000 people who defend priority for natives in jobs and housing.",
+         3.0, 50, 10, ""),
+    ],
+    "PM": [
+        ("pm_rus", "nat", "Движение за вхождение в Россию", "Movement to join Russia",
+         "Сторонники итогов референдума 2006 года: митинги у Верховного совета и письма в Москву. Опираются на русские части и школы.",
+         "Supporters of the 2006 referendum result: rallies by the Supreme Council and letters to Moscow. They rely on Russian schools and units.",
+         14.0, 55, 20, ""),
+        ("pm_reunif", "civ", "Движение за воссоединение с Молдовой", "Movement for reunification with Moldova",
+         "Предприниматели и молодёжь, живущие торговлей через Днестр и ЕС: требуют открытых границ и договорённости с Кишинёвом.",
+         "Business people and young people who live by trade across the Dniester and the EU: they want open borders and a deal with Chisinau.",
+         9.0, 25, 10, ""),
+        ("pm_steel", "lab", "Рабочие Рыбницкого меткомбината", "Rybnitsa steelworkers",
+         "Металлурги и энергетики, которых бьют перебои с газом и остановки заводов: стачки и требования к правительству.",
+         "Metalworkers and power-plant staff hit by gas shortages and plant stoppages: strikes and demands to the government.",
+         6.0, 45, 18, ""),
+    ],
+    "CY": [
+        ("cy_reunif", "peace", "Движение за воссоединение острова", "Movement for reunification of the island",
+         "Двухобщинные группы, молодёжь и бизнес: встречи через зелёную линию, давление на переговоры под эгидой ООН.",
+         "Bicommunal groups, young people and business: meetings across the green line, pressure for UN-led talks.",
+         6.0, 35, 8, ""),
+        ("cy_enosis", "nat", "Националисты (Энозис)", "Nationalists (Enosis)",
+         "Радикалы, отвергающие федерацию и требующие жёсткой линии к Турции. Заметны в футбольных клубах и среди ветеранов.",
+         "Radicals who reject a federation and demand a hard line toward Turkey. Visible in football clubs and among veterans.",
+         4.0, 40, 40, ""),
+        ("cy_church", "civ", "Церковь и верующие", "The Church and believers",
+         "Архиепископия — крупнейший землевладелец и общественная сила; влияет на мнение о воссоединении и школьных программах.",
+         "The Archbishopric is the largest landowner and a public force; it shapes opinion on reunification and school curricula.",
+         5.0, 55, 8, ""),
+    ],
+})
+
 COUNTRIES = ["AL", "AT", "BA", "BE", "BG", "BY", "CH", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IT",
-             "LT", "LU", "LV", "MD", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "RU", "SE", "SI", "SK", "UA", "XK"]
+             "LT", "LU", "LV", "MD", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "RU", "SE", "SI", "SK", "UA", "XK",
+             "LI", "MT", "AD", "SM", "MC", "PM", "CY"]
 # типовые движения по странам (без LU: нет фермеров)
-NO_FARM = {"LU"}
+NO_FARM = {"LU", "MC", "SM", "LI", "PM"}
 # сила типовых движений в стране: множитель и поправка — реальные особенности
 FACT = {
     "RU": {"lab": 0.5, "clim": 0.2, "stud": 0.5, "civ": 0.6, "nat": 1.0, "farm": 0.6},
@@ -426,12 +513,15 @@ FACT = {
     "PL": {"farm": 1.4, "nat": 1.2}, "HU": {"nat": 1.1}, "RS": {"stud": 1.3, "nat": 1.2}, "XK": {"nat": 1.4},
     "UA": {"nat": 1.0, "lab": 0.6, "clim": 0.3, "stud": 0.5},
     "MD": {"lab": 0.7, "clim": 0.3}, "BA": {"nat": 1.3, "lab": 0.7, "clim": 0.4}, "AL": {"clim": 0.5, "lab": 0.7},
-    "ME": {"clim": 0.5}, "MK": {"clim": 0.5}, "ES": {"stud": 1.1}, "PT": {"nat": 0.6}, "IE": {"nat": 0.8},
+    "ME": {"clim": 0.5}, "MK": {"clim": 0.5},
+    "LI": {"lab": 0.4, "nat": 0.4, "clim": 0.5, "stud": 0.5}, "MT": {"lab": 0.8, "clim": 0.4}, "AD": {"lab": 0.5, "clim": 0.4, "nat": 0.4},
+    "SM": {"lab": 0.8, "clim": 0.4, "nat": 0.4}, "MC": {"lab": 0.3, "clim": 0.3, "stud": 0.4}, "PM": {"lab": 0.7, "clim": 0.1, "stud": 0.4},
+    "CY": {"lab": 0.9, "clim": 0.5}, "ES": {"stud": 1.1}, "PT": {"nat": 0.6}, "IE": {"nat": 0.8},
 }
 # типовые не создаются там, где особое движение того же типа уже закрывает нишу
 SKIP_TYP = {"RU": ["civ"], "BY": ["civ"], "RS": ["stud"], "FR": ["lab"], "GB": ["lab", "clim"], "DE": ["clim", "nat", "farm"],
             "NL": ["farm", "clim"], "ES": ["civ"], "PL": ["farm"], "UA": ["civ", "nat"], "MD": ["nat"], "XK": ["nat"], "BE": ["lab"],
-            "GR": [], "PT": ["lab"], "HR": ["lab"], "HU": ["stud"], "FI": ["clim"], "SE": ["clim"], "CZ": ["civ"], "SK": ["civ"]}
+            "GR": [], "PT": ["lab"], "LI": ["civ"], "MT": ["civ", "farm", "nat"], "AD": ["civ"], "SM": ["civ"], "MC": ["clim", "nat"], "PM": ["nat", "civ", "lab"], "CY": ["nat", "civ"], "HR": ["lab"], "HU": ["stud"], "FI": ["clim"], "SE": ["clim"], "CZ": ["civ"], "SK": ["civ"]}
 
 
 def q(s):
